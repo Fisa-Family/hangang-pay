@@ -1,0 +1,89 @@
+# ─── Claude ───────────────────────────────────────────────
+.claude/
+
+# ─── macOS ────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# ─── IntelliJ IDEA ────────────────────────────────────────
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# ─── Secrets & Local Config ───────────────────────────────
+.env
+.env.*
+!.env.example
+application-*.yaml
+application-*.yml
+*.local.yaml
+*.local.yml
+
+# ─── TypeScript ───────────────────────────────────────────
+*.tsbuildinfo
+
+# ─── React / Next.js ──────────────────────────────────────
+node_modules/
+.next/
+out/
+dist/
+build/
+
+# Vite 캐시
+.vite/
+
+# React Compiler 캐시
+.react-compiler/
+
+# ─── 패키지 매니저 캐시 ────────────────────────────────────
+# npm
+.npm/
+
+# Yarn PnP
+.pnp.cjs
+.pnp.loader.mjs
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# pnpm
+.pnpm-store/
+
+# ─── 린터 / 포매터 캐시 ────────────────────────────────────
+.eslintcache
+.stylelintcache
+.prettiercache
+
+# ─── 테스트 / 커버리지 ─────────────────────────────────────
+coverage/
+coverage.json
+.jest-cache/
+.vitest/
+
+# ─── 빌드 툴 캐시 ─────────────────────────────────────────
+.turbo/
+.parcel-cache/
+.cache/
+.swc/
+
+# Storybook
+storybook-static/
+
+# ─── Hardhat / Truffle (hangang-pay-blockchain) ───────────
+artifacts/
+cache/
+typechain-types/
+
+# ─── Logs ─────────────────────────────────────────────────
+*.log
+logs/
+
+# ─── Windows ──────────────────────────────────────────────
+Thumbs.db
+Desktop.ini

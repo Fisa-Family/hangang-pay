@@ -1,0 +1,111 @@
+# REST API
+
+모든 API 경로 앞에는 `/api/v1` prefix를 붙인다. 아래 표의 path는 prefix를 제외한 경로다.
+
+## Common Rules
+
+- 인증 방식은 세션 기반이다. JWT로 변경하지 않는다.
+- `Auth` 값이 `O`이면 로그인 세션이 필요하다.
+- `Auth` 값이 `X`이면 비로그인 호출이 가능하다.
+- 모든 응답은 공통 래퍼를 사용한다.
+- 모든 엔드포인트에는 SpringDoc 어노테이션을 작성한다.
+- request/response JSON은 아직 확정하지 않는다. DTO 설계 시 사람이 직접 검토한다.
+- 결제 승인번호 형식은 `APV-YYYY-NNNNNNNN`이다.
+- 승인번호는 `payment.id`를 8자리 zero padding해서 생성한다. 예: `payment.id=25` -> `APV-2026-00000025`
+- 승인번호 생성은 `payment` 저장으로 id를 확보한 뒤 수행한다.
+
+```json
+{
+  "success": true,
+  "data": {},
+  "message": ""
+}
+```
+
+## Role Rules
+
+| Role | Meaning |
+| --- | --- |
+| `PUBLIC` | 비로그인 가능 |
+| `USER` | 소비자 세션 필요 |
+| `MERCHANT` | 가맹점 세션 필요 |
+| `USER | MERCHANT` | 소비자와 가맹점 모두 가능 |
+
+계좌와 지갑 잔액 API는 소비자/가맹점 모두 사용한다. 서비스가 분리되어 있더라도 현재 세션의 `partyId`를 기준으로 자신의 데이터만 조회·변경한다.
+
+## Payment Flow
+
+QR에는 가맹점 id가 들어있다. 소비자가 QR을 스캔하면 가맹점 정보를 조회하고, 금액 입력 화면으로 전환한 뒤 결제를 실행한다.
+
+```mermaid
+sequenceDiagram
+  participant U as User App
+  participant API as Backend API
+  participant BC as Blockchain
+
+  U->>U: QR scan
+  U->>API: GET /api/v1/payment/qr/{merchantId}
+  API-->>U: merchant payment target
+  U->>API: POST /api/v1/payment/execute
+  API->>BC: transfer
+  API-->>U: payment result
+```
+
+결제 취소는 시간 제한 없이 가능하다. 요청 주체는 가맹점이다.
+
+## Settlement and Exchange
+
+정산은 별도 배치나 적재 프로세스가 아니다. 소비자가 결제하면 가맹점 월렛으로 코인이 즉시 이체된다. 가맹점은 쌓인 코인을 1:1 비율로 계좌 환전할 수 있다.
+
+`/merchant/settlements`는 실제 정산 테이블 조회가 아니라 `payment`와 `payment_cancellation` 기반 기록 조회 API다.
+
+서비스 용어는 `exchange`와 `환전`을 사용한다.
+
+## Hold Policy
+
+| API ID | Status | Reason |
+| --- | --- | --- |
+| `AUTH-003` | 구현 예정 | 계좌 1원 인증 구현 예정. 인증 트랜잭션 테이블은 추후 추가 |
+| `AUTH-004` | 구현 예정 | 계좌 1원 인증 구현 예정. 인증 트랜잭션 테이블은 추후 추가 |
+| `WALLET-002` | 장기 보류 | 구현 복잡도 |
+
+SMS 인증은 Octomo를 사용한다. SMS 발송 API도 백엔드에 둔다.
+
+## API Catalog
+
+| ID | Name | Method | Path | Auth | Role | Notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| `ACCOUNT-001` | 등록 계좌 목록 조회 | `GET` | `/accounts` | `O` | `USER | MERCHANT` | 현재 세션의 `partyId` 기준 |
+| `ACCOUNT-002` | 계좌 추가 | `POST` | `/accounts` | `O` | `USER | MERCHANT` | 현재 세션의 `partyId` 기준 |
+| `ACCOUNT-003` | 계좌 삭제 | `DELETE` | `/accounts/{accountId}` | `O` | `USER | MERCHANT` | 본인 계좌만 삭제 |
+| `ACCOUNT-004` | 주거래 계좌 변경 | `PATCH` | `/accounts/{accountId}/primary` | `O` | `USER | MERCHANT` | 본인 계좌만 변경 |
+| `AUTH-001` | SMS 인증번호 발송 | `POST` | `/auth/sms/send` | `X` | `PUBLIC` | Octomo 사용 |
+| `AUTH-002` | SMS 인증번호 검증 | `POST` | `/auth/sms/verify` | `X` | `PUBLIC` | Octomo 사용 |
+| `AUTH-003` | 계좌 1원 인증 발송 | `POST` | `/auth/account/send` | `X` | `PUBLIC` | 구현 예정 |
+| `AUTH-004` | 계좌 1원 인증 검증 | `POST` | `/auth/account/verify` | `X` | `PUBLIC` | 구현 예정 |
+| `AUTH-005` | 비밀번호 재설정 | `PATCH` | `/auth/password/reset` | `X` | `PUBLIC` |  |
+| `CHARGE-001` | 충전 한도 조회 | `GET` | `/charge/limit` | `O` | `USER` | 소비자 전용 |
+| `CHARGE-002` | 충전 금액 및 할인 계산 | `POST` | `/charge/calculate` | `O` | `USER` | 소비자 전용 |
+| `CHARGE-003` | 충전 실행 | `POST` | `/charge/execute` | `O` | `USER` | 소비자 전용 |
+| `CHARGE-004` | 충전 상태 조회 | `GET` | `/charge/{chargeId}/status` | `O` | `USER` | 소비자 전용 |
+| `CHARGE-005` | 충전 영수증 조회 | `GET` | `/charge/{chargeId}/receipt` | `O` | `USER` | 소비자 전용 |
+| `LOGIN-001` | 로그인 (소비자) | `POST` | `/auth/users/login` | `X` | `PUBLIC` | 세션 생성 |
+| `LOGIN-002` | 로그인 (가맹점) | `POST` | `/auth/merchants/login` | `X` | `PUBLIC` | 세션 생성 |
+| `MERCHANT-001` | 가맹점 매출 요약 조회 | `GET` | `/merchant/dashboard` | `O` | `MERCHANT` | 가맹점 전용 |
+| `MERCHANT-002` | 가맹점 결제 내역 조회 | `GET` | `/merchant/payments` | `O` | `MERCHANT` | 가맹점 전용 |
+| `MERCHANT-003` | 결제 취소 | `POST` | `/merchant/payments/{paymentId}/cancel` | `O` | `MERCHANT` | 시간 제한 없음 |
+| `MERCHANT-004` | 가맹점 정산 내역 조회 | `GET` | `/merchant/settlements` | `O` | `MERCHANT` | `payment`/`payment_cancellation` 기반 기록 조회 |
+| `MY-001` | 사용자 프로필 조회 | `GET` | `/users/profile` | `O` | `USER` | 소비자 전용 |
+| `MY-002` | 소비자 결제 내역 조회 | `GET` | `/users/payments` | `O` | `USER` | 소비자 전용 |
+| `MY-003` | 충전 내역 조회 | `GET` | `/users/charges` | `O` | `USER` | 소비자 전용 |
+| `MY-004` | 환전 내역 조회 | `GET` | `/users/exchange` | `O` | `USER` | 소비자 전용 내역 |
+| `PAY-001` | QR 가맹점 정보 조회 | `GET` | `/payment/qr/{merchantId}` | `O` | `USER` | QR 스캔 후 결제 플로우 진입 |
+| `PAY-002` | 결제 실행 | `POST` | `/payment/execute` | `O` | `USER` | 소비자 전용 |
+| `REFUND-001` | 환전 가능 여부 조회 | `GET` | `/exchange/eligibility` | `O` | `USER | MERCHANT` | 서비스 용어는 환전 |
+| `REFUND-002` | 환전 예정 금액 조회 | `GET` | `/exchange/preview` | `O` | `USER | MERCHANT` | 서비스 용어는 환전 |
+| `REFUND-003` | 환전 신청 실행 | `POST` | `/exchange/execute` | `O` | `USER | MERCHANT` | 서비스 용어는 환전 |
+| `REG-001` | 아이디 중복 확인 | `GET` | `/users/check` | `X` | `PUBLIC` | trailing slash 제거 |
+| `REG-002` | 소비자 회원가입 | `POST` | `/users/register` | `X` | `PUBLIC` |  |
+| `REG-003` | 가맹점 등록 | `POST` | `/merchants/register` | `X` | `PUBLIC` |  |
+| `WALLET-001` | 잔액 조회 | `GET` | `/wallet/balance` | `O` | `USER | MERCHANT` | 역할별 서비스/응답 분리 가능 |
+| `WALLET-002` | 근처 가맹점 조회 | `GET` | `/merchants/nearby` | `O` | `USER` | 장기 보류, 구현 복잡도 |
