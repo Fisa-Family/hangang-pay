@@ -1,47 +1,51 @@
 package family.fisa.hangangpay.domain.user.entity;
 
 import family.fisa.hangangpay.domain.party.entity.Party;
+import family.fisa.hangangpay.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users")
-@EntityListeners(AuditingEntityListener.class)
 @Getter
+@Builder
+@AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class User {
+public class User extends BaseEntity {
 
+    /** 식별자 */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** 상위 Party (party.id) */
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "party_id", nullable = false, unique = true)
     private Party party;
 
+    /** 로그인 아이디 */
     @Column(nullable = false, unique = true)
     private String username;
 
+    /** 비밀번호 해시 */
     @Column(nullable = false)
     private String passwordHash;
 
+    /** 이름(닉네임) */
     private String nickname;
+
+    /** 휴대폰 번호 */
     private String phoneNumber;
+
+    /** 생년월일 */
     private LocalDate birthDate;
+
+    /** 거주 지역 */
     private String region;
-
-    @CreatedDate
-    @Column(updatable = false)
-    private LocalDateTime createdAt;
-
-    @LastModifiedDate
-    private LocalDateTime updatedAt;
 }
