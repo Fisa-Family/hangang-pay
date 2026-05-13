@@ -1,14 +1,15 @@
 package family.fisa.hangangpay.global.exception;
 
+import family.fisa.hangangpay.global.code.error.BaseErrorCode;
 import lombok.Getter;
 
 @Getter
 public class BusinessException extends RuntimeException {
 
-    private final ErrorCode errorCode;
+    private final BaseErrorCode code;
 
-    public BusinessException(ErrorCode errorCode) {
+    public BusinessException(BaseErrorCode errorCode) {
         super(errorCode.getMessage());
-        this.errorCode = errorCode;
+        this.code = errorCode;
     }
 }

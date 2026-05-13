@@ -15,20 +15,15 @@ public class SwaggerConfig {
 
     @Bean
     public OpenAPI swagger() {
-        SecurityScheme sessionAuth = new SecurityScheme()
-            .type(Type.APIKEY)
-            .in(In.COOKIE)
-            .name("JSESSIONID");
+        SecurityScheme sessionAuth =
+                new SecurityScheme().type(Type.APIKEY).in(In.COOKIE).name("JSESSIONID");
 
-
-        Info info = new Info()
-            .title("Hangang Pay")
-            .description("CBDC 기반 소상공인 결제 서비스").version("0.0.1");
+        Info info =
+                new Info().title("Hangang Pay").description("CBDC 기반 소상공인 결제 서비스").version("0.0.1");
 
         return new OpenAPI()
-            .info(info)
-            .components(new Components()
-                .addSecuritySchemes("sessionAuth", sessionAuth))
-            .addSecurityItem(new SecurityRequirement().addList("sessionAuth"));
+                .info(info)
+                .components(new Components().addSecuritySchemes("sessionAuth", sessionAuth))
+                .addSecurityItem(new SecurityRequirement().addList("sessionAuth"));
     }
 }
