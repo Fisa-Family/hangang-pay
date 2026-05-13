@@ -1,0 +1,10 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=MYSQL;DB_CLOSE_DELAY=-1 #MODE=MYSQL (문법 기준) , -1: 커넥션 닫혀도 DB 삭제 방지
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
