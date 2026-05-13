@@ -7,5 +7,4 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/exchange")
 @RequiredArgsConstructor
-public class ExchangeController {
-}
+public class ExchangeController {}

@@ -2,13 +2,12 @@ package family.fisa.hangangpay.domain.institution.entity;
 
 import family.fisa.hangangpay.global.entity.BaseEntity;
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.math.BigDecimal;
 
 @Entity
 @Table(name = "bank_wallet")

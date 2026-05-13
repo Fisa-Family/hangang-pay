@@ -1,4 +1,3 @@
 package family.fisa.hangangpay.domain.user.dto;
 
-public class UserProfileResponse {
-}
+public class UserProfileResponse {}

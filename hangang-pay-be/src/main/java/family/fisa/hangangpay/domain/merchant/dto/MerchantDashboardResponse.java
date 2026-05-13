@@ -1,4 +1,3 @@
 package family.fisa.hangangpay.domain.merchant.dto;
 
-public class MerchantDashboardResponse {
-}
+public class MerchantDashboardResponse {}

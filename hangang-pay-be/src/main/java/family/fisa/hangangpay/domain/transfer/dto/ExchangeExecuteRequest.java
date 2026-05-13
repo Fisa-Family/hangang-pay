@@ -1,4 +1,3 @@
 package family.fisa.hangangpay.domain.transfer.dto;
 
-public class ExchangeExecuteRequest {
-}
+public class ExchangeExecuteRequest {}

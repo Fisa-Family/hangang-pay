@@ -1,4 +1,3 @@
 package family.fisa.hangangpay.domain.user.dto;
 
-public class UserRegisterRequest {
-}
+public class UserRegisterRequest {}

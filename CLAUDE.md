@@ -98,12 +98,8 @@ flowchart TD
 
 브랜치는 반드시 Jira 이슈에서 생성. `main`은 보호 브랜치(직접 push 금지).
 
-네이밍: `{type}/HANGANG-{번호}-{설명}`
-```
-feat/HANGANG-21-charge-api
-fix/HANGANG-31-token-decimal-overflow
-chore/HANGANG-15-genesis-config
-```
+네이밍: `HANGANG-{번호}-{설명}`
+
 
 Types: `feat` `fix` `chore` `refactor` `docs` `test` `style`
 
