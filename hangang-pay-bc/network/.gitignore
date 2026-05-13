@@ -1,0 +1,7 @@
+# Besu node runtime data
+node-*/data/database/
+node-*/data/caches/
+node-*/data/DATABASE_METADATA.json
+node-*/data/VERSION_METADATA.json
+node-*/data/besu.networks
+node-*/data/besu.ports
