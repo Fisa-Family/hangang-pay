@@ -1,4 +1,3 @@
 package family.fisa.hangangpay.domain.account.dto;
 
-public class AccountAddRequest {
-}
+public class AccountAddRequest {}

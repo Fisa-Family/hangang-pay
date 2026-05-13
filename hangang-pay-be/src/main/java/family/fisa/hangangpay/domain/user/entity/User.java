@@ -3,13 +3,12 @@ package family.fisa.hangangpay.domain.user.entity;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.global.entity.BaseEntity;
 import jakarta.persistence.*;
+import java.time.LocalDate;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDate;
 
 @Entity
 @Table(name = "users")
