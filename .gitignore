@@ -19,8 +19,8 @@
 .env
 .env.*
 !.env.example
-application-*.yaml
-application-*.yml
+application-local.yaml
+application-local.yml
 *.local.yaml
 *.local.yml
 
