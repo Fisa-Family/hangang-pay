@@ -23,3 +23,4 @@ docker compose up -d
 ## TODO
 온프레미스 또는 AWS 세팅 시 private key 새로 생성해야합니다. 현재 genesis.json에 있는 키 그대로 쓰면 안됩니다.
 
+TODO: 토큰 초기 발행량 근거 작성하기

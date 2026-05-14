@@ -15,6 +15,9 @@
 *.iws
 *.ipr
 
+# ─── IntelliJ IDEA ────────────────────────────────────────
+.vscode/
+
 # ─── Secrets & Local Config ───────────────────────────────
 .env
 .env.*
