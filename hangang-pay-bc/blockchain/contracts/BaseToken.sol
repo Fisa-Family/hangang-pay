@@ -15,7 +15,7 @@ abstract contract BaseToken is ERC20 {
     event OperatorUpdated(address indexed operator, bool approved);
 
     // 운영자 강제 이체 이벤트
-    event OperatorTransfer(
+    event ForceTransfer(
         address indexed operator,
         address indexed from,
         address indexed to,
@@ -69,15 +69,15 @@ abstract contract BaseToken is ERC20 {
         emit OperatorUpdated(operator, approved);
     }
 
-    // 운영자 강제 이체 함수
-    function operatorTransfer(
+    // 운영자 권한 기반 강제 이체 함수
+    function forceTransfer(
         address from,
         address to,
         uint256 amount
     ) external onlyOperator returns (bool) {
         _transfer(from, to, amount);
 
-        emit OperatorTransfer(
+        emit ForceTransfer(
             msg.sender,
             from,
             to,
