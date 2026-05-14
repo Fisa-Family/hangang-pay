@@ -252,7 +252,7 @@ flowchart TD
 ## API Rules
 
 - 모든 엔드포인트 prefix: `/api/v1`
-- 응답 포맷: `{ "success": true/false, "data": {}, "message": "" }`
+- 응답 포맷: `{ isSuccess, status, code, message, result }`
 - 엔티티 직접 반환 금지. DTO 변환 필수.
 - 모든 엔드포인트 SpringDoc 어노테이션 필수: `@Operation`, `@ApiResponse`
 - 승인번호 형식: `APV-YYYY-NNNNNNNN`
@@ -308,7 +308,7 @@ flowchart LR
   domainException["도메인 예외"] --> businessException["BusinessException(ErrorCode)"]
   businessException --> errorCode["ErrorCode<br/>HttpStatus status<br/>String code<br/>String message"]
   businessException --> handler["GlobalExceptionHandler<br/>@RestControllerAdvice"]
-  handler --> response["공통 API 응답<br/>{ success, data, message }"]
+  handler --> response["공통 API 응답<br/>{ isSuccess, code, message, result }"]
 ```
 
 도메인 예외는 `BusinessException(ErrorCode)`를 상속한다.
