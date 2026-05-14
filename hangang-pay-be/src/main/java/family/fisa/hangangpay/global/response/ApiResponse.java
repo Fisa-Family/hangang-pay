@@ -64,13 +64,12 @@ public class ApiResponse<T> {
     }
 
     /** 실패 + 반환 값 있음 */
-    public static <T> ApiResponse<T> onFailure(
-            HttpStatus status, String code, String message, boolean isSuccess, T result) {
+    public static <T> ApiResponse<T> onFailure(BaseErrorCode errorCode, T result) {
         return ApiResponse.<T>builder()
-                .isSuccess(isSuccess)
-                .status(status)
-                .code(code)
-                .message(message)
+                .isSuccess(false)
+                .status(errorCode.getStatus())
+                .code(errorCode.getCode())
+                .message(errorCode.getMessage())
                 .result(result)
                 .build();
     }
