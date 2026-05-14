@@ -8,7 +8,6 @@ import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.method.MethodValidationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -35,7 +34,7 @@ public class GlobalExceptionHandler {
     /**
      * @Valid 유효성 검사 실패시 발생하는 예외
      */
-    @ExceptionHandler(MethodValidationException.class)
+    @ExceptionHandler(MethodArgumentNotValidException.class)
     private ResponseEntity<ApiResponse<Map<String, String>>> handleMethodArgumentNotValidException(
             MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();

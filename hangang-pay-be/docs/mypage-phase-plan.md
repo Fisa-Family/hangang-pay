@@ -10,7 +10,7 @@
 - 산출물:
   - `ApiResponse` 기존 규격 고정 (`isSuccess/status/code/message/result`)
   - 마이페이지 조회 응답 DTO 정의
-    - `UserProfileResponse` (`name`, `createdAt`)
+    - `UserProfileResponse` (`name`, `region`, `createdAt`)
     - `UserPaymentHistoryResponse`
     - `UserPaymentHistoryListResponse`
   - `GlobalExceptionHandler` 매핑 정리
@@ -29,10 +29,26 @@
   - MY-001/MY-002 선행 계약(성공/실패 JSON)이 테스트로 고정됨
   - 예외 응답이 공통 포맷으로 일관 반환됨
 
-2. **Phase 2 - HANGANG-82 (API 예외 및 에러 처리 로직)**
-- 산출물: `ErrorCode`, `BusinessException`, `GlobalExceptionHandler` 매핑 구현.
-- 테스트: validation 예외 매핑, 인증/권한/데이터 없음 등 비즈니스 예외 매핑.
-- 완료 기준(DoD): 예외 발생 시 항상 `ApiResponse` 공통 포맷(`isSuccess/status/code/message/result`)으로 일관 응답.
+2. **Phase 2 - HANGANG-82 (마이페이지 메인 예외 및 에러 처리 로직)**
+- 범위:
+  - 마이페이지 메인 화면의 프로필 카드 조회 실패 처리만 다룬다.
+  - 결제내역/충전내역/환전내역/계좌 관리는 각 메뉴의 후속 API 책임으로 분리한다.
+  - 별도 `domain/mypage`나 `MypageErrorCode`를 만들지 않고 `user` 도메인 에러코드로 관리한다.
+- 산출물:
+  - `domain/user/code/error/UserErrorCode.java`에 마이페이지 메인 조회에 필요한 사용자 조회 실패 에러 추가
+  - `BusinessException`과 `GlobalExceptionHandler`를 통한 공통 실패 응답 매핑
+  - validation 실패 시 `ApiResponse` 공통 포맷 유지
+- 에러 후보:
+  - `USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER404_0", "사용자를 찾을 수 없습니다")`: 세션의 사용자 식별자는 있으나 DB에서 사용자를 찾을 수 없는 경우
+- 제외 항목:
+  - 결제내역 없음 에러
+  - 충전내역 없음 에러
+  - 환전내역 없음 에러
+  - 계좌 없음 에러
+  - 인증 없음/권한 없음 직접 처리
+- 완료 기준(DoD):
+  - 마이페이지 메인 조회 중 사용자 정보가 없으면 `ApiResponse` 실패 포맷으로 응답한다.
+  - 인증/권한 실패는 Security Filter 책임으로 유지한다.
 
 3. **Phase 3 - HANGANG-80 (프로필 조회 API 설계/구현)**
 - 산출물: `GET /api/v1/users/profile` (인증 사용자 본인 기준 조회), 응답 DTO 매핑.
@@ -61,7 +77,7 @@
   - 결제내역은 `200 + empty list`
   - 프로필은 도메인 정책에 맞는 명시 예외 처리
 - 프로필 표시 정책:
-  - 화면 노출 필드는 `name`, `createdAt`만 사용
+  - 화면 노출 필드는 `name`, `region`, `createdAt`만 사용
   - `name`은 내부적으로 `User.nickname`을 매핑해 제공
 
 ## Test Plan by Phase
