@@ -125,6 +125,9 @@ GitHub Actions automation is planned but not yet implemented. Until then, run th
 
 ## Relation to BE Database
 
+> Note: For the BE-side institution error code definitions and naming conventions, see `#sym:InstitutionErrorCode`.
+> This reference points to the `InstitutionErrorCode` enum in the BE module, which shows the domain-prefixed error codes used for institution-related failures.
+
 These ERD tables are managed by the BE but directly depend on what is deployed in bc:
 
 | Table | Relevance |
