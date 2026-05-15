@@ -10,13 +10,13 @@ public class WalletKeyCipher {
 
     public Credentials decryptCredentials(String encryptedPrivateKey) {
         if (encryptedPrivateKey == null || encryptedPrivateKey.isBlank()) {
-            throw new BusinessException(InstitutionErrorCode.INVALID_WALLET_KEY);
+            throw new BusinessException(InstitutionErrorCode.INSTITUTION_INVALID_WALLET_KEY);
         }
 
         try {
             return Credentials.create(stripHexPrefix(encryptedPrivateKey.trim()));
         } catch (RuntimeException e) {
-            throw new BusinessException(InstitutionErrorCode.INVALID_WALLET_KEY);
+            throw new BusinessException(InstitutionErrorCode.INSTITUTION_INVALID_WALLET_KEY);
         }
     }
 

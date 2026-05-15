@@ -6,6 +6,7 @@ import family.fisa.hangangpay.domain.institution.dto.DeployContractResponse;
 import family.fisa.hangangpay.domain.institution.entity.ContractAddress;
 import family.fisa.hangangpay.domain.institution.entity.ContractType;
 import family.fisa.hangangpay.domain.institution.entity.Institution;
+import family.fisa.hangangpay.domain.institution.entity.InstitutionCode;
 import family.fisa.hangangpay.domain.institution.repository.ContractAddressRepository;
 import family.fisa.hangangpay.domain.institution.repository.InstitutionRepository;
 import family.fisa.hangangpay.global.exception.BusinessException;
@@ -14,6 +15,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.web3j.abi.FunctionEncoder;
@@ -48,8 +50,9 @@ public class InstitutionDeployService {
     private static final BigInteger PRIVATE_NETWORK_GAS_PRICE = BigInteger.ZERO;
     private static final int RECEIPT_POLLING_ATTEMPTS = 60;
     private static final long RECEIPT_POLLING_INTERVAL_MS = 1_000L;
-    private static final long PRIVATE_NETWORK_CHAIN_ID = 1337L;
-    private static final String CBDC_INSTITUTION_CODE = "BoK";
+
+    @Value("${blockchain.private-network.chain-id}")
+    private long privateNetworkChainId;
 
     private final TokenArtifactLoader tokenArtifactLoader;
     private final WalletKeyCipher walletKeyCipher;
@@ -63,8 +66,11 @@ public class InstitutionDeployService {
     public DeployAllContractsResponse deployAll() {
         Institution centralBank =
                 institutionRepository
-                        .findByInstitutionCode(CBDC_INSTITUTION_CODE)
-                        .orElseThrow(() -> new BusinessException(InstitutionErrorCode.NOT_FOUND));
+                        .findByInstitutionCode(InstitutionCode.BOK.getCode())
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                InstitutionErrorCode.INSTITUTION_NOT_FOUND));
 
         List<DeployContractResponse> responses = new ArrayList<>();
 
@@ -94,7 +100,7 @@ public class InstitutionDeployService {
                 .ifPresent(
                         existing -> {
                             throw new BusinessException(
-                                    InstitutionErrorCode.CONTRACT_ALREADY_DEPLOYED);
+                                    InstitutionErrorCode.INSTITUTION_CONTRACT_ALREADY_DEPLOYED);
                         });
 
         Credentials credentials =
@@ -105,7 +111,7 @@ public class InstitutionDeployService {
 
         try {
             RawTransactionManager transactionManager =
-                    new RawTransactionManager(web3j, credentials, PRIVATE_NETWORK_CHAIN_ID);
+                    new RawTransactionManager(web3j, credentials, privateNetworkChainId);
 
             TransactionReceipt receipt =
                     deployContract(
@@ -137,7 +143,7 @@ public class InstitutionDeployService {
                     institution.getRpcEndpoint(),
                     credentials.getAddress());
         } catch (IOException e) {
-            throw new BusinessException(InstitutionErrorCode.BLOCKCHAIN_RPC_FAILED);
+            throw new BusinessException(InstitutionErrorCode.INSTITUTION_BLOCKCHAIN_RPC_FAILED);
         } finally {
             web3j.shutdown();
         }
@@ -158,7 +164,7 @@ public class InstitutionDeployService {
                         .send();
 
         if (nonceResponse.hasError()) {
-            throw new BusinessException(InstitutionErrorCode.BLOCKCHAIN_RPC_FAILED);
+            throw new BusinessException(InstitutionErrorCode.INSTITUTION_BLOCKCHAIN_RPC_FAILED);
         }
 
         RawTransaction deployTransaction =
@@ -172,17 +178,18 @@ public class InstitutionDeployService {
         EthSendTransaction sendResponse = transactionManager.signAndSend(deployTransaction);
 
         if (sendResponse.hasError()) {
-            throw new BusinessException(InstitutionErrorCode.BLOCKCHAIN_RPC_FAILED);
+            throw new BusinessException(InstitutionErrorCode.INSTITUTION_BLOCKCHAIN_RPC_FAILED);
         }
 
         TransactionReceipt receipt = waitForReceipt(web3j, sendResponse.getTransactionHash());
 
         if (!receipt.isStatusOK()) {
-            throw new BusinessException(InstitutionErrorCode.TRANSACTION_REVERTED);
+            throw new BusinessException(InstitutionErrorCode.INSTITUTION_TRANSACTION_REVERTED);
         }
 
         if (receipt.getContractAddress() == null || receipt.getContractAddress().isBlank()) {
-            throw new BusinessException(InstitutionErrorCode.DEPLOYMENT_RECEIPT_MISSING);
+            throw new BusinessException(
+                    InstitutionErrorCode.INSTITUTION_DEPLOYMENT_RECEIPT_MISSING);
         }
 
         return receipt;
@@ -201,7 +208,7 @@ public class InstitutionDeployService {
 
         try {
             RawTransactionManager transactionManager =
-                    new RawTransactionManager(web3j, credentials, PRIVATE_NETWORK_CHAIN_ID);
+                    new RawTransactionManager(web3j, credentials, privateNetworkChainId);
 
             for (ContractAddress contractAddress :
                     contractAddressRepository.findAllByName(ContractType.DEPOSIT_TOKEN)) {
@@ -267,7 +274,7 @@ public class InstitutionDeployService {
             try {
                 RawTransactionManager ownerTransactionManager =
                         new RawTransactionManager(
-                                ownerWeb3j, ownerCredentials, PRIVATE_NETWORK_CHAIN_ID);
+                                ownerWeb3j, ownerCredentials, privateNetworkChainId);
 
                 callSetOperator(
                         ownerWeb3j,
@@ -319,7 +326,7 @@ public class InstitutionDeployService {
                         .send();
 
         if (nonceResponse.hasError()) {
-            throw new BusinessException(InstitutionErrorCode.BLOCKCHAIN_RPC_FAILED);
+            throw new BusinessException(InstitutionErrorCode.INSTITUTION_BLOCKCHAIN_RPC_FAILED);
         }
 
         RawTransaction transaction =
@@ -334,13 +341,13 @@ public class InstitutionDeployService {
         EthSendTransaction sendResponse = transactionManager.signAndSend(transaction);
 
         if (sendResponse.hasError()) {
-            throw new BusinessException(InstitutionErrorCode.BLOCKCHAIN_RPC_FAILED);
+            throw new BusinessException(InstitutionErrorCode.INSTITUTION_BLOCKCHAIN_RPC_FAILED);
         }
 
         TransactionReceipt receipt = waitForReceipt(web3j, sendResponse.getTransactionHash());
 
         if (!receipt.isStatusOK()) {
-            throw new BusinessException(InstitutionErrorCode.TRANSACTION_REVERTED);
+            throw new BusinessException(InstitutionErrorCode.INSTITUTION_TRANSACTION_REVERTED);
         }
 
         return receipt;
@@ -354,28 +361,28 @@ public class InstitutionDeployService {
 
             return processor.waitForTransactionReceipt(transactionHash);
         } catch (IOException | TransactionException e) {
-            throw new BusinessException(InstitutionErrorCode.RECEIPT_TIMEOUT);
+            throw new BusinessException(InstitutionErrorCode.INSTITUTION_RECEIPT_TIMEOUT);
         }
     }
 
     private static void validateSignerAddress(Institution institution, Credentials credentials) {
         if (!institution.getWalletAddress().equalsIgnoreCase(credentials.getAddress())) {
-            throw new BusinessException(InstitutionErrorCode.INVALID_WALLET_KEY);
+            throw new BusinessException(InstitutionErrorCode.INSTITUTION_INVALID_WALLET_KEY);
         }
     }
 
     private static void validateInstitutionDeploymentInfo(Institution institution) {
         if (institution.getWalletAddress() == null || institution.getWalletAddress().isBlank()) {
-            throw new BusinessException(InstitutionErrorCode.MISSING_DEPLOYMENT_INFO);
+            throw new BusinessException(InstitutionErrorCode.INSTITUTION_MISSING_DEPLOYMENT_INFO);
         }
 
         if (institution.getEncryptedPrivateKey() == null
                 || institution.getEncryptedPrivateKey().isBlank()) {
-            throw new BusinessException(InstitutionErrorCode.MISSING_DEPLOYMENT_INFO);
+            throw new BusinessException(InstitutionErrorCode.INSTITUTION_MISSING_DEPLOYMENT_INFO);
         }
 
         if (institution.getRpcEndpoint() == null || institution.getRpcEndpoint().isBlank()) {
-            throw new BusinessException(InstitutionErrorCode.MISSING_DEPLOYMENT_INFO);
+            throw new BusinessException(InstitutionErrorCode.INSTITUTION_MISSING_DEPLOYMENT_INFO);
         }
     }
 
@@ -398,7 +405,8 @@ public class InstitutionDeployService {
                             List.of(
                                     new Address(
                                             resolveContractAddress(
-                                                    CBDC_INSTITUTION_CODE, ContractType.CBDC))));
+                                                    InstitutionCode.BOK.getCode(),
+                                                    ContractType.CBDC))));
         };
     }
 
@@ -415,7 +423,7 @@ public class InstitutionDeployService {
     }
 
     private static boolean isCentralBank(Institution institution) {
-        return CBDC_INSTITUTION_CODE.equalsIgnoreCase(institution.getInstitutionCode());
+        return InstitutionCode.BOK.getCode().equalsIgnoreCase(institution.getInstitutionCode());
     }
 
     private String resolveContractAddress(String institutionCode, ContractType contractType) {
@@ -423,6 +431,8 @@ public class InstitutionDeployService {
                 .findByInstitutionInstitutionCodeAndName(institutionCode, contractType)
                 .map(ContractAddress::getAddress)
                 .orElseThrow(
-                        () -> new BusinessException(InstitutionErrorCode.CONTRACT_NOT_DEPLOYED));
+                        () ->
+                                new BusinessException(
+                                        InstitutionErrorCode.INSTITUTION_CONTRACT_NOT_DEPLOYED));
     }
 }

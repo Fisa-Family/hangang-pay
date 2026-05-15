@@ -3,6 +3,7 @@ package family.fisa.hangangpay.domain.institution.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import family.fisa.hangangpay.domain.institution.code.error.InstitutionErrorCode;
+import family.fisa.hangangpay.domain.institution.dto.ContractArtifact;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -38,7 +39,7 @@ public class TokenArtifactLoader {
         ClassPathResource resource = new ClassPathResource(CONTRACT_ARTIFACT_PATH + filename);
 
         if (!resource.exists()) {
-            throw new BusinessException(InstitutionErrorCode.ARTIFACT_NOT_FOUND);
+            throw new BusinessException(InstitutionErrorCode.INSTITUTION_ARTIFACT_NOT_FOUND);
         }
 
         try (InputStream inputStream = resource.getInputStream()) {
@@ -46,12 +47,12 @@ public class TokenArtifactLoader {
             String bytecode = artifact.path("bytecode").asText();
 
             if (bytecode == null || bytecode.isBlank()) {
-                throw new BusinessException(InstitutionErrorCode.ARTIFACT_NOT_FOUND);
+                throw new BusinessException(InstitutionErrorCode.INSTITUTION_ARTIFACT_NOT_FOUND);
             }
 
             return new ContractArtifact(bytecode);
         } catch (IOException e) {
-            throw new BusinessException(InstitutionErrorCode.ARTIFACT_NOT_FOUND);
+            throw new BusinessException(InstitutionErrorCode.INSTITUTION_ARTIFACT_NOT_FOUND);
         }
     }
 }
