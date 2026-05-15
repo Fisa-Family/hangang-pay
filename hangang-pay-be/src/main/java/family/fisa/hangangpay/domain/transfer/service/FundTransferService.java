@@ -1,6 +1,7 @@
 package family.fisa.hangangpay.domain.transfer.service;
 
 import family.fisa.hangangpay.domain.transfer.dto.ChargeHistoryItem;
+import family.fisa.hangangpay.domain.transfer.dto.ExchangeHistoryItem;
 import family.fisa.hangangpay.domain.transfer.repository.FundTransferRepository;
 import family.fisa.hangangpay.domain.user.code.error.UserErrorCode;
 import family.fisa.hangangpay.domain.user.repository.UserRepository;
@@ -47,6 +48,27 @@ public class FundTransferService {
 
         // 4. CursorPageResponse 변환 위임
         return paginationService.toCursorPage(window);
+    }
+
+    /** FundTransfer 내부 REFUND 타입 내역 조회 */
+    public CursorPageResponse<ExchangeHistoryItem> getExchangeHistories(
+            Long userId, CursorPageRequest request) {
+
+        // 1. UserId 기반 partyId 조회
+        Long partyId =
+                userRepository
+                        .findPartyIdByUserId(userId)
+                        .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+        // 2. cursor ScrollPosition 변환
+        ScrollPosition position = toScrollPosition(request);
+
+        // 3. 환전 내역 조회
+        Window<ExchangeHistoryItem> chargeHistoriesByPartyId =
+                fundTransferRepository.findExchangeHistoriesByPartyId(
+                        partyId, position, Limit.of(PAGE_SIZE));
+
+        return paginationService.toCursorPage(chargeHistoriesByPartyId);
     }
 
     private ScrollPosition toScrollPosition(CursorPageRequest request) {
