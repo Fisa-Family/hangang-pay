@@ -1,10 +1,5 @@
 package family.fisa.hangangpay.domain.institution.controller;
 
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
 import family.fisa.hangangpay.domain.institution.dto.DeployAllContractsResponse;
 import family.fisa.hangangpay.domain.institution.service.InstitutionDeployService;
 import family.fisa.hangangpay.global.code.success.GeneralSuccessCode;
@@ -12,6 +7,10 @@ import family.fisa.hangangpay.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "Institution", description = "기관 및 컨트랙트 관리 API")
 @RestController
