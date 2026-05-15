@@ -50,8 +50,10 @@ class FundTransferServiceTest {
             when(userRepository.findPartyIdByUserId(1L)).thenReturn(Optional.empty());
 
             // when, then
-            assertThatThrownBy(() -> fundTransferService.getChargeHistories(
-                    1L, new CursorPageRequest(null, null)))
+            assertThatThrownBy(
+                            () ->
+                                    fundTransferService.getChargeHistories(
+                                            1L, new CursorPageRequest(null, null)))
                     .isInstanceOf(BusinessException.class)
                     .hasFieldOrPropertyWithValue("code", UserErrorCode.USER_NOT_FOUND);
         }
@@ -67,18 +69,20 @@ class FundTransferServiceTest {
 
             when(userRepository.findPartyIdByUserId(userId)).thenReturn(Optional.of(partyId));
             when(fundTransferRepository.findChargeHistoriesByPartyId(
-                    partyId, ScrollPosition.keyset(), Limit.of(20))).thenReturn(window);
+                            partyId, ScrollPosition.keyset(), Limit.of(20)))
+                    .thenReturn(window);
             when(paginationService.toCursorPage(window)).thenReturn(expected);
 
             // when
             CursorPageResponse<ChargeHistoryItem> actual =
-                    fundTransferService.getChargeHistories(userId, new CursorPageRequest(null, null));
+                    fundTransferService.getChargeHistories(
+                            userId, new CursorPageRequest(null, null));
 
             // then
             assertThat(actual).isSameAs(expected);
             // CursorPageRequest.cursorCreatedAt == null 이면 ScrollPosition.keyset() 로 들어간다
-            verify(fundTransferRepository).findChargeHistoriesByPartyId(
-                    partyId, ScrollPosition.keyset(), Limit.of(20));
+            verify(fundTransferRepository)
+                    .findChargeHistoriesByPartyId(partyId, ScrollPosition.keyset(), Limit.of(20));
         }
 
         @Test
@@ -87,8 +91,8 @@ class FundTransferServiceTest {
             // given
             Long userId = 1L, partyId = 1L, cursorId = 1L;
             LocalDateTime cursorAt = LocalDateTime.of(2026, 5, 15, 10, 0);
-            ScrollPosition expectedPos = ScrollPosition.forward(
-                    Map.of("createdAt", cursorAt, "id", cursorId));
+            ScrollPosition expectedPos =
+                    ScrollPosition.forward(Map.of("createdAt", cursorAt, "id", cursorId));
 
             Window<ChargeHistoryItem> window = mock(Window.class);
             CursorPageResponse<ChargeHistoryItem> expected =
@@ -96,7 +100,8 @@ class FundTransferServiceTest {
 
             when(userRepository.findPartyIdByUserId(userId)).thenReturn(Optional.of(partyId));
             when(fundTransferRepository.findChargeHistoriesByPartyId(
-                    partyId, expectedPos, Limit.of(20))).thenReturn(window);
+                            partyId, expectedPos, Limit.of(20)))
+                    .thenReturn(window);
             when(paginationService.toCursorPage(window)).thenReturn(expected);
 
             // when
@@ -106,8 +111,8 @@ class FundTransferServiceTest {
 
             // then
             assertThat(actual).isSameAs(expected);
-            verify(fundTransferRepository).findChargeHistoriesByPartyId(
-                    partyId, expectedPos, Limit.of(20));
+            verify(fundTransferRepository)
+                    .findChargeHistoriesByPartyId(partyId, expectedPos, Limit.of(20));
         }
     }
 
@@ -122,8 +127,10 @@ class FundTransferServiceTest {
             when(userRepository.findPartyIdByUserId(1L)).thenReturn(Optional.empty());
 
             // when, then
-            assertThatThrownBy(() -> fundTransferService.getExchangeHistories(
-                    1L, new CursorPageRequest(null, null)))
+            assertThatThrownBy(
+                            () ->
+                                    fundTransferService.getExchangeHistories(
+                                            1L, new CursorPageRequest(null, null)))
                     .isInstanceOf(BusinessException.class)
                     .hasFieldOrPropertyWithValue("code", UserErrorCode.USER_NOT_FOUND);
         }
@@ -139,18 +146,20 @@ class FundTransferServiceTest {
 
             when(userRepository.findPartyIdByUserId(userId)).thenReturn(Optional.of(partyId));
             when(fundTransferRepository.findExchangeHistoriesByPartyId(
-                    partyId, ScrollPosition.keyset(), Limit.of(20))).thenReturn(window);
+                            partyId, ScrollPosition.keyset(), Limit.of(20)))
+                    .thenReturn(window);
             when(paginationService.toCursorPage(window)).thenReturn(expected);
 
             // when
             CursorPageResponse<ExchangeHistoryItem> actual =
-                    fundTransferService.getExchangeHistories(userId, new CursorPageRequest(null, null));
+                    fundTransferService.getExchangeHistories(
+                            userId, new CursorPageRequest(null, null));
 
             // then
             assertThat(actual).isSameAs(expected);
             // CursorPageRequest.cursorCreatedAt == null 이면 ScrollPosition.keyset() 로 들어간다
-            verify(fundTransferRepository).findExchangeHistoriesByPartyId(
-                    partyId, ScrollPosition.keyset(), Limit.of(20));
+            verify(fundTransferRepository)
+                    .findExchangeHistoriesByPartyId(partyId, ScrollPosition.keyset(), Limit.of(20));
         }
 
         @Test
@@ -159,8 +168,8 @@ class FundTransferServiceTest {
             // given
             Long userId = 1L, partyId = 1L, cursorId = 1L;
             LocalDateTime cursorAt = LocalDateTime.of(2026, 5, 15, 10, 0);
-            ScrollPosition expectedPos = ScrollPosition.forward(
-                    Map.of("createdAt", cursorAt, "id", cursorId));
+            ScrollPosition expectedPos =
+                    ScrollPosition.forward(Map.of("createdAt", cursorAt, "id", cursorId));
 
             Window<ExchangeHistoryItem> window = mock(Window.class);
             CursorPageResponse<ExchangeHistoryItem> expected =
@@ -168,7 +177,8 @@ class FundTransferServiceTest {
 
             when(userRepository.findPartyIdByUserId(userId)).thenReturn(Optional.of(partyId));
             when(fundTransferRepository.findExchangeHistoriesByPartyId(
-                    partyId, expectedPos, Limit.of(20))).thenReturn(window);
+                            partyId, expectedPos, Limit.of(20)))
+                    .thenReturn(window);
             when(paginationService.toCursorPage(window)).thenReturn(expected);
 
             // when
@@ -178,8 +188,8 @@ class FundTransferServiceTest {
 
             // then
             assertThat(actual).isSameAs(expected);
-            verify(fundTransferRepository).findExchangeHistoriesByPartyId(
-                    partyId, expectedPos, Limit.of(20));
+            verify(fundTransferRepository)
+                    .findExchangeHistoriesByPartyId(partyId, expectedPos, Limit.of(20));
         }
     }
 }

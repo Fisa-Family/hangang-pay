@@ -46,10 +46,10 @@ public class UserController {
     @GetMapping("/exchange")
     @Operation(summary = "사용자 환전 내역 조회", description = "커서 기반으로 로그인한 사용자의 환전 내역을 조회합니다.")
     public ResponseEntity<ApiResponse<CursorPageResponse<ExchangeHistoryItem>>> getRefundHistories(
-        @SessionAttribute("userId") Long userId, CursorPageRequest request) {
+            @SessionAttribute("userId") Long userId, CursorPageRequest request) {
         CursorPageResponse<ExchangeHistoryItem> response =
-            fundTransferService.getExchangeHistories(userId, request);
+                fundTransferService.getExchangeHistories(userId, request);
         return ResponseEntity.ok(
-            ApiResponse.onSuccess(UserSuccessCode.CHARGE_HISTORIES_RETRIEVED, response));
+                ApiResponse.onSuccess(UserSuccessCode.CHARGE_HISTORIES_RETRIEVED, response));
     }
 }

@@ -10,5 +10,6 @@ public interface FundTransferRepository {
     Window<ChargeHistoryItem> findChargeHistoriesByPartyId(
             Long partyId, ScrollPosition position, Limit of);
 
-    Window<ExchangeHistoryItem> findExchangeHistoriesByPartyId(Long partyId, ScrollPosition position, Limit of);
+    Window<ExchangeHistoryItem> findExchangeHistoriesByPartyId(
+            Long partyId, ScrollPosition position, Limit of);
 }

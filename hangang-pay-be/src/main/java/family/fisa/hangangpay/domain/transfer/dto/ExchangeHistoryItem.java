@@ -9,19 +9,16 @@ import lombok.Builder;
 
 @Builder
 public record ExchangeHistoryItem(
-    Long id,
-    BigDecimal amount,
-    TransferStatus status,
-    LocalDateTime exchangedAt)
-    implements CursorItem {
+        Long id, BigDecimal amount, TransferStatus status, LocalDateTime exchangedAt)
+        implements CursorItem {
 
     public static ExchangeHistoryItem from(FundTransfer fundTransfer) {
         return ExchangeHistoryItem.builder()
-                                  .id(fundTransfer.getId())
-                                  .amount(fundTransfer.getAmount())
-                                  .status(fundTransfer.getStatus())
-                                  .exchangedAt(fundTransfer.getCreatedAt())
-                                  .build();
+                .id(fundTransfer.getId())
+                .amount(fundTransfer.getAmount())
+                .status(fundTransfer.getStatus())
+                .exchangedAt(fundTransfer.getCreatedAt())
+                .build();
     }
 
     @Override

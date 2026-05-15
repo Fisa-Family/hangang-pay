@@ -4,7 +4,6 @@ import family.fisa.hangangpay.domain.transfer.dto.ChargeHistoryItem;
 import family.fisa.hangangpay.domain.transfer.dto.ExchangeHistoryItem;
 import family.fisa.hangangpay.domain.transfer.entity.FundTransfer;
 import family.fisa.hangangpay.domain.transfer.entity.TransferType;
-import javax.crypto.spec.PSource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Limit;
@@ -32,15 +31,15 @@ public class FundTransferRepositoryImpl implements FundTransferRepository {
     }
 
     @Override
-    public Window<ExchangeHistoryItem> findExchangeHistoriesByPartyId(Long partyId,
-                                                                      ScrollPosition position,
-                                                                      Limit of) {
+    public Window<ExchangeHistoryItem> findExchangeHistoriesByPartyId(
+            Long partyId, ScrollPosition position, Limit of) {
         // 1. Window 타입으로 FundTransfer Exchange 값 가져오기
-        Window<FundTransfer> findByPartyIdAndTransferTypeOrderByCreatedAtDescIdDesc = fundTransferJpaRepository.findByPartyIdAndTransferTypeOrderByCreatedAtDescIdDesc(
-            partyId, TransferType.EXCHANGE, position, of
-        );
+        Window<FundTransfer> findByPartyIdAndTransferTypeOrderByCreatedAtDescIdDesc =
+                fundTransferJpaRepository.findByPartyIdAndTransferTypeOrderByCreatedAtDescIdDesc(
+                        partyId, TransferType.EXCHANGE, position, of);
 
         // 2. ExchangeHistoryItem 타입으로 변환하여 return
-        return findByPartyIdAndTransferTypeOrderByCreatedAtDescIdDesc.map(ExchangeHistoryItem::from);
+        return findByPartyIdAndTransferTypeOrderByCreatedAtDescIdDesc.map(
+                ExchangeHistoryItem::from);
     }
 }
