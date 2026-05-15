@@ -35,13 +35,14 @@ public class AccountResponse {
                 .build();
     }
 
-    /** 뒤 4자리만 노출하고 앞 자리는 마스킹 처리하는 계좌번호 변환 메서드 */
+    /** 뒤 4자리만 노출하고 앞 자리를 원래 길이만큼 별표로 마스킹 처리하는 계좌번호 변환 메서드 */
     private static String maskAccountNumber(String accountNumber) {
         // 계좌번호가 없거나 4자리 미만인 경우 기본 마스킹 반환
         if (accountNumber == null || accountNumber.length() < 4) {
             return "****";
         }
-        // 마지막 4자리만 노출하고 나머지는 마스킹 처리
-        return "****-****-" + accountNumber.substring(accountNumber.length() - 4);
+        // 앞 자리를 원래 길이에 맞게 별표로 대체하고 마지막 4자리만 노출
+        String masked = "*".repeat(accountNumber.length() - 4);
+        return masked + accountNumber.substring(accountNumber.length() - 4);
     }
 }
