@@ -1,11 +1,11 @@
 package family.fisa.hangangpay.domain.institution.service;
 
+import family.fisa.hangangpay.domain.institution.code.error.InstitutionErrorCode;
 import family.fisa.hangangpay.domain.institution.dto.DeployAllContractsResponse;
 import family.fisa.hangangpay.domain.institution.dto.DeployContractResponse;
 import family.fisa.hangangpay.domain.institution.entity.ContractAddress;
 import family.fisa.hangangpay.domain.institution.entity.ContractType;
 import family.fisa.hangangpay.domain.institution.entity.Institution;
-import family.fisa.hangangpay.domain.institution.exception.InstitutionErrorCode;
 import family.fisa.hangangpay.domain.institution.repository.ContractAddressRepository;
 import family.fisa.hangangpay.domain.institution.repository.InstitutionRepository;
 import family.fisa.hangangpay.global.exception.BusinessException;

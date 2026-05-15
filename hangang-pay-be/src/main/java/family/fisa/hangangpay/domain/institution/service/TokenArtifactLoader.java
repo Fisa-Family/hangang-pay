@@ -2,7 +2,7 @@ package family.fisa.hangangpay.domain.institution.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import family.fisa.hangangpay.domain.institution.exception.InstitutionErrorCode;
+import family.fisa.hangangpay.domain.institution.code.error.InstitutionErrorCode;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import java.io.IOException;
 import java.io.InputStream;

@@ -1,6 +1,6 @@
 package family.fisa.hangangpay.domain.institution.service;
 
-import family.fisa.hangangpay.domain.institution.exception.InstitutionErrorCode;
+import family.fisa.hangangpay.domain.institution.code.error.InstitutionErrorCode;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import org.springframework.stereotype.Component;
 import org.web3j.crypto.Credentials;

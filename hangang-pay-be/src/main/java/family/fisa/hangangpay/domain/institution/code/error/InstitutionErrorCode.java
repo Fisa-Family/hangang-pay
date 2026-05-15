@@ -1,4 +1,4 @@
-package family.fisa.hangangpay.domain.institution.exception;
+package family.fisa.hangangpay.domain.institution.code.error;
 
 import family.fisa.hangangpay.global.code.error.BaseErrorCode;
 import lombok.Getter;

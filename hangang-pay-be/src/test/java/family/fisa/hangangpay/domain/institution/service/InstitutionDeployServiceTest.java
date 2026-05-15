@@ -6,10 +6,10 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import family.fisa.hangangpay.domain.institution.code.error.InstitutionErrorCode;
 import family.fisa.hangangpay.domain.institution.entity.ContractAddress;
 import family.fisa.hangangpay.domain.institution.entity.ContractType;
 import family.fisa.hangangpay.domain.institution.entity.Institution;
-import family.fisa.hangangpay.domain.institution.exception.InstitutionErrorCode;
 import family.fisa.hangangpay.domain.institution.repository.ContractAddressRepository;
 import family.fisa.hangangpay.domain.institution.repository.InstitutionRepository;
 import family.fisa.hangangpay.global.exception.BusinessException;
