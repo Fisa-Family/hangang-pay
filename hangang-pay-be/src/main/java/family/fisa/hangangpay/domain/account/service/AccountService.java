@@ -9,8 +9,7 @@ import family.fisa.hangangpay.domain.account.entity.AccountType;
 import family.fisa.hangangpay.domain.account.repository.AccountRepository;
 import family.fisa.hangangpay.domain.institution.entity.BankAccount;
 import family.fisa.hangangpay.domain.institution.entity.Institution;
-import family.fisa.hangangpay.domain.institution.repository.BankAccountRepository;
-import family.fisa.hangangpay.domain.institution.repository.InstitutionRepository;
+import family.fisa.hangangpay.domain.institution.service.InstitutionService;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.repository.PartyRepository;
 import family.fisa.hangangpay.global.code.error.AccountErrorCode;
@@ -27,16 +26,13 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AccountService {
 
-    /** 계좌 리포지토리 */
+    /** 계좌 레포지토리 */
     private final AccountRepository accountRepository;
 
-    /** 금융기관 리포지토리 */
-    private final InstitutionRepository institutionRepository;
+    /** 금융기관 서비스 */
+    private final InstitutionService institutionService;
 
-    /** 은행 원장 계좌 리포지토리 */
-    private final BankAccountRepository bankAccountRepository;
-
-    /** 파티 리포지토리 */
+    /** 파티 레포지토리 */
     private final PartyRepository partyRepository;
 
     /** 현재 로그인한 사용자의 등록 계좌 목록 조회 메서드 */
@@ -62,7 +58,7 @@ public class AccountService {
     public AccountResponse addAccount(Long partyId, AccountAddRequest request) {
         // 기관 코드로 금융기관 조회, 존재하지 않으면 계좌 없음 오류
         Institution institution =
-                institutionRepository
+                institutionService
                         .findByInstitutionCode(request.getInstitutionCode())
                         .orElseThrow(
                                 () ->
@@ -71,9 +67,8 @@ public class AccountService {
 
         // 은행 원장에서 계좌번호로 계좌 조회, 없으면 계좌 없음 오류
         BankAccount bankAccount =
-                bankAccountRepository
-                        .findByInstitution_IdAndAccountNumber(
-                                institution.getId(), request.getAccountNumber())
+                institutionService
+                        .findBankAccount(institution.getId(), request.getAccountNumber())
                         .orElseThrow(
                                 () ->
                                         new BusinessException(
