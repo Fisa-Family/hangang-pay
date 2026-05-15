@@ -23,7 +23,10 @@ export const router = createBrowserRouter([
             element: <MainLayout navType="user" />,
             children: [
               { path: '/home', element: <PlaceholderPage title="홈" screenId="U-HOME" /> },
-              { path: '/pay/scan', element: <PlaceholderPage title="QR 스캔" screenId="U-PAY-SCAN" /> },
+              {
+                path: '/pay/scan',
+                element: <PlaceholderPage title="QR 스캔" screenId="U-PAY-SCAN" />,
+              },
               {
                 path: '/mypage/payments',
                 element: <PlaceholderPage title="결제내역" screenId="U-MY-PAYMENTS" />,
