@@ -26,3 +26,7 @@ management:
 app:
   cors:
     allowed-origins: [] # 프로필 설정이 누락됐을 때 빈 목록으로 Fallback
+
+blockchain:
+  private-network:
+    chain-id: 1337 # 트랜잭션 서명 시 사용하는 private blockchain 네트워크 식별자
