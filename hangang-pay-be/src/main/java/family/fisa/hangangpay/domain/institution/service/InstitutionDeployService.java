@@ -28,10 +28,14 @@ import org.web3j.protocol.core.DefaultBlockParameterName;
 import org.web3j.protocol.core.methods.response.EthGetTransactionCount;
 import org.web3j.protocol.core.methods.response.EthSendTransaction;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
+import org.web3j.protocol.exceptions.TransactionException;
 import org.web3j.protocol.http.HttpService;
 import org.web3j.tx.RawTransactionManager;
 import org.web3j.tx.response.PollingTransactionReceiptProcessor;
 
+/*
+ * 기관별 컨트랙트 배포와 배포 후 초기 설정을 처리한다.
+ */
 @Service
 @RequiredArgsConstructor
 public class InstitutionDeployService {
@@ -43,13 +47,17 @@ public class InstitutionDeployService {
     private static final int RECEIPT_POLLING_ATTEMPTS = 60;
     private static final long RECEIPT_POLLING_INTERVAL_MS = 1_000L;
     private static final long PRIVATE_NETWORK_CHAIN_ID = 1337L;
-    private static final long CBDC_INSTITUTION_ID = 1L;
+    private static final String CBDC_INSTITUTION_CODE = "BoK";
 
     private final TokenArtifactLoader tokenArtifactLoader;
     private final WalletKeyCipher walletKeyCipher;
     private final InstitutionRepository institutionRepository;
     private final ContractAddressRepository contractAddressRepository;
 
+    /*
+     * 배포 요청 진입점.
+     * 기관 정보와 중복 배포 여부를 검증한 뒤 배포 주소를 저장한다.
+     */
     public DeployContractResponse deploy(Long institutionId, DeployContractRequest request) {
         Institution institution =
                 institutionRepository
@@ -114,6 +122,9 @@ public class InstitutionDeployService {
         }
     }
 
+    /*
+     * Hardhat artifact bytecode로 컨트랙트 생성 트랜잭션을 전송한다.
+     */
     private TransactionReceipt deployContract(
             Web3j web3j,
             RawTransactionManager transactionManager,
@@ -156,10 +167,13 @@ public class InstitutionDeployService {
         return receipt;
     }
 
+    /*
+     * Settlement 컨트랙트에 은행별 DepositToken과 준비금 지갑을 등록한다.
+     */
     private void registerBanksInSettlement(String settlementAddress) throws IOException {
         Institution centralBank =
                 institutionRepository
-                        .findById(CBDC_INSTITUTION_ID)
+                        .findByInstitutionCode(CBDC_INSTITUTION_CODE)
                         .orElseThrow(() -> new BusinessException(InstitutionErrorCode.NOT_FOUND));
 
         Credentials credentials =
@@ -219,6 +233,10 @@ public class InstitutionDeployService {
                 function);
     }
 
+    /*
+     * Settlement가 CBDC/DepositToken의 mint, burn, forceTransfer를 호출할 수 있도록
+     * operator 권한을 부여한다.
+     */
     private void registerSettlementAsOperator(String settlementAddress) throws IOException {
         for (ContractAddress contractAddress : contractAddressRepository.findAll()) {
             if (contractAddress.getName() != ContractType.CBDC
@@ -271,6 +289,9 @@ public class InstitutionDeployService {
                 function);
     }
 
+    /*
+     * setBank, setOperator 같은 컨트랙트 함수 호출 트랜잭션 공통 처리.
+     */
     private TransactionReceipt sendFunctionTransaction(
             Web3j web3j,
             RawTransactionManager transactionManager,
@@ -318,18 +339,21 @@ public class InstitutionDeployService {
                             web3j, RECEIPT_POLLING_INTERVAL_MS, RECEIPT_POLLING_ATTEMPTS);
 
             return processor.waitForTransactionReceipt(transactionHash);
-        } catch (Exception e) {
+        } catch (IOException | TransactionException e) {
             throw new BusinessException(InstitutionErrorCode.RECEIPT_TIMEOUT);
         }
     }
 
+    /*
+     * 요청 body에 name이 없으면 BoK는 CBDC, 나머지 기관은 DepositToken으로 배포한다.
+     */
     private static ContractType resolveContractType(
             Institution institution, DeployContractRequest request) {
         if (request != null && request.name() != null) {
             return request.name();
         }
 
-        if ("CB".equalsIgnoreCase(institution.getInstitutionCode())) {
+        if (isCentralBank(institution)) {
             return ContractType.CBDC;
         }
 
@@ -357,6 +381,9 @@ public class InstitutionDeployService {
         }
     }
 
+    /*
+     * 컨트랙트 종류별 artifact bytecode와 생성자 인자를 조합한다.
+     */
     private String resolveBytecode(ContractType contractType, Institution institution) {
         return switch (contractType) {
             case CBDC -> tokenArtifactLoader.cbdcArtifact().bytecode();
@@ -373,7 +400,7 @@ public class InstitutionDeployService {
                             List.of(
                                     new Address(
                                             resolveContractAddress(
-                                                    CBDC_INSTITUTION_ID, ContractType.CBDC))));
+                                                    CBDC_INSTITUTION_CODE, ContractType.CBDC))));
         };
     }
 
@@ -389,9 +416,13 @@ public class InstitutionDeployService {
         return value;
     }
 
-    private String resolveContractAddress(Long institutionId, ContractType contractType) {
+    private static boolean isCentralBank(Institution institution) {
+        return CBDC_INSTITUTION_CODE.equalsIgnoreCase(institution.getInstitutionCode());
+    }
+
+    private String resolveContractAddress(String institutionCode, ContractType contractType) {
         return contractAddressRepository
-                .findByInstitutionIdAndName(institutionId, contractType)
+                .findByInstitutionInstitutionCodeAndName(institutionCode, contractType)
                 .map(ContractAddress::getAddress)
                 .orElseThrow(
                         () -> new BusinessException(InstitutionErrorCode.CONTRACT_NOT_DEPLOYED));

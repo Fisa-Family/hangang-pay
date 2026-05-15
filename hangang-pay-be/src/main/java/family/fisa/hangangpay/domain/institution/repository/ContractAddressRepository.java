@@ -8,4 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface ContractAddressRepository extends JpaRepository<ContractAddress, Long> {
 
     Optional<ContractAddress> findByInstitutionIdAndName(Long institutionId, ContractType name);
+
+    Optional<ContractAddress> findByInstitutionInstitutionCodeAndName(
+            String institutionCode, ContractType name);
 }
