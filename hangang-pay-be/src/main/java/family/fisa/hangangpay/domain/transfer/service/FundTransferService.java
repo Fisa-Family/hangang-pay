@@ -1,5 +1,6 @@
 package family.fisa.hangangpay.domain.transfer.service;
 
+import family.fisa.hangangpay.domain.transfer.code.error.ChargeErrorCode;
 import family.fisa.hangangpay.domain.transfer.dto.ChargeCalculateResponse;
 import family.fisa.hangangpay.domain.transfer.dto.ChargeHistoryItem;
 import family.fisa.hangangpay.domain.transfer.dto.ChargeLimitResponse;
@@ -9,7 +10,6 @@ import family.fisa.hangangpay.domain.transfer.entity.TransferType;
 import family.fisa.hangangpay.domain.transfer.repository.FundTransferRepository;
 import family.fisa.hangangpay.domain.user.code.error.UserErrorCode;
 import family.fisa.hangangpay.domain.user.repository.UserRepository;
-import family.fisa.hangangpay.global.code.error.ChargeErrorCode;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import family.fisa.hangangpay.global.pagination.CursorPageRequest;
 import family.fisa.hangangpay.global.pagination.CursorPageResponse;
@@ -147,12 +147,8 @@ public class FundTransferService {
                 usedAmount,
                 remainLimit);
 
-        return ChargeLimitResponse.builder()
-                .monthlyLimit(MONTHLY_LIMIT)
-                .usedAmount(usedAmount)
-                .remainLimit(remainLimit)
-                .resetDate(startOfNextMonth.toLocalDate().toString())
-                .build();
+        return ChargeLimitResponse.of(
+                MONTHLY_LIMIT, usedAmount, remainLimit, startOfNextMonth.toLocalDate().toString());
     }
 
     private ScrollPosition toScrollPosition(CursorPageRequest request) {
