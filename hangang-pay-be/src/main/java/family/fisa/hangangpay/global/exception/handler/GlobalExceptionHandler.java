@@ -45,7 +45,7 @@ public class GlobalExceptionHandler {
                 .forEach(error -> errors.put(error.getField(), error.getDefaultMessage()));
 
         // 2. Response 생성
-        BaseErrorCode errorCode = GeneralErrorCode.VALIDATION_FAILED;
+        BaseErrorCode errorCode = GeneralErrorCode.COMMON_VALIDATION_FAILED;
         ApiResponse<Map<String, String>> errorResponse = ApiResponse.onFailure(errorCode, errors);
 
         return ResponseEntity.status(errorCode.getStatus()).body(errorResponse);
@@ -56,7 +56,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<String>> handleGeneralException(Exception ex) {
         log.error("Internal Server Error", ex);
 
-        BaseErrorCode errorCode = GeneralErrorCode.INTERNAL_SERVER_ERROR_500;
+        BaseErrorCode errorCode = GeneralErrorCode.COMMON_INTERNAL_SERVER_ERROR;
 
         // 1. errorResponse 생성
         ApiResponse<String> errorResponse = ApiResponse.onFailure(errorCode, null);

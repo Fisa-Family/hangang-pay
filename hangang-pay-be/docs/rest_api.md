@@ -51,7 +51,7 @@ sequenceDiagram
   API-->>U: payment result
 ```
 
-결제 취소는 시간 제한 없이 가능하다. 요청 주체는 가맹점이다.
+결제 취소는 결제 후 24시간 이내에만 가능하다. 요청 주체는 가맹점이다.
 
 ## Settlement and Exchange
 
@@ -94,7 +94,7 @@ SMS 인증은 Octomo를 사용한다. SMS 발송 API도 백엔드에 둔다.
 | `LOGOUT-001` | 로그아웃 | `POST` | `/auth/logout` | `O` | `USER | MERCHANT` | 현재 세션 삭제 |
 | `MERCHANT-001` | 가맹점 매출 요약 조회 | `GET` | `/merchant/dashboard` | `O` | `MERCHANT` | 가맹점 전용 |
 | `MERCHANT-002` | 가맹점 결제 내역 조회 | `GET` | `/merchant/payments` | `O` | `MERCHANT` | 가맹점 전용 |
-| `MERCHANT-003` | 결제 취소 | `POST` | `/merchant/payments/{paymentId}/cancel` | `O` | `MERCHANT` | 시간 제한 없음 |
+| `MERCHANT-003` | 결제 취소 | `POST` | `/merchant/payments/{paymentId}/cancel` | `O` | `MERCHANT` | 결제 후 24시간 이내 |
 | `MERCHANT-004` | 가맹점 정산 내역 조회 | `GET` | `/merchant/settlements` | `O` | `MERCHANT` | `payment`/`payment_cancellation` 기반 기록 조회 |
 | `MERCHANT-005` | 가맹점 QR 코드 조회 | `GET` | `/merchant/qr` | `O` | `MERCHANT` | 결제용 QR 코드 (merchantId 포함) |
 | `MY-001` | 사용자 프로필 조회 | `GET` | `/users/profile` | `O` | `USER` | 소비자 전용 |
