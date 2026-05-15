@@ -14,7 +14,6 @@ import family.fisa.hangangpay.domain.institution.repository.InstitutionRepositor
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.repository.PartyRepository;
 import family.fisa.hangangpay.global.code.error.AccountErrorCode;
-import family.fisa.hangangpay.global.code.error.GeneralErrorCode;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -119,11 +118,12 @@ public class AccountService {
     /** 계좌 삭제 메서드 */
     @Transactional
     public void deleteAccount(Long partyId, Long accountId) {
-        // 계좌 식별자와 파티 식별자로 본인 계좌 조회 - 없으면 404
+        // 계좌 식별자와 파티 식별자로 본인 계좌 조회, 없으면 계좌 없음 오류
         Account account =
                 accountRepository
                         .findByIdAndParty_Id(accountId, partyId)
-                        .orElseThrow(() -> new BusinessException(GeneralErrorCode.NOT_FOUND_404));
+                        .orElseThrow(
+                                () -> new BusinessException(AccountErrorCode.ACCOUNT_NOT_FOUND));
 
         // 마지막 계좌 삭제 여부 확인, 최소 1개 유지
         long count = accountRepository.countByParty_Id(partyId);
