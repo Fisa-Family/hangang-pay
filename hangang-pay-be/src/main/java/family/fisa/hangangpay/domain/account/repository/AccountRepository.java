@@ -2,12 +2,14 @@ package family.fisa.hangangpay.domain.account.repository;
 
 import family.fisa.hangangpay.domain.account.entity.Account;
 import java.util.List;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 /** 계좌 데이터 접근 레이어 */
 public interface AccountRepository extends JpaRepository<Account, Long> {
 
-    /** 파티 식별자 기준 전체 계좌 목록 조회 */
+    /** 파티 식별자 기준 전체 계좌 목록 조회, institution JOIN FETCH로 N+1 방지 */
+    @EntityGraph(attributePaths = {"institution"})
     List<Account> findAllByParty_Id(Long partyId);
 
     /** 파티 식별자 기준 등록 계좌 수 조회 */
