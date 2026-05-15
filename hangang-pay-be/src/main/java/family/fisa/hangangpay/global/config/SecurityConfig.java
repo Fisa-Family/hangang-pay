@@ -15,6 +15,9 @@ public class SecurityConfig {
             HttpSecurity http, CorsConfigurationSource corsConfigurationSource) throws Exception {
         http.cors(c -> c.configurationSource(corsConfigurationSource));
 
+        // REST API 서버이므로 CSRF 비활성화 - 브라우저 폼 기반 공격 대상이 아님
+        http.csrf(csrf -> csrf.disable());
+
         return http.build();
     }
 }
