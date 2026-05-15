@@ -91,10 +91,12 @@ SMS 인증은 Octomo를 사용한다. SMS 발송 API도 백엔드에 둔다.
 | `CHARGE-005` | 충전 영수증 조회 | `GET` | `/charge/{chargeId}/receipt` | `O` | `USER` | 소비자 전용 |
 | `LOGIN-001` | 로그인 (소비자) | `POST` | `/auth/users/login` | `X` | `PUBLIC` | 세션 생성 |
 | `LOGIN-002` | 로그인 (가맹점) | `POST` | `/auth/merchants/login` | `X` | `PUBLIC` | 세션 생성 |
+| `LOGOUT-001` | 로그아웃 | `POST` | `/auth/logout` | `O` | `USER | MERCHANT` | 현재 세션 삭제 |
 | `MERCHANT-001` | 가맹점 매출 요약 조회 | `GET` | `/merchant/dashboard` | `O` | `MERCHANT` | 가맹점 전용 |
 | `MERCHANT-002` | 가맹점 결제 내역 조회 | `GET` | `/merchant/payments` | `O` | `MERCHANT` | 가맹점 전용 |
 | `MERCHANT-003` | 결제 취소 | `POST` | `/merchant/payments/{paymentId}/cancel` | `O` | `MERCHANT` | 결제 후 24시간 이내 |
 | `MERCHANT-004` | 가맹점 정산 내역 조회 | `GET` | `/merchant/settlements` | `O` | `MERCHANT` | `payment`/`payment_cancellation` 기반 기록 조회 |
+| `MERCHANT-005` | 가맹점 QR 코드 조회 | `GET` | `/merchant/qr` | `O` | `MERCHANT` | 결제용 QR 코드 (merchantId 포함) |
 | `MY-001` | 사용자 프로필 조회 | `GET` | `/users/profile` | `O` | `USER` | 소비자 전용 |
 | `MY-002` | 소비자 결제 내역 조회 | `GET` | `/users/payments` | `O` | `USER` | 소비자 전용 |
 | `MY-003` | 충전 내역 조회 | `GET` | `/users/charges` | `O` | `USER` | 소비자 전용 |
