@@ -29,7 +29,7 @@ public class UserController {
     public ResponseEntity<ApiResponse<UserProfileResponse>> getProfile(
             @SessionAttribute("userId") Long userId) {
         UserProfileResponse response = userService.getProfile(userId);
-        return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.OK, response));
+        return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
     }
 
     @GetMapping("/charges")

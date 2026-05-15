@@ -8,7 +8,7 @@ import org.springframework.http.HttpStatus;
 @AllArgsConstructor
 @Getter
 public enum UserSuccessCode implements BaseSuccessCode {
-    CHARGE_HISTORIES_RETRIEVED(HttpStatus.OK, "USER200", "충전내역을 성공적으로 조회했습니다."),
+    CHARGE_HISTORIES_RETRIEVED(HttpStatus.OK, "CHARGE_HISTORIES_RETRIEVED", "충전내역을 성공적으로 조회했습니다."),
     ;
 
     private final HttpStatus status;

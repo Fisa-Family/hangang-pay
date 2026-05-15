@@ -2,7 +2,6 @@ package family.fisa.hangangpay.domain.transfer.repository;
 
 import family.fisa.hangangpay.domain.transfer.dto.ChargeHistoryItem;
 import family.fisa.hangangpay.domain.transfer.entity.FundTransfer;
-import family.fisa.hangangpay.domain.transfer.entity.FundTransferRepository;
 import family.fisa.hangangpay.domain.transfer.entity.TransferType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -1,11 +1,10 @@
 package family.fisa.hangangpay.domain.transfer.service;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import family.fisa.hangangpay.domain.transfer.dto.ChargeHistoryItem;
-import family.fisa.hangangpay.domain.transfer.entity.FundTransferRepository;
+import family.fisa.hangangpay.domain.transfer.repository.FundTransferRepository;
 import family.fisa.hangangpay.domain.user.code.error.UserErrorCode;
 import family.fisa.hangangpay.domain.user.repository.UserRepository;
 import family.fisa.hangangpay.global.exception.BusinessException;
@@ -39,7 +38,7 @@ class FundTransferServiceTest {
 
     @Test
     @DisplayName("사용자 없으면 USER_NOT_FOUND 예외")
-    void throesWhenUserNotFound() throws Exception {
+    void throwsWhenUserNotFound() throws Exception {
         // given
         when(userRepository.findPartyIdByUserId(1L)).thenReturn(Optional.empty());
 

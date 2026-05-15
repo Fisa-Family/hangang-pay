@@ -1,4 +1,4 @@
-package family.fisa.hangangpay.domain.transfer.entity;
+package family.fisa.hangangpay.domain.transfer.repository;
 
 import family.fisa.hangangpay.domain.transfer.dto.ChargeHistoryItem;
 import org.springframework.data.domain.Limit;
