@@ -3,7 +3,10 @@ package family.fisa.hangangpay.domain.transfer.repository;
 import family.fisa.hangangpay.domain.transfer.dto.ChargeHistoryItem;
 import family.fisa.hangangpay.domain.transfer.dto.ExchangeHistoryItem;
 import family.fisa.hangangpay.domain.transfer.entity.FundTransfer;
+import family.fisa.hangangpay.domain.transfer.entity.TransferStatus;
 import family.fisa.hangangpay.domain.transfer.entity.TransferType;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Limit;
@@ -41,5 +44,16 @@ public class FundTransferRepositoryImpl implements FundTransferRepository {
         // 2. ExchangeHistoryItem 타입으로 변환하여 return
         return findByPartyIdAndTransferTypeOrderByCreatedAtDescIdDesc.map(
                 ExchangeHistoryItem::from);
+    }
+
+    @Override
+    public BigDecimal sumMonthlyAmount(
+            Long partyId,
+            TransferType transferType,
+            TransferStatus status,
+            LocalDateTime startOfMonth,
+            LocalDateTime startOfNextMonth) {
+        return fundTransferJpaRepository.sumMonthlyAmount(
+                partyId, transferType, status, startOfMonth, startOfNextMonth);
     }
 }

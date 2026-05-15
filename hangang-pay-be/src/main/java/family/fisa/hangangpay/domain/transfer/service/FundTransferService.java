@@ -1,26 +1,39 @@
 package family.fisa.hangangpay.domain.transfer.service;
 
+import family.fisa.hangangpay.domain.transfer.dto.ChargeCalculateResponse;
 import family.fisa.hangangpay.domain.transfer.dto.ChargeHistoryItem;
+import family.fisa.hangangpay.domain.transfer.dto.ChargeLimitResponse;
 import family.fisa.hangangpay.domain.transfer.dto.ExchangeHistoryItem;
+import family.fisa.hangangpay.domain.transfer.entity.TransferStatus;
+import family.fisa.hangangpay.domain.transfer.entity.TransferType;
 import family.fisa.hangangpay.domain.transfer.repository.FundTransferRepository;
 import family.fisa.hangangpay.domain.user.code.error.UserErrorCode;
 import family.fisa.hangangpay.domain.user.repository.UserRepository;
+import family.fisa.hangangpay.global.code.error.ChargeErrorCode;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import family.fisa.hangangpay.global.pagination.CursorPageRequest;
 import family.fisa.hangangpay.global.pagination.CursorPageResponse;
 import family.fisa.hangangpay.global.pagination.PaginationService;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Limit;
 import org.springframework.data.domain.ScrollPosition;
 import org.springframework.data.domain.Window;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class FundTransferService {
+
+    /** 월 최대 충전 한도 */
+    private static final BigDecimal MONTHLY_LIMIT = new BigDecimal("1000000");
 
     private static final int PAGE_SIZE = 20;
 
@@ -50,11 +63,11 @@ public class FundTransferService {
         return paginationService.toCursorPage(window);
     }
 
-    /** FundTransfer 내부 REFUND 타입 내역 조회 */
+    /** FundTransfer 내부 EXCHANGE 타입 내역 조회 */
     public CursorPageResponse<ExchangeHistoryItem> getExchangeHistories(
             Long userId, CursorPageRequest request) {
 
-        // 1. UserId 기반 partyId 조회
+        // 1. userId partyId 변환
         Long partyId =
                 userRepository
                         .findPartyIdByUserId(userId)
@@ -64,11 +77,82 @@ public class FundTransferService {
         ScrollPosition position = toScrollPosition(request);
 
         // 3. 환전 내역 조회
-        Window<ExchangeHistoryItem> chargeHistoriesByPartyId =
+        Window<ExchangeHistoryItem> window =
                 fundTransferRepository.findExchangeHistoriesByPartyId(
                         partyId, position, Limit.of(PAGE_SIZE));
 
-        return paginationService.toCursorPage(chargeHistoriesByPartyId);
+        // 4. CursorPageResponse 변환 위임
+        return paginationService.toCursorPage(window);
+    }
+
+    /** 충전 금액 및 할인 계산 메서드 */
+    public ChargeCalculateResponse calculateCharge(Long partyId, BigDecimal chargeAmount) {
+        // 만원 단위 검증
+        if (chargeAmount.remainder(new BigDecimal("10000")).compareTo(BigDecimal.ZERO) != 0) {
+            throw new BusinessException(ChargeErrorCode.INVALID_UNIT);
+        }
+
+        // 이번 달 사용액 조회 후 한도 초과 여부 확인
+        LocalDateTime startOfMonth = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+        LocalDateTime startOfNextMonth = startOfMonth.plusMonths(1);
+        BigDecimal usedAmount =
+                fundTransferRepository.sumMonthlyAmount(
+                        partyId,
+                        TransferType.CHARGE,
+                        TransferStatus.SUCCESS,
+                        startOfMonth,
+                        startOfNextMonth);
+        if (usedAmount.add(chargeAmount).compareTo(MONTHLY_LIMIT) > 0) {
+            throw new BusinessException(ChargeErrorCode.LIMIT_EXCEEDED);
+        }
+
+        // 할인 계산, 할인율 10% 고정
+        BigDecimal discountRate = new BigDecimal("0.10");
+        BigDecimal discountAmount = chargeAmount.multiply(discountRate);
+        BigDecimal actualPayAmount = chargeAmount.subtract(discountAmount);
+        log.info(
+                "충전 금액 계산: partyId={}, chargeAmount={}, actualPayAmount={}",
+                partyId,
+                chargeAmount,
+                actualPayAmount);
+
+        return ChargeCalculateResponse.builder()
+                .chargeAmount(chargeAmount)
+                .discountRate(discountRate)
+                .discountAmount(discountAmount)
+                .actualPayAmount(actualPayAmount)
+                .build();
+    }
+
+    /** 충전 한도 조회 메서드 */
+    public ChargeLimitResponse getChargeLimit(Long partyId) {
+        // 이번 달 시작일과 다음 달 시작일 계산
+        LocalDateTime startOfMonth = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+        LocalDateTime startOfNextMonth = startOfMonth.plusMonths(1);
+
+        // 이번 달 누적 충전 금액 조회
+        BigDecimal usedAmount =
+                fundTransferRepository.sumMonthlyAmount(
+                        partyId,
+                        TransferType.CHARGE,
+                        TransferStatus.SUCCESS,
+                        startOfMonth,
+                        startOfNextMonth);
+
+        // 잔여 한도 계산, 음수 방지
+        BigDecimal remainLimit = MONTHLY_LIMIT.subtract(usedAmount).max(BigDecimal.ZERO);
+        log.info(
+                "충전 한도 조회: partyId={}, usedAmount={}, remainLimit={}",
+                partyId,
+                usedAmount,
+                remainLimit);
+
+        return ChargeLimitResponse.builder()
+                .monthlyLimit(MONTHLY_LIMIT)
+                .usedAmount(usedAmount)
+                .remainLimit(remainLimit)
+                .resetDate(startOfNextMonth.toLocalDate().toString())
+                .build();
     }
 
     private ScrollPosition toScrollPosition(CursorPageRequest request) {
