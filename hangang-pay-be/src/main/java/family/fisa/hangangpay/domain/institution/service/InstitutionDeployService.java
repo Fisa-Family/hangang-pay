@@ -1,6 +1,6 @@
 package family.fisa.hangangpay.domain.institution.service;
 
-import family.fisa.hangangpay.domain.institution.dto.DeployContractRequest;
+import family.fisa.hangangpay.domain.institution.dto.DeployAllContractsResponse;
 import family.fisa.hangangpay.domain.institution.dto.DeployContractResponse;
 import family.fisa.hangangpay.domain.institution.entity.ContractAddress;
 import family.fisa.hangangpay.domain.institution.entity.ContractType;
@@ -11,9 +11,11 @@ import family.fisa.hangangpay.domain.institution.repository.InstitutionRepositor
 import family.fisa.hangangpay.global.exception.BusinessException;
 import java.io.IOException;
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.web3j.abi.FunctionEncoder;
 import org.web3j.abi.datatypes.Address;
 import org.web3j.abi.datatypes.Bool;
@@ -55,21 +57,40 @@ public class InstitutionDeployService {
     private final ContractAddressRepository contractAddressRepository;
 
     /*
-     * 배포 요청 진입점.
-     * 기관 정보와 중복 배포 여부를 검증한 뒤 배포 주소를 저장한다.
+     * BoK CBDC, 은행별 DepositToken, BoK Settlement 순서로 전체 배포한다.
      */
-    public DeployContractResponse deploy(Long institutionId, DeployContractRequest request) {
-        Institution institution =
+    @Transactional
+    public DeployAllContractsResponse deployAll() {
+        Institution centralBank =
                 institutionRepository
-                        .findById(institutionId)
+                        .findByInstitutionCode(CBDC_INSTITUTION_CODE)
                         .orElseThrow(() -> new BusinessException(InstitutionErrorCode.NOT_FOUND));
 
+        List<DeployContractResponse> responses = new ArrayList<>();
+
+        responses.add(deploy(centralBank, ContractType.CBDC));
+
+        for (Institution institution : institutionRepository.findAllByOrderByIdAsc()) {
+            if (isCentralBank(institution)) {
+                continue;
+            }
+
+            responses.add(deploy(institution, ContractType.DEPOSIT_TOKEN));
+        }
+
+        responses.add(deploy(centralBank, ContractType.CONTRACT));
+
+        return new DeployAllContractsResponse(responses);
+    }
+
+    /*
+     * 기관 정보와 중복 배포 여부를 검증한 뒤 배포 주소를 저장한다.
+     */
+    private DeployContractResponse deploy(Institution institution, ContractType contractType) {
         validateInstitutionDeploymentInfo(institution);
 
-        ContractType contractType = resolveContractType(institution, request);
-
         contractAddressRepository
-                .findByInstitutionIdAndName(institutionId, contractType)
+                .findByInstitutionIdAndName(institution.getId(), contractType)
                 .ifPresent(
                         existing -> {
                             throw new BusinessException(
@@ -104,7 +125,7 @@ public class InstitutionDeployService {
 
             if (contractType == ContractType.CONTRACT) {
                 registerSettlementAsOperator(contractAddress.getAddress());
-                registerBanksInSettlement(contractAddress.getAddress());
+                registerBanksInSettlement(contractAddress.getAddress(), institution);
             }
 
             return new DeployContractResponse(
@@ -170,11 +191,8 @@ public class InstitutionDeployService {
     /*
      * Settlement 컨트랙트에 은행별 DepositToken과 준비금 지갑을 등록한다.
      */
-    private void registerBanksInSettlement(String settlementAddress) throws IOException {
-        Institution centralBank =
-                institutionRepository
-                        .findByInstitutionCode(CBDC_INSTITUTION_CODE)
-                        .orElseThrow(() -> new BusinessException(InstitutionErrorCode.NOT_FOUND));
+    private void registerBanksInSettlement(String settlementAddress, Institution centralBank)
+            throws IOException {
 
         Credentials credentials =
                 walletKeyCipher.decryptCredentials(centralBank.getEncryptedPrivateKey());
@@ -185,10 +203,8 @@ public class InstitutionDeployService {
             RawTransactionManager transactionManager =
                     new RawTransactionManager(web3j, credentials, PRIVATE_NETWORK_CHAIN_ID);
 
-            for (ContractAddress contractAddress : contractAddressRepository.findAll()) {
-                if (contractAddress.getName() != ContractType.DEPOSIT_TOKEN) {
-                    continue;
-                }
+            for (ContractAddress contractAddress :
+                    contractAddressRepository.findAllByName(ContractType.DEPOSIT_TOKEN)) {
 
                 Institution bank = contractAddress.getInstitution();
 
@@ -238,11 +254,9 @@ public class InstitutionDeployService {
      * operator 권한을 부여한다.
      */
     private void registerSettlementAsOperator(String settlementAddress) throws IOException {
-        for (ContractAddress contractAddress : contractAddressRepository.findAll()) {
-            if (contractAddress.getName() != ContractType.CBDC
-                    && contractAddress.getName() != ContractType.DEPOSIT_TOKEN) {
-                continue;
-            }
+        for (ContractAddress contractAddress :
+                contractAddressRepository.findAllByNameIn(
+                        List.of(ContractType.CBDC, ContractType.DEPOSIT_TOKEN))) {
 
             Institution ownerInstitution = contractAddress.getInstitution();
             Credentials ownerCredentials =
@@ -342,22 +356,6 @@ public class InstitutionDeployService {
         } catch (IOException | TransactionException e) {
             throw new BusinessException(InstitutionErrorCode.RECEIPT_TIMEOUT);
         }
-    }
-
-    /*
-     * 요청 body에 name이 없으면 BoK는 CBDC, 나머지 기관은 DepositToken으로 배포한다.
-     */
-    private static ContractType resolveContractType(
-            Institution institution, DeployContractRequest request) {
-        if (request != null && request.name() != null) {
-            return request.name();
-        }
-
-        if (isCentralBank(institution)) {
-            return ContractType.CBDC;
-        }
-
-        return ContractType.DEPOSIT_TOKEN;
     }
 
     private static void validateSignerAddress(Institution institution, Credentials credentials) {

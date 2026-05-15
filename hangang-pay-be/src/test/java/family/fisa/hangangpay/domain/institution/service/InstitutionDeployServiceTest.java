@@ -6,7 +6,6 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import family.fisa.hangangpay.domain.institution.dto.DeployContractRequest;
 import family.fisa.hangangpay.domain.institution.entity.ContractAddress;
 import family.fisa.hangangpay.domain.institution.entity.ContractType;
 import family.fisa.hangangpay.domain.institution.entity.Institution;
@@ -38,11 +37,11 @@ class InstitutionDeployServiceTest {
     @InjectMocks private InstitutionDeployService institutionDeployService;
 
     @Test
-    @DisplayName("기관을 찾을 수 없으면 NOT_FOUND 예외를 던진다")
-    void deployInstitutionNotFound() {
-        given(institutionRepository.findById(1L)).willReturn(Optional.empty());
+    @DisplayName("BoK 기관을 찾을 수 없으면 NOT_FOUND 예외를 던진다")
+    void deployAllCentralBankNotFound() {
+        given(institutionRepository.findByInstitutionCode("BoK")).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> institutionDeployService.deploy(1L, null))
+        assertThatThrownBy(() -> institutionDeployService.deployAll())
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
                 .isEqualTo(InstitutionErrorCode.NOT_FOUND);
@@ -51,14 +50,15 @@ class InstitutionDeployServiceTest {
     }
 
     @Test
-    @DisplayName("기관 배포 정보가 부족하면 MISSING_DEPLOYMENT_INFO 예외를 던진다")
-    void deployMissingDeploymentInfo() {
-        Institution institution =
+    @DisplayName("BoK 기관 배포 정보가 부족하면 MISSING_DEPLOYMENT_INFO 예외를 던진다")
+    void deployAllMissingDeploymentInfo() {
+        Institution centralBank =
                 Institution.builder().id(1L).institutionCode("BoK").institutionName("한국은행").build();
 
-        given(institutionRepository.findById(1L)).willReturn(Optional.of(institution));
+        given(institutionRepository.findByInstitutionCode("BoK"))
+                .willReturn(Optional.of(centralBank));
 
-        assertThatThrownBy(() -> institutionDeployService.deploy(1L, null))
+        assertThatThrownBy(() -> institutionDeployService.deployAll())
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
                 .isEqualTo(InstitutionErrorCode.MISSING_DEPLOYMENT_INFO);
@@ -67,21 +67,23 @@ class InstitutionDeployServiceTest {
     }
 
     @Test
-    @DisplayName("요청 name이 없으면 BoK 기관은 CBDC 배포 대상으로 판단한다")
-    void deployDefaultCbdcForBok() {
-        Institution institution = institution(1L, "BoK", "한국은행", WALLET_ADDRESS);
+    @DisplayName("BoK CBDC 컨트랙트가 이미 배포되어 있으면 CONTRACT_ALREADY_DEPLOYED 예외를 던진다")
+    void deployAllCbdcAlreadyDeployed() {
+        Institution centralBank = institution(1L, "BoK", "한국은행", WALLET_ADDRESS);
+
         ContractAddress existingContract =
                 ContractAddress.builder()
-                        .institution(institution)
+                        .institution(centralBank)
                         .name(ContractType.CBDC)
                         .address("0x0000000000000000000000000000000000000001")
                         .build();
 
-        given(institutionRepository.findById(1L)).willReturn(Optional.of(institution));
+        given(institutionRepository.findByInstitutionCode("BoK"))
+                .willReturn(Optional.of(centralBank));
         given(contractAddressRepository.findByInstitutionIdAndName(1L, ContractType.CBDC))
                 .willReturn(Optional.of(existingContract));
 
-        assertThatThrownBy(() -> institutionDeployService.deploy(1L, null))
+        assertThatThrownBy(() -> institutionDeployService.deployAll())
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
                 .isEqualTo(InstitutionErrorCode.CONTRACT_ALREADY_DEPLOYED);
@@ -90,68 +92,19 @@ class InstitutionDeployServiceTest {
     }
 
     @Test
-    @DisplayName("요청 name이 없으면 일반 기관은 DEPOSIT_TOKEN 배포 대상으로 판단한다")
-    void deployDefaultDepositTokenForBank() {
-        Institution institution = institution(2L, "WOORI", "우리은행", WALLET_ADDRESS);
-        ContractAddress existingContract =
-                ContractAddress.builder()
-                        .institution(institution)
-                        .name(ContractType.DEPOSIT_TOKEN)
-                        .address("0x0000000000000000000000000000000000000002")
-                        .build();
+    @DisplayName("BoK 지갑 주소와 개인키 주소가 다르면 INVALID_WALLET_KEY 예외를 던진다")
+    void deployAllInvalidWalletKey() {
+        Institution centralBank =
+                institution(1L, "BoK", "한국은행", "0x0000000000000000000000000000000000000001");
 
-        given(institutionRepository.findById(2L)).willReturn(Optional.of(institution));
-        given(contractAddressRepository.findByInstitutionIdAndName(2L, ContractType.DEPOSIT_TOKEN))
-                .willReturn(Optional.of(existingContract));
-
-        assertThatThrownBy(() -> institutionDeployService.deploy(2L, null))
-                .isInstanceOf(BusinessException.class)
-                .extracting("code")
-                .isEqualTo(InstitutionErrorCode.CONTRACT_ALREADY_DEPLOYED);
-
-        verify(contractAddressRepository)
-                .findByInstitutionIdAndName(2L, ContractType.DEPOSIT_TOKEN);
-    }
-
-    @Test
-    @DisplayName("요청 name이 있으면 기관 코드보다 요청 값을 우선한다")
-    void deployRequestContractTypeFirst() {
-        Institution institution = institution(1L, "BoK", "한국은행", WALLET_ADDRESS);
-        ContractAddress existingContract =
-                ContractAddress.builder()
-                        .institution(institution)
-                        .name(ContractType.CONTRACT)
-                        .address("0x0000000000000000000000000000000000000003")
-                        .build();
-
-        given(institutionRepository.findById(1L)).willReturn(Optional.of(institution));
-        given(contractAddressRepository.findByInstitutionIdAndName(1L, ContractType.CONTRACT))
-                .willReturn(Optional.of(existingContract));
-
-        assertThatThrownBy(
-                        () ->
-                                institutionDeployService.deploy(
-                                        1L, new DeployContractRequest(ContractType.CONTRACT)))
-                .isInstanceOf(BusinessException.class)
-                .extracting("code")
-                .isEqualTo(InstitutionErrorCode.CONTRACT_ALREADY_DEPLOYED);
-
-        verify(contractAddressRepository).findByInstitutionIdAndName(1L, ContractType.CONTRACT);
-    }
-
-    @Test
-    @DisplayName("기관 지갑 주소와 개인키 주소가 다르면 INVALID_WALLET_KEY 예외를 던진다")
-    void deployInvalidWalletKey() {
-        Institution institution =
-                institution(2L, "WOORI", "우리은행", "0x0000000000000000000000000000000000000002");
-
-        given(institutionRepository.findById(2L)).willReturn(Optional.of(institution));
-        given(contractAddressRepository.findByInstitutionIdAndName(2L, ContractType.DEPOSIT_TOKEN))
+        given(institutionRepository.findByInstitutionCode("BoK"))
+                .willReturn(Optional.of(centralBank));
+        given(contractAddressRepository.findByInstitutionIdAndName(1L, ContractType.CBDC))
                 .willReturn(Optional.empty());
         given(walletKeyCipher.decryptCredentials(PRIVATE_KEY))
                 .willReturn(Credentials.create(PRIVATE_KEY));
 
-        assertThatThrownBy(() -> institutionDeployService.deploy(2L, null))
+        assertThatThrownBy(() -> institutionDeployService.deployAll())
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
                 .isEqualTo(InstitutionErrorCode.INVALID_WALLET_KEY);
