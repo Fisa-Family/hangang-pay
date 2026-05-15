@@ -1,10 +1,10 @@
 package family.fisa.hangangpay.domain.transfer.controller;
 
+import family.fisa.hangangpay.domain.transfer.code.TransferSuccessCode;
 import family.fisa.hangangpay.domain.transfer.dto.ChargeCalculateRequest;
 import family.fisa.hangangpay.domain.transfer.dto.ChargeCalculateResponse;
 import family.fisa.hangangpay.domain.transfer.dto.ChargeLimitResponse;
 import family.fisa.hangangpay.domain.transfer.service.FundTransferService;
-import family.fisa.hangangpay.global.code.success.GeneralSuccessCode;
 import family.fisa.hangangpay.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -52,7 +52,8 @@ public class ChargeController {
 
         // 충전 한도 조회 후 응답 반환
         ChargeLimitResponse response = fundTransferService.getChargeLimit(partyId);
-        return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
+        return ResponseEntity.ok(
+                ApiResponse.onSuccess(TransferSuccessCode.CHARGE_LIMIT_RETRIEVED, response));
     }
 
     /** CHARGE-002 충전 금액 및 할인 계산 엔드포인트 */
@@ -82,6 +83,7 @@ public class ChargeController {
         // 충전 금액 계산 후 응답 반환
         ChargeCalculateResponse response =
                 fundTransferService.calculateCharge(partyId, request.getChargeAmount());
-        return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
+        return ResponseEntity.ok(
+                ApiResponse.onSuccess(TransferSuccessCode.CHARGE_CALCULATED, response));
     }
 }
