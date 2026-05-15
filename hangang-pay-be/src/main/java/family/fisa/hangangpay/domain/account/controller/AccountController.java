@@ -57,7 +57,7 @@ public class AccountController {
 
         // 계좌 목록 조회 후 응답 반환
         AccountListResponse response = accountService.getAccounts(partyId);
-        return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.OK, response));
+        return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
     }
 
     /** ACCOUNT-002 계좌 추가 엔드포인트 */
@@ -93,7 +93,7 @@ public class AccountController {
         // 계좌 추가 후 201 응답 반환
         AccountResponse response = accountService.addAccount(partyId, request);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.onSuccess(GeneralSuccessCode.CREATED, response));
+                .body(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_CREATED, response));
     }
 
     /** ACCOUNT-003 계좌 삭제 엔드포인트 */
@@ -125,7 +125,7 @@ public class AccountController {
 
         // 계좌 삭제 후 200 응답 반환
         accountService.deleteAccount(partyId, accountId);
-        return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.OK));
+        return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK));
     }
 
     /** ACCOUNT-004 주거래 계좌 변경 엔드포인트 */
@@ -156,6 +156,6 @@ public class AccountController {
 
         // 주거래 계좌 변경 후 200 응답 반환
         PrimaryAccountResponse response = accountService.changePrimaryAccount(partyId, accountId);
-        return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.OK, response));
+        return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
     }
 }
