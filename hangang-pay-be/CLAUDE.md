@@ -313,6 +313,39 @@ flowchart LR
 
 도메인 예외는 `BusinessException(ErrorCode)`를 상속한다.
 
+## Response Code Naming
+
+`BaseErrorCode` / `BaseSuccessCode` 를 구현하는 enum 의 `code` 문자열은 **enum 이름과 동일**하게 둔다. HTTP 상태는 `code` 문자열에 박지 않고 `HttpStatus status` 필드로만 표현한다.
+
+규칙:
+
+- enum 이름 = `code` 문자열. 예: `USER_NOT_FOUND` → `"USER_NOT_FOUND"`.
+- 도메인 접두어로 그룹핑한다. 예: `USER_`, `ACCOUNT_`, `PAYMENT_`, `MERCHANT_`, `WALLET_`, `TRANSFER_`.
+- 공통 영역은 `COMMON_` 접두어를 쓴다. 예: `COMMON_BAD_REQUEST`, `COMMON_OK`.
+- 같은 status 의 코드가 여러 개여도 시퀀스 번호(`_0`, `_1`)를 붙이지 않는다. 의미가 다르면 enum 이름 자체를 구체적으로 짓는다.
+- HTTP 상태나 숫자만으로 만든 opaque 코드(`USER404_0`, `COMMON200`)는 신규로 만들지 않는다.
+
+예시:
+
+```java
+// Good
+USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "사용자를 찾을 수 없습니다."),
+ACCOUNT_NOT_FOUND(HttpStatus.NOT_FOUND, "ACCOUNT_NOT_FOUND", "계좌를 찾을 수 없습니다."),
+COMMON_BAD_REQUEST(HttpStatus.BAD_REQUEST, "COMMON_BAD_REQUEST", "잘못된 요청입니다."),
+CHARGE_HISTORIES_RETRIEVED(HttpStatus.OK, "CHARGE_HISTORIES_RETRIEVED", "충전 내역을 조회했습니다."),
+
+// Bad — 신규 작성 금지
+USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER404_0", "..."),
+OK(HttpStatus.OK, "COMMON200", "..."),
+```
+
+근거:
+- 로그/응답에서 코드 문자열만 봐도 의미가 드러나 운영·디버깅이 빠르다.
+- `_N` 시퀀스 관리 부담과 머지 충돌이 없다.
+- FE 분기문이 자기 설명적이다.
+
+기존 opaque 코드(`COMMON400`, `USER404_0`, `COMMON200` 등)는 별도 리팩터링 PR 로 일괄 변경한다. 신규 enum 은 처음부터 새 컨벤션을 따른다.
+
 ## Configuration
 
 - `application.yaml`: 공통 설정. 커밋 대상.

@@ -40,7 +40,7 @@ class UserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.isSuccess").value(true))
                 .andExpect(jsonPath("$.status").value("OK"))
-                .andExpect(jsonPath("$.code").value("COMMON200"))
+                .andExpect(jsonPath("$.code").value("COMMON_OK"))
                 .andExpect(jsonPath("$.result.name").value("김한강"))
                 .andExpect(jsonPath("$.result.region").value("성동구"))
                 .andExpect(jsonPath("$.result.createdAt").value("2026-01-15T00:00:00"));
@@ -56,7 +56,7 @@ class UserControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.isSuccess").value(false))
                 .andExpect(jsonPath("$.status").value("NOT_FOUND"))
-                .andExpect(jsonPath("$.code").value("USER404_0"))
+                .andExpect(jsonPath("$.code").value("USER_NOT_FOUND"))
                 .andExpect(jsonPath("$.message").value("사용자를 찾을 수 없습니다"));
     }
 }
