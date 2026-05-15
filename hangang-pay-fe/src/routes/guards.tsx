@@ -1,20 +1,18 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
+import { useCurrentUser } from '@/auth/useCurrentUser'
+import type { UserRole } from '@/auth/types'
 
-type UserRole = 'USER' | 'MERCHANT'
-
-interface AuthSnapshot {
-  isAuthenticated: boolean
-  role?: UserRole
-}
-
-function useAuthSnapshot(): AuthSnapshot {
-  // TODO: replace with useCurrentUser() after the API client and /api/me are added.
-  return { isAuthenticated: true }
+function getDefaultPathByRole(role: UserRole) {
+  return role === 'MERCHANT' ? '/merchant/home' : '/home'
 }
 
 export function RequireAuth() {
   const location = useLocation()
-  const auth = useAuthSnapshot()
+  const auth = useCurrentUser()
+
+  if (auth.isLoading) {
+    return null
+  }
 
   if (!auth.isAuthenticated) {
     return <Navigate to="/login" replace state={{ from: location }} />
@@ -28,10 +26,22 @@ interface RequireRoleProps {
 }
 
 export function RequireRole({ roles }: RequireRoleProps) {
-  const auth = useAuthSnapshot()
+  const auth = useCurrentUser()
 
-  if (auth.role && !roles.includes(auth.role)) {
-    return <Navigate to="/home" replace />
+  if (auth.isLoading) {
+    return null
+  }
+
+  if (!auth.isAuthenticated) {
+    return <Navigate to="/login" replace />
+  }
+
+  if (!auth.role) {
+    return <Navigate to="/login" replace />
+  }
+
+  if (!roles.includes(auth.role)) {
+    return <Navigate to={getDefaultPathByRole(auth.role)} replace />
   }
 
   return <Outlet />
