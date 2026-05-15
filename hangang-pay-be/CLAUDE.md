@@ -159,6 +159,27 @@ Checkpoints: 설계 확인 -> RED 실패 확인 -> GREEN 통과 확인
 4. 리스크
 5. 다음 액션
 
+## Service Naming Convention
+
+- 도메인 서비스는 읽기/쓰기를 분리한다.
+  - `XxxQueryService` — 조회 전용. `@Transactional(readOnly = true)` 적용.
+  - `XxxCommandService` — 쓰기 전용. `@Transactional` 적용.
+- 단일 서비스(`XxxService`)는 사용하지 않는다.
+
+## DTO Naming Convention
+
+- 커서 페이지네이션 목록의 원소 DTO는 `Item` suffix를 사용한다. 예: `UserPaymentHistoryItem`, `ExchangeHistoryItem`
+- `CursorPageResponse<XxxItem>` 형태로 감싸서 반환한다.
+- `Response` suffix는 단일 객체 응답 DTO에만 사용한다. 예: `UserProfileResponse`
+- `Item`은 `CursorItem` 인터페이스를 구현하고 `getCursorCreatedAt()` / `getCursorId()`를 제공한다.
+
+## Session Attribute Convention
+
+- 로그인 시 세션에 `userId`와 `partyId`를 모두 저장한다.
+- 컨트롤러에서 세션 값은 `@SessionAttribute`로 꺼낸다. `HttpSession`을 직접 파라미터로 받지 않는다.
+- 예: `@SessionAttribute("partyId") Long partyId`, `@SessionAttribute("userId") Long userId`
+- `@RequestParam`으로 인증 정보를 받지 않는다. 인증된 사용자 식별자는 반드시 세션에서 추출한다.
+
 ## Root-Level Architecture Rules
 
 - API는 `/api/v1` prefix와 `docs/rest_api.md`의 경로/권한 매핑을 따른다.
@@ -168,6 +189,7 @@ Checkpoints: 설계 확인 -> RED 실패 확인 -> GREEN 통과 확인
 - API 변경 시 controller/dto와 `docs/rest_api.md`를 함께 갱신한다.
 - 패키지 위치나 도메인 책임 변경 시 `docs/package.md`를 함께 갱신한다.
 - 세션 인증을 JWT로 변경하지 않는다.
+- Repository는 Port & Adapter 패턴을 사용한다. 도메인 루트에 포트 인터페이스(`domain/xxx/repository/XxxRepository`), `jpa/` 하위에 JPA 인터페이스(`XxxJpaRepository`)와 어댑터 구현체(`XxxRepositoryImpl`)를 둔다.
 
 ## Logging Policy
 
