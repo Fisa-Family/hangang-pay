@@ -3,7 +3,7 @@ package family.fisa.hangangpay.domain.user.controller;
 import family.fisa.hangangpay.domain.payment.dto.response.UserPaymentHistoryItem;
 import family.fisa.hangangpay.domain.payment.service.PaymentQueryService;
 import family.fisa.hangangpay.domain.user.dto.UserProfileResponse;
-import family.fisa.hangangpay.domain.user.service.UserService;
+import family.fisa.hangangpay.domain.user.service.UserQueryService;
 import family.fisa.hangangpay.global.code.success.GeneralSuccessCode;
 import family.fisa.hangangpay.global.pagination.CursorPageRequest;
 import family.fisa.hangangpay.global.pagination.CursorPageResponse;
@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class UserController {
 
-    private final UserService userService;
+    private final UserQueryService userQueryService;
     private final PaymentQueryService paymentQueryService;
 
     @Operation(summary = "프로필 조회 (MY-001)", description = "로그인한 소비자의 닉네임, 지역, 가입일을 반환한다.")
@@ -29,10 +29,10 @@ public class UserController {
     @GetMapping("/profile")
     public ResponseEntity<family.fisa.hangangpay.global.response.ApiResponse<UserProfileResponse>>
             getProfile(@SessionAttribute("userId") Long userId) {
-        UserProfileResponse response = userService.getProfile(userId);
+        UserProfileResponse response = userQueryService.getProfile(userId);
         return ResponseEntity.ok(
                 family.fisa.hangangpay.global.response.ApiResponse.onSuccess(
-                        GeneralSuccessCode.OK, response));
+                        GeneralSuccessCode.COMMON_OK, response));
     }
 
     @Operation(
@@ -52,6 +52,6 @@ public class UserController {
 
         return ResponseEntity.ok(
                 family.fisa.hangangpay.global.response.ApiResponse.onSuccess(
-                        GeneralSuccessCode.OK, response));
+                        GeneralSuccessCode.COMMON_OK, response));
     }
 }

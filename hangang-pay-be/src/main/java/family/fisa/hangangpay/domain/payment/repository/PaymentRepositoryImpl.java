@@ -1,8 +1,8 @@
-package family.fisa.hangangpay.domain.payment.repository.jpa;
+package family.fisa.hangangpay.domain.payment.repository;
 
 import family.fisa.hangangpay.domain.payment.entity.Payment;
 import family.fisa.hangangpay.domain.payment.entity.PaymentStatus;
-import family.fisa.hangangpay.domain.payment.repository.PaymentRepository;
+import family.fisa.hangangpay.domain.payment.repository.jpa.PaymentJpaRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Limit;
