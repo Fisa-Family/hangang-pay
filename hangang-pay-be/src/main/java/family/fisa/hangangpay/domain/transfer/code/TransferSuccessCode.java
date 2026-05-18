@@ -8,6 +8,8 @@ import org.springframework.http.HttpStatus;
 @AllArgsConstructor
 @Getter
 public enum TransferSuccessCode implements BaseSuccessCode {
+    CHARGE_LIMIT_RETRIEVED(HttpStatus.OK, "CHARGE_LIMIT_RETRIEVED", "충전 한도를 성공적으로 조회했습니다."),
+    CHARGE_CALCULATED(HttpStatus.OK, "CHARGE_CALCULATED", "충전 금액을 성공적으로 계산했습니다."),
     ;
 
     private final HttpStatus status;
