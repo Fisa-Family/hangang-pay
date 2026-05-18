@@ -5,12 +5,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import family.fisa.hangangpay.domain.payment.service.PaymentQueryService;
 import family.fisa.hangangpay.domain.user.code.error.UserErrorCode;
 import family.fisa.hangangpay.domain.user.dto.UserProfileResponse;
-import family.fisa.hangangpay.domain.user.service.UserService;
+import family.fisa.hangangpay.domain.user.service.UserQueryService;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import family.fisa.hangangpay.global.exception.handler.GlobalExceptionHandler;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,29 +28,40 @@ class UserControllerTest {
 
     @Autowired private MockMvc mockMvc;
 
-    @MockitoBean private UserService userService;
+    @MockitoBean private UserQueryService userQueryService;
+    @MockitoBean private PaymentQueryService paymentQueryService;
 
     @Test
     @DisplayName("마이페이지 프로필을 조회한다")
     void getProfile() throws Exception {
-        LocalDateTime createdAt = LocalDateTime.of(2026, 1, 15, 0, 0);
-        given(userService.getProfile(1L))
-                .willReturn(new UserProfileResponse("김한강", "성동구", createdAt));
+        given(userQueryService.getProfile(1L))
+                .willReturn(
+                        new UserProfileResponse(
+                                1L,
+                                1L,
+                                "01041301904",
+                                "유승준",
+                                "01041301904",
+                                LocalDate.now(),
+                                "서대문구"));
 
         mockMvc.perform(get("/api/v1/users/profile").sessionAttr("userId", 1L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.isSuccess").value(true))
                 .andExpect(jsonPath("$.status").value("OK"))
                 .andExpect(jsonPath("$.code").value("COMMON_OK"))
-                .andExpect(jsonPath("$.result.name").value("김한강"))
-                .andExpect(jsonPath("$.result.region").value("성동구"))
-                .andExpect(jsonPath("$.result.createdAt").value("2026-01-15T00:00:00"));
+                .andExpect(jsonPath("$.result.userId").value(1))
+                .andExpect(jsonPath("$.result.partyId").value(1))
+                .andExpect(jsonPath("$.result.username").value("01041301904"))
+                .andExpect(jsonPath("$.result.nickname").value("유승준"))
+                .andExpect(jsonPath("$.result.phoneNumber").value("01041301904"))
+                .andExpect(jsonPath("$.result.region").value("서대문구"));
     }
 
     @Test
     @DisplayName("사용자를 찾을 수 없으면 공통 실패 응답을 반환한다")
     void getProfileUserNotFound() throws Exception {
-        given(userService.getProfile(999L))
+        given(userQueryService.getProfile(999L))
                 .willThrow(new BusinessException(UserErrorCode.USER_NOT_FOUND));
 
         mockMvc.perform(get("/api/v1/users/profile").sessionAttr("userId", 999L))

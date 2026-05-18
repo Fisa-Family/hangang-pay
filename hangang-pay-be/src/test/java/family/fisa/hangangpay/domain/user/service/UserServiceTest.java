@@ -4,12 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 
+import family.fisa.hangangpay.domain.party.entity.Party;
+import family.fisa.hangangpay.domain.party.entity.PartyType;
 import family.fisa.hangangpay.domain.user.code.error.UserErrorCode;
 import family.fisa.hangangpay.domain.user.dto.UserProfileResponse;
 import family.fisa.hangangpay.domain.user.entity.User;
 import family.fisa.hangangpay.domain.user.repository.UserRepository;
 import family.fisa.hangangpay.global.exception.BusinessException;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,33 +22,48 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
-class UserServiceTest {
+class UserQueryServiceTest {
 
     @Mock private UserRepository userRepository;
 
-    @InjectMocks private UserService userService;
+    @InjectMocks private UserQueryService userQueryService;
 
     @Test
     @DisplayName("사용자 프로필 응답을 생성한다")
     void getProfile() {
-        LocalDateTime createdAt = LocalDateTime.of(2026, 1, 15, 0, 0);
-        User user = User.builder().nickname("김한강").region("성동구").build();
-        ReflectionTestUtils.setField(user, "createdAt", createdAt);
-        given(userRepository.findById(1L)).willReturn(Optional.of(user));
+        Party party = Party.of(PartyType.USER);
+        ReflectionTestUtils.setField(party, "id", 10L);
 
-        UserProfileResponse response = userService.getProfile(1L);
+        User user =
+                User.builder()
+                        .party(party)
+                        .username("hong123")
+                        .nickname("김한강")
+                        .phoneNumber("010-1234-5678")
+                        .birthDate(LocalDate.of(1999, 5, 16))
+                        .region("성동구")
+                        .build();
+        ReflectionTestUtils.setField(user, "id", 1L);
 
-        assertThat(response.name()).isEqualTo("김한강");
+        given(userRepository.findByIdWithParty(1L)).willReturn(Optional.of(user));
+
+        UserProfileResponse response = userQueryService.getProfile(1L);
+
+        assertThat(response.userId()).isEqualTo(1L);
+        assertThat(response.partyId()).isEqualTo(10L);
+        assertThat(response.username()).isEqualTo("hong123");
+        assertThat(response.nickname()).isEqualTo("김한강");
+        assertThat(response.phoneNumber()).isEqualTo("010-1234-5678");
+        assertThat(response.birthDate()).isEqualTo(LocalDate.of(1999, 5, 16));
         assertThat(response.region()).isEqualTo("성동구");
-        assertThat(response.createdAt()).isEqualTo(createdAt);
     }
 
     @Test
     @DisplayName("사용자를 찾을 수 없으면 USER_NOT_FOUND 예외를 던진다")
     void getProfileUserNotFound() {
-        given(userRepository.findById(999L)).willReturn(Optional.empty());
+        given(userRepository.findByIdWithParty(999L)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> userService.getProfile(999L))
+        assertThatThrownBy(() -> userQueryService.getProfile(999L))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
                 .isEqualTo(UserErrorCode.USER_NOT_FOUND);

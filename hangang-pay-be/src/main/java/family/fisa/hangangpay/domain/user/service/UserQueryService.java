@@ -7,19 +7,21 @@ import family.fisa.hangangpay.domain.user.repository.UserRepository;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class UserService {
+@Transactional(readOnly = true)
+public class UserQueryService {
 
     private final UserRepository userRepository;
 
     public UserProfileResponse getProfile(Long userId) {
         User user =
                 userRepository
-                        .findById(userId)
+                        .findByIdWithParty(userId)
                         .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
 
-        return new UserProfileResponse(user.getNickname(), user.getRegion(), user.getCreatedAt());
+        return UserProfileResponse.from(user);
     }
 }
