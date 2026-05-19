@@ -34,6 +34,7 @@ public interface FundTransferJpaRepository extends JpaRepository<FundTransfer, L
             @Param("startOfMonth") LocalDateTime startOfMonth,
             @Param("startOfNextMonth") LocalDateTime startOfNextMonth);
 
+    @Query("SELECT f FROM FundTransfer f WHERE f.id = :id")
     @EntityGraph(attributePaths = {"account", "wallet", "account.institution"})
-    Optional<FundTransfer> findByIdWithAccountAndWallet(Long id);
+    Optional<FundTransfer> findByIdWithAccountAndWallet(@Param("id") Long id);
 }

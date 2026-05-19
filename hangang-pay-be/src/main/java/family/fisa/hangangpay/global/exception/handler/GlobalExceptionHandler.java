@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @Slf4j
 @RestControllerAdvice
@@ -62,5 +63,17 @@ public class GlobalExceptionHandler {
         ApiResponse<String> errorResponse = ApiResponse.onFailure(errorCode, null);
 
         return ResponseEntity.status(errorCode.getStatus()).body(errorResponse);
+    }
+
+    /** 내역조회 시 유효하지 않은 타입에 대한 예외 */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<?>> handleTypeMismatch(
+            MethodArgumentTypeMismatchException ex) {
+        if (ex.getRequiredType() != null && ex.getRequiredType().isEnum()) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.onFailure(GeneralErrorCode.COMMON_INVALID_HISTORY_TYPE));
+        }
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.onFailure(GeneralErrorCode.COMMON_BAD_REQUEST));
     }
 }

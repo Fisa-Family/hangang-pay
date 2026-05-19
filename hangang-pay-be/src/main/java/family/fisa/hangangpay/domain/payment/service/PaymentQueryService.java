@@ -1,12 +1,14 @@
 package family.fisa.hangangpay.domain.payment.service;
 
+import static family.fisa.hangangpay.domain.blockchain.entity.ReferenceType.PAYMENT;
+
 import family.fisa.hangangpay.domain.blockchain.entity.BlockchainTx;
-import family.fisa.hangangpay.domain.blockchain.entity.ReferenceType;
 import family.fisa.hangangpay.domain.blockchain.repository.BlockchainTxRepository;
 import family.fisa.hangangpay.domain.merchant.entity.Merchant;
 import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
+import family.fisa.hangangpay.domain.payment.code.error.PaymentErrorCode;
+import family.fisa.hangangpay.domain.payment.dto.response.PaymentHistoryItem;
 import family.fisa.hangangpay.domain.payment.dto.response.UserPaymentHistoryDetail;
-import family.fisa.hangangpay.domain.payment.dto.response.UserPaymentHistoryItem;
 import family.fisa.hangangpay.domain.payment.entity.Payment;
 import family.fisa.hangangpay.domain.payment.entity.PaymentStatus;
 import family.fisa.hangangpay.domain.payment.repository.PaymentRepository;
@@ -37,7 +39,7 @@ public class PaymentQueryService {
     private final PaginationService paginationService;
     private final BlockchainTxRepository blockchainTxRepository;
 
-    public CursorPageResponse<UserPaymentHistoryItem> getUserPaymentHistory(
+    public CursorPageResponse<PaymentHistoryItem> getUserPaymentHistory(
             Long partyId, CursorPageRequest request, int size) {
 
         log.info("결제 내역 조회 시작. partyId={}", partyId);
@@ -78,7 +80,7 @@ public class PaymentQueryService {
                                         m -> m.getParty().getId(), Merchant::getMerchantName));
 
         /** 5. paginationService.toCursorPage 형태에 맞게 response DTO 변환 */
-        Window<UserPaymentHistoryItem> responseWindow =
+        Window<PaymentHistoryItem> responseWindow =
                 window.map(
                         p -> {
                             Long payeePartyId = p.getPayeeParty().getId();
@@ -90,7 +92,7 @@ public class PaymentQueryService {
                                         payeePartyId);
                                 merchantName = "알 수 없는 가맹점";
                             }
-                            return UserPaymentHistoryItem.from(p, merchantName);
+                            return PaymentHistoryItem.from(p, merchantName);
                         });
 
         log.info("결제 내역 조회 완료. partyId={}, count={}", partyId, window.getContent().size());
@@ -107,7 +109,8 @@ public class PaymentQueryService {
         Payment payment =
                 paymentRepository
                         .findByIdWithPayerParty(paymentId)
-                        .orElseThrow(() -> new BusinessException(UserErrorCode.HISTORY_NOT_FOUND));
+                        .orElseThrow(
+                                () -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
 
         // 2. 소유주 검증
         verifyOwner(partyId, payment);
@@ -115,7 +118,7 @@ public class PaymentQueryService {
         // 3. Blockchain Transaction 내역 가져오기
         BlockchainTx blockchainTx =
                 blockchainTxRepository
-                        .findByReferenceTypeAndReferenceId(ReferenceType.PAYMENT, paymentId)
+                        .findByReferenceTypeAndReferenceId(PAYMENT, paymentId)
                         .orElse(null);
 
         log.info("결제 내역 상세 조회 완료. partyId={}, paymentId={}", partyId, paymentId);

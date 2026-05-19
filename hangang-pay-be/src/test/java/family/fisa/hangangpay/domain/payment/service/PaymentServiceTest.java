@@ -8,7 +8,7 @@ import static org.mockito.Mockito.when;
 import family.fisa.hangangpay.domain.merchant.entity.Merchant;
 import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.party.entity.Party;
-import family.fisa.hangangpay.domain.payment.dto.response.UserPaymentHistoryItem;
+import family.fisa.hangangpay.domain.payment.dto.response.PaymentHistoryItem;
 import family.fisa.hangangpay.domain.payment.entity.Payment;
 import family.fisa.hangangpay.domain.payment.entity.PaymentStatus;
 import family.fisa.hangangpay.domain.payment.repository.PaymentRepository;
@@ -61,11 +61,9 @@ public class PaymentServiceTest {
         when(paymentWindow.getContent()).thenReturn(List.of(payment1, payment2));
         when(paymentWindow.map(any())).thenReturn(mock(Window.class));
 
-        CursorPageResponse<UserPaymentHistoryItem> expectedResponse =
+        CursorPageResponse<PaymentHistoryItem> expectedResponse =
                 new CursorPageResponse<>(
-                        List.of(
-                                mock(UserPaymentHistoryItem.class),
-                                mock(UserPaymentHistoryItem.class)),
+                        List.of(mock(PaymentHistoryItem.class), mock(PaymentHistoryItem.class)),
                         null,
                         null,
                         false);
@@ -82,7 +80,7 @@ public class PaymentServiceTest {
                 .thenReturn((CursorPageResponse) expectedResponse);
 
         // when
-        CursorPageResponse<UserPaymentHistoryItem> response =
+        CursorPageResponse<PaymentHistoryItem> response =
                 paymentQueryService.getUserPaymentHistory(partyId, request, size);
 
         // then
@@ -105,7 +103,7 @@ public class PaymentServiceTest {
         when(paymentWindow.getContent()).thenReturn(List.of());
         when(paymentWindow.map(any())).thenReturn(mock(Window.class));
 
-        CursorPageResponse<UserPaymentHistoryItem> expectedResponse =
+        CursorPageResponse<PaymentHistoryItem> expectedResponse =
                 new CursorPageResponse<>(List.of(), null, null, false);
 
         when(paginationService.resolveScrollPosition(request)).thenReturn(position);
@@ -120,7 +118,7 @@ public class PaymentServiceTest {
                 .thenReturn((CursorPageResponse) expectedResponse);
 
         // when
-        CursorPageResponse<UserPaymentHistoryItem> response =
+        CursorPageResponse<PaymentHistoryItem> response =
                 paymentQueryService.getUserPaymentHistory(partyId, request, size);
 
         // then
@@ -158,10 +156,10 @@ public class PaymentServiceTest {
         when(paymentWindow.map(any()))
                 .thenAnswer(
                         inv -> {
-                            java.util.function.Function<Payment, UserPaymentHistoryItem> fn =
+                            java.util.function.Function<Payment, PaymentHistoryItem> fn =
                                     inv.getArgument(0);
-                            UserPaymentHistoryItem mapped = fn.apply(cancelled);
-                            Window<UserPaymentHistoryItem> rw = mock(Window.class);
+                            PaymentHistoryItem mapped = fn.apply(cancelled);
+                            Window<PaymentHistoryItem> rw = mock(Window.class);
                             when(rw.getContent()).thenReturn(List.of(mapped));
                             return rw;
                         });
@@ -177,12 +175,12 @@ public class PaymentServiceTest {
         when(paginationService.toCursorPage(any()))
                 .thenAnswer(
                         inv -> {
-                            Window<UserPaymentHistoryItem> w = inv.getArgument(0);
+                            Window<PaymentHistoryItem> w = inv.getArgument(0);
                             return new CursorPageResponse<>(w.getContent(), null, null, false);
                         });
 
         // when
-        CursorPageResponse<UserPaymentHistoryItem> response =
+        CursorPageResponse<PaymentHistoryItem> response =
                 paymentQueryService.getUserPaymentHistory(partyId, request, size);
 
         // then
@@ -209,9 +207,9 @@ public class PaymentServiceTest {
         when(paymentWindow.getContent()).thenReturn(Collections.nCopies(size + 1, payment));
         when(paymentWindow.map(any())).thenReturn(mock(Window.class));
 
-        CursorPageResponse<UserPaymentHistoryItem> expectedResponse =
+        CursorPageResponse<PaymentHistoryItem> expectedResponse =
                 new CursorPageResponse<>(
-                        Collections.nCopies(20, mock(UserPaymentHistoryItem.class)),
+                        Collections.nCopies(20, mock(PaymentHistoryItem.class)),
                         LocalDateTime.now(),
                         21L,
                         true);
@@ -228,7 +226,7 @@ public class PaymentServiceTest {
                 .thenReturn((CursorPageResponse) expectedResponse);
 
         // when
-        CursorPageResponse<UserPaymentHistoryItem> response =
+        CursorPageResponse<PaymentHistoryItem> response =
                 paymentQueryService.getUserPaymentHistory(partyId, request, size);
 
         // then
