@@ -28,6 +28,13 @@ public class SecurityConfig {
         http.authorizeHttpRequests(
                 auth ->
                         auth
+                                // Swagger UI 및 API 문서
+                                .requestMatchers(
+                                        "/swagger-ui/**",
+                                        "/swagger-ui.html",
+                                        "/v3/api-docs/**",
+                                        "/api-docs/**")
+                                .permitAll()
                                 // 계좌 도메인, 임시 인증 비활성화 상태
                                 .requestMatchers("/api/v1/accounts/**")
                                 .permitAll()
