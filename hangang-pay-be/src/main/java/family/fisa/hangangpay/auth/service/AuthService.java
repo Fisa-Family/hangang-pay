@@ -41,7 +41,9 @@ public class AuthService {
                         .orElseThrow(
                                 () -> new BusinessException(AuthErrorCode.INVALID_CREDENTIALS));
 
-        validatePassword(request.password(), user.getPasswordHash());
+        if (!user.matchesPassword(request.password(), passwordEncoder)) {
+            throw new BusinessException(AuthErrorCode.INVALID_CREDENTIALS);
+        }
         saveLoginSession(session, USER_ID, user.getId(), user.getParty().getId(), PartyType.USER);
 
         log.info("사용자 로그인 성공. userId={}, partyId={}", user.getId(), user.getParty().getId());
@@ -58,7 +60,9 @@ public class AuthService {
                         .orElseThrow(
                                 () -> new BusinessException(AuthErrorCode.INVALID_CREDENTIALS));
 
-        validatePassword(request.password(), merchant.getPasswordHash());
+        if (!merchant.matchesPassword(request.password(), passwordEncoder)) {
+            throw new BusinessException(AuthErrorCode.INVALID_CREDENTIALS);
+        }
         saveLoginSession(
                 session,
                 MERCHANT_ID,
@@ -84,12 +88,6 @@ public class AuthService {
 
     private void validateLoginRequest(String phoneNumber, String password) {
         if (!StringUtils.hasText(phoneNumber) || !StringUtils.hasText(password)) {
-            throw new BusinessException(AuthErrorCode.INVALID_CREDENTIALS);
-        }
-    }
-
-    private void validatePassword(String rawPassword, String passwordHash) {
-        if (!passwordEncoder.matches(rawPassword, passwordHash)) {
             throw new BusinessException(AuthErrorCode.INVALID_CREDENTIALS);
         }
     }

@@ -9,6 +9,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Entity
 @Table(name = "merchant")
@@ -61,4 +62,8 @@ public class Merchant extends BaseEntity {
     /** 경도 */
     @Column(precision = 10, scale = 7)
     private BigDecimal longitude;
+
+    public boolean matchesPassword(String rawPassword, PasswordEncoder passwordEncoder) {
+        return passwordEncoder.matches(rawPassword, passwordHash);
+    }
 }
