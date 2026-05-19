@@ -8,4 +8,6 @@ public interface MerchantRepository {
     List<Merchant> findByParty_IdIn(List<Long> payeePartyIds);
 
     Optional<Merchant> findByParty_Id(Long partyId);
+
+    Optional<Merchant> findByPhoneNumberWithParty(String phoneNumber);
 }

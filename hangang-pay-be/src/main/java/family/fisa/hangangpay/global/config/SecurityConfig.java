@@ -1,10 +1,14 @@
 package family.fisa.hangangpay.global.config;
 
+import family.fisa.hangangpay.global.security.SessionAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
@@ -13,13 +17,17 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(
-            HttpSecurity http, CorsConfigurationSource corsConfigurationSource) throws Exception {
+            HttpSecurity http,
+            CorsConfigurationSource corsConfigurationSource,
+            SessionAuthenticationFilter sessionAuthenticationFilter)
+            throws Exception {
         http.cors(c -> c.configurationSource(corsConfigurationSource));
 
         // CSRF 예외 경로, 새 도메인 POST 개발 시 경로 추가 필요
         http.csrf(
                 csrf ->
                         csrf.ignoringRequestMatchers(
+                                "/api/v1/auth/**",
                                 "/api/v1/accounts/**",
                                 "/api/v1/charge/**",
                                 "/api/v1/institutions/contracts/deploy"));
@@ -35,6 +43,15 @@ public class SecurityConfig {
                                         "/v3/api-docs/**",
                                         "/api-docs/**")
                                 .permitAll()
+                                // 인증 도메인
+                                .requestMatchers("/api/v1/auth/**")
+                                .permitAll()
+                                // 사용자 도메인
+                                .requestMatchers("/api/v1/users/**", "/api/v1/payment/**")
+                                .hasRole("USER")
+                                // 가맹점 도메인
+                                .requestMatchers("/api/v1/merchants/**")
+                                .hasRole("MERCHANT")
                                 // 계좌 도메인, 임시 인증 비활성화 상태
                                 .requestMatchers("/api/v1/accounts/**")
                                 .permitAll()
@@ -47,6 +64,14 @@ public class SecurityConfig {
                                 .anyRequest()
                                 .authenticated());
 
+        http.addFilterBefore(
+                sessionAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 }

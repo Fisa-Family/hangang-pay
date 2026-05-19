@@ -13,12 +13,17 @@ public class MerchantRepositoryImpl implements MerchantRepository {
     private final MerchantJpaRepository merchantJpaRepository;
 
     @Override
-    public List<Merchant> findByParty_IdIn(List<Long> payeePartyIds) {
+    public List<Merchant> findByPartyIdIn(List<Long> payeePartyIds) {
         return merchantJpaRepository.findByParty_IdIn(payeePartyIds);
     }
 
     @Override
     public Optional<Merchant> findByParty_Id(Long partyId) {
         return merchantJpaRepository.findByParty_Id(partyId);
+    }
+    
+    @Override
+    public Optional<Merchant> findByPhoneNumberWithParty(String phoneNumber) {
+        return merchantJpaRepository.findByPhoneNumberWithParty(phoneNumber);
     }
 }
