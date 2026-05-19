@@ -21,6 +21,7 @@ React + Vite 기반 대시보드. `blockchain-be`의 REST API를 호출하여 �
 ## 디자인 톤
 
 **깔끔한 모노톤 (monochrome).**
+
 - 흰 배경 또는 매우 옅은 회색
 - 검은색/짙은 회색 텍스트
 - 강조는 회색 단계로만 (회색 톤 차이)
@@ -92,34 +93,40 @@ src/
 ## 페이지별 핵심 UI
 
 ### Dashboard
+
 - 전체 은행 CBDC 잔액 카드 4개 (한국은행, 우리, 신한, 하나)
 - 최근 거래 5개 (간단한 테이블)
 - 사용자별 예금토큰 잔액 요약
 
 ### CBDCIssuance
+
 - 입력: 대상 은행 (드롭다운), 금액
 - 버튼: 발급
 - 결과: 트랜잭션 해시 표시 + 시간 + correlationId
 - 발급 완료 후 자동으로 잔액 갱신
 
 ### IntraBankTransfer
+
 - 입력: 은행 선택 → 보내는 사용자 + 받는 사용자 (같은 은행) + 금액
 - 버튼: 이체
 - 결과: 트랜잭션 해시, 단계별 시간
 
 ### InterBankTransfer
+
 - 입력: 보내는 은행 + 사용자, 받는 은행 + 사용자, 금액
 - 버튼: 이체
 - 결과: 3단계 트랜잭션 해시 모두 표시 + 단계별 시간 + 총 소요시간
 - 진행 중에는 단계별 진행 상태 시각화
 
 ### TransactionList
+
 - 컬럼: correlationId(짧게), 타입, From, To, 금액, 상태, 소요시간, 시각
 - 필터: 거래 타입, 날짜, 은행, 상태
 - 페이징
 - 행 클릭 → TransactionDetail로
 
 ### TransactionDetail
+
 - 거래 기본 정보 (correlationId, 타입, 금액, 상태)
 - **TimelineView**: 단계별 막대 차트 (수평 Gantt 스타일)
   - 각 단계: REQUEST_RECEIVED → VALIDATION_DONE → BURN_SUBMITTED → BURN_FINALIZED → ... → RESPONSE_SENT
@@ -128,6 +135,7 @@ src/
 - 트랜잭션 해시 복사 가능
 
 ### Users
+
 - 9명 사용자 카드/리스트
 - 각각: 이름, 소속 은행, 주소(짧게), 예금토큰 잔액
 - 검색/필터 (은행별)
@@ -135,6 +143,7 @@ src/
 ## API 호출 패턴
 
 `api/client.js`:
+
 ```
 const BASE_URL = 'http://localhost:8080/api';
 // fetch 기반 헬퍼 (인증 없음)
@@ -153,19 +162,19 @@ const BASE_URL = 'http://localhost:8080/api';
   --color-text-primary: #1a1a1a;
   --color-text-secondary: #6b6b6b;
   --color-text-tertiary: #999999;
-  --color-accent: #333333;        /* 강조도 회색 톤 */
-  --color-success: #4a4a4a;       /* 성공도 짙은 회색 */
-  --color-error: #2a2a2a;         /* 에러도 회색 */
-  
+  --color-accent: #333333; /* 강조도 회색 톤 */
+  --color-success: #4a4a4a; /* 성공도 짙은 회색 */
+  --color-error: #2a2a2a; /* 에러도 회색 */
+
   --radius-sm: 4px;
   --radius-md: 6px;
-  
+
   --spacing-xs: 4px;
   --spacing-sm: 8px;
   --spacing-md: 16px;
   --spacing-lg: 24px;
   --spacing-xl: 32px;
-  
+
   --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'SF Mono', Menlo, monospace;
 }
