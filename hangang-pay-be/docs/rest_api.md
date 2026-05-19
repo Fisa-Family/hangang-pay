@@ -101,13 +101,13 @@ SMS 인증은 Octomo를 사용한다. SMS 발송 API도 백엔드에 둔다.
 | `MERCHANT-001` | 가맹점 매출 요약 조회 | `GET` | `/merchant/dashboard` | `O` | `MERCHANT` | 가맹점 전용 |
 | `MERCHANT-002` | 가맹점 결제 내역 조회 | `GET` | `/merchant/payments` | `O` | `MERCHANT` | 가맹점 전용 |
 | `MERCHANT-003` | 가맹점 결제 상세 조회 | `GET` | `/merchant/payments/{paymentId}` | `O` | `MERCHANT` | |
-| `MERCHANT-003` | 결제 취소 | `POST` | `/merchant/payments/{paymentId}/cancel` | `O` | `MERCHANT` | 시간 제한 없음 |
-| `MERCHANT-004` | 가맹점 정산 내역 조회 | `GET` | `/merchant/settlements` | `O` | `MERCHANT` | `payment`/`payment_cancellation` 기반 기록 조회 |
-| `MERCHANT-005` | 가맹점 정산 신청 조회 | `GET` | `/merchant/redeem` | `O` | `MERCHANT` | 토큰→현금 |
-| `MERCHANT-006` | 가맹점 정산 신청 실행 | `POST` | `/merchant/redeem` | `O` | `MERCHANT` | 토큰→현금 |
-| `MERCHANT-007` | 가맹점 QR 생성/조회 | `GET` | `/merchants/qr` | `O` | `MERCHANT` | 결제용 QR 코드 (merchantId 포함) |
-| `MERCHANT-008` | 가맹점 마이페이지 조회 | `GET` | `/merchant/mypage` | `O` | `MERCHANT` | |
-| `MERCHANT-009` | 가맹점 계좌 변경 | `POST` | `/v2/merchant/accounts` | `O` | `MERCHANT` | `/api/v2` prefix 사용 |
+| `MERCHANT-004` | 결제 취소 | `POST` | `/merchant/payments/{paymentId}/cancel` | `O` | `MERCHANT` | 시간 제한 없음 |
+| `MERCHANT-005` | 가맹점 정산 내역 조회 | `GET` | `/merchant/settlements` | `O` | `MERCHANT` | `payment`/`payment_cancellation` 기반 기록 조회 |
+| `MERCHANT-006` | 가맹점 정산 신청 조회 | `GET` | `/merchant/redeem` | `O` | `MERCHANT` | 토큰→현금 |
+| `MERCHANT-007` | 가맹점 정산 신청 실행 | `POST` | `/merchant/redeem` | `O` | `MERCHANT` | 토큰→현금 |
+| `MERCHANT-008` | 가맹점 QR 생성/조회 | `GET` | `/merchants/qr` | `O` | `MERCHANT` | 결제용 QR 코드 (merchantId 포함) |
+| `MERCHANT-009` | 가맹점 마이페이지 조회 | `GET` | `/merchant/mypage` | `O` | `MERCHANT` | |
+| `MERCHANT-010` | 가맹점 계좌 변경 | `POST` | `/v2/merchant/accounts` | `O` | `MERCHANT` | `/api/v2` prefix 사용 |
 | `MY-001` | 사용자 마이페이지 조회 | `GET` | `/users/profile` | `O` | `USER` | 소비자 전용 |
 | `MY-002` | 사용자 내역 조회 | `GET` | `/users/histories` | `O` | `USER` | 소비자 전용 |
 | `MY-003` | 내역 상세 조회 | `GET` | `/users/histories/{partyId}` | `O` | `USER` | 소비자 전용 |
