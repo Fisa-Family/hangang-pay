@@ -2,6 +2,7 @@ package family.fisa.hangangpay.domain.transfer.dto;
 
 import family.fisa.hangangpay.domain.transfer.entity.FundTransfer;
 import family.fisa.hangangpay.domain.transfer.entity.TransferStatus;
+import family.fisa.hangangpay.domain.user.dto.UserHistoryType;
 import family.fisa.hangangpay.global.pagination.CursorItem;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -14,6 +15,7 @@ public record ChargeHistoryItem(
         BigDecimal discountAmount,
         BigDecimal discountRate,
         TransferStatus status,
+        UserHistoryType historyType,
         LocalDateTime chargedAt)
         implements CursorItem {
 
@@ -24,6 +26,7 @@ public record ChargeHistoryItem(
                 .discountAmount(fundTransfer.getDiscountAmount())
                 .discountRate(fundTransfer.getDiscountRate())
                 .status(fundTransfer.getStatus())
+                .historyType(UserHistoryType.CHARGE)
                 .chargedAt(fundTransfer.getCreatedAt())
                 .build();
     }

@@ -35,15 +35,13 @@ public class FundTransferService {
     /** 월 최대 충전 한도 */
     private static final BigDecimal MONTHLY_LIMIT = new BigDecimal("1000000");
 
-    private static final int PAGE_SIZE = 20;
-
     private final UserRepository userRepository;
     private final FundTransferRepository fundTransferRepository;
     private final PaginationService paginationService;
 
     /** FundTransfer 내부 CHARGE 타입 내역 조회 */
     public CursorPageResponse<ChargeHistoryItem> getChargeHistories(
-            Long userId, CursorPageRequest request) {
+            Long userId, CursorPageRequest request, int size) {
 
         // 1. userId partyId 변환
         Long partyId =
@@ -57,7 +55,7 @@ public class FundTransferService {
         // 3. 충전 내역 조회
         Window<ChargeHistoryItem> window =
                 fundTransferRepository.findChargeHistoriesByPartyId(
-                        partyId, position, Limit.of(PAGE_SIZE));
+                        partyId, position, Limit.of(size));
 
         // 4. CursorPageResponse 변환 위임
         return paginationService.toCursorPage(window);
@@ -65,7 +63,7 @@ public class FundTransferService {
 
     /** FundTransfer 내부 EXCHANGE 타입 내역 조회 */
     public CursorPageResponse<ExchangeHistoryItem> getExchangeHistories(
-            Long userId, CursorPageRequest request) {
+            Long userId, CursorPageRequest request, int size) {
 
         // 1. userId partyId 변환
         Long partyId =
@@ -79,7 +77,7 @@ public class FundTransferService {
         // 3. 환전 내역 조회
         Window<ExchangeHistoryItem> window =
                 fundTransferRepository.findExchangeHistoriesByPartyId(
-                        partyId, position, Limit.of(PAGE_SIZE));
+                        partyId, position, Limit.of(size));
 
         // 4. CursorPageResponse 변환 위임
         return paginationService.toCursorPage(window);

@@ -53,7 +53,7 @@ class FundTransferServiceTest {
             assertThatThrownBy(
                             () ->
                                     fundTransferService.getChargeHistories(
-                                            1L, new CursorPageRequest(null, null)))
+                                            1L, new CursorPageRequest(null, null), 20))
                     .isInstanceOf(BusinessException.class)
                     .hasFieldOrPropertyWithValue("code", UserErrorCode.USER_NOT_FOUND);
         }
@@ -76,7 +76,7 @@ class FundTransferServiceTest {
             // when
             CursorPageResponse<ChargeHistoryItem> actual =
                     fundTransferService.getChargeHistories(
-                            userId, new CursorPageRequest(null, null));
+                            userId, new CursorPageRequest(null, null), 20);
 
             // then
             assertThat(actual).isSameAs(expected);
@@ -107,7 +107,7 @@ class FundTransferServiceTest {
             // when
             CursorPageResponse<ChargeHistoryItem> actual =
                     fundTransferService.getChargeHistories(
-                            userId, new CursorPageRequest(cursorAt, cursorId));
+                            userId, new CursorPageRequest(cursorAt, cursorId), 20);
 
             // then
             assertThat(actual).isSameAs(expected);
@@ -130,7 +130,7 @@ class FundTransferServiceTest {
             assertThatThrownBy(
                             () ->
                                     fundTransferService.getExchangeHistories(
-                                            1L, new CursorPageRequest(null, null)))
+                                            1L, new CursorPageRequest(null, null), 20))
                     .isInstanceOf(BusinessException.class)
                     .hasFieldOrPropertyWithValue("code", UserErrorCode.USER_NOT_FOUND);
         }
@@ -153,7 +153,7 @@ class FundTransferServiceTest {
             // when
             CursorPageResponse<ExchangeHistoryItem> actual =
                     fundTransferService.getExchangeHistories(
-                            userId, new CursorPageRequest(null, null));
+                            userId, new CursorPageRequest(null, null), 20);
 
             // then
             assertThat(actual).isSameAs(expected);
@@ -184,7 +184,7 @@ class FundTransferServiceTest {
             // when
             CursorPageResponse<ExchangeHistoryItem> actual =
                     fundTransferService.getExchangeHistories(
-                            userId, new CursorPageRequest(cursorAt, cursorId));
+                            userId, new CursorPageRequest(cursorAt, cursorId), 20);
 
             // then
             assertThat(actual).isSameAs(expected);
