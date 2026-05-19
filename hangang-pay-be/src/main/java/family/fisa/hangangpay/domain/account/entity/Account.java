@@ -56,4 +56,10 @@ public class Account extends BaseEntity {
     public void updateAccountType(AccountType accountType) {
         this.accountType = accountType;
     }
+
+    /** 기관 및 계좌번호 변경 메서드, JPA 변경 감지로 자동 반영 */
+    public void update(Institution institution, String accountNumber) {
+        this.institution = institution;
+        this.accountNumber = accountNumber;
+    }
 }
