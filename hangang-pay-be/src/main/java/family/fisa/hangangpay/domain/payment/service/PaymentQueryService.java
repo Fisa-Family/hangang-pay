@@ -38,7 +38,7 @@ public class PaymentQueryService {
     private final BlockchainTxRepository blockchainTxRepository;
 
     public CursorPageResponse<UserPaymentHistoryItem> getUserPaymentHistory(
-        Long partyId, CursorPageRequest request, int size) {
+            Long partyId, CursorPageRequest request, int size) {
 
         log.info("결제 내역 조회 시작. partyId={}", partyId);
 
@@ -56,11 +56,11 @@ public class PaymentQueryService {
          * <p>결론적으로 (partyId, 최대로 가져올 사이즈, 책갈피 위치) 를 가지고 조회를 하게된다.
          */
         Window<Payment> window =
-            paymentRepository.findPaymentHistory(
-                partyId,
-                List.of(PaymentStatus.SUCCESS, PaymentStatus.CANCELLED),
-                Limit.of(size),
-                position);
+                paymentRepository.findPaymentHistory(
+                        partyId,
+                        List.of(PaymentStatus.SUCCESS, PaymentStatus.CANCELLED),
+                        Limit.of(size),
+                        position);
 
         /**
          * 3. Merchant의 PartyId 추출
@@ -68,30 +68,30 @@ public class PaymentQueryService {
          * <p>수취자(Merchant)의 Id를 가져오기 위해 결제자(Users)의 지불 내역을 기준으로 수취자(Merchant)의 PartyId를 리스트로 추출한다.
          */
         List<Long> payeePartyIds =
-            window.getContent().stream().map(p -> p.getPayeeParty().getId()).toList();
+                window.getContent().stream().map(p -> p.getPayeeParty().getId()).toList();
 
         /** 4. Merchant의 PartyId 기반으로 MerchantName 추출 */
         Map<Long, String> merchantNameMap =
-            merchantRepository.findByParty_IdIn(payeePartyIds).stream()
-                              .collect(
-                                  Collectors.toMap(
-                                      m -> m.getParty().getId(), Merchant::getMerchantName));
+                merchantRepository.findByParty_IdIn(payeePartyIds).stream()
+                        .collect(
+                                Collectors.toMap(
+                                        m -> m.getParty().getId(), Merchant::getMerchantName));
 
         /** 5. paginationService.toCursorPage 형태에 맞게 response DTO 변환 */
         Window<UserPaymentHistoryItem> responseWindow =
-            window.map(
-                p -> {
-                    Long payeePartyId = p.getPayeeParty().getId();
-                    String merchantName = merchantNameMap.get(payeePartyId);
-                    if (merchantName == null) {
-                        log.warn(
-                            "가맹점 정보 없음. paymentId={}, payeePartyId={}",
-                            p.getId(),
-                            payeePartyId);
-                        merchantName = "알 수 없는 가맹점";
-                    }
-                    return UserPaymentHistoryItem.from(p, merchantName);
-                });
+                window.map(
+                        p -> {
+                            Long payeePartyId = p.getPayeeParty().getId();
+                            String merchantName = merchantNameMap.get(payeePartyId);
+                            if (merchantName == null) {
+                                log.warn(
+                                        "가맹점 정보 없음. paymentId={}, payeePartyId={}",
+                                        p.getId(),
+                                        payeePartyId);
+                                merchantName = "알 수 없는 가맹점";
+                            }
+                            return UserPaymentHistoryItem.from(p, merchantName);
+                        });
 
         log.info("결제 내역 조회 완료. partyId={}, count={}", partyId, window.getContent().size());
 
@@ -99,40 +99,37 @@ public class PaymentQueryService {
         return paginationService.toCursorPage(responseWindow);
     }
 
-    /**
-     * 결제 내역 상세 조회
-     */
+    /** 결제 내역 상세 조회 */
     public UserPaymentHistoryDetail getUserPaymentHistoryDetail(Long partyId, Long paymentId) {
         log.info("결재 내역 상세 조회 시작. partyId={}, paymentId={}", partyId, paymentId);
 
         // 1. Payment 가져오기
-        Payment payment = paymentRepository.findByIdWithPayerParty(paymentId)
-                                           .orElseThrow(() -> new BusinessException(
-                                               UserErrorCode.HISTORY_NOT_FOUND));
+        Payment payment =
+                paymentRepository
+                        .findByIdWithPayerParty(paymentId)
+                        .orElseThrow(() -> new BusinessException(UserErrorCode.HISTORY_NOT_FOUND));
 
         // 2. 소유주 검증
         verifyOwner(partyId, payment);
 
         // 3. Blockchain Transaction 내역 가져오기
-        BlockchainTx blockchainTx = blockchainTxRepository
-            .findByReferenceTypeAndReferenceId(ReferenceType.PAYMENT, paymentId)
-            .orElse(null);
+        BlockchainTx blockchainTx =
+                blockchainTxRepository
+                        .findByReferenceTypeAndReferenceId(ReferenceType.PAYMENT, paymentId)
+                        .orElse(null);
 
         log.info("결제 내역 상세 조회 완료. partyId={}, paymentId={}", partyId, paymentId);
         return UserPaymentHistoryDetail.from(payment, blockchainTx);
     }
 
-    /**
-     * 조회자랑 결제자가 같은지 검증
-     */
+    /** 조회자랑 결제자가 같은지 검증 */
     private void verifyOwner(Long partyId, Payment payment) {
         if (!payment.getPayerParty().getId().equals(partyId)) {
             log.warn(
-                "결제 내역 소유자 불일치. partyId={}, paymentId={}, payerPartyId={}",
-                partyId,
-                payment.getId(),
-                payment.getPayerParty().getId()
-            );
+                    "결제 내역 소유자 불일치. partyId={}, paymentId={}, payerPartyId={}",
+                    partyId,
+                    payment.getId(),
+                    payment.getPayerParty().getId());
 
             throw new BusinessException(UserErrorCode.NOT_OWNER);
         }

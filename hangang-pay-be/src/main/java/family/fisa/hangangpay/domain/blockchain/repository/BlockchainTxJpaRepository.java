@@ -8,6 +8,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface BlockchainTxJpaRepository extends JpaRepository<BlockchainTx, Long> {
 
     Optional<BlockchainTx> findByReferenceTypeAndReferenceId(
-        ReferenceType referenceType, Long referenceId
-    );
+            ReferenceType referenceType, Long referenceId);
 }

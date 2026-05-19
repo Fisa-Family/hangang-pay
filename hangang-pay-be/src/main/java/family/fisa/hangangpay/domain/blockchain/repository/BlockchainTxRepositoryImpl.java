@@ -11,11 +11,10 @@ import org.springframework.stereotype.Repository;
 public class BlockchainTxRepositoryImpl implements BlockchainTxRepository {
     private final BlockchainTxJpaRepository blockchainTxJpaRepository;
 
-
     @Override
-    public Optional<BlockchainTx> findByReferenceTypeAndReferenceId(ReferenceType referenceType,
-                                                                    Long referenceId) {
-        return blockchainTxJpaRepository.findByReferenceTypeAndReferenceId(referenceType,
-            referenceId);
+    public Optional<BlockchainTx> findByReferenceTypeAndReferenceId(
+            ReferenceType referenceType, Long referenceId) {
+        return blockchainTxJpaRepository.findByReferenceTypeAndReferenceId(
+                referenceType, referenceId);
     }
 }

@@ -40,21 +40,21 @@ public class FundTransferQueryService {
 
     /** FundTransfer 내부 CHARGE 타입 내역 조회 */
     public CursorPageResponse<ChargeHistoryItem> getChargeHistories(
-        Long userId, CursorPageRequest request) {
+            Long userId, CursorPageRequest request) {
 
         // 1. userId partyId 변환
         Long partyId =
-            userRepository
-                .findPartyIdByUserId(userId)
-                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                userRepository
+                        .findPartyIdByUserId(userId)
+                        .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
 
         // 2. cursor ScrollPosition 변환
         ScrollPosition position = paginationService.resolveScrollPosition(request);
 
         // 3. 충전 내역 조회
         Window<ChargeHistoryItem> window =
-            fundTransferRepository.findChargeHistoriesByPartyId(
-                partyId, position, Limit.of(PAGE_SIZE));
+                fundTransferRepository.findChargeHistoriesByPartyId(
+                        partyId, position, Limit.of(PAGE_SIZE));
 
         // 4. CursorPageResponse 변환 위임
         return paginationService.toCursorPage(window);
@@ -62,33 +62,32 @@ public class FundTransferQueryService {
 
     /** FundTransfer 내부 EXCHANGE 타입 내역 조회 */
     public CursorPageResponse<ExchangeHistoryItem> getExchangeHistories(
-        Long userId, CursorPageRequest request) {
+            Long userId, CursorPageRequest request) {
 
         // 1. userId partyId 변환
         Long partyId =
-            userRepository
-                .findPartyIdByUserId(userId)
-                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                userRepository
+                        .findPartyIdByUserId(userId)
+                        .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
 
         // 2. cursor ScrollPosition 변환
         ScrollPosition position = paginationService.resolveScrollPosition(request);
 
         // 3. 환전 내역 조회
         Window<ExchangeHistoryItem> window =
-            fundTransferRepository.findExchangeHistoriesByPartyId(
-                partyId, position, Limit.of(PAGE_SIZE));
+                fundTransferRepository.findExchangeHistoriesByPartyId(
+                        partyId, position, Limit.of(PAGE_SIZE));
 
         // 4. CursorPageResponse 변환 위임
         return paginationService.toCursorPage(window);
     }
 
-    /**
-     * CHANGE 타입 상세 정보 조회
-     */
+    /** CHANGE 타입 상세 정보 조회 */
     public Object getUserChargeHistoryDetail(Long partyId, Long fundTransferId) {
         log.info("충전 내역 상세 조회 시작. partyId={}, fundTransferId={}", partyId, fundTransferId);
         // 1. CHARGE 타입의 fundTransfer 조회
-        FundTransfer fundTransfer = findOwnedFundTransfer(partyId, fundTransferId, TransferType.CHARGE);
+        FundTransfer fundTransfer =
+                findOwnedFundTransfer(partyId, fundTransferId, TransferType.CHARGE);
 
         // 2. BlockchainTx 조회
         BlockchainTx blockchainTx = findBlockchainTx(fundTransferId);
@@ -97,60 +96,55 @@ public class FundTransferQueryService {
         return UserChargeHistoryDetail.from(fundTransfer, blockchainTx);
     }
 
-    /**
-     * EXCHANGE 타입 상세 정보 조회
-     */
-
-    public UserExchangeHistoryDetail getUserExchangeHistoryDetail(Long partyId, Long fundTransferId) {
+    /** EXCHANGE 타입 상세 정보 조회 */
+    public UserExchangeHistoryDetail getUserExchangeHistoryDetail(
+            Long partyId, Long fundTransferId) {
         log.info("환전 내역 상세 조회 시작. partyId={}, fundTransferId={}", partyId, fundTransferId);
 
         FundTransfer fundTransfer =
-            findOwnedFundTransfer(partyId, fundTransferId, TransferType.EXCHANGE);
+                findOwnedFundTransfer(partyId, fundTransferId, TransferType.EXCHANGE);
         BlockchainTx blockchainTx = findBlockchainTx(fundTransferId);
 
         log.info("환전 내역 상세 조회 완료. partyId={}, fundTransferId={}", partyId, fundTransferId);
         return UserExchangeHistoryDetail.from(fundTransfer, blockchainTx);
     }
 
-    /**
-     * FundTransferId, TransferType 에 해당하는 FundTransfer 조회
-     */
+    /** FundTransferId, TransferType 에 해당하는 FundTransfer 조회 */
     private FundTransfer findOwnedFundTransfer(
-        Long partyId, Long fundTransferId, TransferType expectedType) {
+            Long partyId, Long fundTransferId, TransferType expectedType) {
 
-        FundTransfer fundTransfer = fundTransferRepository
-            .findByIdWithAccountAndWallet(fundTransferId)
-            .orElseThrow(() -> new BusinessException(UserErrorCode.HISTORY_NOT_FOUND));
+        FundTransfer fundTransfer =
+                fundTransferRepository
+                        .findByIdWithAccountAndWallet(fundTransferId)
+                        .orElseThrow(() -> new BusinessException(UserErrorCode.HISTORY_NOT_FOUND));
 
         // 올바른 타입인지 확인
         if (fundTransfer.getTransferType() != expectedType) {
             log.warn(
-                "이체 유형 불일치. expected={}, actual={}, fundTransferId={}",
-                expectedType,
-                fundTransfer.getTransferType(),
-                fundTransferId);
+                    "이체 유형 불일치. expected={}, actual={}, fundTransferId={}",
+                    expectedType,
+                    fundTransfer.getTransferType(),
+                    fundTransferId);
             throw new BusinessException(UserErrorCode.HISTORY_NOT_FOUND);
         }
 
         // 소유자가 올바른지 확인
         if (!fundTransfer.getParty().getId().equals(partyId)) {
             log.warn(
-                "이체 내역 소유자 불일치. partyId={}, fundTransferId={}, ownerPartyId={}",
-                partyId,
-                fundTransferId,
-                fundTransfer.getParty().getId());
+                    "이체 내역 소유자 불일치. partyId={}, fundTransferId={}, ownerPartyId={}",
+                    partyId,
+                    fundTransferId,
+                    fundTransfer.getParty().getId());
             throw new BusinessException(UserErrorCode.NOT_OWNER);
         }
 
         return fundTransfer;
     }
 
-    /**
-     * FUND_TRANSFER 타입의 BlockchainTx 조회
-     */
+    /** FUND_TRANSFER 타입의 BlockchainTx 조회 */
     private BlockchainTx findBlockchainTx(Long fundTransferId) {
         return blockchainTxRepository
-            .findByReferenceTypeAndReferenceId(ReferenceType.FUND_TRANSFER, fundTransferId)
-            .orElse(null);
+                .findByReferenceTypeAndReferenceId(ReferenceType.FUND_TRANSFER, fundTransferId)
+                .orElse(null);
     }
 }
