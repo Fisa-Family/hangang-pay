@@ -17,34 +17,25 @@ import family.fisa.hangangpay.domain.payment.repository.PaymentRepository;
 import family.fisa.hangangpay.domain.user.code.error.UserErrorCode;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import family.fisa.hangangpay.global.pagination.PaginationService;
-import jakarta.persistence.Id;
 import java.math.BigDecimal;
 import java.util.Optional;
-import javax.swing.text.html.Option;
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class PaymentQueryServiceTest {
 
-    @Mock
-    PaymentRepository paymentRepository;
-    @Mock
-    MerchantRepository merchantRepository;
-    @Mock
-    PaginationService paginationService;
-    @Mock
-    BlockchainTxRepository blockchainTxRepository;
+    @Mock PaymentRepository paymentRepository;
+    @Mock MerchantRepository merchantRepository;
+    @Mock PaginationService paginationService;
+    @Mock BlockchainTxRepository blockchainTxRepository;
 
-    @InjectMocks
-    PaymentQueryService paymentQueryService;
+    @InjectMocks PaymentQueryService paymentQueryService;
 
     private static final Long PARTY_ID = 10L;
     private static final Long PAYMENT_ID = 25L;
@@ -52,22 +43,22 @@ class PaymentQueryServiceTest {
     private Payment payment(Long payerPartyId) {
         Party payerParty = Party.builder().id(payerPartyId).partyType(PartyType.USER).build();
         return Payment.builder()
-                      .id(PAYMENT_ID)
-                      .payerParty(payerParty)
-                      .itemName("스타벅스 강남점")
-                      .amount(new BigDecimal("12000"))
-                      .approvalNumber("APV-2026-00000025")
-                      .status(PaymentStatus.SUCCESS)
-                      .build();
+                .id(PAYMENT_ID)
+                .payerParty(payerParty)
+                .itemName("스타벅스 강남점")
+                .amount(new BigDecimal("12000"))
+                .approvalNumber("APV-2026-00000025")
+                .status(PaymentStatus.SUCCESS)
+                .build();
     }
 
     private BlockchainTx blockchainTx() {
         return BlockchainTx.builder()
-                           .referenceId(PAYMENT_ID)
-                           .referenceType(ReferenceType.PAYMENT)
-                           .txHash("0xabc")
-                           .status(BlockchainTxStatus.CONFIRMED)
-                           .build();
+                .referenceId(PAYMENT_ID)
+                .referenceType(ReferenceType.PAYMENT)
+                .txHash("0xabc")
+                .status(BlockchainTxStatus.CONFIRMED)
+                .build();
     }
 
     @Nested
@@ -79,14 +70,13 @@ class PaymentQueryServiceTest {
         void success_withBlockchainTx() throws Exception {
             // given
             when(paymentRepository.findByIdWithPayerParty(PAYMENT_ID))
-                .thenReturn(Optional.of(payment(PARTY_ID)));
+                    .thenReturn(Optional.of(payment(PARTY_ID)));
             when(blockchainTxRepository.findByReferenceTypeAndReferenceId(
-                ReferenceType.PAYMENT,
-                PAYMENT_ID))
-                .thenReturn(Optional.of(blockchainTx()));
+                            ReferenceType.PAYMENT, PAYMENT_ID))
+                    .thenReturn(Optional.of(blockchainTx()));
             // when
             UserPaymentHistoryDetail result =
-                paymentQueryService.getUserPaymentHistoryDetail(PARTY_ID, PAYMENT_ID);
+                    paymentQueryService.getUserPaymentHistoryDetail(PARTY_ID, PAYMENT_ID);
 
             // then
             assertThat(result.historyId()).isEqualTo(PAYMENT_ID);
@@ -100,17 +90,16 @@ class PaymentQueryServiceTest {
 
         @Test
         @DisplayName("정상: blockchain_tx 없음")
-        void success_withoutBlockchainTx() throws Exception{
+        void success_withoutBlockchainTx() throws Exception {
             // given
             when(paymentRepository.findByIdWithPayerParty(PAYMENT_ID))
-                .thenReturn(Optional.of(payment(PARTY_ID)));
+                    .thenReturn(Optional.of(payment(PARTY_ID)));
             when(blockchainTxRepository.findByReferenceTypeAndReferenceId(
-                ReferenceType.PAYMENT,
-                PAYMENT_ID))
-                .thenReturn(Optional.empty());
+                            ReferenceType.PAYMENT, PAYMENT_ID))
+                    .thenReturn(Optional.empty());
             // when
             UserPaymentHistoryDetail result =
-                paymentQueryService.getUserPaymentHistoryDetail(PARTY_ID, PAYMENT_ID);
+                    paymentQueryService.getUserPaymentHistoryDetail(PARTY_ID, PAYMENT_ID);
 
             // then
             assertThat(result.historyId()).isEqualTo(PAYMENT_ID);
@@ -120,30 +109,33 @@ class PaymentQueryServiceTest {
 
         @Test
         @DisplayName("payment 가 없는 경우")
-        void throws_whenPaymentNotFound() throws Exception{
+        void throws_whenPaymentNotFound() throws Exception {
             // given
-            when(paymentRepository.findByIdWithPayerParty(PAYMENT_ID))
-                .thenReturn(Optional.empty());
+            when(paymentRepository.findByIdWithPayerParty(PAYMENT_ID)).thenReturn(Optional.empty());
 
             // when, then
             assertThatThrownBy(
-                () -> paymentQueryService.getUserPaymentHistoryDetail(PARTY_ID, PAYMENT_ID))
-                .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("code", UserErrorCode.HISTORY_NOT_FOUND);
+                            () ->
+                                    paymentQueryService.getUserPaymentHistoryDetail(
+                                            PARTY_ID, PAYMENT_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("code", UserErrorCode.HISTORY_NOT_FOUND);
         }
 
         @Test
         @DisplayName("본인 결제가 아닌 경우")
-        void throws_whenNotOwner() throws Exception{
+        void throws_whenNotOwner() throws Exception {
             // given
             Long otherPartyId = 999L;
             when(paymentRepository.findByIdWithPayerParty(PAYMENT_ID))
-                .thenReturn(Optional.of(payment(otherPartyId)));
+                    .thenReturn(Optional.of(payment(otherPartyId)));
             // when, then
             assertThatThrownBy(
-                () -> paymentQueryService.getUserPaymentHistoryDetail(PARTY_ID, PAYMENT_ID))
-                .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("code", UserErrorCode.NOT_OWNER);
+                            () ->
+                                    paymentQueryService.getUserPaymentHistoryDetail(
+                                            PARTY_ID, PAYMENT_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("code", UserErrorCode.NOT_OWNER);
         }
     }
 }

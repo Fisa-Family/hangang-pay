@@ -32,24 +32,18 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class FundTransferQueryServiceTest {
 
-    @Mock
-    UserRepository userRepository;
-    @Mock
-    FundTransferRepository fundTransferRepository;
-    @Mock
-    BlockchainTxRepository blockchainTxRepository;
+    @Mock UserRepository userRepository;
+    @Mock FundTransferRepository fundTransferRepository;
+    @Mock BlockchainTxRepository blockchainTxRepository;
 
-    @Mock
-    PaginationService paginationService;
+    @Mock PaginationService paginationService;
 
-    @InjectMocks
-    FundTransferQueryService fundTransferQueryService;
+    @InjectMocks FundTransferQueryService fundTransferQueryService;
 
     private static final Long PARTY_ID = 10L;
     private static final Long FT_ID = 7L;
@@ -57,66 +51,60 @@ class FundTransferQueryServiceTest {
     private FundTransfer fundTransfer(TransferType type, Long ownerPartyId) {
         Party owner = Party.builder().id(ownerPartyId).partyType(PartyType.USER).build();
         Institution institution =
-            Institution.builder()
-                       .id(1L)
-                       .institutionCode("020")
-                       .institutionName("우리은행")
-                       .build();
+                Institution.builder().id(1L).institutionCode("020").institutionName("우리은행").build();
         Account account =
-            Account.builder()
-                   .id(100L)
-                   .party(owner)
-                   .institution(institution)
-                   .accountNumber("1002-123-456789")
-                   .build();
+                Account.builder()
+                        .id(100L)
+                        .party(owner)
+                        .institution(institution)
+                        .accountNumber("1002-123-456789")
+                        .build();
         Wallet wallet =
-            Wallet.builder()
-                  .id(200L)
-                  .party(owner)
-                  .institution(institution)
-                  .address("0xWallet")
-                  .build();
+                Wallet.builder()
+                        .id(200L)
+                        .party(owner)
+                        .institution(institution)
+                        .address("0xWallet")
+                        .build();
         boolean isCharge = type == TransferType.CHARGE;
         return FundTransfer.builder()
-                           .id(FT_ID)
-                           .party(owner)
-                           .account(account)
-                           .wallet(wallet)
-                           .amount(new BigDecimal("50000"))
-                           .discountAmount(isCharge ? new BigDecimal("5000") : null)
-                           .discountRate(isCharge ? new BigDecimal("0.1000") : null)
-                           .status(TransferStatus.SUCCESS)
-                           .transferType(type)
-                           .build();
+                .id(FT_ID)
+                .party(owner)
+                .account(account)
+                .wallet(wallet)
+                .amount(new BigDecimal("50000"))
+                .discountAmount(isCharge ? new BigDecimal("5000") : null)
+                .discountRate(isCharge ? new BigDecimal("0.1000") : null)
+                .status(TransferStatus.SUCCESS)
+                .transferType(type)
+                .build();
     }
 
     private BlockchainTx blockchainTx() {
         return BlockchainTx.builder()
-                           .referenceId(FT_ID)
-                           .referenceType(ReferenceType.FUND_TRANSFER)
-                           .txHash("0xdef")
-                           .status(BlockchainTxStatus.CONFIRMED)
-                           .build();
+                .referenceId(FT_ID)
+                .referenceType(ReferenceType.FUND_TRANSFER)
+                .txHash("0xdef")
+                .status(BlockchainTxStatus.CONFIRMED)
+                .build();
     }
-
 
     @Nested
     @DisplayName("충전 상세 (getUserChargeHistoryDetail)")
     class ChargeDetail {
         @Test
         @DisplayName("정상: 본인 + CHARGE + blockchain_tx 있음")
-        void success_withBlockchainTx() throws Exception{
+        void success_withBlockchainTx() throws Exception {
             // given
             when(fundTransferRepository.findByIdWithAccountAndWallet(FT_ID))
-                .thenReturn(Optional.of(fundTransfer(TransferType.CHARGE, PARTY_ID)));
+                    .thenReturn(Optional.of(fundTransfer(TransferType.CHARGE, PARTY_ID)));
             when(blockchainTxRepository.findByReferenceTypeAndReferenceId(
-                ReferenceType.FUND_TRANSFER, FT_ID))
-                .thenReturn(Optional.of(blockchainTx()));
-
+                            ReferenceType.FUND_TRANSFER, FT_ID))
+                    .thenReturn(Optional.of(blockchainTx()));
 
             // when
             UserChargeHistoryDetail result =
-                fundTransferQueryService.getUserChargeHistoryDetail(PARTY_ID, FT_ID);
+                    fundTransferQueryService.getUserChargeHistoryDetail(PARTY_ID, FT_ID);
 
             // then
             assertThat(result.historyId()).isEqualTo(FT_ID);
@@ -138,14 +126,14 @@ class FundTransferQueryServiceTest {
         void success_withoutBlockchainTx() {
             // given
             when(fundTransferRepository.findByIdWithAccountAndWallet(FT_ID))
-                .thenReturn(Optional.of(fundTransfer(TransferType.CHARGE, PARTY_ID)));
+                    .thenReturn(Optional.of(fundTransfer(TransferType.CHARGE, PARTY_ID)));
             when(blockchainTxRepository.findByReferenceTypeAndReferenceId(
-                ReferenceType.FUND_TRANSFER, FT_ID))
-                .thenReturn(Optional.empty());
+                            ReferenceType.FUND_TRANSFER, FT_ID))
+                    .thenReturn(Optional.empty());
 
             // when
             UserChargeHistoryDetail result =
-                fundTransferQueryService.getUserChargeHistoryDetail(PARTY_ID, FT_ID);
+                    fundTransferQueryService.getUserChargeHistoryDetail(PARTY_ID, FT_ID);
 
             // then
             assertThat(result.txHash()).isNull();
@@ -156,28 +144,28 @@ class FundTransferQueryServiceTest {
         @DisplayName("fundTransfer 없음 -> HISTORY_NOT_FOUND")
         void throws_whenNotFound() {
             when(fundTransferRepository.findByIdWithAccountAndWallet(FT_ID))
-                .thenReturn(Optional.empty());
+                    .thenReturn(Optional.empty());
 
             assertThatThrownBy(
-                () ->
-                    fundTransferQueryService.getUserChargeHistoryDetail(
-                        PARTY_ID, FT_ID))
-                .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("code", UserErrorCode.HISTORY_NOT_FOUND);
+                            () ->
+                                    fundTransferQueryService.getUserChargeHistoryDetail(
+                                            PARTY_ID, FT_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("code", UserErrorCode.HISTORY_NOT_FOUND);
         }
 
         @Test
         @DisplayName("타입 불일치(EXCHANGE를 CHARGE로 조회) -> HISTORY_NOT_FOUND")
         void throws_whenTypeMismatch() {
             when(fundTransferRepository.findByIdWithAccountAndWallet(FT_ID))
-                .thenReturn(Optional.of(fundTransfer(TransferType.EXCHANGE, PARTY_ID)));
+                    .thenReturn(Optional.of(fundTransfer(TransferType.EXCHANGE, PARTY_ID)));
 
             assertThatThrownBy(
-                () ->
-                    fundTransferQueryService.getUserChargeHistoryDetail(
-                        PARTY_ID, FT_ID))
-                .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("code", UserErrorCode.HISTORY_NOT_FOUND);
+                            () ->
+                                    fundTransferQueryService.getUserChargeHistoryDetail(
+                                            PARTY_ID, FT_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("code", UserErrorCode.HISTORY_NOT_FOUND);
         }
 
         @Test
@@ -185,14 +173,14 @@ class FundTransferQueryServiceTest {
         void throws_whenNotOwner() {
             Long otherPartyId = 999L;
             when(fundTransferRepository.findByIdWithAccountAndWallet(FT_ID))
-                .thenReturn(Optional.of(fundTransfer(TransferType.CHARGE, otherPartyId)));
+                    .thenReturn(Optional.of(fundTransfer(TransferType.CHARGE, otherPartyId)));
 
             assertThatThrownBy(
-                () ->
-                    fundTransferQueryService.getUserChargeHistoryDetail(
-                        PARTY_ID, FT_ID))
-                .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("code", UserErrorCode.NOT_OWNER);
+                            () ->
+                                    fundTransferQueryService.getUserChargeHistoryDetail(
+                                            PARTY_ID, FT_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("code", UserErrorCode.NOT_OWNER);
         }
     }
 
@@ -204,13 +192,13 @@ class FundTransferQueryServiceTest {
         @DisplayName("정상: 본인 + EXCHANGE + blockchain_tx 있음")
         void success_withBlockchainTx() {
             when(fundTransferRepository.findByIdWithAccountAndWallet(FT_ID))
-                .thenReturn(Optional.of(fundTransfer(TransferType.EXCHANGE, PARTY_ID)));
+                    .thenReturn(Optional.of(fundTransfer(TransferType.EXCHANGE, PARTY_ID)));
             when(blockchainTxRepository.findByReferenceTypeAndReferenceId(
-                ReferenceType.FUND_TRANSFER, FT_ID))
-                .thenReturn(Optional.of(blockchainTx()));
+                            ReferenceType.FUND_TRANSFER, FT_ID))
+                    .thenReturn(Optional.of(blockchainTx()));
 
             UserExchangeHistoryDetail result =
-                fundTransferQueryService.getUserExchangeHistoryDetail(PARTY_ID, FT_ID);
+                    fundTransferQueryService.getUserExchangeHistoryDetail(PARTY_ID, FT_ID);
 
             assertThat(result.historyId()).isEqualTo(FT_ID);
             assertThat(result.amount()).isEqualByComparingTo("50000");
@@ -227,13 +215,13 @@ class FundTransferQueryServiceTest {
         @DisplayName("정상: blockchain_tx 없음 -> txHash/blockchainStatus = null")
         void success_withoutBlockchainTx() {
             when(fundTransferRepository.findByIdWithAccountAndWallet(FT_ID))
-                .thenReturn(Optional.of(fundTransfer(TransferType.EXCHANGE, PARTY_ID)));
+                    .thenReturn(Optional.of(fundTransfer(TransferType.EXCHANGE, PARTY_ID)));
             when(blockchainTxRepository.findByReferenceTypeAndReferenceId(
-                ReferenceType.FUND_TRANSFER, FT_ID))
-                .thenReturn(Optional.empty());
+                            ReferenceType.FUND_TRANSFER, FT_ID))
+                    .thenReturn(Optional.empty());
 
             UserExchangeHistoryDetail result =
-                fundTransferQueryService.getUserExchangeHistoryDetail(PARTY_ID, FT_ID);
+                    fundTransferQueryService.getUserExchangeHistoryDetail(PARTY_ID, FT_ID);
 
             assertThat(result.txHash()).isNull();
             assertThat(result.blockchainStatus()).isNull();
@@ -243,28 +231,28 @@ class FundTransferQueryServiceTest {
         @DisplayName("fundTransfer 없음 -> HISTORY_NOT_FOUND")
         void throws_whenNotFound() {
             when(fundTransferRepository.findByIdWithAccountAndWallet(FT_ID))
-                .thenReturn(Optional.empty());
+                    .thenReturn(Optional.empty());
 
             assertThatThrownBy(
-                () ->
-                    fundTransferQueryService.getUserExchangeHistoryDetail(
-                        PARTY_ID, FT_ID))
-                .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("code", UserErrorCode.HISTORY_NOT_FOUND);
+                            () ->
+                                    fundTransferQueryService.getUserExchangeHistoryDetail(
+                                            PARTY_ID, FT_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("code", UserErrorCode.HISTORY_NOT_FOUND);
         }
 
         @Test
         @DisplayName("타입 불일치(CHARGE를 EXCHANGE로 조회) -> HISTORY_NOT_FOUND")
         void throws_whenTypeMismatch() {
             when(fundTransferRepository.findByIdWithAccountAndWallet(FT_ID))
-                .thenReturn(Optional.of(fundTransfer(TransferType.CHARGE, PARTY_ID)));
+                    .thenReturn(Optional.of(fundTransfer(TransferType.CHARGE, PARTY_ID)));
 
             assertThatThrownBy(
-                () ->
-                    fundTransferQueryService.getUserExchangeHistoryDetail(
-                        PARTY_ID, FT_ID))
-                .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("code", UserErrorCode.HISTORY_NOT_FOUND);
+                            () ->
+                                    fundTransferQueryService.getUserExchangeHistoryDetail(
+                                            PARTY_ID, FT_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("code", UserErrorCode.HISTORY_NOT_FOUND);
         }
 
         @Test
@@ -272,14 +260,14 @@ class FundTransferQueryServiceTest {
         void throws_whenNotOwner() {
             Long otherPartyId = 999L;
             when(fundTransferRepository.findByIdWithAccountAndWallet(FT_ID))
-                .thenReturn(Optional.of(fundTransfer(TransferType.EXCHANGE, otherPartyId)));
+                    .thenReturn(Optional.of(fundTransfer(TransferType.EXCHANGE, otherPartyId)));
 
             assertThatThrownBy(
-                () ->
-                    fundTransferQueryService.getUserExchangeHistoryDetail(
-                        PARTY_ID, FT_ID))
-                .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("code", UserErrorCode.NOT_OWNER);
+                            () ->
+                                    fundTransferQueryService.getUserExchangeHistoryDetail(
+                                            PARTY_ID, FT_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("code", UserErrorCode.NOT_OWNER);
         }
     }
 }
