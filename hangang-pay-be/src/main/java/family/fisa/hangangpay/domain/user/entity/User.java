@@ -9,6 +9,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Entity
 @Table(name = "users")
@@ -28,16 +29,13 @@ public class User extends BaseEntity {
     @JoinColumn(name = "party_id", nullable = false, unique = true)
     private Party party;
 
-    /** 로그인 아이디 */
+    /** 사용자 실명 */
     @Column(nullable = false, unique = true)
     private String username;
 
     /** 비밀번호 해시 */
     @Column(nullable = false)
     private String passwordHash;
-
-    /** 이름(닉네임) */
-    private String nickname;
 
     /** 휴대폰 번호 */
     private String phoneNumber;
@@ -47,4 +45,8 @@ public class User extends BaseEntity {
 
     /** 거주 지역 */
     private String region;
+
+    public boolean matchesPassword(String rawPassword, PasswordEncoder passwordEncoder) {
+        return passwordEncoder.matches(rawPassword, passwordHash);
+    }
 }

@@ -22,4 +22,9 @@ public class UserRepositoryImpl implements UserRepository {
     public Optional<User> findByIdWithParty(Long userId) {
         return userJpaRepository.findByIdWithParty(userId);
     }
+
+    @Override
+    public Optional<User> findByPhoneNumberWithParty(String phoneNumber) {
+        return userJpaRepository.findByPhoneNumberWithParty(phoneNumber);
+    }
 }

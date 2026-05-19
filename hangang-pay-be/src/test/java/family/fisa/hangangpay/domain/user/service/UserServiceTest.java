@@ -37,8 +37,7 @@ class UserQueryServiceTest {
         User user =
                 User.builder()
                         .party(party)
-                        .username("hong123")
-                        .nickname("김한강")
+                        .username("김한강")
                         .phoneNumber("010-1234-5678")
                         .birthDate(LocalDate.of(1999, 5, 16))
                         .region("성동구")
@@ -51,8 +50,7 @@ class UserQueryServiceTest {
 
         assertThat(response.userId()).isEqualTo(1L);
         assertThat(response.partyId()).isEqualTo(10L);
-        assertThat(response.username()).isEqualTo("hong123");
-        assertThat(response.nickname()).isEqualTo("김한강");
+        assertThat(response.username()).isEqualTo("김한강");
         assertThat(response.phoneNumber()).isEqualTo("010-1234-5678");
         assertThat(response.birthDate()).isEqualTo(LocalDate.of(1999, 5, 16));
         assertThat(response.region()).isEqualTo("성동구");

@@ -16,6 +16,7 @@ import family.fisa.hangangpay.global.code.success.GeneralSuccessCode;
 import family.fisa.hangangpay.global.pagination.CursorPageRequest;
 import family.fisa.hangangpay.global.pagination.CursorPageResponse;
 import family.fisa.hangangpay.global.response.ApiResponse;
+import family.fisa.hangangpay.global.session.SessionAttributeNames;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -40,11 +41,9 @@ public class UserController {
     @Operation(summary = "프로필 조회 (MY-001)", description = "로그인한 소비자의 닉네임, 지역, 가입일을 반환한다.")
     @GetMapping("/profile")
     public ResponseEntity<ApiResponse<UserProfileResponse>> getProfile(
-            @SessionAttribute("userId") Long userId) {
+            @SessionAttribute(SessionAttributeNames.USER_ID) Long userId) {
         UserProfileResponse response = userQueryService.getProfile(userId);
-        return ResponseEntity.ok(
-                family.fisa.hangangpay.global.response.ApiResponse.onSuccess(
-                        GeneralSuccessCode.COMMON_OK, response));
+        return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
     }
 
     @Operation(summary = "소비자 내역 조회 (MY-002)", description = "결제, 충전, 환전에 대한 모든 조회를 한번에 처리한다.")
