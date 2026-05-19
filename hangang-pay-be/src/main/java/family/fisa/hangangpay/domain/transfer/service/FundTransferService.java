@@ -85,6 +85,8 @@ public class FundTransferService {
         return paginationService.toCursorPage(window);
     }
 
+
+
     /** 충전 금액 및 할인 계산 메서드 */
     public ChargeCalculateResponse calculateCharge(Long partyId, BigDecimal chargeAmount) {
         // 만원 단위 검증
