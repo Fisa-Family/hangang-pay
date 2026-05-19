@@ -1,165 +1,198 @@
-# hangang-pay-fe
+# blockchain-fe
 
-React 19 mobile web SPA for 한강페이 — 성동구 지역화폐 (HRC, 한강코인) PG system.
-Target: mobile browser only. Desktop layout is out of scope.
+React + Vite 기반 대시보드. `blockchain-be`의 REST API를 호출하여 시나리오 실행 + 거래 추적 시각화.
 
-## Tech Stack
+루트 `CLAUDE.md`도 함께 참조.
 
-| Library                   | Role                 | Why                                                                   |
-| ------------------------- | -------------------- | --------------------------------------------------------------------- |
-| React 19 + React Compiler | UI                   | Auto-memoization — no manual `useMemo`/`useCallback` needed           |
-| Vite                      | Build                | Native ESM, fast HMR                                                  |
-| TypeScript                | Type safety          | —                                                                     |
-| Tailwind CSS              | Styling              | Mobile-first custom UI; full control over layout and brand tokens     |
-| CVA + `cn()`              | Variant system       | Declarative component variants; safe Tailwind class merging           |
-| shadcn/ui + Radix         | Shared UI primitives | a11y built-in; used for Dialog, Toast, Form, Badge, Skeleton only     |
-| React Router v7           | Routing              | Team familiarity; sufficient for this SPA scale                       |
-| TanStack Query            | Server state         | Cache, refetch, mutation for 잔액·거래 내역 that must always be fresh |
-| Zustand                   | Client state         | 결제 flow state only (session-based auth — no token storage needed)   |
-| react-hook-form           | Forms                | Built-in validation rules; no extra schema library needed             |
-| Vitest                    | Unit tests           | Vite-native; used only for pure utility functions in `src/utils/`     |
+## 모듈 책임
 
-## Component Patterns
+1. 사용자/은행 드롭다운 선택 (로그인 없음)
+2. CBDC 발급, 자행이체, 타행이체 시나리오 실행 UI
+3. 거래 리스트 + 단일 거래 상세 페이지 (단계별 타임라인)
+4. 잔액 실시간 조회
 
-### `cn()` helper
+## 기술 스택
 
-```ts
-// src/lib/utils.ts
-import { clsx, type ClassValue } from 'clsx'
-import { twMerge } from 'tailwind-merge'
+- React (Vite 기본 버전)
+- JavaScript (TypeScript 아님)
+- Vite dev server (포트 5173)
+- Flat ESLint config (`eslint.config.js`)
 
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+## 디자인 톤
+
+**깔끔한 모노톤 (monochrome).**
+
+- 흰 배경 또는 매우 옅은 회색
+- 검은색/짙은 회색 텍스트
+- 강조는 회색 단계로만 (회색 톤 차이)
+- 컬러는 최소화 (상태 표시 시에만 미세하게)
+- 폰트는 sans-serif 시스템 폰트
+- 카드/박스는 옅은 회색 테두리 또는 그림자 한 줄
+- 둥근 모서리는 작게 (4-6px)
+- 여백은 충분히 (학습용 데모, 가독성 우선)
+
+CSS 라이브러리는 별도 도입 X. CSS Modules 또는 인라인 스타일.
+
+## 페이지 구조
+
+```
+src/
+├── App.jsx                       # 라우터 + 레이아웃
+├── main.jsx
+│
+├── pages/
+│   ├── Dashboard.jsx             # 전체 현황 (사용자 잔액, 최근 거래)
+│   ├── CBDCIssuance.jsx          # 한국은행 CBDC 발급 시나리오
+│   ├── IntraBankTransfer.jsx     # 자행이체 시나리오
+│   ├── InterBankTransfer.jsx     # 타행이체 시나리오
+│   ├── TransactionList.jsx       # 거래 리스트 (필터, 페이징)
+│   ├── TransactionDetail.jsx     # 단일 거래 상세 (타임라인 시각화)
+│   └── Users.jsx                 # 사용자 목록 + 잔액
+│
+├── components/
+│   ├── Layout.jsx                # 사이드바 + 헤더 + 본문
+│   ├── BankSelector.jsx          # 은행 드롭다운
+│   ├── UserSelector.jsx          # 사용자 드롭다운
+│   ├── BalanceCard.jsx           # 잔액 카드
+│   ├── TimelineView.jsx          # 단계별 타임라인 (수평 막대 차트)
+│   ├── TxHashCopy.jsx            # 트랜잭션 해시 복사 컴포넌트
+│   └── StatusBadge.jsx           # 거래 상태 뱃지
+│
+├── api/
+│   ├── client.js                 # fetch 또는 axios 기본 설정
+│   ├── cbdc.js
+│   ├── transfer.js
+│   ├── tracking.js
+│   ├── users.js
+│   └── banks.js
+│
+├── hooks/
+│   ├── useUsers.js               # 사용자 목록 조회
+│   ├── useBanks.js
+│   └── useTransactions.js
+│
+└── styles/
+    ├── global.css
+    └── tokens.css                # 디자인 토큰 (색상, 여백)
+```
+
+## 라우팅
+
+`react-router-dom` 사용 권장. 또는 단순 상태 기반 화면 전환.
+
+```
+/                      → Dashboard
+/cbdc                  → CBDCIssuance
+/transfer/intra        → IntraBankTransfer
+/transfer/inter        → InterBankTransfer
+/transactions          → TransactionList
+/transactions/:id      → TransactionDetail
+/users                 → Users
+```
+
+## 페이지별 핵심 UI
+
+### Dashboard
+
+- 전체 은행 CBDC 잔액 카드 4개 (한국은행, 우리, 신한, 하나)
+- 최근 거래 5개 (간단한 테이블)
+- 사용자별 예금토큰 잔액 요약
+
+### CBDCIssuance
+
+- 입력: 대상 은행 (드롭다운), 금액
+- 버튼: 발급
+- 결과: 트랜잭션 해시 표시 + 시간 + correlationId
+- 발급 완료 후 자동으로 잔액 갱신
+
+### IntraBankTransfer
+
+- 입력: 은행 선택 → 보내는 사용자 + 받는 사용자 (같은 은행) + 금액
+- 버튼: 이체
+- 결과: 트랜잭션 해시, 단계별 시간
+
+### InterBankTransfer
+
+- 입력: 보내는 은행 + 사용자, 받는 은행 + 사용자, 금액
+- 버튼: 이체
+- 결과: 3단계 트랜잭션 해시 모두 표시 + 단계별 시간 + 총 소요시간
+- 진행 중에는 단계별 진행 상태 시각화
+
+### TransactionList
+
+- 컬럼: correlationId(짧게), 타입, From, To, 금액, 상태, 소요시간, 시각
+- 필터: 거래 타입, 날짜, 은행, 상태
+- 페이징
+- 행 클릭 → TransactionDetail로
+
+### TransactionDetail
+
+- 거래 기본 정보 (correlationId, 타입, 금액, 상태)
+- **TimelineView**: 단계별 막대 차트 (수평 Gantt 스타일)
+  - 각 단계: REQUEST_RECEIVED → VALIDATION_DONE → BURN_SUBMITTED → BURN_FINALIZED → ... → RESPONSE_SENT
+  - 시간 길이로 막대 표시
+  - 각 단계의 tx_hash, block_number, gas_used 표시
+- 트랜잭션 해시 복사 가능
+
+### Users
+
+- 9명 사용자 카드/리스트
+- 각각: 이름, 소속 은행, 주소(짧게), 예금토큰 잔액
+- 검색/필터 (은행별)
+
+## API 호출 패턴
+
+`api/client.js`:
+
+```
+const BASE_URL = 'http://localhost:8080/api';
+// fetch 기반 헬퍼 (인증 없음)
+// 응답 헤더 X-Correlation-Id 추적용으로 저장 가능
+```
+
+상태 관리는 별도 라이브러리 없이 React `useState`, `useEffect`로 충분. 필요 시 가벼운 store 도입.
+
+## 디자인 토큰 (tokens.css)
+
+```css
+:root {
+  --color-bg: #ffffff;
+  --color-surface: #fafafa;
+  --color-border: #e5e5e5;
+  --color-text-primary: #1a1a1a;
+  --color-text-secondary: #6b6b6b;
+  --color-text-tertiary: #999999;
+  --color-accent: #333333; /* 강조도 회색 톤 */
+  --color-success: #4a4a4a; /* 성공도 짙은 회색 */
+  --color-error: #2a2a2a; /* 에러도 회색 */
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'SF Mono', Menlo, monospace;
 }
 ```
 
-### CVA variant system
+## 실행
 
-Define variants with `cva`, expose `VariantProps`, accept `className` for overrides.
-
-```ts
-const buttonVariants = cva('base-classes', {
-  variants: {
-    variant: { primary: '...', ghost: '...', danger: '...' },
-    size: { sm: '...', md: '...', lg: '...' },
-  },
-  defaultVariants: { variant: 'primary', size: 'md' },
-})
-
-interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {}
-
-export function Button({ variant, size, className, ...props }: ButtonProps) {
-  return <button className={cn(buttonVariants({ variant, size }), className)} {...props} />
-}
+```bash
+npm run dev       # :5173
+npm run build
+npm run preview
+npm run lint
 ```
 
-### shadcn/ui usage scope
+`blockchain-be`가 `:8080`에서 먼저 실행되어야 동작.
 
-shadcn components are desktop-oriented. Use them only for UI that is equally natural on mobile:
+## 트러블슈팅 메모
 
-- **Use shadcn for**: Form, Toast (Sonner), Dialog, Badge, Skeleton, Select
-- **Build from scratch with Tailwind + Radix Primitive**: 바텀시트, 핀패드, 하단 내비게이션바, 결제 카드, 금액 입력 키패드
-
-Never force-fit a shadcn component into a mobile-native interaction pattern.
-
-## Auth
-
-Session-based (not JWT). The server issues an `HttpOnly` cookie on login — the browser attaches it automatically on every request. No token is stored or read in JS.
-
-**Current user info** (role, name) is server state — owned by TanStack Query, not Zustand:
-
-```ts
-// src/hooks/useCurrentUser.ts
-export function useCurrentUser() {
-  return useQuery({
-    queryKey: ['currentUser'],
-    queryFn: () => api.get('/api/me'),
-    retry: false,
-  })
-}
-```
-
-- 401 response → redirect to `/login`
-- `currentUser.role` (`'USER'` | `'MERCHANT'`) drives route guards and nav branching
-
-The API client must include `credentials: 'include'` on every request so the session cookie is sent cross-origin (local dev → BE).
-
-CORS for local dev is handled on the **BE side** (`application-local.yaml`: `allowed-origins: http://localhost:5173`, `allow-credentials: true`). Do not add a Vite proxy.
-
-## State Management
-
-Decide where state lives based on its origin:
-
-| State type          | Owner          | Example                                     |
-| ------------------- | -------------- | ------------------------------------------- |
-| Server data         | TanStack Query | 잔액, 거래 내역, 가맹점 정보, 현재 유저     |
-| Global client state | Zustand        | 결제 flow progress (가맹점 정보, 입력 금액) |
-| Local UI state      | `useState`     | Modal open, input value, step index         |
-
-**Rules:**
-
-- After a mutation (결제, 충전, 환불), invalidate the relevant query — do not manually update Zustand with server data.
-- 핀패드 and 금액 입력 are local `useState`, not form fields.
-- `useForm` (react-hook-form) is for multi-field submit forms (회원가입, 로그인). Do not wrap single-input flows in a form.
-
-## Form Validation
-
-Use react-hook-form's built-in `register` rules. No external schema library.
-
-```ts
-register('amount', {
-  required: '금액을 입력해주세요',
-  min: { value: 1000, message: '최소 1,000원 이상' },
-  max: { value: 500000, message: '최대 500,000원' },
-})
-```
-
-Backend is the authoritative validator. Frontend validation exists only for immediate UX feedback, not as a security boundary.
-
-## Screen ID Convention
-
-All screens follow a structured ID system. Refer to the full map and per-screen specs:
-
-→ [`docs/user-flow-figma-map_v2.md`](docs/user-flow-figma-map_v2.md)
-
-Prefix summary:
-
-| Prefix    | Area                   |
-| --------- | ---------------------- |
-| `A-*`     | Auth / 공통 진입       |
-| `A-PW-*`  | 비밀번호 찾기          |
-| `U-*`     | 사용자 앱              |
-| `U-REG-*` | 사용자 회원가입        |
-| `U-PAY-*` | 사용자 결제            |
-| `U-CHG-*` | 사용자 충전            |
-| `U-REF-*` | 사용자 환불            |
-| `U-MY-*`  | 사용자 마이페이지·내역 |
-| `U-ACC-*` | 사용자 계좌 관리       |
-| `M-*`     | 가맹점 앱              |
-| `M-REG-*` | 가맹점 회원가입        |
-| `M-QR-*`  | 가맹점 QR              |
-| `M-PAY-*` | 가맹점 결제 내역·취소  |
-| `M-SET-*` | 가맹점 정산            |
-| `M-MY-*`  | 가맹점 마이페이지      |
-| `C-*`     | 공통 모달·오류·상태    |
-
-When naming route paths, components, and test IDs, use these screen IDs as the reference.
-
-## Testing
-
-Vitest is used only for pure utility functions in `src/utils/` — charge discount calculation (10% 할인), refund eligibility check (최근 충전액 60% 이상 사용), etc.
-
-Do not write component rendering tests or E2E tests for this project.
-
-## What NOT to Do
-
-- Do not use shadcn components for mobile-native UX (바텀시트, 핀패드, 탭바). Build those with Tailwind + Radix Primitive directly.
-- Do not put server data (잔액, 거래 내역, 현재 유저) into Zustand. Use TanStack Query.
-- Do not store auth token in JS (localStorage, sessionStorage, Zustand). Auth is session-based — cookie is managed by the browser.
-- Do not add a Vite proxy for CORS. Local dev CORS is handled by BE (`application-local.yaml`).
-- Do not use `git commit -m` — use the `.gitmessage` template (see root `CLAUDE.md`).
-- Do not mix BE and FE changes in a single commit.
-- Do not add zod or any runtime schema validation library — react-hook-form built-in rules are sufficient.
-- Do not write desktop-oriented layouts. This is a mobile web app.
+- CORS 이슈: BE에서 `localhost:5173` 허용 (Phase 2에서 설정)
+- 잔액이 즉시 갱신 안 됨: 트랜잭션 finality 대기 시간(~2초) 고려
+- 트랜잭션 해시는 길어서 UI에선 앞 6자 + ... + 뒤 4자로 단축 표시, 복사는 전체

@@ -5,9 +5,11 @@ import family.fisa.hangangpay.domain.transfer.entity.TransferStatus;
 import family.fisa.hangangpay.domain.transfer.entity.TransferType;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Optional;
 import org.springframework.data.domain.Limit;
 import org.springframework.data.domain.ScrollPosition;
 import org.springframework.data.domain.Window;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -31,4 +33,8 @@ public interface FundTransferJpaRepository extends JpaRepository<FundTransfer, L
             @Param("status") TransferStatus status,
             @Param("startOfMonth") LocalDateTime startOfMonth,
             @Param("startOfNextMonth") LocalDateTime startOfNextMonth);
+
+    @Query("SELECT f FROM FundTransfer f WHERE f.id = :id")
+    @EntityGraph(attributePaths = {"account", "wallet", "account.institution"})
+    Optional<FundTransfer> findByIdWithAccountAndWallet(@Param("id") Long id);
 }
