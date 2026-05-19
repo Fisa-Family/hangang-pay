@@ -10,6 +10,7 @@ import family.fisa.hangangpay.domain.blockchain.repository.BlockchainTxRepositor
 import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.entity.PartyType;
+import family.fisa.hangangpay.domain.payment.code.error.PaymentErrorCode;
 import family.fisa.hangangpay.domain.payment.dto.response.UserPaymentHistoryDetail;
 import family.fisa.hangangpay.domain.payment.entity.Payment;
 import family.fisa.hangangpay.domain.payment.entity.PaymentStatus;
@@ -62,7 +63,7 @@ class PaymentQueryServiceTest {
     }
 
     @Nested
-    @DisplayName("갤제 내역 상세 조회 (getUserPaymentHistoryDetail)")
+    @DisplayName("결제 내역 상세 조회 (getUserPaymentHistoryDetail)")
     class PaymentDetail {
 
         @Test
@@ -119,7 +120,7 @@ class PaymentQueryServiceTest {
                                     paymentQueryService.getUserPaymentHistoryDetail(
                                             PARTY_ID, PAYMENT_ID))
                     .isInstanceOf(BusinessException.class)
-                    .hasFieldOrPropertyWithValue("code", UserErrorCode.HISTORY_NOT_FOUND);
+                    .hasFieldOrPropertyWithValue("code", PaymentErrorCode.PAYMENT_NOT_FOUND);
         }
 
         @Test
