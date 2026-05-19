@@ -21,7 +21,7 @@ public class MerchantRepositoryImpl implements MerchantRepository {
     public Optional<Merchant> findByParty_Id(Long partyId) {
         return merchantJpaRepository.findByParty_Id(partyId);
     }
-    
+
     @Override
     public Optional<Merchant> findByPhoneNumberWithParty(String phoneNumber) {
         return merchantJpaRepository.findByPhoneNumberWithParty(phoneNumber);
