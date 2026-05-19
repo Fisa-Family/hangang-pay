@@ -101,7 +101,7 @@ public class PaymentQueryService {
 
     /** 결제 내역 상세 조회 */
     public UserPaymentHistoryDetail getUserPaymentHistoryDetail(Long partyId, Long paymentId) {
-        log.info("결재 내역 상세 조회 시작. partyId={}, paymentId={}", partyId, paymentId);
+        log.info("결제 내역 상세 조회 시작. partyId={}, paymentId={}", partyId, paymentId);
 
         // 1. Payment 가져오기
         Payment payment =
