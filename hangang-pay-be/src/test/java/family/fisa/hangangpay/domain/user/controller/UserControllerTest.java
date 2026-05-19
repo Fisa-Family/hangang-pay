@@ -12,6 +12,7 @@ import family.fisa.hangangpay.domain.user.dto.UserProfileResponse;
 import family.fisa.hangangpay.domain.user.service.UserQueryService;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import family.fisa.hangangpay.global.exception.handler.GlobalExceptionHandler;
+import family.fisa.hangangpay.global.session.SessionAttributeNames;
 import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,23 +40,16 @@ class UserControllerTest {
         given(userQueryService.getProfile(1L))
                 .willReturn(
                         new UserProfileResponse(
-                                1L,
-                                1L,
-                                "01041301904",
-                                "유승준",
-                                "01041301904",
-                                LocalDate.now(),
-                                "서대문구"));
+                                1L, 1L, "유승준", "01041301904", LocalDate.now(), "서대문구"));
 
-        mockMvc.perform(get("/api/v1/users/profile").sessionAttr("userId", 1L))
+        mockMvc.perform(get("/api/v1/users/profile").sessionAttr(SessionAttributeNames.USER_ID, 1L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.isSuccess").value(true))
                 .andExpect(jsonPath("$.status").value("OK"))
                 .andExpect(jsonPath("$.code").value("COMMON_OK"))
                 .andExpect(jsonPath("$.result.userId").value(1))
                 .andExpect(jsonPath("$.result.partyId").value(1))
-                .andExpect(jsonPath("$.result.username").value("01041301904"))
-                .andExpect(jsonPath("$.result.nickname").value("유승준"))
+                .andExpect(jsonPath("$.result.username").value("유승준"))
                 .andExpect(jsonPath("$.result.phoneNumber").value("01041301904"))
                 .andExpect(jsonPath("$.result.region").value("서대문구"));
     }
@@ -66,7 +60,9 @@ class UserControllerTest {
         given(userQueryService.getProfile(999L))
                 .willThrow(new BusinessException(UserErrorCode.USER_NOT_FOUND));
 
-        mockMvc.perform(get("/api/v1/users/profile").sessionAttr("userId", 999L))
+        mockMvc.perform(
+                        get("/api/v1/users/profile")
+                                .sessionAttr(SessionAttributeNames.USER_ID, 999L))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.isSuccess").value(false))
                 .andExpect(jsonPath("$.status").value("NOT_FOUND"))

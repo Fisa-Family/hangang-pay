@@ -1,0 +1,5 @@
+package family.fisa.hangangpay.auth.dto;
+
+import family.fisa.hangangpay.domain.party.entity.PartyType;
+
+public record LoginResponse(Long principalId, Long partyId, PartyType role) {}
