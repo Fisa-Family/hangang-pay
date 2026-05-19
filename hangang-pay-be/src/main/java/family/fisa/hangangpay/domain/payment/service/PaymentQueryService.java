@@ -2,7 +2,7 @@ package family.fisa.hangangpay.domain.payment.service;
 
 import family.fisa.hangangpay.domain.merchant.entity.Merchant;
 import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
-import family.fisa.hangangpay.domain.payment.dto.response.UserPaymentHistoryItem;
+import family.fisa.hangangpay.domain.payment.dto.response.PaymentHistoryItem;
 import family.fisa.hangangpay.domain.payment.entity.Payment;
 import family.fisa.hangangpay.domain.payment.entity.PaymentStatus;
 import family.fisa.hangangpay.domain.payment.repository.PaymentRepository;
@@ -30,7 +30,7 @@ public class PaymentQueryService {
     private final MerchantRepository merchantRepository;
     private final PaginationService paginationService;
 
-    public CursorPageResponse<UserPaymentHistoryItem> getUserPaymentHistory(
+    public CursorPageResponse<PaymentHistoryItem> getUserPaymentHistory(
             Long partyId, CursorPageRequest request, int size) {
 
         log.info("결제 내역 조회 시작. partyId={}", partyId);
@@ -71,7 +71,7 @@ public class PaymentQueryService {
                                         m -> m.getParty().getId(), Merchant::getMerchantName));
 
         /** 5. paginationService.toCursorPage 형태에 맞게 response DTO 변환 */
-        Window<UserPaymentHistoryItem> responseWindow =
+        Window<PaymentHistoryItem> responseWindow =
                 window.map(
                         p -> {
                             Long payeePartyId = p.getPayeeParty().getId();
@@ -83,7 +83,7 @@ public class PaymentQueryService {
                                         payeePartyId);
                                 merchantName = "알 수 없는 가맹점";
                             }
-                            return UserPaymentHistoryItem.from(p, merchantName);
+                            return PaymentHistoryItem.from(p, merchantName);
                         });
 
         log.info("결제 내역 조회 완료. partyId={}, count={}", partyId, window.getContent().size());

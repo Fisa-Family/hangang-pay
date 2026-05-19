@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import family.fisa.hangangpay.domain.payment.service.PaymentQueryService;
+import family.fisa.hangangpay.domain.transfer.service.FundTransferService;
 import family.fisa.hangangpay.domain.user.code.error.UserErrorCode;
 import family.fisa.hangangpay.domain.user.dto.UserProfileResponse;
 import family.fisa.hangangpay.domain.user.service.UserQueryService;
@@ -30,6 +31,7 @@ class UserControllerTest {
 
     @MockitoBean private UserQueryService userQueryService;
     @MockitoBean private PaymentQueryService paymentQueryService;
+    @MockitoBean private FundTransferService fundTransferService;
 
     @Test
     @DisplayName("마이페이지 프로필을 조회한다")
