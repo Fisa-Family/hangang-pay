@@ -177,7 +177,8 @@ Checkpoints: 설계 확인 -> RED 실패 확인 -> GREEN 통과 확인
 
 - 로그인 시 세션에 `userId`와 `partyId`를 모두 저장한다.
 - 컨트롤러에서 세션 값은 `@SessionAttribute`로 꺼낸다. `HttpSession`을 직접 파라미터로 받지 않는다.
-- 예: `@SessionAttribute("partyId") Long partyId`, `@SessionAttribute("userId") Long userId`
+- 컨트롤러 생성 시 세션 attribute 이름은 문자열 리터럴 대신 `SessionAttributeNames` 상수를 사용한다.
+- 예: `@SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId`, `@SessionAttribute(SessionAttributeNames.USER_ID) Long userId`
 - `@RequestParam`으로 인증 정보를 받지 않는다. 인증된 사용자 식별자는 반드시 세션에서 추출한다.
 
 ## Root-Level Architecture Rules
