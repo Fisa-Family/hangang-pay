@@ -75,7 +75,7 @@ public class PaymentServiceTest {
                         Limit.of(size),
                         position))
                 .thenReturn(paymentWindow);
-        when(merchantRepository.findByPartyIdIn(any())).thenReturn(List.of());
+        when(merchantRepository.findByParty_IdIn(any())).thenReturn(List.of());
         when(paginationService.toCursorPage(any()))
                 .thenReturn((CursorPageResponse) expectedResponse);
 
@@ -113,7 +113,7 @@ public class PaymentServiceTest {
                         Limit.of(size),
                         position))
                 .thenReturn(paymentWindow);
-        when(merchantRepository.findByPartyIdIn(any())).thenReturn(List.of());
+        when(merchantRepository.findByParty_IdIn(any())).thenReturn(List.of());
         when(paginationService.toCursorPage(any()))
                 .thenReturn((CursorPageResponse) expectedResponse);
 
@@ -171,7 +171,7 @@ public class PaymentServiceTest {
                         Limit.of(size),
                         position))
                 .thenReturn(paymentWindow);
-        when(merchantRepository.findByPartyIdIn(List.of(2L))).thenReturn(List.of(merchant));
+        when(merchantRepository.findByParty_IdIn(List.of(2L))).thenReturn(List.of(merchant));
         when(paginationService.toCursorPage(any()))
                 .thenAnswer(
                         inv -> {
@@ -221,7 +221,7 @@ public class PaymentServiceTest {
                         Limit.of(size),
                         position))
                 .thenReturn(paymentWindow);
-        when(merchantRepository.findByPartyIdIn(any())).thenReturn(List.of());
+        when(merchantRepository.findByParty_IdIn(any())).thenReturn(List.of());
         when(paginationService.toCursorPage(any()))
                 .thenReturn((CursorPageResponse) expectedResponse);
 

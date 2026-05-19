@@ -5,7 +5,9 @@ import java.util.List;
 import java.util.Optional;
 
 public interface MerchantRepository {
-    List<Merchant> findByPartyIdIn(List<Long> payeePartyIds);
+    List<Merchant> findByParty_IdIn(List<Long> payeePartyIds);
+
+    Optional<Merchant> findByParty_Id(Long partyId);
 
     Optional<Merchant> findByPhoneNumberWithParty(String phoneNumber);
 }
