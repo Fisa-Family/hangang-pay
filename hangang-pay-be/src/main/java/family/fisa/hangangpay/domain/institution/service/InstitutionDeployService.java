@@ -80,6 +80,9 @@ public class InstitutionDeployService {
             if (isCentralBank(institution)) {
                 continue;
             }
+            if (!hasDeploymentInfo(institution)) {
+                continue;
+            }
 
             responses.add(deploy(institution, ContractType.DEPOSIT_TOKEN));
         }
@@ -424,6 +427,16 @@ public class InstitutionDeployService {
 
     private static boolean isCentralBank(Institution institution) {
         return InstitutionCode.BOK.getCode().equalsIgnoreCase(institution.getInstitutionCode());
+    }
+
+    /** 블록체인 배포에 필요한 정보가 있는 기관인지 확인 */
+    private static boolean hasDeploymentInfo(Institution institution) {
+        return institution.getWalletAddress() != null
+                && !institution.getWalletAddress().isBlank()
+                && institution.getEncryptedPrivateKey() != null
+                && !institution.getEncryptedPrivateKey().isBlank()
+                && institution.getRpcEndpoint() != null
+                && !institution.getRpcEndpoint().isBlank();
     }
 
     private String resolveContractAddress(String institutionCode, ContractType contractType) {

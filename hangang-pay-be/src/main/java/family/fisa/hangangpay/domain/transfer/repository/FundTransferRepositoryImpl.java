@@ -22,6 +22,12 @@ public class FundTransferRepositoryImpl implements FundTransferRepository {
 
     private final FundTransferJpaRepository fundTransferJpaRepository;
 
+    /** 자금 이체 내역 저장 위임 */
+    @Override
+    public FundTransfer save(FundTransfer fundTransfer) {
+        return fundTransferJpaRepository.save(fundTransfer);
+    }
+
     @Override
     public Window<ChargeHistoryItem> findChargeHistoriesByPartyId(
             Long partyId, ScrollPosition position, Limit of) {
@@ -47,6 +53,7 @@ public class FundTransferRepositoryImpl implements FundTransferRepository {
                 ExchangeHistoryItem::from);
     }
 
+    /** 계좌·지갑 연관 데이터 포함 단건 조회 위임 */
     @Override
     public Optional<FundTransfer> findByIdWithAccountAndWallet(Long id) {
         return fundTransferJpaRepository.findByIdWithAccountAndWallet(id);

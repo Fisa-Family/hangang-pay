@@ -24,6 +24,7 @@ public class PaymentRepositoryImpl implements PaymentRepository {
                 partyId, statuses, limit, position);
     }
 
+    /** payerParty fetch join으로 결제 단건 조회 */
     @Override
     public Optional<Payment> findByIdWithPayerParty(Long paymentId) {
         return paymentJpaRepository.findWithPayerPartyById(paymentId);

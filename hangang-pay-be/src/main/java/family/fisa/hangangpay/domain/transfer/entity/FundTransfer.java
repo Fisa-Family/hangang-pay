@@ -61,4 +61,9 @@ public class FundTransfer extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private TransferType transferType;
+
+    /** 거래 상태 변경 */
+    public void updateStatus(TransferStatus newStatus) {
+        this.status = newStatus;
+    }
 }

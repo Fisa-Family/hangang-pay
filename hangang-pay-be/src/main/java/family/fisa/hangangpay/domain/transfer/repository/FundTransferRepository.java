@@ -14,6 +14,9 @@ import org.springframework.data.domain.Window;
 
 public interface FundTransferRepository {
 
+    /** 자금 이체 내역 저장 */
+    FundTransfer save(FundTransfer fundTransfer);
+
     Window<ChargeHistoryItem> findChargeHistoriesByPartyId(
             Long partyId, ScrollPosition position, Limit of);
 

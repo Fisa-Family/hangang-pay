@@ -11,6 +11,12 @@ import org.springframework.stereotype.Repository;
 public class BlockchainTxRepositoryImpl implements BlockchainTxRepository {
     private final BlockchainTxJpaRepository blockchainTxJpaRepository;
 
+    /** 블록체인 트랜잭션 저장 위임 */
+    @Override
+    public BlockchainTx save(BlockchainTx blockchainTx) {
+        return blockchainTxJpaRepository.save(blockchainTx);
+    }
+
     @Override
     public Optional<BlockchainTx> findByReferenceTypeAndReferenceId(
             ReferenceType referenceType, Long referenceId) {

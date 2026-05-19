@@ -34,4 +34,14 @@ public class BankAccount extends BaseEntity {
     /** 잔액 */
     @Column(nullable = false, precision = 20, scale = 4)
     private BigDecimal balance;
+
+    /** 잔액 차감 */
+    public void deductBalance(BigDecimal amount) {
+        this.balance = this.balance.subtract(amount);
+    }
+
+    /** 잔액 복원 */
+    public void restoreBalance(BigDecimal amount) {
+        this.balance = this.balance.add(amount);
+    }
 }
