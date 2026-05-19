@@ -51,6 +51,9 @@ public class MerchantController {
     public ResponseEntity<ApiResponse<MerchantQrResponse>> getMerchantQr(
             @SessionAttribute("partyId") Long partyId) {
         MerchantQrResponse response = qrService.getQrForPartyId(partyId);
+        return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
+    }
+
     @Operation(summary = "가맹점 계좌 변경 (MERCHANT-010)")
     @PatchMapping("/accounts")
     public ResponseEntity<ApiResponse<MerchantAccountUpdateResponse>> updateAccount(

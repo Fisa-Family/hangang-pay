@@ -17,6 +17,8 @@ import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.entity.PartyType;
 import family.fisa.hangangpay.domain.party.repository.PartyRepository;
+import family.fisa.hangangpay.domain.wallet.entity.Wallet;
+import family.fisa.hangangpay.domain.wallet.repository.WalletRepository;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -48,7 +50,7 @@ public class MerchantQrService {
 
     private final PartyRepository partyRepository;
     private final MerchantRepository merchantRepository;
-
+    private final WalletRepository walletRepository;
     private final ObjectMapper objectMapper;
 
     /** 가맹점 PartyId로 QR 생성 */
@@ -56,17 +58,21 @@ public class MerchantQrService {
         log.info("가맹점 QR 조회 시작. partyId={}", partyId);
 
         // 1. 권한 검증
-        Party party = findMerchantParty(partyId);
+        findMerchantParty(partyId);
 
-        // 2. 해당하는 Merchant 조회
+        // 2. 가맹점 정보 조회
         Merchant merchant = findMerchantByPartyId(partyId);
 
-        String payloadJson = serializePayload(merchant.getId(), partyId);
+        // 3. 가맹점 지갑 주소 조회
+        Wallet wallet = findWalletByPartyId(partyId);
+
+        // 4. 페이로드 직렬화 → QR PNG 생성 → base64 인코딩
+        String payloadJson = serializePayload(merchant, wallet);
         String qrImageBase64 = generateQrPngBase64(payloadJson);
 
         log.info("가맹점 QR 조회 완료. partyId={}, merchantId={}", partyId, merchant.getId());
 
-        return MerchantQrResponse.from(merchant, party, qrImageBase64);
+        return MerchantQrResponse.of(qrImageBase64);
     }
 
     /** Party 조회 */
@@ -81,7 +87,6 @@ public class MerchantQrService {
             log.warn("가맹점 권한 없음. partyId={}, partyType={}", partyId, party.getPartyType());
             throw new BusinessException(MerchantErrorCode.FORBIDDEN_MERCHANT);
         }
-
         return party;
     }
 
@@ -92,12 +97,25 @@ public class MerchantQrService {
                 .orElseThrow(() -> new BusinessException(MerchantErrorCode.MERCHANT_NOT_FOUND));
     }
 
+    /** partyId로 연결된 Wallet 엔티티 조회. */
+    private Wallet findWalletByPartyId(Long partyId) {
+        return walletRepository
+                .findByParty_Id(partyId)
+                .orElseThrow(() -> new BusinessException(MerchantErrorCode.MERCHANT_NOT_FOUND));
+    }
+
     /** QR에 인코딩할 페이로드를 JSON 문자열로 직렬화 QR 안에 객체를 담을 수 없기 때문에 객체 -> JSON 문자열(직렬화) -> QR 이미지 */
-    private String serializePayload(Long merchantId, Long partyId) {
+    private String serializePayload(Merchant merchant, Wallet wallet) {
+        MerchantQrPayload payload =
+                new MerchantQrPayload(
+                        wallet.getAddress(),
+                        merchant.getId(),
+                        merchant.getMerchantName(),
+                        merchant.getAddress());
         try {
-            return objectMapper.writeValueAsString(MerchantQrPayload.of(merchantId, partyId));
+            return objectMapper.writeValueAsString(payload);
         } catch (JsonProcessingException e) {
-            log.error("QR 페이로드 직렬화 실패. party={}", partyId, e);
+            log.error("QR 페이로드 직렬화 실패. merchantId={}", merchant.getId(), e);
             throw new BusinessException(MerchantErrorCode.QR_IMAGE_GENERATION_FAILED);
         }
     }
@@ -116,7 +134,6 @@ public class MerchantQrService {
 
     /** zxing QRCodeWriter 문자열을 BitMatrix로 인코딩 한다. */
     private BitMatrix encodeQr(String content) throws WriterException {
-        // 세부 옵션 설정
         Map<EncodeHintType, Object> hints = new EnumMap<>(EncodeHintType.class);
         hints.put(EncodeHintType.CHARACTER_SET, StandardCharsets.UTF_8.name());
         hints.put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.M);
@@ -128,7 +145,6 @@ public class MerchantQrService {
     /** BitMatrix -> PNG 바이트배열 변환 */
     private byte[] toPngBytes(BitMatrix matrix) throws IOException {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-
             MatrixToImageWriter.writeToStream(matrix, "PNG", out);
             return out.toByteArray();
         }
