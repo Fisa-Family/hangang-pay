@@ -25,7 +25,10 @@ public enum AccountErrorCode implements BaseErrorCode {
     LAST_ACCOUNT_DELETE(HttpStatus.BAD_REQUEST, "LAST_ACCOUNT_DELETE", "계좌는 최소 1개 이상 유지해야 합니다."),
 
     /** 존재하지 않거나 본인 소유가 아닌 계좌 */
-    ACCOUNT_NOT_FOUND(HttpStatus.NOT_FOUND, "ACCOUNT_NOT_FOUND", "계좌를 찾을 수 없습니다.");
+    ACCOUNT_NOT_FOUND(HttpStatus.NOT_FOUND, "ACCOUNT_NOT_FOUND", "계좌를 찾을 수 없습니다."),
+
+    /** 계좌번호 형식 오류 */
+    INVALID_ACCOUNT_NUMBER(HttpStatus.BAD_REQUEST, "INVALID_ACCOUNT_NUMBER", "계좌번호 형식이 올바르지 않습니다.");
 
     private final HttpStatus status;
     private final String code;
