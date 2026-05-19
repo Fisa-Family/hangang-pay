@@ -35,6 +35,10 @@ dependencies {
 	testCompileOnly 'org.projectlombok:lombok'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testAnnotationProcessor 'org.projectlombok:lombok'
+
+	// QR 생성 라이브러리
+	implementation("com.google.zxing:core:3.5.3")
+	implementation 'com.google.zxing:javase:3.5.3'
 }
 
 tasks.named('test') {

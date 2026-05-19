@@ -78,7 +78,7 @@ public class UserController {
     }
 
     @Operation(
-            summary = "소비자 내역 상세 조회 (MY-005)",
+            summary = "소비자 내역 상세 조회 (MY-003)",
             description = "결제(PAYMENT)/충전(CHARGE)/환전(EXCHANGE) 내역의 상세 정보를 조회한다.")
     @GetMapping("/histories/{historyId}")
     public ResponseEntity<ApiResponse<UserHistoryDetailResponse<?>>> getDetailHistory(
