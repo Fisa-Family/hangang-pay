@@ -89,7 +89,7 @@ public class FundTransferQueryService {
         return paginationService.toCursorPage(window);
     }
 
-    /** CHANGE 타입 상세 정보 조회 */
+    /** CHARGE 타입 상세 정보 조회 */
     public UserChargeHistoryDetail getUserChargeHistoryDetail(Long partyId, Long fundTransferId) {
         log.info("충전 내역 상세 조회 시작. partyId={}, fundTransferId={}", partyId, fundTransferId);
         // 1. CHARGE 타입의 fundTransfer 조회
