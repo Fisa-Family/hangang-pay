@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 @RequiredArgsConstructor
 public class MerchantRepositoryImpl implements MerchantRepository {
+
     private final MerchantJpaRepository merchantJpaRepository;
 
     @Override
