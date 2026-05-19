@@ -1,26 +1,11 @@
 package family.fisa.hangangpay.domain.user.dto;
 
-import java.time.LocalDateTime;
-import java.util.List;
+import family.fisa.hangangpay.global.pagination.CursorPageResponse;
 
-public record UserHistoryResponse<T>(
-        UserHistoryType historyType,
-        List<T> items,
-        boolean hasNext,
-        LocalDateTime nextCursorCreatedAt,
-        Long nextCursorId) {
+public record UserHistoryResponse<T>(UserHistoryType historyType, CursorPageResponse<T> response) {
 
     public static <T> UserHistoryResponse<T> of(
-            UserHistoryType type,
-            List<T> items,
-            boolean hasNext,
-            LocalDateTime nextCursorCreatedAt,
-            Long nextCursorId) {
-        return new UserHistoryResponse<>(
-                type,
-                items,
-                hasNext,
-                hasNext ? nextCursorCreatedAt : null,
-                hasNext ? nextCursorId : null);
+            UserHistoryType type, CursorPageResponse<T> response) {
+        return new UserHistoryResponse<>(type, response);
     }
 }

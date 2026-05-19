@@ -1,16 +1,14 @@
 package family.fisa.hangangpay.domain.user.controller;
 
-import family.fisa.hangangpay.domain.payment.service.PaymentQueryService;
 import static family.fisa.hangangpay.domain.user.dto.UserHistoryType.*;
 
 import family.fisa.hangangpay.domain.payment.dto.response.PaymentHistoryItem;
+import family.fisa.hangangpay.domain.payment.service.PaymentQueryService;
 import family.fisa.hangangpay.domain.transfer.dto.ChargeHistoryItem;
 import family.fisa.hangangpay.domain.transfer.dto.ExchangeHistoryItem;
-import family.fisa.hangangpay.domain.transfer.service.FundTransferService;
-import family.fisa.hangangpay.domain.user.dto.UserHistoryResponse;
-import family.fisa.hangangpay.domain.user.dto.UserHistoryType;
 import family.fisa.hangangpay.domain.transfer.service.FundTransferQueryService;
 import family.fisa.hangangpay.domain.user.dto.UserHistoryDetailResponse;
+import family.fisa.hangangpay.domain.user.dto.UserHistoryResponse;
 import family.fisa.hangangpay.domain.user.dto.UserHistoryType;
 import family.fisa.hangangpay.domain.user.dto.UserProfileResponse;
 import family.fisa.hangangpay.domain.user.service.UserQueryService;
@@ -37,7 +35,6 @@ public class UserController {
 
     private final UserQueryService userQueryService;
     private final PaymentQueryService paymentQueryService;
-    private final FundTransferService fundTransferService;
     private final FundTransferQueryService fundTransferQueryService;
 
     @Operation(summary = "프로필 조회 (MY-001)", description = "로그인한 소비자의 닉네임, 지역, 가입일을 반환한다.")
@@ -64,36 +61,20 @@ public class UserController {
                     case PAYMENT -> {
                         CursorPageResponse<PaymentHistoryItem> page =
                                 paymentQueryService.getUserPaymentHistory(partyId, cursor, size);
-                        yield UserHistoryResponse.of(
-                                PAYMENT,
-                                page.content(),
-                                page.hasNext(),
-                                page.nextCursorCreatedAt(),
-                                page.nextCursorId());
+                        yield UserHistoryResponse.of(PAYMENT, page);
                     }
                     case CHARGE -> {
                         CursorPageResponse<ChargeHistoryItem> page =
-                                fundTransferService.getChargeHistories(userId, cursor, size);
-                        yield UserHistoryResponse.of(
-                                CHARGE,
-                                page.content(),
-                                page.hasNext(),
-                                page.nextCursorCreatedAt(),
-                                page.nextCursorId());
+                                fundTransferQueryService.getChargeHistories(userId, cursor, size);
+                        yield UserHistoryResponse.of(CHARGE, page);
                     }
                     case EXCHANGE -> {
                         CursorPageResponse<ExchangeHistoryItem> page =
-                                fundTransferService.getExchangeHistories(userId, cursor, size);
-                        yield UserHistoryResponse.of(
-                                EXCHANGE,
-                                page.content(),
-                                page.hasNext(),
-                                page.nextCursorCreatedAt(),
-                                page.nextCursorId());
+                                fundTransferQueryService.getExchangeHistories(userId, cursor, size);
+                        yield UserHistoryResponse.of(EXCHANGE, page);
                     }
                 };
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, result));
-        return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
     }
 
     @Operation(

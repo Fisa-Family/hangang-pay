@@ -4,7 +4,7 @@ import family.fisa.hangangpay.domain.transfer.code.TransferSuccessCode;
 import family.fisa.hangangpay.domain.transfer.dto.ChargeCalculateRequest;
 import family.fisa.hangangpay.domain.transfer.dto.ChargeCalculateResponse;
 import family.fisa.hangangpay.domain.transfer.dto.ChargeLimitResponse;
-import family.fisa.hangangpay.domain.transfer.service.FundTransferService;
+import family.fisa.hangangpay.domain.transfer.service.FundTransferQueryService;
 import family.fisa.hangangpay.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class ChargeController {
 
     /** 자금 이체 서비스 */
-    private final FundTransferService fundTransferService;
+    private final FundTransferQueryService fundTransferQueryService;
 
     /** CHARGE-001 충전 한도 조회 엔드포인트 */
     @Operation(summary = "충전 한도 조회 (CHARGE-001)", description = "이번 달 충전 사용액과 잔여 한도를 조회한다.")
@@ -42,7 +42,7 @@ public class ChargeController {
         // }
 
         // 충전 한도 조회 후 응답 반환
-        ChargeLimitResponse response = fundTransferService.getChargeLimit(partyId);
+        ChargeLimitResponse response = fundTransferQueryService.getChargeLimit(partyId);
         return ResponseEntity.ok(
                 ApiResponse.onSuccess(TransferSuccessCode.CHARGE_LIMIT_RETRIEVED, response));
     }
@@ -64,7 +64,7 @@ public class ChargeController {
 
         // 충전 금액 계산 후 응답 반환
         ChargeCalculateResponse response =
-                fundTransferService.calculateCharge(partyId, request.getChargeAmount());
+                fundTransferQueryService.calculateCharge(partyId, request.getChargeAmount());
         return ResponseEntity.ok(
                 ApiResponse.onSuccess(TransferSuccessCode.CHARGE_CALCULATED, response));
     }

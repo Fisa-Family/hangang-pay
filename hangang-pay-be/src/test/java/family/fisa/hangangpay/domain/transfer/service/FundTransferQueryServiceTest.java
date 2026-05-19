@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import family.fisa.hangangpay.domain.blockchain.repository.BlockchainTxRepository;
 import family.fisa.hangangpay.domain.transfer.dto.ChargeHistoryItem;
 import family.fisa.hangangpay.domain.transfer.dto.ExchangeHistoryItem;
 import family.fisa.hangangpay.domain.transfer.repository.FundTransferRepository;
@@ -31,13 +32,14 @@ import org.springframework.data.domain.ScrollPosition;
 import org.springframework.data.domain.Window;
 
 @ExtendWith(MockitoExtension.class)
-class FundTransferServiceTest {
+class FundTransferQueryServiceTest {
 
     @Mock UserRepository userRepository;
     @Mock FundTransferRepository fundTransferRepository;
     @Mock PaginationService paginationService;
 
-    @InjectMocks FundTransferService fundTransferService;
+    @Mock BlockchainTxRepository blockchainTxRepository;
+    @InjectMocks FundTransferQueryService fundTransferQueryService;
 
     @Nested
     @DisplayName("충전 내역 조회 (getChargeHistories)")
@@ -52,7 +54,7 @@ class FundTransferServiceTest {
             // when, then
             assertThatThrownBy(
                             () ->
-                                    fundTransferService.getChargeHistories(
+                                    fundTransferQueryService.getChargeHistories(
                                             1L, new CursorPageRequest(null, null), 20))
                     .isInstanceOf(BusinessException.class)
                     .hasFieldOrPropertyWithValue("code", UserErrorCode.USER_NOT_FOUND);
@@ -68,6 +70,8 @@ class FundTransferServiceTest {
                     new CursorPageResponse<>(List.of(), null, null, false);
 
             when(userRepository.findPartyIdByUserId(userId)).thenReturn(Optional.of(partyId));
+            when(paginationService.resolveScrollPosition(new CursorPageRequest(null, null)))
+                    .thenReturn(ScrollPosition.keyset());
             when(fundTransferRepository.findChargeHistoriesByPartyId(
                             partyId, ScrollPosition.keyset(), Limit.of(20)))
                     .thenReturn(window);
@@ -75,7 +79,7 @@ class FundTransferServiceTest {
 
             // when
             CursorPageResponse<ChargeHistoryItem> actual =
-                    fundTransferService.getChargeHistories(
+                    fundTransferQueryService.getChargeHistories(
                             userId, new CursorPageRequest(null, null), 20);
 
             // then
@@ -99,6 +103,8 @@ class FundTransferServiceTest {
                     new CursorPageResponse<>(List.of(), null, null, false);
 
             when(userRepository.findPartyIdByUserId(userId)).thenReturn(Optional.of(partyId));
+            when(paginationService.resolveScrollPosition(new CursorPageRequest(cursorAt, cursorId)))
+                    .thenReturn(expectedPos);
             when(fundTransferRepository.findChargeHistoriesByPartyId(
                             partyId, expectedPos, Limit.of(20)))
                     .thenReturn(window);
@@ -106,7 +112,7 @@ class FundTransferServiceTest {
 
             // when
             CursorPageResponse<ChargeHistoryItem> actual =
-                    fundTransferService.getChargeHistories(
+                    fundTransferQueryService.getChargeHistories(
                             userId, new CursorPageRequest(cursorAt, cursorId), 20);
 
             // then
@@ -129,7 +135,7 @@ class FundTransferServiceTest {
             // when, then
             assertThatThrownBy(
                             () ->
-                                    fundTransferService.getExchangeHistories(
+                                    fundTransferQueryService.getExchangeHistories(
                                             1L, new CursorPageRequest(null, null), 20))
                     .isInstanceOf(BusinessException.class)
                     .hasFieldOrPropertyWithValue("code", UserErrorCode.USER_NOT_FOUND);
@@ -145,6 +151,8 @@ class FundTransferServiceTest {
                     new CursorPageResponse<>(List.of(), null, null, false);
 
             when(userRepository.findPartyIdByUserId(userId)).thenReturn(Optional.of(partyId));
+            when(paginationService.resolveScrollPosition(new CursorPageRequest(null, null)))
+                    .thenReturn(ScrollPosition.keyset());
             when(fundTransferRepository.findExchangeHistoriesByPartyId(
                             partyId, ScrollPosition.keyset(), Limit.of(20)))
                     .thenReturn(window);
@@ -152,7 +160,7 @@ class FundTransferServiceTest {
 
             // when
             CursorPageResponse<ExchangeHistoryItem> actual =
-                    fundTransferService.getExchangeHistories(
+                    fundTransferQueryService.getExchangeHistories(
                             userId, new CursorPageRequest(null, null), 20);
 
             // then
@@ -176,6 +184,8 @@ class FundTransferServiceTest {
                     new CursorPageResponse<>(List.of(), null, null, false);
 
             when(userRepository.findPartyIdByUserId(userId)).thenReturn(Optional.of(partyId));
+            when(paginationService.resolveScrollPosition(new CursorPageRequest(cursorAt, cursorId)))
+                    .thenReturn(expectedPos);
             when(fundTransferRepository.findExchangeHistoriesByPartyId(
                             partyId, expectedPos, Limit.of(20)))
                     .thenReturn(window);
@@ -183,7 +193,7 @@ class FundTransferServiceTest {
 
             // when
             CursorPageResponse<ExchangeHistoryItem> actual =
-                    fundTransferService.getExchangeHistories(
+                    fundTransferQueryService.getExchangeHistories(
                             userId, new CursorPageRequest(cursorAt, cursorId), 20);
 
             // then

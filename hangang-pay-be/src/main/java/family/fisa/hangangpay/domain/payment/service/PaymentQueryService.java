@@ -1,6 +1,9 @@
 package family.fisa.hangangpay.domain.payment.service;
 
+import static family.fisa.hangangpay.domain.blockchain.entity.ReferenceType.PAYMENT;
+
 import family.fisa.hangangpay.domain.blockchain.entity.BlockchainTx;
+import family.fisa.hangangpay.domain.blockchain.repository.BlockchainTxRepository;
 import family.fisa.hangangpay.domain.merchant.entity.Merchant;
 import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.payment.code.error.PaymentErrorCode;
@@ -25,8 +28,6 @@ import org.springframework.data.domain.Window;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import static family.fisa.hangangpay.domain.user.dto.UserHistoryType.PAYMENT;
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -36,8 +37,9 @@ public class PaymentQueryService {
     private final PaymentRepository paymentRepository;
     private final MerchantRepository merchantRepository;
     private final PaginationService paginationService;
+    private final BlockchainTxRepository blockchainTxRepository;
 
-    public CursorPageResponse<UserPaymentHistoryItem> getUserPaymentHistory(
+    public CursorPageResponse<PaymentHistoryItem> getUserPaymentHistory(
             Long partyId, CursorPageRequest request, int size) {
 
         log.info("결제 내역 조회 시작. partyId={}", partyId);
@@ -107,7 +109,8 @@ public class PaymentQueryService {
         Payment payment =
                 paymentRepository
                         .findByIdWithPayerParty(paymentId)
-                        .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
+                        .orElseThrow(
+                                () -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
 
         // 2. 소유주 검증
         verifyOwner(partyId, payment);
