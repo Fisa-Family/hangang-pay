@@ -7,6 +7,7 @@ import family.fisa.hangangpay.domain.transfer.entity.TransferStatus;
 import family.fisa.hangangpay.domain.transfer.entity.TransferType;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Limit;
@@ -44,6 +45,11 @@ public class FundTransferRepositoryImpl implements FundTransferRepository {
         // 2. ExchangeHistoryItem 타입으로 변환하여 return
         return findByPartyIdAndTransferTypeOrderByCreatedAtDescIdDesc.map(
                 ExchangeHistoryItem::from);
+    }
+
+    @Override
+    public Optional<FundTransfer> findByIdWithAccountAndWallet(Long id) {
+        return fundTransferJpaRepository.findByIdWithAccountAndWallet(id);
     }
 
     @Override

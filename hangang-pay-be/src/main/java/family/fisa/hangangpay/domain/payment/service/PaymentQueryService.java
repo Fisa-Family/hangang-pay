@@ -1,11 +1,17 @@
 package family.fisa.hangangpay.domain.payment.service;
 
+import family.fisa.hangangpay.domain.blockchain.entity.BlockchainTx;
+import family.fisa.hangangpay.domain.blockchain.entity.ReferenceType;
+import family.fisa.hangangpay.domain.blockchain.repository.BlockchainTxRepository;
 import family.fisa.hangangpay.domain.merchant.entity.Merchant;
 import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
+import family.fisa.hangangpay.domain.payment.dto.response.UserPaymentHistoryDetail;
 import family.fisa.hangangpay.domain.payment.dto.response.UserPaymentHistoryItem;
 import family.fisa.hangangpay.domain.payment.entity.Payment;
 import family.fisa.hangangpay.domain.payment.entity.PaymentStatus;
 import family.fisa.hangangpay.domain.payment.repository.PaymentRepository;
+import family.fisa.hangangpay.domain.user.code.error.UserErrorCode;
+import family.fisa.hangangpay.global.exception.BusinessException;
 import family.fisa.hangangpay.global.pagination.CursorPageRequest;
 import family.fisa.hangangpay.global.pagination.CursorPageResponse;
 import family.fisa.hangangpay.global.pagination.PaginationService;
@@ -29,6 +35,7 @@ public class PaymentQueryService {
     private final PaymentRepository paymentRepository;
     private final MerchantRepository merchantRepository;
     private final PaginationService paginationService;
+    private final BlockchainTxRepository blockchainTxRepository;
 
     public CursorPageResponse<UserPaymentHistoryItem> getUserPaymentHistory(
             Long partyId, CursorPageRequest request, int size) {
@@ -90,5 +97,41 @@ public class PaymentQueryService {
 
         /** <T extends CursorItem> CursorPageResponse<T> 형태로 반환 */
         return paginationService.toCursorPage(responseWindow);
+    }
+
+    /** 결제 내역 상세 조회 */
+    public UserPaymentHistoryDetail getUserPaymentHistoryDetail(Long partyId, Long paymentId) {
+        log.info("결재 내역 상세 조회 시작. partyId={}, paymentId={}", partyId, paymentId);
+
+        // 1. Payment 가져오기
+        Payment payment =
+                paymentRepository
+                        .findByIdWithPayerParty(paymentId)
+                        .orElseThrow(() -> new BusinessException(UserErrorCode.HISTORY_NOT_FOUND));
+
+        // 2. 소유주 검증
+        verifyOwner(partyId, payment);
+
+        // 3. Blockchain Transaction 내역 가져오기
+        BlockchainTx blockchainTx =
+                blockchainTxRepository
+                        .findByReferenceTypeAndReferenceId(ReferenceType.PAYMENT, paymentId)
+                        .orElse(null);
+
+        log.info("결제 내역 상세 조회 완료. partyId={}, paymentId={}", partyId, paymentId);
+        return UserPaymentHistoryDetail.from(payment, blockchainTx);
+    }
+
+    /** 조회자랑 결제자가 같은지 검증 */
+    private void verifyOwner(Long partyId, Payment payment) {
+        if (!payment.getPayerParty().getId().equals(partyId)) {
+            log.warn(
+                    "결제 내역 소유자 불일치. partyId={}, paymentId={}, payerPartyId={}",
+                    partyId,
+                    payment.getId(),
+                    payment.getPayerParty().getId());
+
+            throw new BusinessException(UserErrorCode.NOT_OWNER);
+        }
     }
 }
