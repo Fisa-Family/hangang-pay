@@ -49,6 +49,7 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.code").value("COMMON_OK"))
                 .andExpect(jsonPath("$.result.userId").value(1))
                 .andExpect(jsonPath("$.result.partyId").value(1))
+                .andExpect(jsonPath("$.result.username").value("유승준"))
                 .andExpect(jsonPath("$.result.phoneNumber").value("01041301904"))
                 .andExpect(jsonPath("$.result.region").value("서대문구"));
     }

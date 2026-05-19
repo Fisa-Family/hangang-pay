@@ -13,7 +13,7 @@ public class MerchantRepositoryImpl implements MerchantRepository {
     private final MerchantJpaRepository merchantJpaRepository;
 
     @Override
-    public List<Merchant> findByPartyIdIn(List<Long> payeePartyIds) {
+    public List<Merchant> findByParty_IdIn(List<Long> payeePartyIds) {
         return merchantJpaRepository.findByParty_IdIn(payeePartyIds);
     }
 
