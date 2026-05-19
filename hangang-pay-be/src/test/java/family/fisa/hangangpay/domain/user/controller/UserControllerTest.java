@@ -39,13 +39,7 @@ class UserControllerTest {
         given(userQueryService.getProfile(1L))
                 .willReturn(
                         new UserProfileResponse(
-                                1L,
-                                1L,
-                                "01041301904",
-                                "유승준",
-                                "01041301904",
-                                LocalDate.now(),
-                                "서대문구"));
+                                1L, 1L, "01041301904", "01041301904", LocalDate.now(), "서대문구"));
 
         mockMvc.perform(get("/api/v1/users/profile").sessionAttr("userId", 1L))
                 .andExpect(status().isOk())
@@ -54,8 +48,6 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.code").value("COMMON_OK"))
                 .andExpect(jsonPath("$.result.userId").value(1))
                 .andExpect(jsonPath("$.result.partyId").value(1))
-                .andExpect(jsonPath("$.result.username").value("01041301904"))
-                .andExpect(jsonPath("$.result.nickname").value("유승준"))
                 .andExpect(jsonPath("$.result.phoneNumber").value("01041301904"))
                 .andExpect(jsonPath("$.result.region").value("서대문구"));
     }

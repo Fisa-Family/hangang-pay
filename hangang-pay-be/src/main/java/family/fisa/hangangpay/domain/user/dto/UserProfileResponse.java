@@ -7,7 +7,6 @@ public record UserProfileResponse(
         Long userId,
         Long partyId,
         String username,
-        String nickname,
         String phoneNumber,
         LocalDate birthDate,
         String region) {
@@ -16,7 +15,6 @@ public record UserProfileResponse(
                 user.getId(),
                 user.getParty().getId(),
                 user.getUsername(),
-                user.getNickname(),
                 user.getPhoneNumber(),
                 user.getBirthDate(),
                 user.getRegion());
