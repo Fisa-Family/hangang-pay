@@ -1,9 +1,14 @@
 package family.fisa.hangangpay.domain.user.controller;
 
-import family.fisa.hangangpay.domain.payment.dto.response.UserPaymentHistoryItem;
+import static family.fisa.hangangpay.domain.user.dto.UserHistoryType.*;
+
+import family.fisa.hangangpay.domain.payment.dto.response.PaymentHistoryItem;
 import family.fisa.hangangpay.domain.payment.service.PaymentQueryService;
+import family.fisa.hangangpay.domain.transfer.dto.ChargeHistoryItem;
+import family.fisa.hangangpay.domain.transfer.dto.ExchangeHistoryItem;
 import family.fisa.hangangpay.domain.transfer.service.FundTransferQueryService;
 import family.fisa.hangangpay.domain.user.dto.UserHistoryDetailResponse;
+import family.fisa.hangangpay.domain.user.dto.UserHistoryResponse;
 import family.fisa.hangangpay.domain.user.dto.UserHistoryType;
 import family.fisa.hangangpay.domain.user.dto.UserProfileResponse;
 import family.fisa.hangangpay.domain.user.service.UserQueryService;
@@ -37,22 +42,39 @@ public class UserController {
     public ResponseEntity<ApiResponse<UserProfileResponse>> getProfile(
             @SessionAttribute("userId") Long userId) {
         UserProfileResponse response = userQueryService.getProfile(userId);
-        return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
+        return ResponseEntity.ok(
+                family.fisa.hangangpay.global.response.ApiResponse.onSuccess(
+                        GeneralSuccessCode.COMMON_OK, response));
     }
 
-    @Operation(
-            summary = "소비자 결제 내역 조회 (MY-002)",
-            description = "커서 기반 페이지네이션으로 최신순 결제 내역을 반환한다. 첫 요청은 cursorCreatedAt/cursorId 없이 호출한다.")
-    @GetMapping("/payments")
-    public ResponseEntity<ApiResponse<CursorPageResponse<UserPaymentHistoryItem>>>
-            getPaymentHistory(
-                    @SessionAttribute("partyId") Long partyId,
-                    CursorPageRequest request,
-                    @RequestParam(defaultValue = "20") int size) {
-        CursorPageResponse<UserPaymentHistoryItem> response =
-                paymentQueryService.getUserPaymentHistory(partyId, request, size);
+    @Operation(summary = "소비자 내역 조회 (MY-002)", description = "결제, 충전, 환전에 대한 모든 조회를 한번에 처리한다.")
+    @GetMapping("/histories")
+    public ResponseEntity<ApiResponse<UserHistoryResponse<?>>> getHistories(
+            @SessionAttribute("userId") Long userId,
+            @SessionAttribute("partyId") Long partyId,
+            @RequestParam UserHistoryType historyType,
+            CursorPageRequest cursor,
+            @RequestParam(defaultValue = "20") int size) {
 
-        return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
+        UserHistoryResponse<?> result =
+                switch (historyType) {
+                    case PAYMENT -> {
+                        CursorPageResponse<PaymentHistoryItem> page =
+                                paymentQueryService.getUserPaymentHistory(partyId, cursor, size);
+                        yield UserHistoryResponse.of(PAYMENT, page);
+                    }
+                    case CHARGE -> {
+                        CursorPageResponse<ChargeHistoryItem> page =
+                                fundTransferQueryService.getChargeHistories(userId, cursor, size);
+                        yield UserHistoryResponse.of(CHARGE, page);
+                    }
+                    case EXCHANGE -> {
+                        CursorPageResponse<ExchangeHistoryItem> page =
+                                fundTransferQueryService.getExchangeHistories(userId, cursor, size);
+                        yield UserHistoryResponse.of(EXCHANGE, page);
+                    }
+                };
+        return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, result));
     }
 
     @Operation(

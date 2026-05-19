@@ -18,10 +18,11 @@ public enum GeneralErrorCode implements BaseErrorCode {
     COMMON_INTERNAL_SERVER_ERROR(
             HttpStatus.INTERNAL_SERVER_ERROR, "COMMON_INTERNAL_SERVER_ERROR", "서버 내부 오류가 발생했습니다"),
 
-    // 유효성 검사
-    COMMON_VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "COMMON_VALIDATION_FAILED", "잘못된 파라미터 입니다.");
+    COMMON_VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "COMMON_VALIDATION_FAILED", "잘못된 파라미터 입니다."),
 
-    // 필요한 필드값 선언
+    COMMON_INVALID_HISTORY_TYPE(
+            HttpStatus.BAD_REQUEST, "COMMON_INVALID_HISTORY_TYPE", "지원하지 않는 내역 타입입니다.");
+
     private final HttpStatus status;
     private final String code;
     private final String message;
