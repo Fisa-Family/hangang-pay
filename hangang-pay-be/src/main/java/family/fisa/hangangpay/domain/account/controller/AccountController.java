@@ -35,7 +35,7 @@ public class AccountController {
     private final AccountService accountService;
 
     /** ACCOUNT-001 등록 계좌 목록 조회 엔드포인트 */
-    @Operation(summary = "등록 계좌 목록 조회", description = "현재 로그인한 사용자의 등록된 계좌 목록을 조회합니다.")
+    @Operation(summary = "등록 계좌 목록 조회 (ACCOUNT-001)", description = "현재 로그인한 사용자의 등록된 계좌 목록을 조회합니다.")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "200",
@@ -61,7 +61,7 @@ public class AccountController {
     }
 
     /** ACCOUNT-002 계좌 추가 엔드포인트 */
-    @Operation(summary = "계좌 추가", description = "은행 원장 확인 및 예금주 검증 후 계좌를 등록합니다. 최대 3개까지 등록 가능합니다.")
+    @Operation(summary = "계좌 등록 (ACCOUNT-002)", description = "은행 원장 확인 및 예금주 검증 후 계좌를 등록합니다. 최대 3개까지 등록 가능합니다.")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "201",
@@ -97,7 +97,7 @@ public class AccountController {
     }
 
     /** ACCOUNT-003 계좌 삭제 엔드포인트 */
-    @Operation(summary = "계좌 삭제", description = "본인 계좌를 삭제합니다. 주거래 계좌와 마지막 계좌는 삭제할 수 없습니다.")
+    @Operation(summary = "계좌 삭제 (ACCOUNT-003)", description = "본인 계좌를 삭제합니다. 주거래 계좌와 마지막 계좌는 삭제할 수 없습니다.")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "200",
@@ -130,7 +130,7 @@ public class AccountController {
 
     /** ACCOUNT-004 주거래 계좌 변경 엔드포인트 */
     @Operation(
-            summary = "주거래 계좌 변경",
+            summary = "주거래 계좌 변경 (ACCOUNT-004)",
             description = "지정한 계좌를 주거래 계좌로 변경합니다. 기존 주거래 계좌는 일반 계좌로 전환됩니다.")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
