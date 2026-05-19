@@ -28,7 +28,7 @@ public class Merchant extends BaseEntity {
     @JoinColumn(name = "party_id", nullable = false, unique = true)
     private Party party;
 
-    /** 로그인 아이디 */
+    /** 사용자 실명 */
     @Column(nullable = false, unique = true)
     private String username;
 

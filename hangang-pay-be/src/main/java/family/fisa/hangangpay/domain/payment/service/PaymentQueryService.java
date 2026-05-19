@@ -65,7 +65,7 @@ public class PaymentQueryService {
 
         /** 4. Merchant의 PartyId 기반으로 MerchantName 추출 */
         Map<Long, String> merchantNameMap =
-                merchantRepository.findByParty_IdIn(payeePartyIds).stream()
+                merchantRepository.findByPartyIdIn(payeePartyIds).stream()
                         .collect(
                                 Collectors.toMap(
                                         m -> m.getParty().getId(), Merchant::getMerchantName));

@@ -28,16 +28,13 @@ public class User extends BaseEntity {
     @JoinColumn(name = "party_id", nullable = false, unique = true)
     private Party party;
 
-    /** 로그인 아이디 */
+    /** 사용자 실명 */
     @Column(nullable = false, unique = true)
     private String username;
 
     /** 비밀번호 해시 */
     @Column(nullable = false)
     private String passwordHash;
-
-    /** 이름(닉네임) */
-    private String nickname;
 
     /** 휴대폰 번호 */
     private String phoneNumber;
