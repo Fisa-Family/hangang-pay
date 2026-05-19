@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import family.fisa.hangangpay.domain.merchant.code.error.MerchantErrorCode;
 import family.fisa.hangangpay.domain.merchant.dto.BusinessInfoResponse;
-import family.fisa.hangangpay.domain.merchant.service.MerchantQueryService;
+import family.fisa.hangangpay.domain.merchant.service.BusinessInfoQueryService;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import family.fisa.hangangpay.global.exception.handler.GlobalExceptionHandler;
 import org.junit.jupiter.api.DisplayName;
@@ -26,12 +26,12 @@ class MerchantRegistrationControllerTest {
 
     @Autowired private MockMvc mockMvc;
 
-    @MockitoBean private MerchantQueryService merchantQueryService;
+    @MockitoBean private BusinessInfoQueryService businessInfoQueryService;
 
     @Test
     @DisplayName("사업자 정보를 조회한다")
     void getBusinessInfo() throws Exception {
-        given(merchantQueryService.getBusinessInfo("123-45-67890"))
+        given(businessInfoQueryService.getBusinessInfo("123-45-67890"))
                 .willReturn(
                         new BusinessInfoResponse(
                                 "123-45-67890", "성수 한강카페", "김한강", "서울 성동구 왕십리로 125", "카페"));
@@ -53,7 +53,7 @@ class MerchantRegistrationControllerTest {
     @Test
     @DisplayName("사업자 정보를 찾을 수 없으면 실패 응답을 반환한다")
     void getBusinessInfoNotFound() throws Exception {
-        given(merchantQueryService.getBusinessInfo("000-00-00000"))
+        given(businessInfoQueryService.getBusinessInfo("000-00-00000"))
                 .willThrow(new BusinessException(MerchantErrorCode.BUSINESS_INFO_NOT_FOUND));
 
         mockMvc.perform(

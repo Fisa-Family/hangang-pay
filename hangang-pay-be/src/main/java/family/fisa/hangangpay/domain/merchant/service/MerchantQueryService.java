@@ -1,35 +1,40 @@
 package family.fisa.hangangpay.domain.merchant.service;
 
+import family.fisa.hangangpay.domain.account.entity.Account;
+import family.fisa.hangangpay.domain.account.entity.AccountType;
+import family.fisa.hangangpay.domain.account.repository.AccountRepository;
 import family.fisa.hangangpay.domain.merchant.code.error.MerchantErrorCode;
-import family.fisa.hangangpay.domain.merchant.dto.BusinessInfoResponse;
+import family.fisa.hangangpay.domain.merchant.dto.MerchantMyPageResponse;
+import family.fisa.hangangpay.domain.merchant.entity.Merchant;
+import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.global.exception.BusinessException;
-import java.util.Map;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class MerchantQueryService {
+    private final MerchantRepository merchantRepository;
+    private final AccountRepository accountRepository;
 
-    private static final Map<String, BusinessInfoResponse> MOCK_BUSINESS_INFOS =
-            Map.of(
-                    "123-45-67890",
-                    new BusinessInfoResponse(
-                            "123-45-67890", "성수 한강카페", "김한강", "서울 성동구 왕십리로 125", "카페"),
-                    "234-56-78901",
-                    new BusinessInfoResponse(
-                            "234-56-78901", "뚝섬 분식", "이성수", "서울 성동구 상원길 40", "음식점"),
-                    "345-67-89012",
-                    new BusinessInfoResponse(
-                            "345-67-89012", "서울숲 서점", "박서울", "서울 성동구 서울숲2길 32", "소매업"));
+    public MerchantMyPageResponse getMyPage(Long partyId) {
+        Merchant merchant =
+                merchantRepository
+                        .findByParty_Id(partyId)
+                        .orElseThrow(
+                                () -> new BusinessException(MerchantErrorCode.MERCHANT_NOT_FOUND));
 
-    public BusinessInfoResponse getBusinessInfo(String businessNumber) {
-        BusinessInfoResponse businessInfo = MOCK_BUSINESS_INFOS.get(businessNumber);
+        Account account =
+                accountRepository
+                        .findByParty_IdAndAccountType(partyId, AccountType.SETTLEMENT)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                MerchantErrorCode
+                                                        .MERCHANT_SETTLEMENT_ACCOUNT_NOT_FOUND));
 
-        if (businessInfo == null) {
-            throw new BusinessException(MerchantErrorCode.BUSINESS_INFO_NOT_FOUND);
-        }
-
-        return businessInfo;
+        return MerchantMyPageResponse.from(merchant, account);
     }
 }

@@ -54,7 +54,7 @@ erDiagram
     BIGINT id PK
     BIGINT party_id FK "party.id"
     BIGINT institution_id FK "institution.id"
-    VARCHAR account_type "PRIMARY | SECONDARY"
+    VARCHAR account_type "PRIMARY | SECONDARY | SETTLEMENT"
     VARCHAR account_number
     DATETIME created_at
     DATETIME updated_at
@@ -179,17 +179,17 @@ erDiagram
 
 ## Enum Values
 
-| Field | Values |
-| --- | --- |
-| `party.party_type` | `USER`, `MERCHANT` |
-| `account.account_type` | `PRIMARY`, `SECONDARY` |
-| `fund_transfer.transfer_type` | `CHARGE`, `EXCHANGE` |
-| `fund_transfer.status` | `PENDING`, `SUCCESS`, `FAILED` |
-| `payment.status` | `PENDING`, `SUCCESS`, `FAILED` |
-| `payment_cancellation.status` | `PENDING`, `SUCCESS`, `FAILED` |
+| Field | Values                                             |
+| --- |----------------------------------------------------|
+| `party.party_type` | `USER`, `MERCHANT`                                 |
+| `account.account_type` | `PRIMARY`, `SECONDARY`, `SETTLEMENT`                |
+| `fund_transfer.transfer_type` | `CHARGE`, `EXCHANGE`                               |
+| `fund_transfer.status` | `PENDING`, `SUCCESS`, `FAILED`                     |
+| `payment.status` | `PENDING`, `SUCCESS`, `FAILED`                     |
+| `payment_cancellation.status` | `PENDING`, `SUCCESS`, `FAILED`                     |
 | `blockchain_tx.reference_type` | `FUND_TRANSFER`, `PAYMENT`, `PAYMENT_CANCELLATION` |
-| `blockchain_tx.status` | `PENDING`, `CONFIRMED`, `FAILED` |
-| `contract_address.name` | `CBDC`, `DEPOSIT_TOKEN`, `CONTRACT` |
+| `blockchain_tx.status` | `PENDING`, `CONFIRMED`, `FAILED`                   |
+| `contract_address.name` | `CBDC`, `DEPOSIT_TOKEN`, `CONTRACT`                |
 
 ## Settlement Meaning
 
