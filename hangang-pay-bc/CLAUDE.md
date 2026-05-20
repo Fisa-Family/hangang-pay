@@ -8,12 +8,12 @@ Four institutions participate, each owning one Besu node and one EOA account:
 
 | Institution | Role | Token |
 |---|---|---|
-| Bank of Korea (BoK) | CBDC issuer | CBDC (ERC-20) |
+| Bank of Korea (BoK) | CBDC issuer and settlement operator | CBDC (ERC-20) |
 | Woori Bank | Commercial bank | DepositToken (ERC-20) |
-| Shinhan Bank | Commercial bank | DepositToken (ERC-20) |
-| Hana Bank | Commercial bank | DepositToken (ERC-20) |
+| Shinhan Bank | Commercial bank | - |
+| Hana Bank | Commercial bank | - |
 
-Each institution signs transactions directly with its own EOA. Gas price is 0 (private network). User private keys are stored in the server DB (custodial wallet).
+Currently only Woori Bank DepositToken is deployed for the simulation MVP. Shinhan Bank and Hana Bank participate in settlement reserve registration but do not yet issue DepositToken contracts. Gas price is 0 (private network). User private keys are stored in the server DB (custodial wallet).
 
 ## Directory Structure
 
@@ -55,24 +55,35 @@ node1 is the bootnode (`172.16.239.11:30303`). Nodes 2–4 connect to it on star
 
 There are two contracts. `contracts/Token.sol` is a placeholder boilerplate — it is not either of these contracts.
 
-### SettlementContract
+### Settlement
 
-Handles inter-bank transfers settled via CBDC.
+Handles CBDC-based inter-bank settlement.
 
-Execution order (atomic — each step validated with `require` before proceeding):
-1. Burn sender bank's DepositToken
-2. `forceTransfer` CBDC between banks via BoK
-3. Mint recipient bank's DepositToken
+Execution flow:
+1. Burn sender bank DepositToken
+2. Transfer locked CBDC reserve internally
+3. Mint recipient bank DepositToken
 
-CBDC is ERC-20. DepositToken is ERC-20. Mint/burn authority is controlled via RBAC.
+Settlement holds locked CBDC liquidity and manages institution reserve balances internally.
 
-### LocalCurrencyContract
+### LocalCurrencyPolicy
 
-Manages local currency (HRC) balance and enforces merchant whitelist restriction.
+Enforces regional payment policy on top of DepositToken.
 
-- **Not ERC-20.** Uses `mapping(address => uint256) localBalance` to prevent direct token transfers.
-- Merchant whitelist: `mapping(address => bool)`. Payments only allowed to whitelisted addresses.
-- Banks hold mint/policy authority via RBAC.
+- Merchant whitelist restriction
+- Total usage cap
+- Uses DepositToken.forceTransfer(...) for payment execution
+- Does not maintain a separate ERC-20 balance
+
+Payments are executed by moving DepositToken balances between users and merchants through operator authority.
+
+## Liquidity Model
+
+CBDC liquidity is minted once by BoK and locked inside the Settlement contract.
+
+Commercial bank balances are represented internally as reserve balances within Settlement.
+
+Actual user-facing balances are DepositToken balances issued by commercial banks.
 
 ## Tech Stack
 
@@ -134,7 +145,7 @@ These ERD tables are managed by the BE but directly depend on what is deployed i
 |---|---|
 | `INSTITUTION` | Stores each institution's `wallet_address`, `encrypted_private_key`, `enode_url`, `rpc_endpoint` |
 | `BANK_WALLET` | Institution's on-chain wallet address and balance |
-| `CONTRACT_ADDRESS` | Deployed contract addresses per institution (`CBDC`, `DEPOSIT_TOKEN`, `CONTRACT`) |
+| `CONTRACT_ADDRESS` | Deployed contract addresses per institution (CBDC, DEPOSIT_TOKEN, CONTRACT, LOCAL_CURRENCY) |
 | `WALLET` | Custodial wallets for users and merchants (private keys server-held) |
 | `BLOCKCHAIN_TX` | Tracks tx hashes for `FUND_TRANSFER`, `PAYMENT`, `PAYMENT_CANCELLATION` |
 
@@ -151,7 +162,7 @@ These ERD tables are managed by the BE but directly depend on what is deployed i
 
 ## What NOT to Do
 
-- Do not make `LocalCurrencyContract` extend ERC-20 — direct `transfer` must be blocked by design.
+- Do not implement LocalCurrencyPolicy as a transferable ERC-20 token.
 - Do not add a standard `transfer` or `approve` function to `LocalCurrencyContract`.
 - Do not store user private keys on-chain or in contract state.
 - Do not set gas price to non-zero — the network is configured as a zero-fee private chain.

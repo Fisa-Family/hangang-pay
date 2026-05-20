@@ -1,10 +1,20 @@
 package family.fisa.hangangpay.domain.institution.service;
 
+import family.fisa.hangangpay.domain.institution.code.error.InstitutionErrorCode;
+import family.fisa.hangangpay.domain.institution.dto.DeployAllContractsResponse;
+import family.fisa.hangangpay.domain.institution.dto.DeployContractResponse;
+import family.fisa.hangangpay.domain.institution.entity.ContractAddress;
+import family.fisa.hangangpay.domain.institution.entity.ContractType;
+import family.fisa.hangangpay.domain.institution.entity.Institution;
+import family.fisa.hangangpay.domain.institution.entity.InstitutionCode;
+import family.fisa.hangangpay.domain.institution.repository.ContractAddressRepository;
+import family.fisa.hangangpay.domain.institution.repository.InstitutionRepository;
+import family.fisa.hangangpay.global.exception.BusinessException;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
-
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,18 +36,6 @@ import org.web3j.protocol.http.HttpService;
 import org.web3j.tx.RawTransactionManager;
 import org.web3j.tx.response.PollingTransactionReceiptProcessor;
 
-import family.fisa.hangangpay.domain.institution.code.error.InstitutionErrorCode;
-import family.fisa.hangangpay.domain.institution.dto.DeployAllContractsResponse;
-import family.fisa.hangangpay.domain.institution.dto.DeployContractResponse;
-import family.fisa.hangangpay.domain.institution.entity.ContractAddress;
-import family.fisa.hangangpay.domain.institution.entity.ContractType;
-import family.fisa.hangangpay.domain.institution.entity.Institution;
-import family.fisa.hangangpay.domain.institution.entity.InstitutionCode;
-import family.fisa.hangangpay.domain.institution.repository.ContractAddressRepository;
-import family.fisa.hangangpay.domain.institution.repository.InstitutionRepository;
-import family.fisa.hangangpay.global.exception.BusinessException;
-import lombok.RequiredArgsConstructor;
-
 /*
  * 기관별 컨트랙트 배포와 배포 후 초기 설정을 처리한다.
  */
@@ -55,20 +53,20 @@ public class InstitutionDeployService {
     private static final long RECEIPT_POLLING_INTERVAL_MS = 1_000L;
 
     // ERC20 기본 decimals 기준
-private static final BigInteger TOKEN_DECIMALS = BigInteger.TEN.pow(18);
+    private static final BigInteger TOKEN_DECIMALS = BigInteger.TEN.pow(18);
 
-// Settlement 컨트랙트에 lock할 전체 CBDC 수량
-private static final BigInteger INITIAL_LOCKED_CBDC_AMOUNT =
-        BigInteger.valueOf(1_000_000_000L).multiply(TOKEN_DECIMALS);
+    // Settlement 컨트랙트에 lock할 전체 CBDC 수량
+    private static final BigInteger INITIAL_LOCKED_CBDC_AMOUNT =
+            BigInteger.valueOf(1_000_000_000L).multiply(TOKEN_DECIMALS);
 
-// 기관별 초기 CBDC reserve 배정 수량
-private static final BigInteger INITIAL_BANK_RESERVE_AMOUNT =
-        BigInteger.valueOf(100_000_000L).multiply(TOKEN_DECIMALS);
+    // 기관별 초기 CBDC reserve 배정 수량
+    private static final BigInteger INITIAL_BANK_RESERVE_AMOUNT =
+            BigInteger.valueOf(100_000_000L).multiply(TOKEN_DECIMALS);
 
-// 지역화폐 총 사용 한도
-private static final BigInteger LOCAL_CURRENCY_MAX_TOTAL_USAGE =
-        BigInteger.valueOf(1_000_000L).multiply(TOKEN_DECIMALS);
-        
+    // 지역화폐 총 사용 한도
+    private static final BigInteger LOCAL_CURRENCY_MAX_TOTAL_USAGE =
+            BigInteger.valueOf(1_000_000L).multiply(TOKEN_DECIMALS);
+
     @Value("${blockchain.private-network.chain-id}")
     private long privateNetworkChainId;
 
@@ -503,11 +501,11 @@ private static final BigInteger LOCAL_CURRENCY_MAX_TOTAL_USAGE =
 
     /*
 
- * BoK가 CBDC를 발행해 Settlement 컨트랙트에 lock한다.
+    * BoK가 CBDC를 발행해 Settlement 컨트랙트에 lock한다.
 
- * 이후 Settlement 내부 reserveBalance로 기관별 CBDC reserve를 관리한다.
+    * 이후 Settlement 내부 reserveBalance로 기관별 CBDC reserve를 관리한다.
 
- */
+    */
     private void mintCbdcToSettlement(String settlementAddress) throws IOException {
         Institution centralBank =
                 institutionRepository
@@ -545,11 +543,11 @@ private static final BigInteger LOCAL_CURRENCY_MAX_TOTAL_USAGE =
 
     /*
 
- * Settlement 컨트랙트에 모든 기관 ID를 등록한다.
+    * Settlement 컨트랙트에 모든 기관 ID를 등록한다.
 
- * 등록된 기관만 reserve 배정 및 충전/환불 정산에 참여할 수 있다.
+    * 등록된 기관만 reserve 배정 및 충전/환불 정산에 참여할 수 있다.
 
- */
+    */
     private void registerBanks(String settlementAddress, Institution centralBank)
             throws IOException {
         Credentials credentials =
@@ -576,13 +574,13 @@ private static final BigInteger LOCAL_CURRENCY_MAX_TOTAL_USAGE =
 
     /*
 
- * 기관별 초기 CBDC reserve를 배정한다.
+    * 기관별 초기 CBDC reserve를 배정한다.
 
- * 실제 CBDC는 Settlement 컨트랙트에 lock되어 있고,
+    * 실제 CBDC는 Settlement 컨트랙트에 lock되어 있고,
 
- * 이 함수는 Settlement 내부 장부 reserveBalance를 설정한다.
+    * 이 함수는 Settlement 내부 장부 reserveBalance를 설정한다.
 
- */
+    */
     private void setInitialReserves(String settlementAddress, Institution centralBank)
             throws IOException {
         Credentials credentials =
@@ -595,8 +593,7 @@ private static final BigInteger LOCAL_CURRENCY_MAX_TOTAL_USAGE =
                     new RawTransactionManager(web3j, credentials, privateNetworkChainId);
 
             for (Institution institution : institutionRepository.findAllByOrderByIdAsc()) {
-                BigInteger amount =
-                        INITIAL_BANK_RESERVE_AMOUNT;
+                BigInteger amount = INITIAL_BANK_RESERVE_AMOUNT;
 
                 callSetReserve(
                         web3j,
