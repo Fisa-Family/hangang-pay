@@ -106,42 +106,129 @@ TODO: 토큰 초기 발행량 근거 작성하기
 
 #### 역할
 - 지역화폐 결제 정책 관리
+- 가맹점 등록 및 해제 관리
 - 가맹점 제한 및 사용 한도 관리
-- 지역화폐 결제 승인 처리
+- 지역화폐 결제 및 결제 취소 처리
 
 #### 특징
 - ERC-20이 아님
 - DepositToken 기반 정책 레이어
-- 지정 가맹점에서만 결제 가능
+- 등록된 가맹점에서만 결제 가능
 - 총 사용 한도 제한 가능
+- 결제 취소 시 가맹점에서 사용자에게 토큰 반환 가능
+
+#### 가맹점 등록 흐름
+
+1. 관리자 가맹점 등록 요청
+2. LocalCurrencyPolicy.setMerchant 호출
+3. 가맹점 whitelist 등록
 
 #### 결제 흐름
 
 1. 사용자 결제 요청
 2. LocalCurrencyPolicy.pay 호출
-3. 가맹점 whitelist 검증
+3. 수취 주소가 등록된 가맹점인지 검증
+4. 총 사용 한도 검증
+5. DepositToken.forceTransfer 실행
+6. 사용자 → 가맹점 토큰 이동
+7. 누적 사용 금액 증가
+
+#### 결제 취소 흐름
+
+1. 결제 취소 요청
+2. LocalCurrencyPolicy.cancelPayment 호출
+3. 송신 주소가 등록된 가맹점인지 검증
 4. DepositToken.forceTransfer 실행
-5. 사용자 → 가맹점 토큰 이동
+5. 가맹점 → 사용자 토큰 반환
+6. 누적 사용 금액 감소
 
 ---
 
 ## BE 연동 시 호출 기준
 
-### 충전 / 환불
+실제 서비스 도메인에서는 컨트랙트 함수를 직접 ABI encoding 하지 않고,  
+`ContractCallService`의 메서드를 호출합니다.
+
+`ContractCallService`는 내부에서 컨트랙트 함수명을 구성하고,  
+`BlockchainTxService.sendFunctionTransaction(...)`을 통해 트랜잭션을 전송합니다.
+
+---
+
+### 충전
 
 Settlement 컨트랙트를 호출합니다.
 
-사용 함수 예시:
+#### BE 호출 함수
 
-```solidity
-charge(...)
-refund(...)
+```java
+contractCallService.charge(
+        web3j,
+        credentials,
+        settlementAddress,
+        institutionId,
+        userAddress,
+        amount
+);
 ```
 
+#### 실제 호출되는 컨트랙트 함수
+
+```solidity
+charge(institutionId, userAddress, amount)
+```
+
+#### 파라미터 의미
+
+| 파라미터 | 의미 |
+|---|---|
+| `settlementAddress` | Settlement 컨트랙트 주소 |
+| `institutionId` | 사용자가 충전할 때 선택한 은행 기관 ID |
+| `userAddress` | 충전 대상 사용자 지갑 주소 |
+| `amount` | 충전 금액 |
+
 #### 역할
-- reserve 정산
-- DepositToken mint / burn
-- 기관 간 CBDC 정산 처리
+- 선택 은행 reserve 차감
+- 우리은행 reserve 증가
+- 사용자에게 DepositToken mint
+
+---
+
+### 환불
+
+Settlement 컨트랙트를 호출합니다.
+
+#### BE 호출 함수
+
+```java
+contractCallService.refund(
+        web3j,
+        credentials,
+        settlementAddress,
+        institutionId,
+        userAddress,
+        amount
+);
+```
+
+#### 실제 호출되는 컨트랙트 함수
+
+```solidity
+refund(institutionId, userAddress, amount)
+```
+
+#### 파라미터 의미
+
+| 파라미터 | 의미 |
+|---|---|
+| `settlementAddress` | Settlement 컨트랙트 주소 |
+| `institutionId` | 환불 받을 은행 기관 ID |
+| `userAddress` | 환불 대상 사용자 지갑 주소 |
+| `amount` | 환불 금액 |
+
+#### 역할
+- 사용자 DepositToken burn
+- 우리은행 reserve 차감
+- 환불 대상 은행 reserve 증가
 
 ---
 
@@ -149,16 +236,121 @@ refund(...)
 
 LocalCurrencyPolicy 컨트랙트를 호출합니다.
 
-사용 함수 예시:
+#### BE 호출 함수
+
+```java
+contractCallService.pay(
+        web3j,
+        credentials,
+        localCurrencyAddress,
+        userAddress,
+        merchantAddress,
+        amount
+);
+```
+
+#### 실제 호출되는 컨트랙트 함수
 
 ```solidity
-pay(user, merchant, amount)
+pay(userAddress, merchantAddress, amount)
+```
+
+#### 파라미터 의미
+
+| 파라미터 | 의미 |
+|---|---|
+| `localCurrencyAddress` | LocalCurrencyPolicy 컨트랙트 주소 |
+| `userAddress` | 결제 사용자 지갑 주소 |
+| `merchantAddress` | 결제 가맹점 지갑 주소 |
+| `amount` | 결제 금액 |
+
+#### 역할
+- 수취 주소가 등록 가맹점인지 검증
+- 총 사용 한도 검증
+- 사용자에서 가맹점으로 DepositToken 강제 이체
+- 누적 사용 금액 증가
+
+---
+
+### 결제 취소
+
+LocalCurrencyPolicy 컨트랙트를 호출합니다.
+
+#### BE 호출 함수
+
+```java
+contractCallService.cancelPayment(
+        web3j,
+        credentials,
+        localCurrencyAddress,
+        merchantAddress,
+        userAddress,
+        amount
+);
+```
+
+#### 실제 호출되는 컨트랙트 함수
+
+```solidity
+cancelPayment(merchantAddress, userAddress, amount)
+```
+
+#### 파라미터 의미
+
+| 파라미터 | 의미 |
+|---|---|
+| `localCurrencyAddress` | LocalCurrencyPolicy 컨트랙트 주소 |
+| `merchantAddress` | 결제 취소를 수행하는 가맹점 지갑 주소 |
+| `userAddress` | 토큰을 돌려받는 사용자 지갑 주소 |
+| `amount` | 결제 취소 금액 |
+
+#### 역할
+- 송신 주소가 등록 가맹점인지 검증
+- 가맹점에서 사용자로 DepositToken 강제 이체
+- 누적 사용 금액 감소
+
+---
+
+## 가맹점 등록 / 해제
+
+
+#### BE 호출 함수
+
+```java
+contractCallService.setMerchant(
+        web3j,
+        credentials,
+        localCurrencyAddress,
+        merchantAddress,
+        true
+);
+```
+
+#### 실제 호출되는 컨트랙트 함수
+
+```solidity
+setMerchant(merchantAddress, true)
+```
+
+#### 가맹점 해제
+
+```java
+contractCallService.setMerchant(
+        web3j,
+        credentials,
+        localCurrencyAddress,
+        merchantAddress,
+        false
+);
+```
+
+```solidity
+setMerchant(merchantAddress, false)
 ```
 
 #### 역할
-- 가맹점 whitelist 검증
-- 사용 한도 검증
-- DepositToken 강제 이체(forceTransfer)
+- `true`: 가맹점 whitelist 등록
+- `false`: 가맹점 whitelist 해제
 
 ---
 
@@ -172,5 +364,5 @@ pay(user, merchant, amount)
 | DepositToken | Settlement |
 | DepositToken | LocalCurrencyPolicy |
 
-이를 통해 Settlement와 LocalCurrencyPolicy가
+이를 통해 Settlement와 LocalCurrencyPolicy가  
 mint / burn / forceTransfer를 수행할 수 있습니다.
