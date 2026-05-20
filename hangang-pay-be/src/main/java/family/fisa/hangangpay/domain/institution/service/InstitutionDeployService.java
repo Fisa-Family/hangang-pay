@@ -1,20 +1,10 @@
 package family.fisa.hangangpay.domain.institution.service;
 
-import family.fisa.hangangpay.domain.institution.code.error.InstitutionErrorCode;
-import family.fisa.hangangpay.domain.institution.dto.DeployAllContractsResponse;
-import family.fisa.hangangpay.domain.institution.dto.DeployContractResponse;
-import family.fisa.hangangpay.domain.institution.entity.ContractAddress;
-import family.fisa.hangangpay.domain.institution.entity.ContractType;
-import family.fisa.hangangpay.domain.institution.entity.Institution;
-import family.fisa.hangangpay.domain.institution.entity.InstitutionCode;
-import family.fisa.hangangpay.domain.institution.repository.ContractAddressRepository;
-import family.fisa.hangangpay.domain.institution.repository.InstitutionRepository;
-import family.fisa.hangangpay.global.exception.BusinessException;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +13,6 @@ import org.web3j.abi.datatypes.Address;
 import org.web3j.abi.datatypes.Bool;
 import org.web3j.abi.datatypes.Function;
 import org.web3j.abi.datatypes.Type;
-import org.web3j.abi.datatypes.Utf8String;
 import org.web3j.abi.datatypes.generated.Uint256;
 import org.web3j.crypto.Credentials;
 import org.web3j.crypto.RawTransaction;
@@ -37,6 +26,18 @@ import org.web3j.protocol.http.HttpService;
 import org.web3j.tx.RawTransactionManager;
 import org.web3j.tx.response.PollingTransactionReceiptProcessor;
 
+import family.fisa.hangangpay.domain.institution.code.error.InstitutionErrorCode;
+import family.fisa.hangangpay.domain.institution.dto.DeployAllContractsResponse;
+import family.fisa.hangangpay.domain.institution.dto.DeployContractResponse;
+import family.fisa.hangangpay.domain.institution.entity.ContractAddress;
+import family.fisa.hangangpay.domain.institution.entity.ContractType;
+import family.fisa.hangangpay.domain.institution.entity.Institution;
+import family.fisa.hangangpay.domain.institution.entity.InstitutionCode;
+import family.fisa.hangangpay.domain.institution.repository.ContractAddressRepository;
+import family.fisa.hangangpay.domain.institution.repository.InstitutionRepository;
+import family.fisa.hangangpay.global.exception.BusinessException;
+import lombok.RequiredArgsConstructor;
+
 /*
  * 기관별 컨트랙트 배포와 배포 후 초기 설정을 처리한다.
  */
@@ -45,12 +46,29 @@ import org.web3j.tx.response.PollingTransactionReceiptProcessor;
 public class InstitutionDeployService {
 
     private static final BigInteger DEPLOY_GAS_LIMIT = BigInteger.valueOf(4_000_000);
-    private static final BigInteger SET_BANK_GAS_LIMIT = BigInteger.valueOf(200_000);
     private static final BigInteger SET_OPERATOR_GAS_LIMIT = BigInteger.valueOf(100_000);
+    private static final BigInteger REGISTER_BANK_GAS_LIMIT = BigInteger.valueOf(100_000);
+    private static final BigInteger SET_RESERVE_GAS_LIMIT = BigInteger.valueOf(150_000);
+    private static final BigInteger MINT_GAS_LIMIT = BigInteger.valueOf(150_000);
     private static final BigInteger PRIVATE_NETWORK_GAS_PRICE = BigInteger.ZERO;
     private static final int RECEIPT_POLLING_ATTEMPTS = 60;
     private static final long RECEIPT_POLLING_INTERVAL_MS = 1_000L;
 
+    // ERC20 기본 decimals 기준
+private static final BigInteger TOKEN_DECIMALS = BigInteger.TEN.pow(18);
+
+// Settlement 컨트랙트에 lock할 전체 CBDC 수량
+private static final BigInteger INITIAL_LOCKED_CBDC_AMOUNT =
+        BigInteger.valueOf(1_000_000_000L).multiply(TOKEN_DECIMALS);
+
+// 기관별 초기 CBDC reserve 배정 수량
+private static final BigInteger INITIAL_BANK_RESERVE_AMOUNT =
+        BigInteger.valueOf(100_000_000L).multiply(TOKEN_DECIMALS);
+
+// 지역화폐 총 사용 한도
+private static final BigInteger LOCAL_CURRENCY_MAX_TOTAL_USAGE =
+        BigInteger.valueOf(1_000_000L).multiply(TOKEN_DECIMALS);
+        
     @Value("${blockchain.private-network.chain-id}")
     private long privateNetworkChainId;
 
@@ -60,7 +78,7 @@ public class InstitutionDeployService {
     private final ContractAddressRepository contractAddressRepository;
 
     /*
-     * BoK CBDC, 은행별 DepositToken, BoK Settlement 순서로 전체 배포한다.
+     * BoK CBDC, 우리은행 DepositToken, Settlement, LocalCurrencyPolicy 순서로 전체 배포한다.
      */
     @Transactional
     public DeployAllContractsResponse deployAll() {
@@ -72,19 +90,27 @@ public class InstitutionDeployService {
                                         new BusinessException(
                                                 InstitutionErrorCode.INSTITUTION_NOT_FOUND));
 
+        Institution wooriBank =
+                institutionRepository
+                        .findByInstitutionCode(InstitutionCode.WOORI.getCode())
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                InstitutionErrorCode.INSTITUTION_NOT_FOUND));
+
         List<DeployContractResponse> responses = new ArrayList<>();
 
+        // 1. CBDC 배포
         responses.add(deploy(centralBank, ContractType.CBDC));
 
-        for (Institution institution : institutionRepository.findAllByOrderByIdAsc()) {
-            if (isCentralBank(institution)) {
-                continue;
-            }
+        // 2. 우리은행 DepositToken 배포
+        responses.add(deploy(wooriBank, ContractType.DEPOSIT_TOKEN));
 
-            responses.add(deploy(institution, ContractType.DEPOSIT_TOKEN));
-        }
-
+        // 3. Settlement 배포
         responses.add(deploy(centralBank, ContractType.CONTRACT));
+
+        // 4. LocalCurrencyPolicy 배포
+        responses.add(deploy(centralBank, ContractType.LOCAL_CURRENCY));
 
         return new DeployAllContractsResponse(responses);
     }
@@ -115,11 +141,7 @@ public class InstitutionDeployService {
 
             TransactionReceipt receipt =
                     deployContract(
-                            web3j,
-                            transactionManager,
-                            credentials.getAddress(),
-                            contractType,
-                            institution);
+                            web3j, transactionManager, credentials.getAddress(), contractType);
 
             ContractAddress contractAddress =
                     contractAddressRepository.save(
@@ -128,10 +150,14 @@ public class InstitutionDeployService {
                                     .name(contractType)
                                     .address(receipt.getContractAddress())
                                     .build());
-
             if (contractType == ContractType.CONTRACT) {
                 registerSettlementAsOperator(contractAddress.getAddress());
-                registerBanksInSettlement(contractAddress.getAddress(), institution);
+                mintCbdcToSettlement(contractAddress.getAddress());
+                registerBanks(contractAddress.getAddress(), institution);
+                setInitialReserves(contractAddress.getAddress(), institution);
+            }
+            if (contractType == ContractType.LOCAL_CURRENCY) {
+                registerLocalCurrencyAsOperator(contractAddress.getAddress());
             }
 
             return new DeployContractResponse(
@@ -156,8 +182,7 @@ public class InstitutionDeployService {
             Web3j web3j,
             RawTransactionManager transactionManager,
             String signerAddress,
-            ContractType contractType,
-            Institution institution)
+            ContractType contractType)
             throws IOException {
         EthGetTransactionCount nonceResponse =
                 web3j.ethGetTransactionCount(signerAddress, DefaultBlockParameterName.PENDING)
@@ -173,7 +198,7 @@ public class InstitutionDeployService {
                         PRIVATE_NETWORK_GAS_PRICE,
                         DEPLOY_GAS_LIMIT,
                         BigInteger.ZERO,
-                        resolveBytecode(contractType, institution));
+                        resolveBytecode(contractType));
 
         EthSendTransaction sendResponse = transactionManager.signAndSend(deployTransaction);
 
@@ -193,67 +218,6 @@ public class InstitutionDeployService {
         }
 
         return receipt;
-    }
-
-    /*
-     * Settlement 컨트랙트에 은행별 DepositToken과 준비금 지갑을 등록한다.
-     */
-    private void registerBanksInSettlement(String settlementAddress, Institution centralBank)
-            throws IOException {
-
-        Credentials credentials =
-                walletKeyCipher.decryptCredentials(centralBank.getEncryptedPrivateKey());
-
-        Web3j web3j = Web3j.build(new HttpService(centralBank.getRpcEndpoint()));
-
-        try {
-            RawTransactionManager transactionManager =
-                    new RawTransactionManager(web3j, credentials, privateNetworkChainId);
-
-            for (ContractAddress contractAddress :
-                    contractAddressRepository.findAllByName(ContractType.DEPOSIT_TOKEN)) {
-
-                Institution bank = contractAddress.getInstitution();
-
-                callSetBank(
-                        web3j,
-                        transactionManager,
-                        credentials.getAddress(),
-                        settlementAddress,
-                        bank.getId(),
-                        contractAddress.getAddress(),
-                        bank.getWalletAddress());
-            }
-        } finally {
-            web3j.shutdown();
-        }
-    }
-
-    private TransactionReceipt callSetBank(
-            Web3j web3j,
-            RawTransactionManager transactionManager,
-            String signerAddress,
-            String settlementAddress,
-            Long institutionId,
-            String tokenAddress,
-            String reserveWallet)
-            throws IOException {
-        Function function =
-                new Function(
-                        "setBank",
-                        List.of(
-                                new Uint256(BigInteger.valueOf(institutionId)),
-                                new Address(tokenAddress),
-                                new Address(reserveWallet)),
-                        List.of());
-
-        return sendFunctionTransaction(
-                web3j,
-                transactionManager,
-                signerAddress,
-                settlementAddress,
-                SET_BANK_GAS_LIMIT,
-                function);
     }
 
     /*
@@ -288,6 +252,41 @@ public class InstitutionDeployService {
         }
     }
 
+    private void registerLocalCurrencyAsOperator(String localCurrencyAddress) throws IOException {
+
+        ContractAddress depositToken =
+                contractAddressRepository
+                        .findByInstitutionInstitutionCodeAndName(
+                                InstitutionCode.WOORI.getCode(), ContractType.DEPOSIT_TOKEN)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                InstitutionErrorCode
+                                                        .INSTITUTION_CONTRACT_NOT_DEPLOYED));
+
+        Institution ownerInstitution = depositToken.getInstitution();
+
+        Credentials credentials =
+                walletKeyCipher.decryptCredentials(ownerInstitution.getEncryptedPrivateKey());
+
+        Web3j web3j = Web3j.build(new HttpService(ownerInstitution.getRpcEndpoint()));
+
+        try {
+            RawTransactionManager transactionManager =
+                    new RawTransactionManager(web3j, credentials, privateNetworkChainId);
+
+            callSetOperator(
+                    web3j,
+                    transactionManager,
+                    credentials.getAddress(),
+                    depositToken.getAddress(),
+                    localCurrencyAddress);
+
+        } finally {
+            web3j.shutdown();
+        }
+    }
+
     private TransactionReceipt callSetOperator(
             Web3j web3j,
             RawTransactionManager transactionManager,
@@ -311,7 +310,7 @@ public class InstitutionDeployService {
     }
 
     /*
-     * setBank, setOperator 같은 컨트랙트 함수 호출 트랜잭션 공통 처리.
+     * setOperator, registerBank, setReserve, mint 같은 컨트랙트 함수 호출 트랜잭션 공통 처리.
      */
     private TransactionReceipt sendFunctionTransaction(
             Web3j web3j,
@@ -389,16 +388,10 @@ public class InstitutionDeployService {
     /*
      * 컨트랙트 종류별 artifact bytecode와 생성자 인자를 조합한다.
      */
-    private String resolveBytecode(ContractType contractType, Institution institution) {
+    private String resolveBytecode(ContractType contractType) {
         return switch (contractType) {
             case CBDC -> tokenArtifactLoader.cbdcArtifact().bytecode();
-            case DEPOSIT_TOKEN ->
-                    appendConstructorArgs(
-                            tokenArtifactLoader.depositTokenArtifact().bytecode(),
-                            List.of(
-                                    new Uint256(BigInteger.valueOf(institution.getId())),
-                                    new Utf8String(institution.getInstitutionName()),
-                                    new Utf8String("BANK" + institution.getId())));
+            case DEPOSIT_TOKEN -> tokenArtifactLoader.depositTokenArtifact().bytecode();
             case CONTRACT ->
                     appendConstructorArgs(
                             tokenArtifactLoader.settlementArtifact().bytecode(),
@@ -406,7 +399,20 @@ public class InstitutionDeployService {
                                     new Address(
                                             resolveContractAddress(
                                                     InstitutionCode.BOK.getCode(),
-                                                    ContractType.CBDC))));
+                                                    ContractType.CBDC)),
+                                    new Address(
+                                            resolveContractAddress(
+                                                    InstitutionCode.WOORI.getCode(),
+                                                    ContractType.DEPOSIT_TOKEN))));
+            case LOCAL_CURRENCY ->
+                    appendConstructorArgs(
+                            tokenArtifactLoader.localCurrencyArtifact().bytecode(),
+                            List.of(
+                                    new Address(
+                                            resolveContractAddress(
+                                                    InstitutionCode.WOORI.getCode(),
+                                                    ContractType.DEPOSIT_TOKEN)),
+                                    new Uint256(LOCAL_CURRENCY_MAX_TOTAL_USAGE)));
         };
     }
 
@@ -422,10 +428,6 @@ public class InstitutionDeployService {
         return value;
     }
 
-    private static boolean isCentralBank(Institution institution) {
-        return InstitutionCode.BOK.getCode().equalsIgnoreCase(institution.getInstitutionCode());
-    }
-
     private String resolveContractAddress(String institutionCode, ContractType contractType) {
         return contractAddressRepository
                 .findByInstitutionInstitutionCodeAndName(institutionCode, contractType)
@@ -434,5 +436,178 @@ public class InstitutionDeployService {
                         () ->
                                 new BusinessException(
                                         InstitutionErrorCode.INSTITUTION_CONTRACT_NOT_DEPLOYED));
+    }
+
+    private TransactionReceipt callRegisterBank(
+            Web3j web3j,
+            RawTransactionManager transactionManager,
+            String signerAddress,
+            String settlementAddress,
+            Long institutionId)
+            throws IOException {
+        Function function =
+                new Function(
+                        "registerBank",
+                        List.of(new Uint256(BigInteger.valueOf(institutionId))),
+                        List.of());
+
+        return sendFunctionTransaction(
+                web3j,
+                transactionManager,
+                signerAddress,
+                settlementAddress,
+                REGISTER_BANK_GAS_LIMIT,
+                function);
+    }
+
+    private TransactionReceipt callSetReserve(
+            Web3j web3j,
+            RawTransactionManager transactionManager,
+            String signerAddress,
+            String settlementAddress,
+            Long institutionId,
+            BigInteger amount)
+            throws IOException {
+        Function function =
+                new Function(
+                        "setReserve",
+                        List.of(
+                                new Uint256(BigInteger.valueOf(institutionId)),
+                                new Uint256(amount)),
+                        List.of());
+
+        return sendFunctionTransaction(
+                web3j,
+                transactionManager,
+                signerAddress,
+                settlementAddress,
+                SET_RESERVE_GAS_LIMIT,
+                function);
+    }
+
+    private TransactionReceipt callMint(
+            Web3j web3j,
+            RawTransactionManager transactionManager,
+            String signerAddress,
+            String tokenAddress,
+            String toAddress,
+            BigInteger amount)
+            throws IOException {
+        Function function =
+                new Function(
+                        "mint", List.of(new Address(toAddress), new Uint256(amount)), List.of());
+
+        return sendFunctionTransaction(
+                web3j, transactionManager, signerAddress, tokenAddress, MINT_GAS_LIMIT, function);
+    }
+
+    /*
+
+ * BoK가 CBDC를 발행해 Settlement 컨트랙트에 lock한다.
+
+ * 이후 Settlement 내부 reserveBalance로 기관별 CBDC reserve를 관리한다.
+
+ */
+    private void mintCbdcToSettlement(String settlementAddress) throws IOException {
+        Institution centralBank =
+                institutionRepository
+                        .findByInstitutionCode(InstitutionCode.BOK.getCode())
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                InstitutionErrorCode.INSTITUTION_NOT_FOUND));
+
+        String cbdcAddress =
+                resolveContractAddress(InstitutionCode.BOK.getCode(), ContractType.CBDC);
+
+        Credentials credentials =
+                walletKeyCipher.decryptCredentials(centralBank.getEncryptedPrivateKey());
+
+        Web3j web3j = Web3j.build(new HttpService(centralBank.getRpcEndpoint()));
+
+        try {
+            RawTransactionManager transactionManager =
+                    new RawTransactionManager(web3j, credentials, privateNetworkChainId);
+
+            BigInteger amount = INITIAL_LOCKED_CBDC_AMOUNT;
+
+            callMint(
+                    web3j,
+                    transactionManager,
+                    credentials.getAddress(),
+                    cbdcAddress,
+                    settlementAddress,
+                    amount);
+        } finally {
+            web3j.shutdown();
+        }
+    }
+
+    /*
+
+ * Settlement 컨트랙트에 모든 기관 ID를 등록한다.
+
+ * 등록된 기관만 reserve 배정 및 충전/환불 정산에 참여할 수 있다.
+
+ */
+    private void registerBanks(String settlementAddress, Institution centralBank)
+            throws IOException {
+        Credentials credentials =
+                walletKeyCipher.decryptCredentials(centralBank.getEncryptedPrivateKey());
+
+        Web3j web3j = Web3j.build(new HttpService(centralBank.getRpcEndpoint()));
+
+        try {
+            RawTransactionManager transactionManager =
+                    new RawTransactionManager(web3j, credentials, privateNetworkChainId);
+
+            for (Institution institution : institutionRepository.findAllByOrderByIdAsc()) {
+                callRegisterBank(
+                        web3j,
+                        transactionManager,
+                        credentials.getAddress(),
+                        settlementAddress,
+                        institution.getId());
+            }
+        } finally {
+            web3j.shutdown();
+        }
+    }
+
+    /*
+
+ * 기관별 초기 CBDC reserve를 배정한다.
+
+ * 실제 CBDC는 Settlement 컨트랙트에 lock되어 있고,
+
+ * 이 함수는 Settlement 내부 장부 reserveBalance를 설정한다.
+
+ */
+    private void setInitialReserves(String settlementAddress, Institution centralBank)
+            throws IOException {
+        Credentials credentials =
+                walletKeyCipher.decryptCredentials(centralBank.getEncryptedPrivateKey());
+
+        Web3j web3j = Web3j.build(new HttpService(centralBank.getRpcEndpoint()));
+
+        try {
+            RawTransactionManager transactionManager =
+                    new RawTransactionManager(web3j, credentials, privateNetworkChainId);
+
+            for (Institution institution : institutionRepository.findAllByOrderByIdAsc()) {
+                BigInteger amount =
+                        INITIAL_BANK_RESERVE_AMOUNT;
+
+                callSetReserve(
+                        web3j,
+                        transactionManager,
+                        credentials.getAddress(),
+                        settlementAddress,
+                        institution.getId(),
+                        amount);
+            }
+        } finally {
+            web3j.shutdown();
+        }
     }
 }

@@ -12,7 +12,5 @@ contract CBDCToken is BaseToken {
             "Central Bank Digital Currency",
             "CBDC"
         )
-    {
-        _mint(msg.sender, 1_000_000_000 * 10 ** decimals());
-    }
+    {}
 }

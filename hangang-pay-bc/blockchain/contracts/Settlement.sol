@@ -1,39 +1,38 @@
-// 기관 간 예금토큰 이체를 처리하는 정산 컨트랙트
-// 예: 우리은행 사용자 -> 신한은행 사용자 송금
-// 내부적으로:
-// 1. 우리은행 예금토큰 burn
-// 2. 기관 준비금(CBDC) 이동
-// 3. 신한은행 예금토큰 mint
-
-// SPDX 라이선스 표시
+// CBDC reserve 정산 및 우리은행 예금토큰 충전/환불 컨트랙트
 // SPDX-License-Identifier: UNLICENSED
-
-pragma solidity ^0.8.20;
+pragma solidity 0.8.28;
 
 // 예금토큰 인터페이스
-// Settlement가 은행 토큰의 burn/mint 호출하기 위해 사용
-interface IBankToken {
+// Settlement가 예금토큰 mint/burn 호출을 위해 사용
+interface IDepositToken {
 
-    // 사용자 토큰 소각
-    function burn(address from, uint256 amount) external returns (bool);
-
-    // 사용자 토큰 발행
-    function mint(address to, uint256 amount) external returns (bool);
-}
-
-// CBDC 인터페이스
-// 기관 준비금 이동용
-interface ICBDC {
-
-    // Settlement 권한 기반 CBDC 강제 이동
-    function forceTransfer(
-        address from,
+    // 사용자에게 예금토큰 발행
+    function mint(
         address to,
+        uint256 amount
+    ) external returns (bool);
+
+    // 사용자 예금토큰 소각
+    function burn(
+        address from,
         uint256 amount
     ) external returns (bool);
 }
 
+// CBDC 인터페이스
+// Settlement 내부 reserve 검증용
+interface ICBDC {
+
+    // 계정의 CBDC 잔액 조회
+    function balanceOf(
+        address account
+    ) external view returns (uint256);
+}
+
 contract Settlement {
+
+    // 우리은행 기관 ID
+    uint256 public constant WOORI_BANK_ID = 2;
 
     // 컨트랙트 관리자
     address public owner;
@@ -41,40 +40,59 @@ contract Settlement {
     // CBDC 컨트랙트 주소
     address public cbdc;
 
-    // 기관ID -> 해당 기관 예금토큰 컨트랙트 주소
-    mapping(uint256 => address) public bankToken;
+    // 우리은행 예금토큰 컨트랙트 주소
+    address public depositToken;
 
-    // 기관ID -> 기관 준비금 지갑 주소
-    mapping(uint256 => address) public bankReserveWallet;
+    // 등록된 기관 여부
+    mapping(uint256 => bool) public registeredBank;
 
-    // 가스 절감 및 BE ErrorCode 매핑을 위한 custom error
+    // 기관별 CBDC reserve 잔액
+    // Settlement 내부 장부 역할
+    mapping(uint256 => uint256) public reserveBalance;
+
+    // 전체 reserve 합계
+    uint256 public totalReserved;
+
+    // BE ErrorCode 매핑을 위한 custom error
     error Unauthorized();
-    error InvalidCbdcAddress();
+    error InvalidAddress();
     error InvalidInstitutionId();
-    error InvalidTokenAddress();
-    error InvalidReserveWallet();
-    error SameInstitution();
-    error InvalidUserAddress();
     error InvalidAmount();
-    error BankTokenNotRegistered();
-    error BankReserveWalletNotRegistered();
-    error DepositTokenBurnFailed();
-    error CbdcTransferFailed();
+    error BankNotRegistered();
+    error InsufficientReserve();
+    error ReserveExceedsLockedCbdc();
     error DepositTokenMintFailed();
+    error DepositTokenBurnFailed();
 
     // 기관 등록 이벤트
-    event BankUpdated(
-        uint256 indexed institutionId,
-        address indexed token,
-        address indexed reserveWallet
+    event BankRegistered(
+        uint256 indexed institutionId
     );
 
-    // 정산 완료 이벤트
-    event Settled(
+    // 기관 reserve 설정 이벤트
+    event ReserveSet(
+        uint256 indexed institutionId,
+        uint256 amount
+    );
+
+    // 기관 간 reserve 이동 이벤트
+    event ReserveMoved(
         uint256 indexed fromInstitutionId,
         uint256 indexed toInstitutionId,
-        address indexed fromUser,
-        address toUser,
+        uint256 amount
+    );
+
+    // 충전 이벤트
+    event Charged(
+        uint256 indexed fromInstitutionId,
+        address indexed user,
+        uint256 amount
+    );
+
+    // 환불 이벤트
+    event Refunded(
+        uint256 indexed toInstitutionId,
+        address indexed user,
         uint256 amount
     );
 
@@ -83,15 +101,22 @@ contract Settlement {
         if (msg.sender != owner) {
             revert Unauthorized();
         }
+
         _;
     }
 
-    // 배포 시 CBDC 주소 저장
-    constructor(address _cbdc) {
+    // 배포 시 CBDC 및 예금토큰 주소 저장
+    constructor(
+        address _cbdc,
+        address _depositToken
+    ) {
 
-        // 0주소 방지
-        if (_cbdc == address(0)) {
-            revert InvalidCbdcAddress();
+        // 주소 검증
+        if (
+            _cbdc == address(0) ||
+            _depositToken == address(0)
+        ) {
+            revert InvalidAddress();
         }
 
         // 배포자를 owner로 지정
@@ -99,65 +124,86 @@ contract Settlement {
 
         // CBDC 컨트랙트 저장
         cbdc = _cbdc;
+
+        // 예금토큰 컨트랙트 저장
+        depositToken = _depositToken;
     }
 
-    // 은행 정보 등록
-    // institutionId:
-    // 1 -> 한국은행
-    // 2 -> 우리은행
-    // 3 -> 신한은행
-    // 4 -> 하나은행
-    function setBank(
-        uint256 institutionId,
-        address token,
-        address reserveWallet
+    // 기관 등록 함수
+    function registerBank(
+        uint256 institutionId
     ) external onlyOwner {
 
-        // 기관ID 검증
+        // 기관 ID 검증
         if (institutionId == 0) {
             revert InvalidInstitutionId();
         }
 
-        // 토큰 주소 검증
-        if (token == address(0)) {
-            revert InvalidTokenAddress();
-        }
+        // 기관 등록
+        registeredBank[institutionId] = true;
 
-        // 준비금 지갑 검증
-        if (reserveWallet == address(0)) {
-            revert InvalidReserveWallet();
-        }
-
-        // 기관별 예금토큰 등록
-        bankToken[institutionId] = token;
-
-        // 기관별 준비금 지갑 등록
-        bankReserveWallet[institutionId] = reserveWallet;
-
-        emit BankUpdated(
-            institutionId,
-            token,
-            reserveWallet
+        emit BankRegistered(
+            institutionId
         );
     }
 
-    // 타행 이체 핵심 로직
-    function settle(
-        uint256 fromInstitutionId, // 보내는 은행
-        uint256 toInstitutionId,   // 받는 은행
-        address fromUser,          // 보내는 사용자
-        address toUser,            // 받는 사용자
-        uint256 amount             // 송금 금액
-    ) external returns (bool) {
+    // 기관별 reserve 설정 함수
+    // Settlement가 보유한 CBDC 범위 내에서만 가능
+    function setReserve(
+        uint256 institutionId,
+        uint256 amount
+    ) external onlyOwner {
 
-        // 같은 은행이면 안됨
-        if (fromInstitutionId == toInstitutionId) {
-            revert SameInstitution();
+        // 등록 여부 검증
+        if (!registeredBank[institutionId]) {
+            revert BankNotRegistered();
         }
 
-        // 주소 검증
-        if (fromUser == address(0) || toUser == address(0)) {
-            revert InvalidUserAddress();
+        // 기존 reserve 조회
+        uint256 current = reserveBalance[institutionId];
+
+        // 전체 reserve 합계 갱신
+        if (amount > current) {
+            totalReserved += amount - current;
+        } else {
+            totalReserved -= current - amount;
+        }
+
+        // 실제 lock된 CBDC 초과 여부 검증
+        if (
+            totalReserved >
+            ICBDC(cbdc).balanceOf(address(this))
+        ) {
+            revert ReserveExceedsLockedCbdc();
+        }
+
+        // reserve 저장
+        reserveBalance[institutionId] = amount;
+
+        emit ReserveSet(
+            institutionId,
+            amount
+        );
+    }
+
+    // 충전 함수
+    // 선택 은행 reserve 차감
+    // 우리은행 reserve 증가
+    // 사용자에게 우리은행 예금토큰 mint
+    function charge(
+        uint256 fromInstitutionId,
+        address user,
+        uint256 amount
+    ) external onlyOwner returns (bool) {
+
+        // 기관 등록 여부 검증
+        if (!registeredBank[fromInstitutionId]) {
+            revert BankNotRegistered();
+        }
+
+        // 사용자 주소 검증
+        if (user == address(0)) {
+            revert InvalidAddress();
         }
 
         // 금액 검증
@@ -165,55 +211,114 @@ contract Settlement {
             revert InvalidAmount();
         }
 
-        // 기관별 예금토큰 조회
-        address fromToken = bankToken[fromInstitutionId];
-        address toToken = bankToken[toInstitutionId];
+        // 타행 충전 시 reserve 이동
+        if (fromInstitutionId != WOORI_BANK_ID) {
 
-        // 기관 준비금 지갑 조회
-        address fromReserve = bankReserveWallet[fromInstitutionId];
-        address toReserve = bankReserveWallet[toInstitutionId];
-
-        // 등록 여부 확인
-        if (fromToken == address(0) || toToken == address(0)) {
-            revert BankTokenNotRegistered();
-        }
-
-        if (fromReserve == address(0) || toReserve == address(0)) {
-            revert BankReserveWalletNotRegistered();
-        }
-
-        // 1단계:
-        // 보내는 사용자 예금토큰 소각
-        if (!IBankToken(fromToken).burn(fromUser, amount)) {
-            revert DepositTokenBurnFailed();
-        }
-
-        // 2단계:
-        // 기관 준비금(CBDC) 이동
-        // 보내는 은행 준비금 -> 받는 은행 준비금
-        if (!ICBDC(cbdc).forceTransfer(
-                fromReserve,
-                toReserve,
+            _moveReserve(
+                fromInstitutionId,
+                WOORI_BANK_ID,
                 amount
-            )) {
-            revert CbdcTransferFailed();
+            );
         }
 
-        // 3단계:
-        // 받는 사용자에게 새 예금토큰 발행
-        if (!IBankToken(toToken).mint(toUser, amount)) {
+        // 우리은행 예금토큰 발행
+        if (
+            !IDepositToken(depositToken).mint(
+                user,
+                amount
+            )
+        ) {
             revert DepositTokenMintFailed();
         }
 
-        // 정산 이벤트 기록
-        emit Settled(
+        emit Charged(
             fromInstitutionId,
-            toInstitutionId,
-            fromUser,
-            toUser,
+            user,
             amount
         );
 
         return true;
+    }
+
+    // 환불 함수
+    // 사용자 예금토큰 burn
+    // 우리은행 reserve 차감
+    // 선택 은행 reserve 증가
+    function refund(
+        uint256 toInstitutionId,
+        address user,
+        uint256 amount
+    ) external onlyOwner returns (bool) {
+
+        // 기관 등록 여부 검증
+        if (!registeredBank[toInstitutionId]) {
+            revert BankNotRegistered();
+        }
+
+        // 사용자 주소 검증
+        if (user == address(0)) {
+            revert InvalidAddress();
+        }
+
+        // 금액 검증
+        if (amount == 0) {
+            revert InvalidAmount();
+        }
+
+        // 사용자 예금토큰 소각
+        if (
+            !IDepositToken(depositToken).burn(
+                user,
+                amount
+            )
+        ) {
+            revert DepositTokenBurnFailed();
+        }
+
+        // 타행 환불 시 reserve 이동
+        if (toInstitutionId != WOORI_BANK_ID) {
+
+            _moveReserve(
+                WOORI_BANK_ID,
+                toInstitutionId,
+                amount
+            );
+        }
+
+        emit Refunded(
+            toInstitutionId,
+            user,
+            amount
+        );
+
+        return true;
+    }
+
+    // 기관 간 reserve 이동 내부 함수
+    function _moveReserve(
+        uint256 fromInstitutionId,
+        uint256 toInstitutionId,
+        uint256 amount
+    ) internal {
+
+        // reserve 부족 검증
+        if (
+            reserveBalance[fromInstitutionId] <
+            amount
+        ) {
+            revert InsufficientReserve();
+        }
+
+        // reserve 차감
+        reserveBalance[fromInstitutionId] -= amount;
+
+        // reserve 증가
+        reserveBalance[toInstitutionId] += amount;
+
+        emit ReserveMoved(
+            fromInstitutionId,
+            toInstitutionId,
+            amount
+        );
     }
 }

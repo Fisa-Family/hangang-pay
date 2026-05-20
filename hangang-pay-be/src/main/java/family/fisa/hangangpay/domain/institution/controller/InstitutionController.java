@@ -22,7 +22,7 @@ public class InstitutionController {
 
     @Operation(
             summary = "전체 컨트랙트 일괄 배포",
-            description = "BoK CBDC, 은행별 예금토큰, BoK 정산 컨트랙트를 순서대로 배포한다.")
+            description = "BoK CBDC, 예금토큰, BoK 정산, 지역화폐 컨트랙트를 순서대로 배포한다.")
     @PostMapping("/contracts/deploy")
     public ResponseEntity<ApiResponse<DeployAllContractsResponse>> deployAllContracts() {
         DeployAllContractsResponse response = institutionDeployService.deployAll();
