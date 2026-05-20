@@ -162,9 +162,6 @@ Settlement 컨트랙트를 호출합니다.
 
 ```java
 contractCallService.charge(
-        web3j,
-        credentials,
-        settlementAddress,
         institutionId,
         userAddress,
         amount
@@ -181,7 +178,6 @@ charge(institutionId, userAddress, amount)
 
 | 파라미터 | 의미 |
 |---|---|
-| `settlementAddress` | Settlement 컨트랙트 주소 |
 | `institutionId` | 사용자가 충전할 때 선택한 은행 기관 ID |
 | `userAddress` | 충전 대상 사용자 지갑 주소 |
 | `amount` | 충전 금액 |
@@ -201,9 +197,6 @@ Settlement 컨트랙트를 호출합니다.
 
 ```java
 contractCallService.refund(
-        web3j,
-        credentials,
-        settlementAddress,
         institutionId,
         userAddress,
         amount
@@ -220,7 +213,6 @@ refund(institutionId, userAddress, amount)
 
 | 파라미터 | 의미 |
 |---|---|
-| `settlementAddress` | Settlement 컨트랙트 주소 |
 | `institutionId` | 환불 받을 은행 기관 ID |
 | `userAddress` | 환불 대상 사용자 지갑 주소 |
 | `amount` | 환불 금액 |
@@ -240,9 +232,6 @@ LocalCurrencyPolicy 컨트랙트를 호출합니다.
 
 ```java
 contractCallService.pay(
-        web3j,
-        credentials,
-        localCurrencyAddress,
         userAddress,
         merchantAddress,
         amount
@@ -259,7 +248,6 @@ pay(userAddress, merchantAddress, amount)
 
 | 파라미터 | 의미 |
 |---|---|
-| `localCurrencyAddress` | LocalCurrencyPolicy 컨트랙트 주소 |
 | `userAddress` | 결제 사용자 지갑 주소 |
 | `merchantAddress` | 결제 가맹점 지갑 주소 |
 | `amount` | 결제 금액 |
@@ -280,9 +268,6 @@ LocalCurrencyPolicy 컨트랙트를 호출합니다.
 
 ```java
 contractCallService.cancelPayment(
-        web3j,
-        credentials,
-        localCurrencyAddress,
         merchantAddress,
         userAddress,
         amount
@@ -299,7 +284,6 @@ cancelPayment(merchantAddress, userAddress, amount)
 
 | 파라미터 | 의미 |
 |---|---|
-| `localCurrencyAddress` | LocalCurrencyPolicy 컨트랙트 주소 |
 | `merchantAddress` | 결제 취소를 수행하는 가맹점 지갑 주소 |
 | `userAddress` | 토큰을 돌려받는 사용자 지갑 주소 |
 | `amount` | 결제 취소 금액 |
@@ -318,9 +302,6 @@ cancelPayment(merchantAddress, userAddress, amount)
 
 ```java
 contractCallService.setMerchant(
-        web3j,
-        credentials,
-        localCurrencyAddress,
         merchantAddress,
         true
 );
@@ -336,9 +317,6 @@ setMerchant(merchantAddress, true)
 
 ```java
 contractCallService.setMerchant(
-        web3j,
-        credentials,
-        localCurrencyAddress,
         merchantAddress,
         false
 );
