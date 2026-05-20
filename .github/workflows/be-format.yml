@@ -1,8 +1,10 @@
-name: Format Check
+name: BE Format Check
 
 on:
   pull_request:
     branches: [main, dev]
+    paths:
+      - 'hangang-pay-be/**'
 
 jobs:
   be-format:
@@ -28,23 +30,3 @@ jobs:
       - name: Spotless check
         working-directory: hangang-pay-be
         run: ./gradlew spotlessCheck
-
-  fe-format:
-    name: FE Prettier + ESLint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: hangang-pay-fe/package-lock.json
-
-      - name: Install dependencies
-        working-directory: hangang-pay-fe
-        run: npm ci
-
-      - name: Prettier + ESLint check
-        working-directory: hangang-pay-fe
-        run: npm run check
