@@ -500,12 +500,9 @@ public class InstitutionDeployService {
     }
 
     /*
-
-    * BoK가 CBDC를 발행해 Settlement 컨트랙트에 lock한다.
-
-    * 이후 Settlement 내부 reserveBalance로 기관별 CBDC reserve를 관리한다.
-
-    */
+     * BoK가 CBDC를 발행해 Settlement 컨트랙트에 lock한다.
+     * 이후 Settlement 내부 reserveBalance로 기관별 CBDC reserve를 관리한다.
+     */
     private void mintCbdcToSettlement(String settlementAddress) throws IOException {
         Institution centralBank =
                 institutionRepository
@@ -542,12 +539,9 @@ public class InstitutionDeployService {
     }
 
     /*
-
-    * Settlement 컨트랙트에 모든 기관 ID를 등록한다.
-
-    * 등록된 기관만 reserve 배정 및 충전/환불 정산에 참여할 수 있다.
-
-    */
+     * Settlement 컨트랙트에 모든 기관 ID를 등록한다.
+     * 등록된 기관만 reserve 배정 및 충전/환불 정산에 참여할 수 있다.
+     */
     private void registerBanks(String settlementAddress, Institution centralBank)
             throws IOException {
         Credentials credentials =
@@ -573,14 +567,10 @@ public class InstitutionDeployService {
     }
 
     /*
-
-    * 기관별 초기 CBDC reserve를 배정한다.
-
-    * 실제 CBDC는 Settlement 컨트랙트에 lock되어 있고,
-
-    * 이 함수는 Settlement 내부 장부 reserveBalance를 설정한다.
-
-    */
+     * 기관별 초기 CBDC reserve를 배정한다.
+     * 실제 CBDC는 Settlement 컨트랙트에 lock되어 있고,
+     * 이 함수는 Settlement 내부 장부 reserveBalance를 설정한다.
+     */
     private void setInitialReserves(String settlementAddress, Institution centralBank)
             throws IOException {
         Credentials credentials =
