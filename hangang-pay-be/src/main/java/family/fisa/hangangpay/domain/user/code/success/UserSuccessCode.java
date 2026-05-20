@@ -1,4 +1,4 @@
-package family.fisa.hangangpay.domain.user.code;
+package family.fisa.hangangpay.domain.user.code.success;
 
 import family.fisa.hangangpay.global.code.success.BaseSuccessCode;
 import lombok.AllArgsConstructor;
@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 @AllArgsConstructor
 @Getter
 public enum UserSuccessCode implements BaseSuccessCode {
+    USER_REGISTERED(HttpStatus.CREATED, "USER_REGISTERED", "회원가입이 완료되었습니다."),
     CHARGE_HISTORIES_RETRIEVED(HttpStatus.OK, "CHARGE_HISTORIES_RETRIEVED", "충전내역을 성공적으로 조회했습니다."),
     EXCHANGE_HISTORIES_RETRIEVED(
             HttpStatus.OK, "EXCHANGE_HISTORIES_RETRIEVED", "환전내역을 성공적으로 조회했습니다."),

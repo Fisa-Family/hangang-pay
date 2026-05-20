@@ -7,4 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface WalletJpaRepository extends JpaRepository<Wallet, Long> {
 
     Optional<Wallet> findByParty_Id(Long partyId);
+
+    Wallet save(Wallet wallet);
 }

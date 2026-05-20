@@ -18,6 +18,7 @@ erDiagram
     BIGINT party_id FK "party.id"
     VARCHAR username
     VARCHAR password_hash
+    VARCHAR payment_pin_hash
     VARCHAR phone_number
     DATE birth_date
     VARCHAR region
