@@ -3,8 +3,8 @@ package family.fisa.hangangpay.auth.service;
 import family.fisa.hangangpay.auth.code.error.AuthErrorCode;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import jakarta.servlet.http.HttpSession;
-import java.time.LocalDateTime;
 import java.security.SecureRandom;
+import java.time.LocalDateTime;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -30,7 +30,8 @@ public class VerificationService {
         String code = String.format("%06d", random.nextInt(1_000_000));
         session.setAttribute(SESSION_SMS_CODE, code);
         session.setAttribute(SESSION_SMS_PHONE, phoneNumber);
-        session.setAttribute(SESSION_SMS_EXPIRES_AT, LocalDateTime.now().plusMinutes(SMS_EXPIRE_MINUTES));
+        session.setAttribute(
+                SESSION_SMS_EXPIRES_AT, LocalDateTime.now().plusMinutes(SMS_EXPIRE_MINUTES));
         log.info("SMS 인증 코드 발송: phoneNumber={}, code={}", phoneNumber, code);
         return code;
     }
@@ -62,8 +63,10 @@ public class VerificationService {
         String code = String.format("%06d", random.nextInt(1_000_000));
         session.setAttribute(SESSION_ACCOUNT_CODE, code);
         session.setAttribute(SESSION_ACCOUNT_NUMBER, accountNumber);
-        session.setAttribute(SESSION_ACCOUNT_EXPIRES_AT, LocalDateTime.now().plusMinutes(ACCOUNT_EXPIRE_MINUTES));
-        log.info("계좌 1원 인증 코드 발송: code={}", code);
+        session.setAttribute(
+                SESSION_ACCOUNT_EXPIRES_AT,
+                LocalDateTime.now().plusMinutes(ACCOUNT_EXPIRE_MINUTES));
+        log.info("계좌 1원 인증 코드 발송: code={}, accountNumber={}", code, accountNumber);
         return code;
     }
 
