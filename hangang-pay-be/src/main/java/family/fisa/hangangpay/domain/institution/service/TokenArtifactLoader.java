@@ -20,8 +20,14 @@ public class TokenArtifactLoader {
     private static final String CBDC_ARTIFACT = "CBDCToken.json";
     private static final String DEPOSIT_TOKEN_ARTIFACT = "DepositToken.json";
     private static final String SETTLEMENT_ARTIFACT = "Settlement.json";
+    private static final String LOCAL_CURRENCY_ARTIFACT = "LocalCurrencyPolicy.json";
 
     private final ObjectMapper objectMapper;
+
+    public ContractArtifact localCurrencyArtifact() {
+
+        return load(LOCAL_CURRENCY_ARTIFACT);
+    }
 
     public ContractArtifact cbdcArtifact() {
         return load(CBDC_ARTIFACT);

@@ -30,7 +30,6 @@ class InstitutionDeployServiceTest {
             "8f2a55949038a9610f50fb23b5883af3b4ecb3c3bb792cbcefbd1542c692be63";
     private static final String WALLET_ADDRESS = "0xFE3B557E8Fb62b89F4916B721be55cEb828dBd73";
 
-    @Mock private TokenArtifactLoader tokenArtifactLoader;
     @Mock private WalletKeyCipher walletKeyCipher;
     @Mock private InstitutionRepository institutionRepository;
     @Mock private ContractAddressRepository contractAddressRepository;
@@ -52,6 +51,25 @@ class InstitutionDeployServiceTest {
     }
 
     @Test
+    @DisplayName("우리은행 기관을 찾을 수 없으면 INSTITUTION_NOT_FOUND 예외를 던진다")
+    void deployAllWooriBankNotFound() {
+        Institution centralBank =
+                institution(1L, InstitutionCode.BOK.getCode(), "한국은행", WALLET_ADDRESS);
+
+        given(institutionRepository.findByInstitutionCode(InstitutionCode.BOK.getCode()))
+                .willReturn(Optional.of(centralBank));
+        given(institutionRepository.findByInstitutionCode(InstitutionCode.WOORI.getCode()))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> institutionDeployService.deployAll())
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(InstitutionErrorCode.INSTITUTION_NOT_FOUND);
+
+        verify(contractAddressRepository, never()).findByInstitutionIdAndName(any(), any());
+    }
+
+    @Test
     @DisplayName("BoK 기관 배포 정보가 부족하면 INSTITUTION_MISSING_DEPLOYMENT_INFO 예외를 던진다")
     void deployAllMissingDeploymentInfo() {
         Institution centralBank =
@@ -61,8 +79,13 @@ class InstitutionDeployServiceTest {
                         .institutionName("한국은행")
                         .build();
 
+        Institution wooriBank =
+                institution(2L, InstitutionCode.WOORI.getCode(), "우리은행", WALLET_ADDRESS);
+
         given(institutionRepository.findByInstitutionCode(InstitutionCode.BOK.getCode()))
                 .willReturn(Optional.of(centralBank));
+        given(institutionRepository.findByInstitutionCode(InstitutionCode.WOORI.getCode()))
+                .willReturn(Optional.of(wooriBank));
 
         assertThatThrownBy(() -> institutionDeployService.deployAll())
                 .isInstanceOf(BusinessException.class)
@@ -78,6 +101,9 @@ class InstitutionDeployServiceTest {
         Institution centralBank =
                 institution(1L, InstitutionCode.BOK.getCode(), "한국은행", WALLET_ADDRESS);
 
+        Institution wooriBank =
+                institution(2L, InstitutionCode.WOORI.getCode(), "우리은행", WALLET_ADDRESS);
+
         ContractAddress existingContract =
                 ContractAddress.builder()
                         .institution(centralBank)
@@ -87,6 +113,8 @@ class InstitutionDeployServiceTest {
 
         given(institutionRepository.findByInstitutionCode(InstitutionCode.BOK.getCode()))
                 .willReturn(Optional.of(centralBank));
+        given(institutionRepository.findByInstitutionCode(InstitutionCode.WOORI.getCode()))
+                .willReturn(Optional.of(wooriBank));
         given(contractAddressRepository.findByInstitutionIdAndName(1L, ContractType.CBDC))
                 .willReturn(Optional.of(existingContract));
 
@@ -108,8 +136,13 @@ class InstitutionDeployServiceTest {
                         "한국은행",
                         "0x0000000000000000000000000000000000000001");
 
+        Institution wooriBank =
+                institution(2L, InstitutionCode.WOORI.getCode(), "우리은행", WALLET_ADDRESS);
+
         given(institutionRepository.findByInstitutionCode(InstitutionCode.BOK.getCode()))
                 .willReturn(Optional.of(centralBank));
+        given(institutionRepository.findByInstitutionCode(InstitutionCode.WOORI.getCode()))
+                .willReturn(Optional.of(wooriBank));
         given(contractAddressRepository.findByInstitutionIdAndName(1L, ContractType.CBDC))
                 .willReturn(Optional.empty());
         given(walletKeyCipher.decryptCredentials(PRIVATE_KEY))
