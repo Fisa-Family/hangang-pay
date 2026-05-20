@@ -10,10 +10,8 @@ import lombok.NoArgsConstructor;
 public class SmsVerifyRequest {
 
     /** 수신 휴대폰 번호 */
-    @NotBlank
-    private String phoneNumber;
+    @NotBlank private String phoneNumber;
 
     /** 인증 코드 */
-    @NotBlank
-    private String code;
+    @NotBlank private String code;
 }

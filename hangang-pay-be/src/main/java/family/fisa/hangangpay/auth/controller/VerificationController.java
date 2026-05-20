@@ -53,7 +53,8 @@ public class VerificationController {
     @PostMapping("/account/send")
     public ResponseEntity<ApiResponse<VerificationCodeResponse>> sendAccountVerification(
             @Valid @RequestBody AccountSendRequest request, HttpSession session) {
-        String code = verificationService.sendAccountVerification(request.getAccountNumber(), session);
+        String code =
+                verificationService.sendAccountVerification(request.getAccountNumber(), session);
         return ResponseEntity.ok(
                 ApiResponse.onSuccess(
                         GeneralSuccessCode.COMMON_OK, new VerificationCodeResponse(code)));

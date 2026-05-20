@@ -10,10 +10,8 @@ import lombok.NoArgsConstructor;
 public class AccountVerifyRequest {
 
     /** 계좌번호 */
-    @NotBlank
-    private String accountNumber;
+    @NotBlank private String accountNumber;
 
     /** 인증 코드 */
-    @NotBlank
-    private String code;
+    @NotBlank private String code;
 }

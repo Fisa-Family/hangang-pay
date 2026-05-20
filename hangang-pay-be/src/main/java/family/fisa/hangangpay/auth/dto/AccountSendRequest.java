@@ -11,10 +11,8 @@ import lombok.NoArgsConstructor;
 public class AccountSendRequest {
 
     /** 계좌번호 */
-    @NotBlank
-    private String accountNumber;
+    @NotBlank private String accountNumber;
 
     /** 기관 식별자 */
-    @NotNull
-    private Long institutionId;
+    @NotNull private Long institutionId;
 }

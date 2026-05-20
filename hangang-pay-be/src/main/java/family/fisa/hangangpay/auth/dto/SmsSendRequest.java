@@ -10,6 +10,5 @@ import lombok.NoArgsConstructor;
 public class SmsSendRequest {
 
     /** 수신 휴대폰 번호 */
-    @NotBlank
-    private String phoneNumber;
+    @NotBlank private String phoneNumber;
 }
