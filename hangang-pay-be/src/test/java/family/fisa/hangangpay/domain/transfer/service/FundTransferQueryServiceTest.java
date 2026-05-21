@@ -16,10 +16,10 @@ import family.fisa.hangangpay.domain.blockchain.repository.BlockchainTxRepositor
 import family.fisa.hangangpay.domain.institution.entity.Institution;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.entity.PartyType;
-import family.fisa.hangangpay.domain.transfer.dto.ChargeHistoryItem;
-import family.fisa.hangangpay.domain.transfer.dto.ExchangeHistoryItem;
-import family.fisa.hangangpay.domain.transfer.dto.response.UserChargeHistoryDetail;
-import family.fisa.hangangpay.domain.transfer.dto.response.UserExchangeHistoryDetail;
+import family.fisa.hangangpay.domain.transaction.dto.response.ChargeHistoryItem;
+import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeHistoryItem;
+import family.fisa.hangangpay.domain.transaction.dto.response.UserChargeHistoryDetail;
+import family.fisa.hangangpay.domain.transaction.dto.response.UserExchangeHistoryDetail;
 import family.fisa.hangangpay.domain.transfer.entity.FundTransfer;
 import family.fisa.hangangpay.domain.transfer.entity.TransferStatus;
 import family.fisa.hangangpay.domain.transfer.entity.TransferType;

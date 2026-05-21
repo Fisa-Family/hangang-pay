@@ -1,7 +1,7 @@
 package family.fisa.hangangpay.domain.transfer.repository;
 
-import family.fisa.hangangpay.domain.transfer.dto.ChargeHistoryItem;
-import family.fisa.hangangpay.domain.transfer.dto.ExchangeHistoryItem;
+import family.fisa.hangangpay.domain.transaction.dto.response.ChargeHistoryItem;
+import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeHistoryItem;
 import family.fisa.hangangpay.domain.transfer.entity.FundTransfer;
 import family.fisa.hangangpay.domain.transfer.entity.TransferStatus;
 import family.fisa.hangangpay.domain.transfer.entity.TransferType;

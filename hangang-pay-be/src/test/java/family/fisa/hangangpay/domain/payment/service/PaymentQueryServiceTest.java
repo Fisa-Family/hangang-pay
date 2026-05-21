@@ -10,8 +10,8 @@ import family.fisa.hangangpay.domain.blockchain.repository.BlockchainTxRepositor
 import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.entity.PartyType;
-import family.fisa.hangangpay.domain.payment.code.error.PaymentErrorCode;
-import family.fisa.hangangpay.domain.payment.dto.response.UserPaymentHistoryDetail;
+import family.fisa.hangangpay.domain.transaction.code.error.PaymentErrorCode;
+import family.fisa.hangangpay.domain.transaction.dto.response.UserPaymentHistoryDetail;
 import family.fisa.hangangpay.domain.payment.entity.Payment;
 import family.fisa.hangangpay.domain.payment.entity.PaymentStatus;
 import family.fisa.hangangpay.domain.payment.repository.PaymentRepository;

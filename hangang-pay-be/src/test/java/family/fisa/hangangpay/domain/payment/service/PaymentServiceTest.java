@@ -8,7 +8,7 @@ import static org.mockito.Mockito.when;
 import family.fisa.hangangpay.domain.merchant.entity.Merchant;
 import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.party.entity.Party;
-import family.fisa.hangangpay.domain.payment.dto.response.PaymentHistoryItem;
+import family.fisa.hangangpay.domain.transaction.dto.response.PaymentHistoryItem;
 import family.fisa.hangangpay.domain.payment.entity.Payment;
 import family.fisa.hangangpay.domain.payment.entity.PaymentStatus;
 import family.fisa.hangangpay.domain.payment.repository.PaymentRepository;

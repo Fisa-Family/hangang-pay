@@ -2,10 +2,10 @@ package family.fisa.hangangpay.domain.user.controller;
 
 import static family.fisa.hangangpay.domain.user.dto.UserHistoryType.*;
 
-import family.fisa.hangangpay.domain.payment.dto.response.PaymentHistoryItem;
+import family.fisa.hangangpay.domain.transaction.dto.response.PaymentHistoryItem;
 import family.fisa.hangangpay.domain.payment.service.PaymentQueryService;
-import family.fisa.hangangpay.domain.transfer.dto.ChargeHistoryItem;
-import family.fisa.hangangpay.domain.transfer.dto.ExchangeHistoryItem;
+import family.fisa.hangangpay.domain.transaction.dto.response.ChargeHistoryItem;
+import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeHistoryItem;
 import family.fisa.hangangpay.domain.transfer.service.FundTransferQueryService;
 import family.fisa.hangangpay.domain.user.dto.UserHistoryDetailResponse;
 import family.fisa.hangangpay.domain.user.dto.UserHistoryResponse;
