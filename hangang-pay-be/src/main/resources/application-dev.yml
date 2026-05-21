@@ -13,7 +13,3 @@ app:
   cors:
     allowed-origins:
       - # Vercel FE dev 주소 확정 후 작성
-
-blockchain:
-  private-network:
-    chain-id: 1337 # 트랜잭션 서명 시 사용하는 private blockchain 네트워크 식별자

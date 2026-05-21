@@ -2,12 +2,14 @@ package family.fisa.hangangpay.domain.wallet.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
 import family.fisa.hangangpay.domain.institution.entity.BankWallet;
 import family.fisa.hangangpay.domain.institution.entity.Institution;
 import family.fisa.hangangpay.domain.institution.service.BankWalletService;
+import family.fisa.hangangpay.domain.institution.service.WalletKeyCipher;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.entity.PartyType;
 import family.fisa.hangangpay.domain.wallet.entity.Wallet;
@@ -22,23 +24,25 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class WalletServiceTest {
+class WalletCommandServiceTest {
 
     @Mock private WalletRepository walletRepository;
     @Mock private BankWalletService bankWalletService;
+    @Mock private WalletKeyCipher walletKeyCipher;
 
-    @InjectMocks private WalletService walletService;
+    @InjectMocks private WalletCommandService walletCommandService;
 
     @Test
-    @DisplayName("회원/가맹점 지갑을 생성해 WALLET과 BANK_WALLET에 저장한다")
+    @DisplayName("회원/가맹점 EOA 지갑을 생성해 WALLET과 BANK_WALLET에 저장한다")
     void createWallet() {
         Party party = Party.of(PartyType.USER);
         Institution institution = Institution.builder().id(2L).institutionName("우리은행").build();
 
         given(walletRepository.save(any(Wallet.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
+        given(walletKeyCipher.encryptPrivateKey(anyString())).willReturn("encrypted-private-key");
 
-        Wallet wallet = walletService.createWallet(party, institution);
+        Wallet wallet = walletCommandService.createWallet(party, institution);
 
         assertThat(wallet.getParty()).isSameAs(party);
         assertThat(wallet.getInstitution()).isSameAs(institution);
@@ -53,6 +57,6 @@ class WalletServiceTest {
         assertThat(bankWallet.getInstitution()).isSameAs(institution);
         assertThat(bankWallet.getWalletAddress()).isEqualTo(walletCaptor.getValue().getAddress());
         assertThat(bankWallet.getBalance()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(bankWallet.getEncryptedPrivateKey()).hasSize(64);
+        assertThat(bankWallet.getEncryptedPrivateKey()).isEqualTo("encrypted-private-key");
     }
 }
