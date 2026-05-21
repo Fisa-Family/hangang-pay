@@ -2,7 +2,7 @@ package family.fisa.hangangpay.domain.wallet.service;
 
 import family.fisa.hangangpay.domain.institution.entity.BankWallet;
 import family.fisa.hangangpay.domain.institution.entity.Institution;
-import family.fisa.hangangpay.domain.institution.service.BankWalletService;
+import family.fisa.hangangpay.domain.institution.service.BankWalletCommandService;
 import family.fisa.hangangpay.domain.institution.service.WalletKeyCipher;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.wallet.code.error.WalletErrorCode;
@@ -29,7 +29,7 @@ public class WalletCommandService {
     private static final int PRIVATE_KEY_HEX_LENGTH = 64;
 
     private final WalletRepository walletRepository;
-    private final BankWalletService bankWalletService;
+    private final BankWalletCommandService bankWalletCommandService;
     private final WalletKeyCipher walletKeyCipher;
 
     /**
@@ -49,7 +49,7 @@ public class WalletCommandService {
                         .address(generatedWallet.address())
                         .build();
 
-        bankWalletService.save(
+        bankWalletCommandService.save(
                 BankWallet.builder()
                         .institution(institution)
                         .walletAddress(generatedWallet.address())

@@ -8,7 +8,7 @@ import static org.mockito.Mockito.verify;
 
 import family.fisa.hangangpay.domain.institution.entity.BankWallet;
 import family.fisa.hangangpay.domain.institution.entity.Institution;
-import family.fisa.hangangpay.domain.institution.service.BankWalletService;
+import family.fisa.hangangpay.domain.institution.service.BankWalletCommandService;
 import family.fisa.hangangpay.domain.institution.service.WalletKeyCipher;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.entity.PartyType;
@@ -27,7 +27,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class WalletCommandServiceTest {
 
     @Mock private WalletRepository walletRepository;
-    @Mock private BankWalletService bankWalletService;
+    @Mock private BankWalletCommandService bankWalletCommandService;
     @Mock private WalletKeyCipher walletKeyCipher;
 
     @InjectMocks private WalletCommandService walletCommandService;
@@ -52,7 +52,7 @@ class WalletCommandServiceTest {
         verify(walletRepository).save(walletCaptor.capture());
 
         ArgumentCaptor<BankWallet> bankWalletCaptor = ArgumentCaptor.forClass(BankWallet.class);
-        verify(bankWalletService).save(bankWalletCaptor.capture());
+        verify(bankWalletCommandService).save(bankWalletCaptor.capture());
         BankWallet bankWallet = bankWalletCaptor.getValue();
         assertThat(bankWallet.getInstitution()).isSameAs(institution);
         assertThat(bankWallet.getWalletAddress()).isEqualTo(walletCaptor.getValue().getAddress());
