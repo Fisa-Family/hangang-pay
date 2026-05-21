@@ -1,8 +1,11 @@
 # 사용자 핵심 플로우 화면 명세
 
-대상 화면: U-01, U-PAY-_, U-CHG-_, U-REF-\*
+대상 화면: `U-01`, `U-PAY-*`, `U-CHG-*`, `U-REF-*`
 
-> **금액 표시 형식**: 전 화면 공통으로 `10,000원` 형식 사용 (원 suffix, 우측 정렬)
+## 공통 규칙
+
+- 금액 입력 화면은 숫자패드 기반으로 구현한다.
+- 금액 표시 형식은 전 화면 공통으로 `10,000원` 형식을 사용한다.
 
 ---
 
@@ -10,306 +13,308 @@
 
 ### U-01 사용자 홈
 
-- 타입: page
-- 경로: /home
+- type: page
+- route: `/home`
+- auth: user
+- purpose: 사용자 잔액과 핵심 결제/충전/환불 플로우 진입점을 제공한다.
 
-**UI**
+**actions**
 
-- 현재 잔액 카드: "현재 잔액 128,000원", 새로고침 버튼
-- 빠른 실행 버튼: QR로 결제, 충전, 환불
-- 하단 내비: → C-NAV-USER (활성: 홈)
+| trigger                | result              |
+| ---------------------- | ------------------- |
+| QR 결제                | 카메라 QR 처리 시작 |
+| QR 인식 성공           | `/pay/amount`       |
+| QR 인식 실패 또는 취소 | 현재 화면 유지      |
+| 충전                   | `/charge/amount`    |
+| 환불                   | `/refund/check`     |
 
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| QR로 결제 | /pay/scan |
-| 충전 | /charge/amount |
-| 환불 | /refund/check |
+**implementation notes**
+
+- QR 인식은 별도 route 화면으로 만들지 않는다.
+- 모바일 웹 카메라 권한은 브라우저 UX를 따른다.
+- QR payload에서 가맹점 식별자를 얻은 뒤 결제 금액 입력 화면으로 이동한다.
 
 ---
 
 ## 결제 플로우
 
-### U-PAY-01 QR 스캔
+순서: QR 결제 -> 카메라 QR 처리 -> 가맹점 확인 및 금액 입력 -> PIN 입력 -> 처리중 -> 완료
 
-- 타입: page (카메라 전체화면)
-- 경로: /pay/scan
+### U-PAY-01 QR 카메라 처리
 
-**UI**
+- type: non-route flow
+- route: 없음
+- auth: user
+- purpose: 카메라로 가맹점 QR을 인식하고 결제 플로우에 필요한 가맹점 식별자를 확보한다.
 
-- 카메라 프리뷰
-- QR 스캔 가이드 프레임
-- 안내 문구: 가맹점 QR을 스캔해주세요
-- 버튼: 닫기
+**states**
 
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| QR 인식 성공 | /pay/confirm-merchant |
-| 닫기 | /home |
+| state                 | contract                                            |
+| --------------------- | --------------------------------------------------- |
+| requesting_permission | 카메라 권한 요청중                                  |
+| scanning              | QR 인식 대기                                        |
+| error                 | 권한 거부, 카메라 사용 불가, QR 인식 실패 사유 표시 |
 
----
+**actions**
 
-### U-PAY-02 가맹점 확인 및 결제 금액 입력
+| trigger      | condition          | result                |
+| ------------ | ------------------ | --------------------- |
+| QR 인식 성공 | 가맹점 식별자 확인 | `/pay/amount`         |
+| 취소         | -                  | `/home`               |
+| 재시도       | error 상태         | 카메라 QR 처리 재시작 |
 
-- 타입: page
-- 경로: /pay/confirm-merchant
+**implementation notes**
 
-**UI**
-
-- 가맹점명
-- 가맹점 주소
-- 현재 잔액
-- 금액 입력 필드 (대형, 숫자 입력 시 `10,000원` 형식 우측 표시)
-- 숫자 키패드
-- 잔액 초과 시 안내 문구
-- 버튼: 결제하기
-
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 결제하기 | /pay/confirm |
-| 취소 | /home |
-| 이전 | /pay/scan |
+- 구현 방식은 브라우저 지원 범위를 확인해 선택한다.
+- 1순위: `navigator.mediaDevices.getUserMedia()`로 카메라 스트림을 열고 `BarcodeDetector`로 QR을 인식한다.
+- fallback: `BarcodeDetector` 미지원 브라우저는 `@zxing/browser` 또는 `html5-qrcode` 같은 웹 QR 라이브러리를 사용한다.
+- 단순 파일 업로드 방식은 실시간 결제 UX가 아니므로 기본 방식으로 사용하지 않는다.
 
 ---
 
-### U-PAY-04 결제 확인
+### U-PAY-02 결제 금액 입력
 
-- 타입: page
-- 경로: /pay/confirm
+- type: page
+- route: `/pay/amount`
+- auth: user
+- purpose: QR에서 확인한 가맹점을 보여주고 결제 금액을 입력한다.
 
-**UI**
+**states**
 
-- 요약 카드:
-  - 가맹점명
-  - 결제 금액
-  - 현재 잔액
-  - 결제 후 잔액
-- 버튼: 확인, 취소
+| state   | contract                                       |
+| ------- | ---------------------------------------------- |
+| loading | 가맹점 정보 확인중                             |
+| ready   | 금액 입력 가능                                 |
+| error   | 가맹점 확인 실패 또는 금액 검증 실패 사유 표시 |
 
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 확인 | /pay/processing |
-| 취소 | /pay/confirm-merchant |
+**actions**
 
----
-
-### U-PAY-05 결제 처리중
-
-- 타입: page
-- 경로: /pay/processing
-- 초기 상태: loading
-
-**상태별 UI**
-| 상태 | 렌더 |
-|------|------|
-| loading | 스피너 + "결제를 처리하고 있어요" + 결제 금액 + 가맹점명 |
-| error | 오류 아이콘 + "결제를 완료하지 못했습니다" + 실패 사유: "잔액이 부족하거나 일시적인 오류가 발생했습니다" + 결제 금액 + 버튼: 다시 시도, 홈으로 |
-
-**액션**
-| 트리거 | 조건 | 이동 |
-|--------|------|------|
-| 처리 성공 | - | /pay/complete |
-| 처리 실패 | - | 현재 화면 error 상태 |
-| 다시 시도 | error 상태 | /pay/confirm |
-| 홈으로 | error 상태 | /home |
+| trigger | condition   | result                 |
+| ------- | ----------- | ---------------------- |
+| 다음    | 유효한 금액 | `/pay/pin`             |
+| 다음    | 검증 실패   | 현재 화면 `error` 상태 |
+| 취소    | -           | `/home`                |
 
 ---
 
-### U-PAY-06 결제 완료
+### U-PAY-03 결제 PIN 입력
 
-- 타입: page
-- 경로: /pay/complete
+- type: page
+- route: `/pay/pin`
+- auth: user
+- purpose: 결제 실행 전 사용자 PIN을 확인한다.
 
-**UI**
+**actions**
 
-- 완료 아이콘
-- 가맹점명
-- 최종 결제 금액
-- 잔여 잔액
-- 승인번호
-- 결제 일시
-- 버튼: 홈으로
+| trigger       | condition     | result                            |
+| ------------- | ------------- | --------------------------------- |
+| PIN 입력 완료 | PIN 형식 유효 | `/pay/processing`                 |
+| PIN 입력 완료 | 검증 실패     | 현재 화면에서 오류 표시 후 재입력 |
+| 이전          | -             | `/pay/amount`                     |
 
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 홈으로 | /home |
+---
+
+### U-PAY-04 결제 처리중
+
+- type: page
+- route: `/pay/processing`
+- auth: user
+- purpose: 결제 요청을 처리하고 결과 화면으로 전환한다.
+- initial state: loading
+
+**states**
+
+| state   | contract    |
+| ------- | ----------- |
+| loading | 결제 처리중 |
+
+**actions**
+
+| trigger   | condition | result                                |
+| --------- | --------- | ------------------------------------- |
+| 처리 성공 | -         | `/pay/complete`                       |
+| 처리 실패 | -         | `/pay/amount`로 돌아가 실패 사유 표시 |
+
+---
+
+### U-PAY-05 결제 완료
+
+- type: page
+- route: `/pay/complete`
+- auth: user
+- purpose: 결제 완료 결과를 안내하고 홈으로 복귀한다.
+
+**actions**
+
+| trigger | result  |
+| ------- | ------- |
+| 홈으로  | `/home` |
 
 ---
 
 ## 충전 플로우
 
+순서: 충전 금액 입력 -> PIN 입력 -> 처리중 -> 완료
+
 ### U-CHG-01 충전 금액 입력
 
-- 타입: page
-- 경로: /charge/amount
+- type: page
+- route: `/charge/amount`
+- auth: user
+- purpose: 숫자패드로 충전 금액을 입력한다.
 
-**UI**
+**states**
 
-- 현재 잔액
-- 월 충전 한도
-- 잔여 한도
-- 금액 입력 필드 (대형, `50,000원` 형식 우측 표시)
-- 계좌 선택 (라디오 버튼 목록, 등록된 계좌 표시)
-- 버튼: 다음, 이전
+| state | contract                      |
+| ----- | ----------------------------- |
+| ready | 금액 입력 가능                |
+| error | 충전 금액 검증 실패 사유 표시 |
 
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 다음 | /charge/confirm |
-| 이전 | /home |
+**actions**
+
+| trigger | condition   | result                 |
+| ------- | ----------- | ---------------------- |
+| 다음    | 유효한 금액 | `/charge/pin`          |
+| 다음    | 검증 실패   | 현재 화면 `error` 상태 |
+| 이전    | -           | `/home`                |
 
 ---
 
-### U-CHG-02 충전 확인
+### U-CHG-02 충전 PIN 입력
 
-- 타입: page
-- 경로: /charge/confirm
+- type: page
+- route: `/charge/pin`
+- auth: user
+- purpose: 충전 실행 전 사용자 PIN을 확인한다.
 
-**UI**
+**actions**
 
-- 요약 카드:
-  - 충전 금액
-  - 할인 금액
-  - 실제 결제금액
-  - 선택 계좌: 은행명 + 마스킹 계좌번호
-- 버튼: 결제하기, 이전
-
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 결제하기 | /charge/processing |
-| 이전 | /charge/amount |
+| trigger       | condition     | result                            |
+| ------------- | ------------- | --------------------------------- |
+| PIN 입력 완료 | PIN 형식 유효 | `/charge/processing`              |
+| PIN 입력 완료 | 검증 실패     | 현재 화면에서 오류 표시 후 재입력 |
+| 이전          | -             | `/charge/amount`                  |
 
 ---
 
 ### U-CHG-03 충전 처리중
 
-- 타입: page
-- 경로: /charge/processing
-- 초기 상태: loading
+- type: page
+- route: `/charge/processing`
+- auth: user
+- purpose: 충전 요청을 처리하고 결과 화면으로 전환한다.
+- initial state: loading
 
-**상태별 UI**
-| 상태 | 렌더 |
-|------|------|
-| loading | 스피너 + "충전을 처리하고 있어요" + 충전 금액 |
-| error | 오류 아이콘 + "충전을 완료하지 못했습니다" + 실패 사유: "계좌 결제에 실패했거나 일시적인 오류가 발생했습니다" + 버튼: 다시 시도, 홈으로 |
+**states**
 
-**액션**
-| 트리거 | 조건 | 이동 |
-|--------|------|------|
-| 처리 성공 | - | /charge/complete |
-| 처리 실패 | - | 현재 화면 error 상태 |
-| 다시 시도 | error 상태 | /charge/confirm |
-| 홈으로 | error 상태 | /home |
+| state   | contract    |
+| ------- | ----------- |
+| loading | 충전 처리중 |
+
+**actions**
+
+| trigger   | condition | result                                   |
+| --------- | --------- | ---------------------------------------- |
+| 처리 성공 | -         | `/charge/complete`                       |
+| 처리 실패 | -         | `/charge/amount`로 돌아가 실패 사유 표시 |
 
 ---
 
 ### U-CHG-04 충전 완료
 
-- 타입: page
-- 경로: /charge/complete
+- type: page
+- route: `/charge/complete`
+- auth: user
+- purpose: 충전 완료 결과를 안내하고 홈으로 복귀한다.
 
-**UI**
+**actions**
 
-- 완료 아이콘
-- 충전 금액
-- 실제 결제금액
-- 충전 일시
-- 버튼: 홈으로
-
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 홈으로 | /home |
+| trigger | result  |
+| ------- | ------- |
+| 홈으로  | `/home` |
 
 ---
 
 ## 환불 플로우
 
-### U-REF-01 환불 가능 여부
+순서: 환불 가능 여부 및 금액 입력 -> PIN 입력 -> 처리중 -> 완료
 
-- 타입: page
-- 경로: /refund/check
-- 초기 상태: 서버 응답 기준으로 결정
+### U-REF-01 환불 가능 여부 및 금액 입력
 
-**상태별 UI**
-| 상태 | 렌더 |
-|------|------|
-| 환불 가능 | 현재 잔액 + "환불 가능" 배지 (green) + 환불요청 금액 입력 필드 + 계좌 선택 라디오 버튼 목록 + 버튼: 환불 신청하기 (활성) |
-| 환불 불가 | 현재 잔액 + "환불 불가" 배지 (red) + 불가 사유 안내 문구 + 버튼: 환불 신청하기 (disabled), 확인 (활성) |
+- type: page
+- route: `/refund/check`
+- auth: user
+- purpose: 환불 가능 여부를 확인하고 숫자패드로 환불 금액을 입력한다.
 
-> 두 상태는 별도 화면이 아닌 동일 컴포넌트 내 조건부 렌더링.
+**states**
 
-**액션**
-| 트리거 | 조건 | 이동 |
-|--------|------|------|
-| 환불 신청하기 | 환불 가능 상태 | /refund/confirm |
-| 확인 | 환불 불가 상태 | /home |
-| 이전 | - | /home |
+| state       | contract                                          |
+| ----------- | ------------------------------------------------- |
+| loading     | 환불 가능 여부 확인중                             |
+| available   | 환불 금액 입력 가능                               |
+| unavailable | 환불 불가 사유 표시                               |
+| error       | 환불 가능 여부 확인 또는 금액 검증 실패 사유 표시 |
+
+**actions**
+
+| trigger | condition                | result                 |
+| ------- | ------------------------ | ---------------------- |
+| 다음    | 환불 가능 및 유효한 금액 | `/refund/pin`          |
+| 다음    | 검증 실패                | 현재 화면 `error` 상태 |
+| 확인    | 환불 불가 상태           | `/home`                |
+| 이전    | -                        | `/home`                |
 
 ---
 
-### U-REF-02 환불 확인
+### U-REF-02 환불 PIN 입력
 
-- 타입: page
-- 경로: /refund/confirm
+- type: page
+- route: `/refund/pin`
+- auth: user
+- purpose: 환불 실행 전 사용자 PIN을 확인한다.
 
-**UI**
+**actions**
 
-- 요약 카드:
-  - 환불요청 금액
-  - 환불 계좌: 은행명 + 마스킹 계좌번호
-  - 최종 환불 금액
-- 버튼: 환불 신청, 이전
-
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 환불 신청 | /refund/processing |
-| 이전 | /refund/check |
+| trigger       | condition     | result                            |
+| ------------- | ------------- | --------------------------------- |
+| PIN 입력 완료 | PIN 형식 유효 | `/refund/processing`              |
+| PIN 입력 완료 | 검증 실패     | 현재 화면에서 오류 표시 후 재입력 |
+| 이전          | -             | `/refund/check`                   |
 
 ---
 
 ### U-REF-03 환불 처리중
 
-- 타입: page
-- 경로: /refund/processing
-- 초기 상태: loading
+- type: page
+- route: `/refund/processing`
+- auth: user
+- purpose: 환불 요청을 처리하고 결과 화면으로 전환한다.
+- initial state: loading
 
-**상태별 UI**
-| 상태 | 렌더 |
-|------|------|
-| loading | 스피너 + "환불을 신청하고 있어요" |
-| error | 오류 아이콘 + "환불 신청을 완료하지 못했습니다" + 실패 사유: "환불 조건 또는 계좌 정보를 다시 확인해주세요" + 버튼: 다시 시도, 홈으로 |
+**states**
 
-**액션**
-| 트리거 | 조건 | 이동 |
-|--------|------|------|
-| 처리 성공 | - | /refund/complete |
-| 처리 실패 | - | 현재 화면 error 상태 |
-| 다시 시도 | error 상태 | /refund/confirm |
-| 홈으로 | error 상태 | /home |
+| state   | contract    |
+| ------- | ----------- |
+| loading | 환불 처리중 |
+
+**actions**
+
+| trigger   | condition | result                                  |
+| --------- | --------- | --------------------------------------- |
+| 처리 성공 | -         | `/refund/complete`                      |
+| 처리 실패 | -         | `/refund/check`로 돌아가 실패 사유 표시 |
 
 ---
 
-### U-REF-04 환불 신청 완료
+### U-REF-04 환불 완료
 
-- 타입: page
-- 경로: /refund/complete
+- type: page
+- route: `/refund/complete`
+- auth: user
+- purpose: 환불 완료 결과를 안내하고 홈으로 복귀한다.
 
-**UI**
+**actions**
 
-- 완료 아이콘
-- 환불요청 금액
-- 환불 계좌: 은행명 + 마스킹 계좌번호
-- 신청 일시
-- 버튼: 홈으로
-
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 홈으로 | /home |
+| trigger | result  |
+| ------- | ------- |
+| 홈으로  | `/home` |
