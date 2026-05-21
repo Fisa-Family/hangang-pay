@@ -6,4 +6,6 @@ import java.util.Optional;
 public interface WalletRepository {
 
     Optional<Wallet> findByParty_Id(Long partyId);
+
+    Wallet save(Wallet wallet);
 }
