@@ -3,6 +3,7 @@ package family.fisa.hangangpay.domain.payment.entity;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.global.entity.BaseEntity;
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -31,6 +32,13 @@ public class PaymentCancellation extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "party_id", nullable = false)
     private Party party;
+
+    /** 취소 금액 */
+    @Column(nullable = false, precision = 20, scale = 4)
+    private BigDecimal amount;
+
+    /** 취소 승인번호 */
+    private String cancelApprovalNumber;
 
     /** 취소 상태 (PENDING, SUCCESS, FAILED) */
     @Enumerated(EnumType.STRING)
