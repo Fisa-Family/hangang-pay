@@ -145,7 +145,6 @@ public class InstitutionDeployService {
                                     .address(receipt.getContractAddress())
                                     .build());
             if (contractType == ContractType.SETTLEMENT) {
-                registerSettlementAsOperator(contractAddress.getAddress());
                 mintCbdcToSettlement(contractAddress.getAddress());
                 registerBanks(contractAddress.getAddress(), institution);
                 setInitialReserves(contractAddress.getAddress(), institution);
@@ -213,33 +212,6 @@ public class InstitutionDeployService {
         return receipt;
     }
 
-    /*
-     * Settlement가 CBDC/DepositToken의 mint, burn, forceTransfer를 호출할 수 있도록
-     * operator 권한을 부여한다.
-     */
-    private void registerSettlementAsOperator(String settlementAddress) throws IOException {
-        for (ContractAddress contractAddress :
-                contractAddressRepository.findAllByNameIn(
-                        List.of(ContractType.CBDC, ContractType.DEPOSIT_TOKEN))) {
-
-            Institution ownerInstitution = contractAddress.getInstitution();
-            Credentials ownerCredentials =
-                    walletKeyCipher.decryptCredentials(ownerInstitution.getEncryptedPrivateKey());
-
-            Web3j ownerWeb3j = Web3j.build(new HttpService(ownerInstitution.getRpcEndpoint()));
-
-            try {
-                callSetOperator(
-                        ownerWeb3j,
-                        ownerCredentials,
-                        contractAddress.getAddress(),
-                        settlementAddress);
-            } finally {
-                ownerWeb3j.shutdown();
-            }
-        }
-    }
-
     /** 지역화폐 스마트컨트랙트에 operator 권한을 부여합니다. */
     private void registerLocalCurrencyAsOperator(String localCurrencyAddress) throws IOException {
 
@@ -253,24 +225,61 @@ public class InstitutionDeployService {
                                                 InstitutionErrorCode
                                                         .INSTITUTION_CONTRACT_NOT_DEPLOYED));
 
-        Institution ownerInstitution = depositToken.getInstitution();
+        Institution depositTokenOwner = depositToken.getInstitution();
 
-        Credentials credentials =
-                walletKeyCipher.decryptCredentials(ownerInstitution.getEncryptedPrivateKey());
+        Credentials depositTokenOwnerCredentials =
+                walletKeyCipher.decryptCredentials(depositTokenOwner.getEncryptedPrivateKey());
 
-        Web3j web3j = Web3j.build(new HttpService(ownerInstitution.getRpcEndpoint()));
+        Web3j depositTokenOwnerWeb3j =
+                Web3j.build(new HttpService(depositTokenOwner.getRpcEndpoint()));
 
         try {
-            callSetOperator(web3j, credentials, depositToken.getAddress(), localCurrencyAddress);
+
+            callSetOperator(
+                    depositTokenOwnerWeb3j,
+                    depositTokenOwnerCredentials,
+                    depositToken.getAddress(),
+                    localCurrencyAddress);
 
         } finally {
-            web3j.shutdown();
+
+            depositTokenOwnerWeb3j.shutdown();
+        }
+
+        ContractAddress settlement =
+                contractAddressRepository
+                        .findByInstitutionInstitutionCodeAndName(
+                                InstitutionCode.BOK.getCode(), ContractType.SETTLEMENT)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                InstitutionErrorCode
+                                                        .INSTITUTION_CONTRACT_NOT_DEPLOYED));
+
+        Institution settlementOwner = settlement.getInstitution();
+
+        Credentials settlementOwnerCredentials =
+                walletKeyCipher.decryptCredentials(settlementOwner.getEncryptedPrivateKey());
+
+        Web3j settlementOwnerWeb3j = Web3j.build(new HttpService(settlementOwner.getRpcEndpoint()));
+
+        try {
+
+            callSetOperator(
+                    settlementOwnerWeb3j,
+                    settlementOwnerCredentials,
+                    settlement.getAddress(),
+                    localCurrencyAddress);
+
+        } finally {
+
+            settlementOwnerWeb3j.shutdown();
         }
     }
 
     /** setOperator 함수 호출을 래핑합니다. */
     private TransactionReceipt callSetOperator(
-            Web3j web3j, Credentials credentials, String tokenAddress, String operatorAddress)
+            Web3j web3j, Credentials credentials, String contractAddress, String operatorAddress)
             throws IOException {
         Function function =
                 new Function(
@@ -279,7 +288,7 @@ public class InstitutionDeployService {
                         List.of());
 
         return blockchainTxService.sendFunctionTransaction(
-                web3j, credentials, tokenAddress, SET_OPERATOR_GAS_LIMIT, function);
+                web3j, credentials, contractAddress, SET_OPERATOR_GAS_LIMIT, function);
     }
 
     /** 저장된 기관 지갑 주소와 복호화된 키의 서명 주소가 일치하는지 확인합니다. */
@@ -319,11 +328,7 @@ public class InstitutionDeployService {
                                     new Address(
                                             resolveContractAddress(
                                                     InstitutionCode.BOK.getCode(),
-                                                    ContractType.CBDC)),
-                                    new Address(
-                                            resolveContractAddress(
-                                                    InstitutionCode.WOORI.getCode(),
-                                                    ContractType.DEPOSIT_TOKEN))));
+                                                    ContractType.CBDC))));
             case LOCAL_CURRENCY ->
                     appendConstructorArgs(
                             tokenArtifactLoader.localCurrencyArtifact().bytecode(),
@@ -332,6 +337,10 @@ public class InstitutionDeployService {
                                             resolveContractAddress(
                                                     InstitutionCode.WOORI.getCode(),
                                                     ContractType.DEPOSIT_TOKEN)),
+                                    new Address(
+                                            resolveContractAddress(
+                                                    InstitutionCode.BOK.getCode(),
+                                                    ContractType.SETTLEMENT)),
                                     new Uint256(LOCAL_CURRENCY_MAX_TOTAL_USAGE)));
         };
     }

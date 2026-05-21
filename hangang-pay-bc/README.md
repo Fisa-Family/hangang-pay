@@ -48,9 +48,11 @@ TODO: 토큰 초기 발행량 근거 작성하기
 - 한국은행이 발행 및 관리
 
 #### 특징
-- Settlement 컨트랙트가 operator 권한을 가짐
+- ERC-20 기반
+- 실제 CBDC는 Settlement 컨트랙트에 lock되어 관리됨
 - 기관 간 정산 시 실제 가치 이전 수단으로 사용
 - 사용자 직접 결제에는 사용되지 않음
+- LocalCurrencyPolicy 및 사용자 계층에서는 직접 사용하지 않음
 
 ---
 
@@ -66,55 +68,54 @@ TODO: 토큰 초기 발행량 근거 작성하기
 - ERC-20 기반
 - 충전 시 mint
 - 환불 시 burn
-- Settlement 및 LocalCurrencyPolicy 컨트랙트가 operator 권한을 가짐
+- LocalCurrencyPolicy 컨트랙트가 operator 권한을 가짐
 
 ---
 
 ### 3. Settlement
 
-기관 간 CBDC 정산을 담당하는 핵심 컨트랙트입니다.
+기관 간 CBDC reserve 정산을 담당하는 공용 인프라 컨트랙트입니다.
 
 #### 역할
 - 기관별 CBDC reserve 관리
-- 충전/환불 시 CBDC 정산 처리
-- DepositToken mint/burn 제어
+- 기관 간 CBDC reserve 이동 처리
+- Settlement 내부 reserve 장부 관리
 
 #### 특징
 - 실제 CBDC는 Settlement 컨트랙트에 lock됨
 - 기관별 reserve는 reserveBalance 내부 장부로 관리
 - 기관 간 CBDC 이동을 추상화하여 처리
+- DepositToken mint/burn 및 지역화폐 정책 로직은 담당하지 않음
+- LocalCurrencyPolicy가 reserve 이동 요청 시 정산만 수행
 
-#### 충전 흐름 (현금 → DepositToken)
+#### reserve 이동 흐름
 
-1. 사용자 현금 입금
-2. Settlement 호출
-3. 기관 reserve 감소
-4. 사용자 DepositToken mint
-
-#### 환불 흐름 (DepositToken → 현금)
-
-1. 사용자 DepositToken 반환
-2. Settlement 호출
-3. 사용자 DepositToken burn
-4. 기관 reserve 증가
+1. LocalCurrencyPolicy에서 reserve 이동 요청
+2. Settlement.moveReserve 호출
+3. 송신 기관 reserve 차감
+4. 수신 기관 reserve 증가
+5. 기관 간 CBDC reserve 정산 완료
 
 ---
 
 ### 4. LocalCurrencyPolicy
 
-지역화폐 결제 정책 컨트랙트입니다.
+지역화폐 서비스 및 결제 정책 컨트랙트입니다.
 
 #### 역할
-- 지역화폐 결제 정책 관리
+- 지역화폐 충전 및 환불 처리
+- 지역화폐 결제 및 결제 취소 처리
 - 가맹점 등록 및 해제 관리
 - 가맹점 제한 및 사용 한도 관리
-- 지역화폐 결제 및 결제 취소 처리
+- Settlement를 통한 CBDC reserve 정산 요청
 
 #### 특징
 - ERC-20이 아님
-- DepositToken 기반 정책 레이어
+- DepositToken 기반 서비스 정책 레이어
 - 등록된 가맹점에서만 결제 가능
 - 총 사용 한도 제한 가능
+- 충전/환불 시 Settlement에 reserve 이동 요청
+- DepositToken mint/burn/forceTransfer 권한 보유
 - 결제 취소 시 가맹점에서 사용자에게 토큰 반환 가능
 
 #### 가맹점 등록 흐름
@@ -122,6 +123,26 @@ TODO: 토큰 초기 발행량 근거 작성하기
 1. 관리자 가맹점 등록 요청
 2. LocalCurrencyPolicy.setMerchant 호출
 3. 가맹점 whitelist 등록
+
+#### 충전 흐름 (현금 → DepositToken)
+
+1. 사용자 현금 입금
+2. LocalCurrencyPolicy.charge 호출
+3. 타행 충전 여부 검증
+4. 필요 시 Settlement.moveReserve 호출
+5. 기관 reserve 정산 처리
+6. DepositToken.mint 실행
+7. 사용자 DepositToken 발행
+
+#### 환불 흐름 (DepositToken → 현금)
+
+1. 사용자 환불 요청
+2. LocalCurrencyPolicy.refund 호출
+3. DepositToken.burn 실행
+4. 사용자 DepositToken 소각
+5. 타행 환불 여부 검증
+6. 필요 시 Settlement.moveReserve 호출
+7. 기관 reserve 정산 처리
 
 #### 결제 흐름
 
@@ -156,7 +177,7 @@ TODO: 토큰 초기 발행량 근거 작성하기
 
 ### 충전
 
-Settlement 컨트랙트를 호출합니다.
+LocalCurrencyPolicy 컨트랙트를 호출합니다.
 
 #### BE 호출 함수
 
@@ -183,6 +204,9 @@ charge(institutionId, userAddress, amount)
 | `amount` | 충전 금액 |
 
 #### 역할
+
+- 타행 충전 여부 검증
+- 필요 시 Settlement.moveReserve 호출
 - 선택 은행 reserve 차감
 - 우리은행 reserve 증가
 - 사용자에게 DepositToken mint
@@ -191,7 +215,7 @@ charge(institutionId, userAddress, amount)
 
 ### 환불
 
-Settlement 컨트랙트를 호출합니다.
+LocalCurrencyPolicy 컨트랙트를 호출합니다.
 
 #### BE 호출 함수
 
@@ -218,7 +242,10 @@ refund(institutionId, userAddress, amount)
 | `amount` | 환불 금액 |
 
 #### 역할
+
 - 사용자 DepositToken burn
+- 타행 환불 여부 검증
+- 필요 시 Settlement.moveReserve 호출
 - 우리은행 reserve 차감
 - 환불 대상 은행 reserve 증가
 
@@ -253,6 +280,7 @@ pay(userAddress, merchantAddress, amount)
 | `amount` | 결제 금액 |
 
 #### 역할
+
 - 수취 주소가 등록 가맹점인지 검증
 - 총 사용 한도 검증
 - 사용자에서 가맹점으로 DepositToken 강제 이체
@@ -289,6 +317,7 @@ cancelPayment(merchantAddress, userAddress, amount)
 | `amount` | 결제 취소 금액 |
 
 #### 역할
+
 - 송신 주소가 등록 가맹점인지 검증
 - 가맹점에서 사용자로 DepositToken 강제 이체
 - 누적 사용 금액 감소
@@ -297,6 +326,7 @@ cancelPayment(merchantAddress, userAddress, amount)
 
 ## 가맹점 등록 / 해제
 
+LocalCurrencyPolicy 컨트랙트를 호출합니다.
 
 #### BE 호출 함수
 
@@ -327,6 +357,7 @@ setMerchant(merchantAddress, false)
 ```
 
 #### 역할
+
 - `true`: 가맹점 whitelist 등록
 - `false`: 가맹점 whitelist 해제
 
@@ -336,11 +367,17 @@ setMerchant(merchantAddress, false)
 
 배포 시 다음 operator 권한이 자동 설정됩니다.
 
-| 대상 Token | Operator |
+| 대상 컨트랙트 | Operator |
 |---|---|
-| CBDC | Settlement |
-| DepositToken | Settlement |
+| Settlement | LocalCurrencyPolicy |
 | DepositToken | LocalCurrencyPolicy |
 
-이를 통해 Settlement와 LocalCurrencyPolicy가  
-mint / burn / forceTransfer를 수행할 수 있습니다.
+이를 통해 LocalCurrencyPolicy가 다음 기능을 수행할 수 있습니다.
+
+- DepositToken mint
+- DepositToken burn
+- DepositToken forceTransfer
+- Settlement reserve 이동 요청
+
+Settlement는 CBDC reserve 정산 인프라 역할만 수행하며,  
+실제 지역화폐 서비스 로직은 LocalCurrencyPolicy가 담당합니다.
