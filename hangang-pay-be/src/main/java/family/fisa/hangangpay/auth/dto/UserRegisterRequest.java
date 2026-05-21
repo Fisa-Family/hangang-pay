@@ -1,4 +1,4 @@
-package family.fisa.hangangpay.domain.user.dto;
+package family.fisa.hangangpay.auth.dto;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;

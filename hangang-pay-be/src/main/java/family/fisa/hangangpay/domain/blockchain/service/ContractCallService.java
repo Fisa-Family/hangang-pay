@@ -82,7 +82,7 @@ public class ContractCallService {
                                 new Uint256(amount)),
                         List.of());
 
-        return sendContractFunction(ContractType.SETTLEMENT, DEFAULT_GAS_LIMIT, function);
+        return sendContractFunction(ContractType.LOCAL_CURRENCY, DEFAULT_GAS_LIMIT, function);
     }
 
     /*
@@ -98,7 +98,7 @@ public class ContractCallService {
                                 new Uint256(amount)),
                         List.of());
 
-        return sendContractFunction(ContractType.SETTLEMENT, DEFAULT_GAS_LIMIT, function);
+        return sendContractFunction(ContractType.LOCAL_CURRENCY, DEFAULT_GAS_LIMIT, function);
     }
 
     /*

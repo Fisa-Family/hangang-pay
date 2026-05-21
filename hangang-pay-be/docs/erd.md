@@ -130,6 +130,8 @@ erDiagram
     BIGINT id PK
     BIGINT payment_id FK "payment.id"
     BIGINT party_id FK "party.id"
+    DECIMAL amount
+    VARCHAR cancel_approval_number
     VARCHAR status "PENDING | SUCCESS | FAILED"
     DATETIME created_at
     DATETIME updated_at

@@ -10,4 +10,6 @@ public interface MerchantRepository {
     Optional<Merchant> findByParty_Id(Long partyId);
 
     Optional<Merchant> findByPhoneNumberWithParty(String phoneNumber);
+
+    Optional<Merchant> findById(Long merchantId);
 }

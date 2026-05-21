@@ -17,8 +17,6 @@ import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.entity.PartyType;
 import family.fisa.hangangpay.domain.party.repository.PartyRepository;
-import family.fisa.hangangpay.domain.wallet.entity.Wallet;
-import family.fisa.hangangpay.domain.wallet.repository.WalletRepository;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -44,13 +42,11 @@ public class MerchantQrService {
     // QR 외곽 여백
     private static final int QR_MARGIN = 1;
 
-    // data URL prefix. URL 자체에 데이터 삽입 data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...
-    // 프론트에서 <img src="..."> 로 사용 가능
+    // data URL prefix. 프론트에서 <img src="..."> 로 사용 가능
     private static final String DATA_URL_PREFIX = "data:image/png;base64,";
 
     private final PartyRepository partyRepository;
     private final MerchantRepository merchantRepository;
-    private final WalletRepository walletRepository;
     private final ObjectMapper objectMapper;
 
     /** 가맹점 PartyId로 QR 생성 */
@@ -63,11 +59,10 @@ public class MerchantQrService {
         // 2. 가맹점 정보 조회
         Merchant merchant = findMerchantByPartyId(partyId);
 
-        // 3. 가맹점 지갑 주소 조회
-        Wallet wallet = findWalletByPartyId(partyId);
+        // 3. 페이로드 직렬화
+        String payloadJson = serializePayload(merchant.getId());
 
-        // 4. 페이로드 직렬화 → QR PNG 생성 → base64 인코딩
-        String payloadJson = serializePayload(merchant, wallet);
+        // 4. QR PNG 생성 + base64 인코딩
         String qrImageBase64 = generateQrPngBase64(payloadJson);
 
         log.info("가맹점 QR 조회 완료. partyId={}, merchantId={}", partyId, merchant.getId());
@@ -97,25 +92,12 @@ public class MerchantQrService {
                 .orElseThrow(() -> new BusinessException(MerchantErrorCode.MERCHANT_NOT_FOUND));
     }
 
-    /** partyId로 연결된 Wallet 엔티티 조회. */
-    private Wallet findWalletByPartyId(Long partyId) {
-        return walletRepository
-                .findByParty_Id(partyId)
-                .orElseThrow(() -> new BusinessException(MerchantErrorCode.MERCHANT_NOT_FOUND));
-    }
-
-    /** QR에 인코딩할 페이로드를 JSON 문자열로 직렬화 QR 안에 객체를 담을 수 없기 때문에 객체 -> JSON 문자열(직렬화) -> QR 이미지 */
-    private String serializePayload(Merchant merchant, Wallet wallet) {
-        MerchantQrPayload payload =
-                new MerchantQrPayload(
-                        wallet.getAddress(),
-                        merchant.getId(),
-                        merchant.getMerchantName(),
-                        merchant.getAddress());
+    /** QR에 인코딩할 페이로드를 JSON 문자열로 직렬화 */
+    private String serializePayload(Long merchantId) {
         try {
-            return objectMapper.writeValueAsString(payload);
+            return objectMapper.writeValueAsString(MerchantQrPayload.of(merchantId));
         } catch (JsonProcessingException e) {
-            log.error("QR 페이로드 직렬화 실패. merchantId={}", merchant.getId(), e);
+            log.error("QR 페이로드 직렬화 실패. merchantId={}", merchantId, e);
             throw new BusinessException(MerchantErrorCode.QR_IMAGE_GENERATION_FAILED);
         }
     }

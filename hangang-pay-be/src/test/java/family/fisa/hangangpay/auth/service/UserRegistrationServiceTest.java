@@ -1,4 +1,4 @@
-package family.fisa.hangangpay.domain.user.service;
+package family.fisa.hangangpay.auth.service;
 
 import static family.fisa.hangangpay.global.session.SessionAttributeNames.SIGNUP_ACCOUNT_NUMBER;
 import static family.fisa.hangangpay.global.session.SessionAttributeNames.SIGNUP_ACCOUNT_VERIFIED;
@@ -12,6 +12,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
+import family.fisa.hangangpay.auth.code.error.AuthErrorCode;
+import family.fisa.hangangpay.auth.dto.UserRegisterRequest;
+import family.fisa.hangangpay.auth.dto.UserRegisterResponse;
 import family.fisa.hangangpay.domain.account.entity.Account;
 import family.fisa.hangangpay.domain.account.repository.AccountRepository;
 import family.fisa.hangangpay.domain.institution.entity.Institution;
@@ -19,9 +22,6 @@ import family.fisa.hangangpay.domain.institution.repository.InstitutionRepositor
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.entity.PartyType;
 import family.fisa.hangangpay.domain.party.repository.PartyRepository;
-import family.fisa.hangangpay.domain.user.code.error.UserErrorCode;
-import family.fisa.hangangpay.domain.user.dto.UserRegisterRequest;
-import family.fisa.hangangpay.domain.user.dto.UserRegisterResponse;
 import family.fisa.hangangpay.domain.user.entity.User;
 import family.fisa.hangangpay.domain.user.repository.UserRepository;
 import family.fisa.hangangpay.domain.wallet.entity.Wallet;
@@ -41,7 +41,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
-class UserCommandServiceTest {
+class UserRegistrationServiceTest {
 
     private static final Long PARTY_ID = 10L;
     private static final Long USER_ID = 20L;
@@ -56,7 +56,7 @@ class UserCommandServiceTest {
     @Mock private InstitutionRepository institutionRepository;
     @Mock private PasswordEncoder passwordEncoder;
 
-    @InjectMocks private UserCommandService userCommandService;
+    @InjectMocks private UserRegistrationService userRegistrationService;
 
     @Test
     @DisplayName("세션 인증값과 요청값이 일치하면 소비자 회원가입을 완료한다")
@@ -93,7 +93,7 @@ class UserCommandServiceTest {
                                 .address("0x1")
                                 .build());
 
-        UserRegisterResponse response = userCommandService.register(request(), session);
+        UserRegisterResponse response = userRegistrationService.register(request(), session);
 
         assertThat(response.partyId()).isEqualTo(PARTY_ID);
         assertThat(response.userId()).isEqualTo(USER_ID);
@@ -106,10 +106,10 @@ class UserCommandServiceTest {
     void registerWithoutPhoneVerification() {
         MockHttpSession session = new MockHttpSession();
 
-        assertThatThrownBy(() -> userCommandService.register(request(), session))
+        assertThatThrownBy(() -> userRegistrationService.register(request(), session))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
-                .isEqualTo(UserErrorCode.SIGNUP_PHONE_NOT_VERIFIED);
+                .isEqualTo(AuthErrorCode.SIGNUP_PHONE_NOT_VERIFIED);
     }
 
     @Test
@@ -118,10 +118,10 @@ class UserCommandServiceTest {
         MockHttpSession session = verifiedSession();
         session.setAttribute(SIGNUP_PHONE_VERIFIED_AT, LocalDateTime.now().minusMinutes(31));
 
-        assertThatThrownBy(() -> userCommandService.register(request(), session))
+        assertThatThrownBy(() -> userRegistrationService.register(request(), session))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
-                .isEqualTo(UserErrorCode.SIGNUP_PHONE_VERIFICATION_EXPIRED);
+                .isEqualTo(AuthErrorCode.SIGNUP_PHONE_VERIFICATION_EXPIRED);
     }
 
     @Test
@@ -131,12 +131,12 @@ class UserCommandServiceTest {
 
         assertThatThrownBy(
                         () ->
-                                userCommandService.register(
+                                userRegistrationService.register(
                                         request(PHONE_NUMBER, INSTITUTION_ID, "9999999999"),
                                         session))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
-                .isEqualTo(UserErrorCode.SIGNUP_ACCOUNT_MISMATCH);
+                .isEqualTo(AuthErrorCode.SIGNUP_ACCOUNT_MISMATCH);
     }
 
     @Test
@@ -146,10 +146,10 @@ class UserCommandServiceTest {
         given(userRepository.findByPhoneNumberWithParty(PHONE_NUMBER))
                 .willReturn(Optional.of(User.builder().phoneNumber(PHONE_NUMBER).build()));
 
-        assertThatThrownBy(() -> userCommandService.register(request(), session))
+        assertThatThrownBy(() -> userRegistrationService.register(request(), session))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
-                .isEqualTo(UserErrorCode.DUPLICATE_PHONE_NUMBER);
+                .isEqualTo(AuthErrorCode.DUPLICATE_PHONE_NUMBER);
     }
 
     private MockHttpSession verifiedSession() {

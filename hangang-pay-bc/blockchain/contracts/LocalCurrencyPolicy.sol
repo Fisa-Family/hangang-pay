@@ -4,7 +4,9 @@ pragma solidity 0.8.28;
 
 // 예금토큰 인터페이스
 // 지역화폐 정책 컨트랙트가 forceTransfer 호출을 위해 사용
-interface IDepositToken {
+interface ILocalDepositToken {
+    function mint(address to, uint256 amount) external returns (bool);
+    function burn(address from, uint256 amount) external returns (bool);
 
     // 운영자 권한 기반 강제 이체 함수
     function forceTransfer(
@@ -14,13 +16,25 @@ interface IDepositToken {
     ) external returns (bool);
 }
 
+interface ISettlement {
+    function moveReserve(
+        uint256 fromInstitutionId,
+        uint256 toInstitutionId,
+        uint256 amount
+    ) external returns (bool);
+
+}
+
 contract LocalCurrencyPolicy {
+
+    uint256 public constant WOORI_BANK_ID = 2;
 
     // 컨트랙트 관리자
     address public owner;
 
     // 우리은행 예금토큰 컨트랙트 주소
     address public depositToken;
+    address public settlement;
 
     // 지역화폐 총 사용 가능 한도
     uint256 public maxTotalUsage;
@@ -37,12 +51,29 @@ contract LocalCurrencyPolicy {
     error InvalidAmount();
     error MerchantNotRegistered();
     error UsageLimitExceeded();
+    error ReserveMoveFailed();
+    error DepositTokenMintFailed();
+    error DepositTokenBurnFailed();
     error TransferFailed();
 
     // 가맹점 등록 이벤트
     event MerchantUpdated(
         address indexed merchant,
         bool approved
+    );
+
+    // 충전 이벤트
+    event Charged(
+        uint256 indexed fromInstitutionId,
+        address indexed user,
+        uint256 amount
+    );
+
+    // 환불 이벤트
+    event Refunded(
+        uint256 indexed toInstitutionId,
+        address indexed user,
+        uint256 amount
     );
 
     // 결제 이벤트
@@ -61,21 +92,21 @@ contract LocalCurrencyPolicy {
 
     // owner만 실행 가능
     modifier onlyOwner() {
-        if (msg.sender != owner) {
-            revert Unauthorized();
-        }
-
+        if (msg.sender != owner) revert Unauthorized();
         _;
     }
 
     // 배포 시 예금토큰 주소 및 최대 사용 한도 저장
     constructor(
         address _depositToken,
+        address _settlement,
         uint256 _maxTotalUsage
     ) {
-
         // 주소 검증
-        if (_depositToken == address(0)) {
+        if (
+            _depositToken == address(0) ||
+            _settlement == address(0)
+        ) {
             revert InvalidAddress();
         }
 
@@ -84,6 +115,7 @@ contract LocalCurrencyPolicy {
 
         // 예금토큰 컨트랙트 저장
         depositToken = _depositToken;
+        settlement = _settlement;
 
         // 지역화폐 총 사용 가능 한도 저장
         maxTotalUsage = _maxTotalUsage;
@@ -107,6 +139,75 @@ contract LocalCurrencyPolicy {
             merchant,
             approved
         );
+    }
+
+    function charge(
+        uint256 fromInstitutionId,
+        address user,
+        uint256 amount
+    ) external onlyOwner returns (bool) {
+        if (user == address(0)) revert InvalidAddress();
+        if (amount == 0) revert InvalidAmount();
+        if (fromInstitutionId != WOORI_BANK_ID) {
+            if (
+                !ISettlement(settlement).moveReserve(
+                    fromInstitutionId,
+                    WOORI_BANK_ID,
+                    amount
+                )
+            ) {
+                revert ReserveMoveFailed();
+            }
+        }
+
+        if (
+            !ILocalDepositToken(depositToken).mint(
+                user,
+                amount
+            )
+        ) {
+            revert DepositTokenMintFailed();
+        }
+        emit Charged(
+            fromInstitutionId,
+            user,
+            amount
+        );
+        return true;
+    }
+
+    function refund(
+        uint256 toInstitutionId,
+        address user,
+        uint256 amount
+    ) external onlyOwner returns (bool) {
+        if (user == address(0)) revert InvalidAddress();
+        if (amount == 0) revert InvalidAmount();
+        if (
+            !ILocalDepositToken(depositToken).burn(
+                user,
+                amount
+            )
+        ) {
+            revert DepositTokenBurnFailed();
+        }
+        if (toInstitutionId != WOORI_BANK_ID) {
+            if (
+                !ISettlement(settlement).moveReserve(
+                    WOORI_BANK_ID,
+                    toInstitutionId,
+                    amount
+                )
+            ) {
+                revert ReserveMoveFailed();
+            }
+        }
+        emit Refunded(
+            toInstitutionId,
+            user,
+            amount
+        );
+        return true;
     }
 
 // 결제 함수
@@ -146,7 +247,7 @@ function pay(
     totalUsed += amount;
     // from -> to 예금토큰 강제 이체
     if (
-        !IDepositToken(depositToken).forceTransfer(
+        !ILocalDepositToken(depositToken).forceTransfer(
             from,
             to,
             amount
@@ -200,7 +301,7 @@ function cancelPayment(
     // from -> to 예금토큰 강제 이체
     // (가맹점 -> 사용자)
     if (
-        !IDepositToken(depositToken).forceTransfer(
+        !ILocalDepositToken(depositToken).forceTransfer(
             from,
             to,
             amount
