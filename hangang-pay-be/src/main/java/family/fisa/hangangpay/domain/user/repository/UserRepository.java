@@ -10,4 +10,6 @@ public interface UserRepository {
     Optional<User> findByIdWithParty(Long userId);
 
     Optional<User> findByPhoneNumberWithParty(String phoneNumber);
+
+    User save(User user);
 }

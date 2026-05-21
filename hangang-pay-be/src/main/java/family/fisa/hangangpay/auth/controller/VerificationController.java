@@ -54,7 +54,8 @@ public class VerificationController {
     public ResponseEntity<ApiResponse<VerificationCodeResponse>> sendAccountVerification(
             @Valid @RequestBody AccountSendRequest request, HttpSession session) {
         String code =
-                verificationService.sendAccountVerification(request.getAccountNumber(), session);
+                verificationService.sendAccountVerification(
+                        request.getInstitutionId(), request.getAccountNumber(), session);
         return ResponseEntity.ok(
                 ApiResponse.onSuccess(
                         GeneralSuccessCode.COMMON_OK, new VerificationCodeResponse(code)));
@@ -65,7 +66,8 @@ public class VerificationController {
     @PostMapping("/account/verify")
     public ResponseEntity<ApiResponse<?>> verifyAccount(
             @Valid @RequestBody AccountVerifyRequest request, HttpSession session) {
-        verificationService.verifyAccount(request.getAccountNumber(), request.getCode(), session);
+        verificationService.verifyAccount(
+                request.getInstitutionId(), request.getAccountNumber(), request.getCode(), session);
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK));
     }
 }

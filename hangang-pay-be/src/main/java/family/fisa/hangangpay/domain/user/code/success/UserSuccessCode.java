@@ -1,4 +1,4 @@
-package family.fisa.hangangpay.domain.user.code;
+package family.fisa.hangangpay.domain.user.code.success;
 
 import family.fisa.hangangpay.global.code.success.BaseSuccessCode;
 import lombok.AllArgsConstructor;

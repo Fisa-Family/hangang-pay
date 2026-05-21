@@ -27,4 +27,9 @@ public class UserRepositoryImpl implements UserRepository {
     public Optional<User> findByPhoneNumberWithParty(String phoneNumber) {
         return userJpaRepository.findByPhoneNumberWithParty(phoneNumber);
     }
+
+    @Override
+    public User save(User user) {
+        return userJpaRepository.save(user);
+    }
 }
