@@ -15,10 +15,10 @@
 
 **actions**
 
-| trigger | result |
-| --- | --- |
-| 로그인 | `/login` |
-| 사용자 회원가입 | `/register/terms` |
+| trigger         | result                     |
+| --------------- | -------------------------- |
+| 로그인          | `/login`                   |
+| 사용자 회원가입 | `/register/terms`          |
 | 가맹점 회원가입 | `/merchant/register/terms` |
 
 ---
@@ -32,20 +32,20 @@
 
 **states**
 
-| state | contract |
-| --- | --- |
-| idle | 로그인 입력 대기 |
-| submitting | 로그인 요청 처리중 |
-| error | 로그인 실패 사유 표시 |
+| state      | contract              |
+| ---------- | --------------------- |
+| idle       | 로그인 입력 대기      |
+| submitting | 로그인 요청 처리중    |
+| error      | 로그인 실패 사유 표시 |
 
 **actions**
 
-| trigger | condition | result |
-| --- | --- | --- |
-| 로그인 | 사용자 로그인 성공 | `/home` |
-| 로그인 | 가맹점 로그인 성공 | `/merchant/home` |
-| 로그인 | 실패 | 현재 화면 `error` 상태 |
-| 회원가입 | - | `/` |
+| trigger  | condition          | result                 |
+| -------- | ------------------ | ---------------------- |
+| 로그인   | 사용자 로그인 성공 | `/home`                |
+| 로그인   | 가맹점 로그인 성공 | `/merchant/home`       |
+| 로그인   | 실패               | 현재 화면 `error` 상태 |
+| 회원가입 | -                  | `/`                    |
 
 ---
 
@@ -62,10 +62,10 @@
 
 **actions**
 
-| trigger | result |
-| --- | --- |
-| 다음 | `/register/verify` |
-| 이전 | `/` |
+| trigger | result             |
+| ------- | ------------------ |
+| 다음    | `/register/verify` |
+| 이전    | `/`                |
 
 ---
 
@@ -78,21 +78,21 @@
 
 **states**
 
-| state | contract |
-| --- | --- |
-| idle | 인증번호 발송 전 |
+| state     | contract                     |
+| --------- | ---------------------------- |
+| idle      | 인증번호 발송 전             |
 | code_sent | 인증번호 입력 및 타이머 진행 |
-| error | 인증 실패 사유 표시 |
+| error     | 인증 실패 사유 표시          |
 
 **actions**
 
-| trigger | condition | result |
-| --- | --- | --- |
-| 인증번호 발송 | - | 현재 화면 `code_sent` 상태 |
-| 확인 | 인증 성공 | `/register/password` |
-| 확인 | 인증 실패 | 현재 화면 `error` 상태 |
-| 재발송 | - | 현재 화면 `code_sent` 상태로 타이머 초기화 |
-| 이전 | - | `/register/terms` |
+| trigger       | condition | result                                     |
+| ------------- | --------- | ------------------------------------------ |
+| 인증번호 발송 | -         | 현재 화면 `code_sent` 상태                 |
+| 확인          | 인증 성공 | `/register/password`                       |
+| 확인          | 인증 실패 | 현재 화면 `error` 상태                     |
+| 재발송        | -         | 현재 화면 `code_sent` 상태로 타이머 초기화 |
+| 이전          | -         | `/register/terms`                          |
 
 ---
 
@@ -105,11 +105,11 @@
 
 **actions**
 
-| trigger | condition | result |
-| --- | --- | --- |
-| 다음 | 비밀번호와 확인값 일치 | `/register/account` |
-| 다음 | 검증 실패 | 현재 화면에서 오류 표시 |
-| 이전 | - | `/register/verify` |
+| trigger | condition              | result                  |
+| ------- | ---------------------- | ----------------------- |
+| 다음    | 비밀번호와 확인값 일치 | `/register/account`     |
+| 다음    | 검증 실패              | 현재 화면에서 오류 표시 |
+| 이전    | -                      | `/register/verify`      |
 
 ---
 
@@ -122,23 +122,23 @@
 
 **states**
 
-| state | contract |
-| --- | --- |
-| idle | 계좌 입력 대기 |
-| code_sent | 1원 인증번호 입력 및 타이머 진행 |
-| verified | 계좌 인증 완료 |
-| error | 계좌 확인 또는 인증 실패 사유 표시 |
+| state     | contract                           |
+| --------- | ---------------------------------- |
+| idle      | 계좌 입력 대기                     |
+| code_sent | 1원 인증번호 입력 및 타이머 진행   |
+| verified  | 계좌 인증 완료                     |
+| error     | 계좌 확인 또는 인증 실패 사유 표시 |
 
 **actions**
 
-| trigger | condition | result |
-| --- | --- | --- |
-| 1원 인증 발송 | 발송 성공 | 현재 화면 `code_sent` 상태 |
-| 인증 확인 | 인증 성공 | 현재 화면 `verified` 상태 |
-| 인증 확인 | 인증 실패 | 현재 화면 `error` 상태 |
-| 재발송 | - | 현재 화면 `code_sent` 상태로 타이머 초기화 |
-| 다음 | 계좌 인증 완료 | `/register/pin` |
-| 이전 | - | `/register/password` |
+| trigger       | condition      | result                                     |
+| ------------- | -------------- | ------------------------------------------ |
+| 1원 인증 발송 | 발송 성공      | 현재 화면 `code_sent` 상태                 |
+| 인증 확인     | 인증 성공      | 현재 화면 `verified` 상태                  |
+| 인증 확인     | 인증 실패      | 현재 화면 `error` 상태                     |
+| 재발송        | -              | 현재 화면 `code_sent` 상태로 타이머 초기화 |
+| 다음          | 계좌 인증 완료 | `/register/pin`                            |
+| 이전          | -              | `/register/password`                       |
 
 ---
 
@@ -151,10 +151,10 @@
 
 **actions**
 
-| trigger | result |
-| --- | --- |
+| trigger       | result                  |
+| ------------- | ----------------------- |
 | PIN 입력 완료 | `/register/pin-confirm` |
-| 이전 | `/register/account` |
+| 이전          | `/register/account`     |
 
 ---
 
@@ -167,11 +167,11 @@
 
 **actions**
 
-| trigger | condition | result |
-| --- | --- | --- |
-| PIN 재입력 완료 | 최초 PIN과 일치 | `/register/processing` |
-| PIN 재입력 완료 | 불일치 | 현재 화면에서 오류 표시 후 재입력 |
-| 이전 | - | `/register/pin` |
+| trigger         | condition       | result                            |
+| --------------- | --------------- | --------------------------------- |
+| PIN 재입력 완료 | 최초 PIN과 일치 | `/register/processing`            |
+| PIN 재입력 완료 | 불일치          | 현재 화면에서 오류 표시 후 재입력 |
+| 이전            | -               | `/register/pin`                   |
 
 ---
 
@@ -185,16 +185,16 @@
 
 **states**
 
-| state | contract |
-| --- | --- |
+| state   | contract        |
+| ------- | --------------- |
 | loading | 회원가입 처리중 |
 
 **actions**
 
-| trigger | condition | result |
-| --- | --- | --- |
-| 처리 성공 | - | `/register/complete` |
-| 처리 실패 | - | `/register/account`로 돌아가 실패 사유 표시 |
+| trigger   | condition | result                                      |
+| --------- | --------- | ------------------------------------------- |
+| 처리 성공 | -         | `/register/complete`                        |
+| 처리 실패 | -         | `/register/account`로 돌아가 실패 사유 표시 |
 
 ---
 
@@ -207,8 +207,8 @@
 
 **actions**
 
-| trigger | result |
-| --- | --- |
+| trigger  | result  |
+| -------- | ------- |
 | 시작하기 | `/home` |
 
 ---
@@ -226,10 +226,10 @@
 
 **actions**
 
-| trigger | result |
-| --- | --- |
-| 다음 | `/merchant/register/verify` |
-| 이전 | `/` |
+| trigger | result                      |
+| ------- | --------------------------- |
+| 다음    | `/merchant/register/verify` |
+| 이전    | `/`                         |
 
 ---
 
@@ -242,21 +242,21 @@
 
 **states**
 
-| state | contract |
-| --- | --- |
-| idle | 인증번호 발송 전 |
+| state     | contract                     |
+| --------- | ---------------------------- |
+| idle      | 인증번호 발송 전             |
 | code_sent | 인증번호 입력 및 타이머 진행 |
-| error | 인증 실패 사유 표시 |
+| error     | 인증 실패 사유 표시          |
 
 **actions**
 
-| trigger | condition | result |
-| --- | --- | --- |
-| 인증번호 발송 | - | 현재 화면 `code_sent` 상태 |
-| 확인 | 인증 성공 | `/merchant/register/password` |
-| 확인 | 인증 실패 | 현재 화면 `error` 상태 |
-| 재발송 | - | 현재 화면 `code_sent` 상태로 타이머 초기화 |
-| 이전 | - | `/merchant/register/terms` |
+| trigger       | condition | result                                     |
+| ------------- | --------- | ------------------------------------------ |
+| 인증번호 발송 | -         | 현재 화면 `code_sent` 상태                 |
+| 확인          | 인증 성공 | `/merchant/register/password`              |
+| 확인          | 인증 실패 | 현재 화면 `error` 상태                     |
+| 재발송        | -         | 현재 화면 `code_sent` 상태로 타이머 초기화 |
+| 이전          | -         | `/merchant/register/terms`                 |
 
 ---
 
@@ -269,11 +269,11 @@
 
 **actions**
 
-| trigger | condition | result |
-| --- | --- | --- |
-| 다음 | 비밀번호와 확인값 일치 | `/merchant/register/business` |
-| 다음 | 검증 실패 | 현재 화면에서 오류 표시 |
-| 이전 | - | `/merchant/register/verify` |
+| trigger | condition              | result                        |
+| ------- | ---------------------- | ----------------------------- |
+| 다음    | 비밀번호와 확인값 일치 | `/merchant/register/business` |
+| 다음    | 검증 실패              | 현재 화면에서 오류 표시       |
+| 이전    | -                      | `/merchant/register/verify`   |
 
 ---
 
@@ -286,21 +286,21 @@
 
 **states**
 
-| state | contract |
-| --- | --- |
-| idle | 사업자 확인 전 |
-| checking | 사업자 확인 요청 처리중 |
-| verified | 사업자 확인 완료 |
-| error | 사업자 확인 실패 사유 표시 |
+| state    | contract                   |
+| -------- | -------------------------- |
+| idle     | 사업자 확인 전             |
+| checking | 사업자 확인 요청 처리중    |
+| verified | 사업자 확인 완료           |
+| error    | 사업자 확인 실패 사유 표시 |
 
 **actions**
 
-| trigger | condition | result |
-| --- | --- | --- |
-| 사업자 확인 | 요청 성공 | 현재 화면 `verified` 상태 |
-| 사업자 확인 | 요청 실패 | 현재 화면 `error` 상태 |
-| 다음 | 사업자 확인 완료 | `/merchant/register/account` |
-| 이전 | - | `/merchant/register/password` |
+| trigger     | condition        | result                        |
+| ----------- | ---------------- | ----------------------------- |
+| 사업자 확인 | 요청 성공        | 현재 화면 `verified` 상태     |
+| 사업자 확인 | 요청 실패        | 현재 화면 `error` 상태        |
+| 다음        | 사업자 확인 완료 | `/merchant/register/account`  |
+| 이전        | -                | `/merchant/register/password` |
 
 ---
 
@@ -313,23 +313,23 @@
 
 **states**
 
-| state | contract |
-| --- | --- |
-| idle | 계좌 입력 대기 |
-| code_sent | 1원 인증번호 입력 및 타이머 진행 |
-| verified | 계좌 인증 완료 |
-| error | 계좌 확인 또는 인증 실패 사유 표시 |
+| state     | contract                           |
+| --------- | ---------------------------------- |
+| idle      | 계좌 입력 대기                     |
+| code_sent | 1원 인증번호 입력 및 타이머 진행   |
+| verified  | 계좌 인증 완료                     |
+| error     | 계좌 확인 또는 인증 실패 사유 표시 |
 
 **actions**
 
-| trigger | condition | result |
-| --- | --- | --- |
-| 1원 인증 발송 | 발송 성공 | 현재 화면 `code_sent` 상태 |
-| 인증 확인 | 인증 성공 | 현재 화면 `verified` 상태 |
-| 인증 확인 | 인증 실패 | 현재 화면 `error` 상태 |
-| 재발송 | - | 현재 화면 `code_sent` 상태로 타이머 초기화 |
-| 다음 | 계좌 인증 완료 | `/merchant/register/pin` |
-| 이전 | - | `/merchant/register/business` |
+| trigger       | condition      | result                                     |
+| ------------- | -------------- | ------------------------------------------ |
+| 1원 인증 발송 | 발송 성공      | 현재 화면 `code_sent` 상태                 |
+| 인증 확인     | 인증 성공      | 현재 화면 `verified` 상태                  |
+| 인증 확인     | 인증 실패      | 현재 화면 `error` 상태                     |
+| 재발송        | -              | 현재 화면 `code_sent` 상태로 타이머 초기화 |
+| 다음          | 계좌 인증 완료 | `/merchant/register/pin`                   |
+| 이전          | -              | `/merchant/register/business`              |
 
 ---
 
@@ -342,10 +342,10 @@
 
 **actions**
 
-| trigger | result |
-| --- | --- |
+| trigger       | result                           |
+| ------------- | -------------------------------- |
 | PIN 입력 완료 | `/merchant/register/pin-confirm` |
-| 이전 | `/merchant/register/account` |
+| 이전          | `/merchant/register/account`     |
 
 ---
 
@@ -358,11 +358,11 @@
 
 **actions**
 
-| trigger | condition | result |
-| --- | --- | --- |
-| PIN 재입력 완료 | 최초 PIN과 일치 | `/merchant/register/processing` |
-| PIN 재입력 완료 | 불일치 | 현재 화면에서 오류 표시 후 재입력 |
-| 이전 | - | `/merchant/register/pin` |
+| trigger         | condition       | result                            |
+| --------------- | --------------- | --------------------------------- |
+| PIN 재입력 완료 | 최초 PIN과 일치 | `/merchant/register/processing`   |
+| PIN 재입력 완료 | 불일치          | 현재 화면에서 오류 표시 후 재입력 |
+| 이전            | -               | `/merchant/register/pin`          |
 
 ---
 
@@ -376,16 +376,16 @@
 
 **states**
 
-| state | contract |
-| --- | --- |
+| state   | contract        |
+| ------- | --------------- |
 | loading | 회원가입 처리중 |
 
 **actions**
 
-| trigger | condition | result |
-| --- | --- | --- |
-| 처리 성공 | - | `/merchant/register/complete` |
-| 처리 실패 | - | `/merchant/register/account`로 돌아가 실패 사유 표시 |
+| trigger   | condition | result                                               |
+| --------- | --------- | ---------------------------------------------------- |
+| 처리 성공 | -         | `/merchant/register/complete`                        |
+| 처리 실패 | -         | `/merchant/register/account`로 돌아가 실패 사유 표시 |
 
 ---
 
@@ -398,6 +398,6 @@
 
 **actions**
 
-| trigger | result |
-| --- | --- |
+| trigger  | result           |
+| -------- | ---------------- |
 | 시작하기 | `/merchant/home` |

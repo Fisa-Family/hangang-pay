@@ -20,13 +20,13 @@
 
 **actions**
 
-| trigger | result |
-| --- | --- |
-| QR 결제 | 카메라 QR 처리 시작 |
-| QR 인식 성공 | `/pay/amount` |
-| QR 인식 실패 또는 취소 | 현재 화면 유지 |
-| 충전 | `/charge/amount` |
-| 환불 | `/refund/check` |
+| trigger                | result              |
+| ---------------------- | ------------------- |
+| QR 결제                | 카메라 QR 처리 시작 |
+| QR 인식 성공           | `/pay/amount`       |
+| QR 인식 실패 또는 취소 | 현재 화면 유지      |
+| 충전                   | `/charge/amount`    |
+| 환불                   | `/refund/check`     |
 
 **implementation notes**
 
@@ -49,19 +49,19 @@
 
 **states**
 
-| state | contract |
-| --- | --- |
-| requesting_permission | 카메라 권한 요청중 |
-| scanning | QR 인식 대기 |
-| error | 권한 거부, 카메라 사용 불가, QR 인식 실패 사유 표시 |
+| state                 | contract                                            |
+| --------------------- | --------------------------------------------------- |
+| requesting_permission | 카메라 권한 요청중                                  |
+| scanning              | QR 인식 대기                                        |
+| error                 | 권한 거부, 카메라 사용 불가, QR 인식 실패 사유 표시 |
 
 **actions**
 
-| trigger | condition | result |
-| --- | --- | --- |
-| QR 인식 성공 | 가맹점 식별자 확인 | `/pay/amount` |
-| 취소 | - | `/home` |
-| 재시도 | error 상태 | 카메라 QR 처리 재시작 |
+| trigger      | condition          | result                |
+| ------------ | ------------------ | --------------------- |
+| QR 인식 성공 | 가맹점 식별자 확인 | `/pay/amount`         |
+| 취소         | -                  | `/home`               |
+| 재시도       | error 상태         | 카메라 QR 처리 재시작 |
 
 **implementation notes**
 
@@ -81,19 +81,19 @@
 
 **states**
 
-| state | contract |
-| --- | --- |
-| loading | 가맹점 정보 확인중 |
-| ready | 금액 입력 가능 |
-| error | 가맹점 확인 실패 또는 금액 검증 실패 사유 표시 |
+| state   | contract                                       |
+| ------- | ---------------------------------------------- |
+| loading | 가맹점 정보 확인중                             |
+| ready   | 금액 입력 가능                                 |
+| error   | 가맹점 확인 실패 또는 금액 검증 실패 사유 표시 |
 
 **actions**
 
-| trigger | condition | result |
-| --- | --- | --- |
-| 다음 | 유효한 금액 | `/pay/pin` |
-| 다음 | 검증 실패 | 현재 화면 `error` 상태 |
-| 취소 | - | `/home` |
+| trigger | condition   | result                 |
+| ------- | ----------- | ---------------------- |
+| 다음    | 유효한 금액 | `/pay/pin`             |
+| 다음    | 검증 실패   | 현재 화면 `error` 상태 |
+| 취소    | -           | `/home`                |
 
 ---
 
@@ -106,11 +106,11 @@
 
 **actions**
 
-| trigger | condition | result |
-| --- | --- | --- |
-| PIN 입력 완료 | PIN 형식 유효 | `/pay/processing` |
-| PIN 입력 완료 | 검증 실패 | 현재 화면에서 오류 표시 후 재입력 |
-| 이전 | - | `/pay/amount` |
+| trigger       | condition     | result                            |
+| ------------- | ------------- | --------------------------------- |
+| PIN 입력 완료 | PIN 형식 유효 | `/pay/processing`                 |
+| PIN 입력 완료 | 검증 실패     | 현재 화면에서 오류 표시 후 재입력 |
+| 이전          | -             | `/pay/amount`                     |
 
 ---
 
@@ -124,16 +124,16 @@
 
 **states**
 
-| state | contract |
-| --- | --- |
+| state   | contract    |
+| ------- | ----------- |
 | loading | 결제 처리중 |
 
 **actions**
 
-| trigger | condition | result |
-| --- | --- | --- |
-| 처리 성공 | - | `/pay/complete` |
-| 처리 실패 | - | `/pay/amount`로 돌아가 실패 사유 표시 |
+| trigger   | condition | result                                |
+| --------- | --------- | ------------------------------------- |
+| 처리 성공 | -         | `/pay/complete`                       |
+| 처리 실패 | -         | `/pay/amount`로 돌아가 실패 사유 표시 |
 
 ---
 
@@ -146,9 +146,9 @@
 
 **actions**
 
-| trigger | result |
-| --- | --- |
-| 홈으로 | `/home` |
+| trigger | result  |
+| ------- | ------- |
+| 홈으로  | `/home` |
 
 ---
 
@@ -165,18 +165,18 @@
 
 **states**
 
-| state | contract |
-| --- | --- |
-| ready | 금액 입력 가능 |
+| state | contract                      |
+| ----- | ----------------------------- |
+| ready | 금액 입력 가능                |
 | error | 충전 금액 검증 실패 사유 표시 |
 
 **actions**
 
-| trigger | condition | result |
-| --- | --- | --- |
-| 다음 | 유효한 금액 | `/charge/pin` |
-| 다음 | 검증 실패 | 현재 화면 `error` 상태 |
-| 이전 | - | `/home` |
+| trigger | condition   | result                 |
+| ------- | ----------- | ---------------------- |
+| 다음    | 유효한 금액 | `/charge/pin`          |
+| 다음    | 검증 실패   | 현재 화면 `error` 상태 |
+| 이전    | -           | `/home`                |
 
 ---
 
@@ -189,11 +189,11 @@
 
 **actions**
 
-| trigger | condition | result |
-| --- | --- | --- |
-| PIN 입력 완료 | PIN 형식 유효 | `/charge/processing` |
-| PIN 입력 완료 | 검증 실패 | 현재 화면에서 오류 표시 후 재입력 |
-| 이전 | - | `/charge/amount` |
+| trigger       | condition     | result                            |
+| ------------- | ------------- | --------------------------------- |
+| PIN 입력 완료 | PIN 형식 유효 | `/charge/processing`              |
+| PIN 입력 완료 | 검증 실패     | 현재 화면에서 오류 표시 후 재입력 |
+| 이전          | -             | `/charge/amount`                  |
 
 ---
 
@@ -207,16 +207,16 @@
 
 **states**
 
-| state | contract |
-| --- | --- |
+| state   | contract    |
+| ------- | ----------- |
 | loading | 충전 처리중 |
 
 **actions**
 
-| trigger | condition | result |
-| --- | --- | --- |
-| 처리 성공 | - | `/charge/complete` |
-| 처리 실패 | - | `/charge/amount`로 돌아가 실패 사유 표시 |
+| trigger   | condition | result                                   |
+| --------- | --------- | ---------------------------------------- |
+| 처리 성공 | -         | `/charge/complete`                       |
+| 처리 실패 | -         | `/charge/amount`로 돌아가 실패 사유 표시 |
 
 ---
 
@@ -229,9 +229,9 @@
 
 **actions**
 
-| trigger | result |
-| --- | --- |
-| 홈으로 | `/home` |
+| trigger | result  |
+| ------- | ------- |
+| 홈으로  | `/home` |
 
 ---
 
@@ -248,21 +248,21 @@
 
 **states**
 
-| state | contract |
-| --- | --- |
-| loading | 환불 가능 여부 확인중 |
-| available | 환불 금액 입력 가능 |
-| unavailable | 환불 불가 사유 표시 |
-| error | 환불 가능 여부 확인 또는 금액 검증 실패 사유 표시 |
+| state       | contract                                          |
+| ----------- | ------------------------------------------------- |
+| loading     | 환불 가능 여부 확인중                             |
+| available   | 환불 금액 입력 가능                               |
+| unavailable | 환불 불가 사유 표시                               |
+| error       | 환불 가능 여부 확인 또는 금액 검증 실패 사유 표시 |
 
 **actions**
 
-| trigger | condition | result |
-| --- | --- | --- |
-| 다음 | 환불 가능 및 유효한 금액 | `/refund/pin` |
-| 다음 | 검증 실패 | 현재 화면 `error` 상태 |
-| 확인 | 환불 불가 상태 | `/home` |
-| 이전 | - | `/home` |
+| trigger | condition                | result                 |
+| ------- | ------------------------ | ---------------------- |
+| 다음    | 환불 가능 및 유효한 금액 | `/refund/pin`          |
+| 다음    | 검증 실패                | 현재 화면 `error` 상태 |
+| 확인    | 환불 불가 상태           | `/home`                |
+| 이전    | -                        | `/home`                |
 
 ---
 
@@ -275,11 +275,11 @@
 
 **actions**
 
-| trigger | condition | result |
-| --- | --- | --- |
-| PIN 입력 완료 | PIN 형식 유효 | `/refund/processing` |
-| PIN 입력 완료 | 검증 실패 | 현재 화면에서 오류 표시 후 재입력 |
-| 이전 | - | `/refund/check` |
+| trigger       | condition     | result                            |
+| ------------- | ------------- | --------------------------------- |
+| PIN 입력 완료 | PIN 형식 유효 | `/refund/processing`              |
+| PIN 입력 완료 | 검증 실패     | 현재 화면에서 오류 표시 후 재입력 |
+| 이전          | -             | `/refund/check`                   |
 
 ---
 
@@ -293,16 +293,16 @@
 
 **states**
 
-| state | contract |
-| --- | --- |
+| state   | contract    |
+| ------- | ----------- |
 | loading | 환불 처리중 |
 
 **actions**
 
-| trigger | condition | result |
-| --- | --- | --- |
-| 처리 성공 | - | `/refund/complete` |
-| 처리 실패 | - | `/refund/check`로 돌아가 실패 사유 표시 |
+| trigger   | condition | result                                  |
+| --------- | --------- | --------------------------------------- |
+| 처리 성공 | -         | `/refund/complete`                      |
+| 처리 실패 | -         | `/refund/check`로 돌아가 실패 사유 표시 |
 
 ---
 
@@ -315,6 +315,6 @@
 
 **actions**
 
-| trigger | result |
-| --- | --- |
-| 홈으로 | `/home` |
+| trigger | result  |
+| ------- | ------- |
+| 홈으로  | `/home` |

@@ -15,22 +15,22 @@
 
 **states**
 
-| state | contract |
-| --- | --- |
-| loading | 홈 데이터 조회중 |
-| ready | 홈 데이터와 최근 결제내역 표시 |
-| empty | 최근 결제내역 없음 |
-| error | 홈 데이터 조회 실패 사유 표시 |
+| state   | contract                       |
+| ------- | ------------------------------ |
+| loading | 홈 데이터 조회중               |
+| ready   | 홈 데이터와 최근 결제내역 표시 |
+| empty   | 최근 결제내역 없음             |
+| error   | 홈 데이터 조회 실패 사유 표시  |
 
 **actions**
 
-| trigger | result |
-| --- | --- |
-| QR 조회 | `/merchant/qr` |
-| 결제내역 | `/merchant/payments` |
-| 정산내역 | `/merchant/settlements` |
-| 정산신청 | `/merchant/settlements/amount` |
-| 최근 결제 row 클릭 | `/merchant/payments/:id` |
+| trigger            | result                         |
+| ------------------ | ------------------------------ |
+| QR 조회            | `/merchant/qr`                 |
+| 결제내역           | `/merchant/payments`           |
+| 정산내역           | `/merchant/settlements`        |
+| 정산신청           | `/merchant/settlements/amount` |
+| 최근 결제 row 클릭 | `/merchant/payments/:id`       |
 
 ---
 
@@ -45,18 +45,18 @@
 
 **states**
 
-| state | contract |
-| --- | --- |
-| loading | QR 조회중 |
-| ready | QR 표시 |
-| error | QR 조회 실패 사유 표시 |
+| state   | contract               |
+| ------- | ---------------------- |
+| loading | QR 조회중              |
+| ready   | QR 표시                |
+| error   | QR 조회 실패 사유 표시 |
 
 **actions**
 
-| trigger | result |
-| --- | --- |
+| trigger  | result                  |
+| -------- | ----------------------- |
 | 새로고침 | 현재 화면에서 QR 재조회 |
-| 뒤로 | `/merchant/home` |
+| 뒤로     | `/merchant/home`        |
 
 ---
 
@@ -73,19 +73,19 @@
 
 **states**
 
-| state | contract |
-| --- | --- |
-| loading | 결제내역 조회중 |
-| ready | 결제내역 표시 |
-| empty | 결제내역 없음 |
-| error | 결제내역 조회 실패 사유 표시 |
+| state   | contract                     |
+| ------- | ---------------------------- |
+| loading | 결제내역 조회중              |
+| ready   | 결제내역 표시                |
+| empty   | 결제내역 없음                |
+| error   | 결제내역 조회 실패 사유 표시 |
 
 **actions**
 
-| trigger | result |
-| --- | --- |
+| trigger       | result                   |
+| ------------- | ------------------------ |
 | 결제 row 클릭 | `/merchant/payments/:id` |
-| 뒤로 | `/merchant/home` |
+| 뒤로          | `/merchant/home`         |
 
 ---
 
@@ -98,19 +98,19 @@
 
 **states**
 
-| state | contract |
-| --- | --- |
-| loading | 결제 상세 조회중 |
-| ready | 결제 상세 표시 |
-| error | 결제 상세 조회 또는 취소 실패 사유 표시 |
+| state   | contract                                |
+| ------- | --------------------------------------- |
+| loading | 결제 상세 조회중                        |
+| ready   | 결제 상세 표시                          |
+| error   | 결제 상세 조회 또는 취소 실패 사유 표시 |
 
 **actions**
 
-| trigger | condition | result |
-| --- | --- | --- |
-| 취소 | 취소 가능 | `/merchant/payments/:id/cancel/pin` |
-| 취소 | 취소 불가 | 현재 화면에서 취소 불가 사유 표시 |
-| 뒤로 | - | `/merchant/payments` |
+| trigger | condition | result                              |
+| ------- | --------- | ----------------------------------- |
+| 취소    | 취소 가능 | `/merchant/payments/:id/cancel/pin` |
+| 취소    | 취소 불가 | 현재 화면에서 취소 불가 사유 표시   |
+| 뒤로    | -         | `/merchant/payments`                |
 
 ---
 
@@ -123,11 +123,11 @@
 
 **actions**
 
-| trigger | condition | result |
-| --- | --- | --- |
+| trigger       | condition     | result                                     |
+| ------------- | ------------- | ------------------------------------------ |
 | PIN 입력 완료 | PIN 형식 유효 | `/merchant/payments/:id/cancel/processing` |
-| PIN 입력 완료 | 검증 실패 | 현재 화면에서 오류 표시 후 재입력 |
-| 이전 | - | `/merchant/payments/:id` |
+| PIN 입력 완료 | 검증 실패     | 현재 화면에서 오류 표시 후 재입력          |
+| 이전          | -             | `/merchant/payments/:id`                   |
 
 ---
 
@@ -141,16 +141,16 @@
 
 **states**
 
-| state | contract |
-| --- | --- |
+| state   | contract         |
+| ------- | ---------------- |
 | loading | 결제 취소 처리중 |
 
 **actions**
 
-| trigger | condition | result |
-| --- | --- | --- |
-| 처리 성공 | - | `/merchant/payments/:id/cancel/complete` |
-| 처리 실패 | - | `/merchant/payments/:id`로 돌아가 실패 사유 표시 |
+| trigger   | condition | result                                           |
+| --------- | --------- | ------------------------------------------------ |
+| 처리 성공 | -         | `/merchant/payments/:id/cancel/complete`         |
+| 처리 실패 | -         | `/merchant/payments/:id`로 돌아가 실패 사유 표시 |
 
 ---
 
@@ -163,10 +163,10 @@
 
 **actions**
 
-| trigger | result |
-| --- | --- |
-| 확인 | `/merchant/payments/:id` |
-| 홈으로 | `/merchant/home` |
+| trigger | result                   |
+| ------- | ------------------------ |
+| 확인    | `/merchant/payments/:id` |
+| 홈으로  | `/merchant/home`         |
 
 ---
 
@@ -181,20 +181,20 @@
 
 **states**
 
-| state | contract |
-| --- | --- |
-| loading | 정산내역 조회중 |
-| ready | 정산내역 표시 |
-| empty | 정산내역 없음 |
-| error | 정산내역 조회 실패 사유 표시 |
+| state   | contract                     |
+| ------- | ---------------------------- |
+| loading | 정산내역 조회중              |
+| ready   | 정산내역 표시                |
+| empty   | 정산내역 없음                |
+| error   | 정산내역 조회 실패 사유 표시 |
 
 **actions**
 
-| trigger | result |
-| --- | --- |
-| 정산 row 클릭 | `/merchant/settlements/:id` |
-| 정산신청 | `/merchant/settlements/amount` |
-| 뒤로 | `/merchant/home` |
+| trigger       | result                         |
+| ------------- | ------------------------------ |
+| 정산 row 클릭 | `/merchant/settlements/:id`    |
+| 정산신청      | `/merchant/settlements/amount` |
+| 뒤로          | `/merchant/home`               |
 
 ---
 
@@ -207,17 +207,17 @@
 
 **states**
 
-| state | contract |
-| --- | --- |
-| loading | 정산 상세 조회중 |
-| ready | 정산 상세 표시 |
-| error | 정산 상세 조회 실패 사유 표시 |
+| state   | contract                      |
+| ------- | ----------------------------- |
+| loading | 정산 상세 조회중              |
+| ready   | 정산 상세 표시                |
+| error   | 정산 상세 조회 실패 사유 표시 |
 
 **actions**
 
-| trigger | result |
-| --- | --- |
-| 뒤로 | `/merchant/settlements` |
+| trigger | result                  |
+| ------- | ----------------------- |
+| 뒤로    | `/merchant/settlements` |
 
 ---
 
@@ -234,19 +234,19 @@
 
 **states**
 
-| state | contract |
-| --- | --- |
-| loading | 정산 가능 금액 조회중 |
-| ready | 정산 신청 가능 |
-| error | 정산 가능 금액 조회 또는 신청 실패 사유 표시 |
+| state   | contract                                     |
+| ------- | -------------------------------------------- |
+| loading | 정산 가능 금액 조회중                        |
+| ready   | 정산 신청 가능                               |
+| error   | 정산 가능 금액 조회 또는 신청 실패 사유 표시 |
 
 **actions**
 
-| trigger | condition | result |
-| --- | --- | --- |
-| 신청 | 정산 신청 가능 | `/merchant/settlements/pin` |
-| 신청 | 검증 실패 | 현재 화면 `error` 상태 |
-| 이전 | - | `/merchant/home` 또는 `/merchant/settlements` |
+| trigger | condition      | result                                        |
+| ------- | -------------- | --------------------------------------------- |
+| 신청    | 정산 신청 가능 | `/merchant/settlements/pin`                   |
+| 신청    | 검증 실패      | 현재 화면 `error` 상태                        |
+| 이전    | -              | `/merchant/home` 또는 `/merchant/settlements` |
 
 ---
 
@@ -259,11 +259,11 @@
 
 **actions**
 
-| trigger | condition | result |
-| --- | --- | --- |
+| trigger       | condition     | result                             |
+| ------------- | ------------- | ---------------------------------- |
 | PIN 입력 완료 | PIN 형식 유효 | `/merchant/settlements/processing` |
-| PIN 입력 완료 | 검증 실패 | 현재 화면에서 오류 표시 후 재입력 |
-| 이전 | - | `/merchant/settlements/amount` |
+| PIN 입력 완료 | 검증 실패     | 현재 화면에서 오류 표시 후 재입력  |
+| 이전          | -             | `/merchant/settlements/amount`     |
 
 ---
 
@@ -277,16 +277,16 @@
 
 **states**
 
-| state | contract |
-| --- | --- |
+| state   | contract    |
+| ------- | ----------- |
 | loading | 정산 처리중 |
 
 **actions**
 
-| trigger | condition | result |
-| --- | --- | --- |
-| 처리 성공 | - | `/merchant/settlements/complete` |
-| 처리 실패 | - | `/merchant/settlements/amount`로 돌아가 실패 사유 표시 |
+| trigger   | condition | result                                                 |
+| --------- | --------- | ------------------------------------------------------ |
+| 처리 성공 | -         | `/merchant/settlements/complete`                       |
+| 처리 실패 | -         | `/merchant/settlements/amount`로 돌아가 실패 사유 표시 |
 
 ---
 
@@ -299,10 +299,10 @@
 
 **actions**
 
-| trigger | result |
-| --- | --- |
-| 확인 | `/merchant/settlements` |
-| 홈으로 | `/merchant/home` |
+| trigger | result                  |
+| ------- | ----------------------- |
+| 확인    | `/merchant/settlements` |
+| 홈으로  | `/merchant/home`        |
 
 ---
 
@@ -317,10 +317,10 @@
 
 **actions**
 
-| trigger | result |
-| --- | --- |
+| trigger     | result                  |
+| ----------- | ----------------------- |
 | 가맹점 정보 | `/merchant/mypage/info` |
-| 로그아웃 | `C-LOGOUT-01` 모달 열기 |
+| 로그아웃    | `C-LOGOUT-01` 모달 열기 |
 
 ---
 
@@ -333,14 +333,14 @@
 
 **states**
 
-| state | contract |
-| --- | --- |
-| loading | 가맹점 정보 조회중 |
-| ready | 가맹점 정보 표시 |
-| error | 가맹점 정보 조회 실패 사유 표시 |
+| state   | contract                        |
+| ------- | ------------------------------- |
+| loading | 가맹점 정보 조회중              |
+| ready   | 가맹점 정보 표시                |
+| error   | 가맹점 정보 조회 실패 사유 표시 |
 
 **actions**
 
-| trigger | result |
-| --- | --- |
-| 뒤로 | `/merchant/mypage` |
+| trigger | result             |
+| ------- | ------------------ |
+| 뒤로    | `/merchant/mypage` |
