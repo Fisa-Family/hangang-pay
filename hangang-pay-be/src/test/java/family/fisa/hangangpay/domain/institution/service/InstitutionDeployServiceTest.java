@@ -6,6 +6,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import family.fisa.hangangpay.domain.blockchain.service.BlockchainTxService;
 import family.fisa.hangangpay.domain.institution.code.error.InstitutionErrorCode;
 import family.fisa.hangangpay.domain.institution.entity.ContractAddress;
 import family.fisa.hangangpay.domain.institution.entity.ContractType;
@@ -28,8 +29,10 @@ class InstitutionDeployServiceTest {
 
     private static final String PRIVATE_KEY =
             "8f2a55949038a9610f50fb23b5883af3b4ecb3c3bb792cbcefbd1542c692be63";
+
     private static final String WALLET_ADDRESS = "0xFE3B557E8Fb62b89F4916B721be55cEb828dBd73";
 
+    @Mock private BlockchainTxService blockchainTxService;
     @Mock private WalletKeyCipher walletKeyCipher;
     @Mock private InstitutionRepository institutionRepository;
     @Mock private ContractAddressRepository contractAddressRepository;
