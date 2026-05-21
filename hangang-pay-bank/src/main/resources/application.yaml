@@ -1,0 +1,21 @@
+spring:
+  profiles:
+    active: local
+  application:
+    name: hangang-pay-bank
+server:
+  port: 8081
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /api-docs
+
+wallet:
+  key-cipher:
+    secret: ${WALLET_KEY_CIPHER_SECRET:dev-secret-please-change-in-production}
+
+blockchain:
+  private-network:
+    chain-id: 1337

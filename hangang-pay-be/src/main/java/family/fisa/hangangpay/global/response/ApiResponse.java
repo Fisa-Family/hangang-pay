@@ -9,10 +9,14 @@ import family.fisa.hangangpay.global.code.success.BaseSuccessCode;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.springframework.http.HttpStatus;
 
 @Builder(access = AccessLevel.PRIVATE)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
+@Getter
 @JsonPropertyOrder({"isSuccess", "status", "code", "message", "result"})
 @JsonInclude(Include.NON_NULL)
 public class ApiResponse<T> {

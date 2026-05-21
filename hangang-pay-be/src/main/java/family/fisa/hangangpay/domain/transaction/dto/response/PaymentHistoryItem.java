@@ -1,7 +1,7 @@
 package family.fisa.hangangpay.domain.transaction.dto.response;
 
-import family.fisa.hangangpay.domain.payment.entity.Payment;
-import family.fisa.hangangpay.domain.payment.entity.PaymentStatus;
+import family.fisa.hangangpay.domain.transaction.entity.Transaction;
+import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.user.dto.UserHistoryType;
 import family.fisa.hangangpay.global.pagination.CursorItem;
 import java.math.BigDecimal;
@@ -12,7 +12,7 @@ public record PaymentHistoryItem(
         String merchantName,
         BigDecimal amount,
         LocalDateTime paidAt,
-        PaymentStatus status,
+        TransactionStatus status,
         UserHistoryType historyType,
         LocalDateTime cursorCreatedAt,
         Long cursorId)
@@ -27,15 +27,15 @@ public record PaymentHistoryItem(
         return cursorId;
     }
 
-    public static PaymentHistoryItem from(Payment payment, String merchantName) {
+    public static PaymentHistoryItem from(Transaction transaction, String merchantName) {
         return new PaymentHistoryItem(
-                payment.getApprovalNumber(),
+                transaction.getApprovalNumber(),
                 merchantName,
-                payment.getAmount(),
-                payment.getCreatedAt(),
-                payment.getStatus(),
+                transaction.getAmount(),
+                transaction.getCreatedAt(),
+                transaction.getStatus(),
                 UserHistoryType.PAYMENT,
-                payment.getCreatedAt(),
-                payment.getId());
+                transaction.getCreatedAt(),
+                transaction.getId());
     }
 }

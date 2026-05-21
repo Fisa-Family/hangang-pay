@@ -21,7 +21,9 @@ public enum GeneralErrorCode implements BaseErrorCode {
     COMMON_VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "COMMON_VALIDATION_FAILED", "잘못된 파라미터 입니다."),
 
     COMMON_INVALID_HISTORY_TYPE(
-            HttpStatus.BAD_REQUEST, "COMMON_INVALID_HISTORY_TYPE", "지원하지 않는 내역 타입입니다.");
+            HttpStatus.BAD_REQUEST, "COMMON_INVALID_HISTORY_TYPE", "지원하지 않는 내역 타입입니다."),
+
+    BANK_CALL_FAILED(HttpStatus.BAD_GATEWAY, "BANK_CALL_FAILED", "은행 호출에 실패했습니다.");
 
     private final HttpStatus status;
     private final String code;

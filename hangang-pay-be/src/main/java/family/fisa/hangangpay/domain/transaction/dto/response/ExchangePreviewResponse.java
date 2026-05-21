@@ -1,3 +1,9 @@
 package family.fisa.hangangpay.domain.transaction.dto.response;
 
-public class ExchangePreviewResponse {}
+import java.math.BigDecimal;
+
+public record ExchangePreviewResponse(
+        BigDecimal exchangeAmount,
+        BigDecimal discountRate,
+        BigDecimal discountAmount,
+        BigDecimal actualReceiveAmount) {}

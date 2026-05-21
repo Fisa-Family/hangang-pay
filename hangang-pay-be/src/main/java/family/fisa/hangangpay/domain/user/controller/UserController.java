@@ -2,11 +2,10 @@ package family.fisa.hangangpay.domain.user.controller;
 
 import static family.fisa.hangangpay.domain.user.dto.UserHistoryType.*;
 
-import family.fisa.hangangpay.domain.transaction.dto.response.PaymentHistoryItem;
-import family.fisa.hangangpay.domain.payment.service.PaymentQueryService;
 import family.fisa.hangangpay.domain.transaction.dto.response.ChargeHistoryItem;
 import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeHistoryItem;
-import family.fisa.hangangpay.domain.transfer.service.FundTransferQueryService;
+import family.fisa.hangangpay.domain.transaction.dto.response.PaymentHistoryItem;
+import family.fisa.hangangpay.domain.transaction.service.TransactionQueryService;
 import family.fisa.hangangpay.domain.user.dto.UserHistoryDetailResponse;
 import family.fisa.hangangpay.domain.user.dto.UserHistoryResponse;
 import family.fisa.hangangpay.domain.user.dto.UserHistoryType;
@@ -35,8 +34,7 @@ import org.springframework.web.bind.annotation.SessionAttribute;
 public class UserController {
 
     private final UserQueryService userQueryService;
-    private final PaymentQueryService paymentQueryService;
-    private final FundTransferQueryService fundTransferQueryService;
+    private final TransactionQueryService transactionQueryService;
 
     @Operation(summary = "프로필 조회 (MY-001)", description = "로그인한 소비자의 닉네임, 지역, 가입일을 반환한다.")
     @GetMapping("/profile")
@@ -59,17 +57,18 @@ public class UserController {
                 switch (historyType) {
                     case PAYMENT -> {
                         CursorPageResponse<PaymentHistoryItem> page =
-                                paymentQueryService.getUserPaymentHistory(partyId, cursor, size);
+                                transactionQueryService.getUserPaymentHistory(
+                                        partyId, cursor, size);
                         yield UserHistoryResponse.of(PAYMENT, page);
                     }
                     case CHARGE -> {
                         CursorPageResponse<ChargeHistoryItem> page =
-                                fundTransferQueryService.getChargeHistories(userId, cursor, size);
+                                transactionQueryService.getChargeHistories(userId, cursor, size);
                         yield UserHistoryResponse.of(CHARGE, page);
                     }
                     case EXCHANGE -> {
                         CursorPageResponse<ExchangeHistoryItem> page =
-                                fundTransferQueryService.getExchangeHistories(userId, cursor, size);
+                                transactionQueryService.getExchangeHistories(userId, cursor, size);
                         yield UserHistoryResponse.of(EXCHANGE, page);
                     }
                 };
@@ -89,17 +88,17 @@ public class UserController {
                     case PAYMENT ->
                             UserHistoryDetailResponse.of(
                                     type,
-                                    paymentQueryService.getUserPaymentHistoryDetail(
+                                    transactionQueryService.getUserPaymentHistoryDetail(
                                             partyId, historyId));
                     case CHARGE ->
                             UserHistoryDetailResponse.of(
                                     type,
-                                    fundTransferQueryService.getUserChargeHistoryDetail(
+                                    transactionQueryService.getUserChargeHistoryDetail(
                                             partyId, historyId));
                     case EXCHANGE ->
                             UserHistoryDetailResponse.of(
                                     type,
-                                    fundTransferQueryService.getUserExchangeHistoryDetail(
+                                    transactionQueryService.getUserExchangeHistoryDetail(
                                             partyId, historyId));
                 };
 

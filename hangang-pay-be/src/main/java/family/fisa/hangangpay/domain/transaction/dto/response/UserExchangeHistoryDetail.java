@@ -1,7 +1,7 @@
 package family.fisa.hangangpay.domain.transaction.dto.response;
 
-import family.fisa.hangangpay.domain.blockchain.entity.BlockchainTx;
-import family.fisa.hangangpay.domain.transfer.entity.FundTransfer;
+import family.fisa.hangangpay.client.bank.dto.BlockchainLedgerResponse;
+import family.fisa.hangangpay.domain.transaction.entity.Transaction;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.Builder;
@@ -19,20 +19,21 @@ public record UserExchangeHistoryDetail(
         LocalDateTime updatedAt,
         String txHash,
         String blockchainStatus) {
+
     public static UserExchangeHistoryDetail from(
-            FundTransfer fundTransfer, BlockchainTx blockchainTx) {
+            Transaction transaction, BlockchainLedgerResponse blockchainLedger) {
         return UserExchangeHistoryDetail.builder()
-                .historyId(fundTransfer.getId())
-                .amount(fundTransfer.getAmount())
-                .transferStatus(fundTransfer.getStatus().name())
-                .transferType(fundTransfer.getTransferType().name())
-                .accountNumber(fundTransfer.getAccount().getAccountNumber())
-                .bankName(fundTransfer.getAccount().getInstitution().getInstitutionName())
-                .walletAddress(fundTransfer.getWallet().getAddress())
-                .createdAt(fundTransfer.getCreatedAt())
-                .updatedAt(fundTransfer.getUpdatedAt())
-                .txHash(blockchainTx != null ? blockchainTx.getTxHash() : null)
-                .blockchainStatus(blockchainTx != null ? blockchainTx.getStatus().name() : null)
+                .historyId(transaction.getId())
+                .amount(transaction.getAmount())
+                .transferStatus(transaction.getStatus().name())
+                .transferType(transaction.getTransactionType().name())
+                .accountNumber(transaction.getToAccount().getAccountNumber())
+                .bankName(transaction.getToAccount().getInstitution().getInstitutionName())
+                .walletAddress(transaction.getFromWallet().getAddress())
+                .createdAt(transaction.getCreatedAt())
+                .updatedAt(transaction.getUpdatedAt())
+                .txHash(transaction.getTxHash())
+                .blockchainStatus(blockchainLedger != null ? blockchainLedger.status() : null)
                 .build();
     }
 }

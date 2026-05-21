@@ -1,81 +1,54 @@
 package family.fisa.hangangpay.domain.wallet.service;
 
-import family.fisa.hangangpay.domain.institution.entity.BankWallet;
+import family.fisa.hangangpay.client.bank.BankClient;
+import family.fisa.hangangpay.client.bank.dto.BankWalletResponse;
+import family.fisa.hangangpay.client.bank.dto.CreateBankWalletRequest;
 import family.fisa.hangangpay.domain.institution.entity.Institution;
-import family.fisa.hangangpay.domain.institution.service.BankWalletCommandService;
-import family.fisa.hangangpay.domain.institution.service.WalletKeyCipher;
 import family.fisa.hangangpay.domain.party.entity.Party;
-import family.fisa.hangangpay.domain.wallet.code.error.WalletErrorCode;
 import family.fisa.hangangpay.domain.wallet.entity.Wallet;
 import family.fisa.hangangpay.domain.wallet.repository.WalletRepository;
-import family.fisa.hangangpay.global.exception.BusinessException;
-import java.math.BigDecimal;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.web3j.crypto.ECKeyPair;
-import org.web3j.crypto.Keys;
-import org.web3j.utils.Numeric;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class WalletCommandService {
 
-    private static final BigDecimal INITIAL_BANK_WALLET_BALANCE = BigDecimal.ZERO;
-    private static final int PRIVATE_KEY_HEX_LENGTH = 64;
-
     private final WalletRepository walletRepository;
-    private final BankWalletCommandService bankWalletCommandService;
-    private final WalletKeyCipher walletKeyCipher;
+    private final BankClient bankClient;
 
     /**
-     * 회원/가맹점 가입 시 사용할 EOA 지갑을 생성하고 WALLET, BANK_WALLET 테이블에 저장합니다.
+     * 회원/가맹점 가입 시 사용할 EOA 지갑을 bank에서 발급받아 BE WALLET 테이블에 저장합니다.
      *
-     * @param party 지갑을 소유할 회원 또는 가맹점 Party
-     * @param institution 지갑 발급 기관
-     * @return 생성되어 WALLET 테이블에 저장된 지갑
+     * <p>Custodial 모델: bank가 keypair 생성 및 보유. BE는 walletAddress만 저장.
      */
     public Wallet createWallet(Party party, Institution institution) {
-        GeneratedWallet generatedWallet = generateWallet();
+        // 1. bank에 지갑 발급 요청 (Custodial - bank가 keypair 생성)
+        BankWalletResponse bankWallet =
+                bankClient.createBankWallet(
+                        new CreateBankWalletRequest(institution.getId(), party.getId()));
 
+        // 2. wallet_address 정규화
+        String walletAddress = normalizeAddress(bankWallet.walletAddress());
+
+        // 3. BE Wallet 저장
         Wallet wallet =
                 Wallet.builder()
                         .party(party)
                         .institution(institution)
-                        .address(generatedWallet.address())
+                        .address(walletAddress)
                         .build();
-
-        bankWalletCommandService.save(
-                BankWallet.builder()
-                        .institution(institution)
-                        .walletAddress(generatedWallet.address())
-                        .balance(INITIAL_BANK_WALLET_BALANCE)
-                        .encryptedPrivateKey(
-                                walletKeyCipher.encryptPrivateKey(generatedWallet.privateKey()))
-                        .build());
 
         return walletRepository.save(wallet);
     }
 
-    private GeneratedWallet generateWallet() {
-        try {
-            ECKeyPair keyPair = Keys.createEcKeyPair();
-            String address = Keys.toChecksumAddress(Keys.getAddress(keyPair));
-            String privateKey =
-                    Numeric.toHexStringNoPrefixZeroPadded(
-                            keyPair.getPrivateKey(), PRIVATE_KEY_HEX_LENGTH);
-
-            return new GeneratedWallet(address, privateKey);
-        } catch (InvalidAlgorithmParameterException
-                | NoSuchAlgorithmException
-                | NoSuchProviderException e) {
-            throw new BusinessException(WalletErrorCode.WALLET_CREATION_FAILED);
+    private static String normalizeAddress(String address) {
+        if (address == null) {
+            return null;
         }
+        String lower = address.toLowerCase();
+        return lower.startsWith("0x") ? lower : "0x" + lower;
     }
-
-    private record GeneratedWallet(String address, String privateKey) {}
 }

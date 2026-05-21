@@ -8,3 +8,10 @@ spring:
     hibernate:
       ddl-auto: create-drop
     database-platform: org.hibernate.dialect.H2Dialect
+
+bank:
+  base-url: http://localhost:8081
+
+app:
+  cors:
+    allowed-origins: http://localhost:3000

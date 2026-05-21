@@ -1,5 +1,6 @@
 package family.fisa.hangangpay.domain.account.service;
 
+import family.fisa.hangangpay.client.bank.BankClient;
 import family.fisa.hangangpay.domain.account.dto.AccountAddRequest;
 import family.fisa.hangangpay.domain.account.dto.AccountListResponse;
 import family.fisa.hangangpay.domain.account.dto.AccountResponse;
@@ -7,9 +8,8 @@ import family.fisa.hangangpay.domain.account.dto.PrimaryAccountResponse;
 import family.fisa.hangangpay.domain.account.entity.Account;
 import family.fisa.hangangpay.domain.account.entity.AccountType;
 import family.fisa.hangangpay.domain.account.repository.AccountRepository;
-import family.fisa.hangangpay.domain.institution.entity.BankAccount;
 import family.fisa.hangangpay.domain.institution.entity.Institution;
-import family.fisa.hangangpay.domain.institution.service.InstitutionService;
+import family.fisa.hangangpay.domain.institution.repository.InstitutionRepository;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.repository.PartyRepository;
 import family.fisa.hangangpay.global.code.error.AccountErrorCode;
@@ -26,14 +26,10 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AccountService {
 
-    /** 계좌 레포지토리 */
     private final AccountRepository accountRepository;
-
-    /** 금융기관 서비스 */
-    private final InstitutionService institutionService;
-
-    /** 파티 레포지토리 */
     private final PartyRepository partyRepository;
+    private final InstitutionRepository institutionRepository;
+    private final BankClient bankClient;
 
     /** 현재 로그인한 사용자의 등록 계좌 목록 조회 메서드 */
     @Transactional(readOnly = true)
@@ -46,7 +42,6 @@ public class AccountService {
         List<AccountResponse> accountResponses =
                 accounts.stream().map(AccountResponse::from).toList();
 
-        // 응답 DTO 목록과 전체 계좌 수를 담은 래퍼 반환
         return AccountListResponse.builder()
                 .accounts(accountResponses)
                 .totalCount(accountResponses.size())
@@ -56,43 +51,38 @@ public class AccountService {
     /** 계좌 추가 메서드 */
     @Transactional
     public AccountResponse addAccount(Long partyId, AccountAddRequest request) {
-        // 기관 코드로 금융기관 조회, 존재하지 않으면 계좌 없음 오류
+        // 1. 기관 코드로 BE 캐시에서 institution 조회
         Institution institution =
-                institutionService
+                institutionRepository
                         .findByInstitutionCode(request.getInstitutionCode())
                         .orElseThrow(
                                 () ->
                                         new BusinessException(
                                                 AccountErrorCode.BANK_ACCOUNT_NOT_FOUND));
 
-        // 은행 원장에서 계좌번호로 계좌 조회, 없으면 계좌 없음 오류
-        BankAccount bankAccount =
-                institutionService
-                        .findBankAccount(institution.getId(), request.getAccountNumber())
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                AccountErrorCode.BANK_ACCOUNT_NOT_FOUND));
+        // 2. bank에서 계좌 존재 확인
+        // TODO: bank 4xx 응답을 명확한 BusinessException으로 변환
+        bankClient.getBankAccount(institution.getId(), request.getAccountNumber());
 
-        // 동일 계좌 중복 등록 여부 확인
+        // 3. 동일 계좌 중복 등록 여부 확인
         if (accountRepository.existsByParty_IdAndAccountNumber(
                 partyId, request.getAccountNumber())) {
             throw new BusinessException(AccountErrorCode.DUPLICATE_ACCOUNT);
         }
 
-        // 등록 계좌 수 조회 - 한도 초과 및 계좌 유형 결정에 동시 사용
+        // 4. 등록 계좌 수 조회 - 한도 초과 및 계좌 유형 결정에 동시 사용
         long count = accountRepository.countByParty_Id(partyId);
         if (count >= 3) {
             throw new BusinessException(AccountErrorCode.MAX_ACCOUNT_EXCEEDED);
         }
 
-        // 첫 번째 계좌는 주거래 계좌로 등록
+        // 5. 첫 번째 계좌는 주거래 계좌로 등록
         AccountType accountType = (count == 0) ? AccountType.PRIMARY : AccountType.SECONDARY;
 
-        // 파티 프록시 참조 로드
+        // 6. 파티 프록시 참조 로드
         Party party = partyRepository.getReferenceById(partyId);
 
-        // 계좌 저장
+        // 7. 계좌 저장
         Account account =
                 Account.builder()
                         .party(party)
@@ -113,25 +103,21 @@ public class AccountService {
     /** 계좌 삭제 메서드 */
     @Transactional
     public void deleteAccount(Long partyId, Long accountId) {
-        // 계좌 식별자와 파티 식별자로 본인 계좌 조회, 없으면 계좌 없음 오류
         Account account =
                 accountRepository
                         .findByIdAndParty_Id(accountId, partyId)
                         .orElseThrow(
                                 () -> new BusinessException(AccountErrorCode.ACCOUNT_NOT_FOUND));
 
-        // 마지막 계좌 삭제 여부 확인, 최소 1개 유지
         long count = accountRepository.countByParty_Id(partyId);
         if (count <= 1) {
             throw new BusinessException(AccountErrorCode.LAST_ACCOUNT_DELETE);
         }
 
-        // 주거래 계좌 삭제 여부 확인
         if (account.getAccountType() == AccountType.PRIMARY) {
             throw new BusinessException(AccountErrorCode.PRIMARY_ACCOUNT_DELETE);
         }
 
-        // 계좌 삭제
         accountRepository.delete(account);
         log.info("계좌 삭제 완료: partyId={}, accountId={}", partyId, accountId);
     }
@@ -139,14 +125,12 @@ public class AccountService {
     /** 주거래 계좌 변경 메서드 */
     @Transactional
     public PrimaryAccountResponse changePrimaryAccount(Long partyId, Long accountId) {
-        // 대상 계좌 조회, 본인 소유 확인 포함
         Account target =
                 accountRepository
                         .findByIdAndParty_Id(accountId, partyId)
                         .orElseThrow(
                                 () -> new BusinessException(AccountErrorCode.ACCOUNT_NOT_FOUND));
 
-        // 현재 주거래 계좌 조회, 대상과 다를 경우 SECONDARY로 변경하고 식별자 기록
         Long previousPrimaryAccountId = null;
         java.util.Optional<Account> currentPrimary =
                 accountRepository.findByParty_IdAndAccountType(partyId, AccountType.PRIMARY);
@@ -155,7 +139,6 @@ public class AccountService {
             currentPrimary.get().updateAccountType(AccountType.SECONDARY);
         }
 
-        // 대상 계좌를 주거래 계좌로 변경
         target.updateAccountType(AccountType.PRIMARY);
         log.info(
                 "주거래 계좌 변경 완료: partyId={}, accountId={}, previousPrimaryId={}",

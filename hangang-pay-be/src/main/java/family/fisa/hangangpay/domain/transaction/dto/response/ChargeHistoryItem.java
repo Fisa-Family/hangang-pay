@@ -1,7 +1,7 @@
 package family.fisa.hangangpay.domain.transaction.dto.response;
 
-import family.fisa.hangangpay.domain.transfer.entity.FundTransfer;
-import family.fisa.hangangpay.domain.transfer.entity.TransferStatus;
+import family.fisa.hangangpay.domain.transaction.entity.Transaction;
+import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.user.dto.UserHistoryType;
 import family.fisa.hangangpay.global.pagination.CursorItem;
 import java.math.BigDecimal;
@@ -14,20 +14,20 @@ public record ChargeHistoryItem(
         BigDecimal amount,
         BigDecimal discountAmount,
         BigDecimal discountRate,
-        TransferStatus status,
+        TransactionStatus status,
         UserHistoryType historyType,
         LocalDateTime chargedAt)
         implements CursorItem {
 
-    public static ChargeHistoryItem from(FundTransfer fundTransfer) {
+    public static ChargeHistoryItem from(Transaction transaction) {
         return ChargeHistoryItem.builder()
-                .id(fundTransfer.getId())
-                .amount(fundTransfer.getAmount())
-                .discountAmount(fundTransfer.getDiscountAmount())
-                .discountRate(fundTransfer.getDiscountRate())
-                .status(fundTransfer.getStatus())
+                .id(transaction.getId())
+                .amount(transaction.getAmount())
+                .discountAmount(transaction.getDiscountAmount())
+                .discountRate(transaction.getDiscountRate())
+                .status(transaction.getStatus())
                 .historyType(UserHistoryType.CHARGE)
-                .chargedAt(fundTransfer.getCreatedAt())
+                .chargedAt(transaction.getCreatedAt())
                 .build();
     }
 

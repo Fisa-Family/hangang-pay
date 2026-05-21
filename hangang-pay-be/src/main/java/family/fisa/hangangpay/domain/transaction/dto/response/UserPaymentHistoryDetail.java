@@ -1,7 +1,7 @@
 package family.fisa.hangangpay.domain.transaction.dto.response;
 
-import family.fisa.hangangpay.domain.blockchain.entity.BlockchainTx;
-import family.fisa.hangangpay.domain.payment.entity.Payment;
+import family.fisa.hangangpay.client.bank.dto.BlockchainLedgerResponse;
+import family.fisa.hangangpay.domain.transaction.entity.Transaction;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.Builder;
@@ -17,17 +17,19 @@ public record UserPaymentHistoryDetail(
         LocalDateTime updatedAt,
         String txHash,
         String blockchainStatus) {
-    public static UserPaymentHistoryDetail from(Payment payment, BlockchainTx blockchainTx) {
+
+    public static UserPaymentHistoryDetail from(
+            Transaction transaction, BlockchainLedgerResponse blockchainLedger) {
         return UserPaymentHistoryDetail.builder()
-                .historyId(payment.getId())
-                .itemName(payment.getItemName())
-                .amount(payment.getAmount())
-                .approvalNumber(payment.getApprovalNumber())
-                .paymentStatus(payment.getStatus().name())
-                .createdAt(payment.getCreatedAt())
-                .updatedAt(payment.getUpdatedAt())
-                .txHash(blockchainTx != null ? blockchainTx.getTxHash() : null)
-                .blockchainStatus(blockchainTx != null ? blockchainTx.getStatus().name() : null)
+                .historyId(transaction.getId())
+                .itemName(transaction.getItemName())
+                .amount(transaction.getAmount())
+                .approvalNumber(transaction.getApprovalNumber())
+                .paymentStatus(transaction.getStatus().name())
+                .createdAt(transaction.getCreatedAt())
+                .updatedAt(transaction.getUpdatedAt())
+                .txHash(transaction.getTxHash())
+                .blockchainStatus(blockchainLedger != null ? blockchainLedger.status() : null)
                 .build();
     }
 }

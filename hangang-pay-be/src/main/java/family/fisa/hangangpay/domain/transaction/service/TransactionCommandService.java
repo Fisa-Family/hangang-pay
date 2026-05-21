@@ -13,16 +13,16 @@ import family.fisa.hangangpay.domain.account.repository.AccountRepository;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.repository.PartyRepository;
 import family.fisa.hangangpay.domain.transaction.code.error.PaymentErrorCode;
+import family.fisa.hangangpay.domain.transaction.dto.request.ChargeExecuteRequest;
+import family.fisa.hangangpay.domain.transaction.dto.request.ExchangeExecuteRequest;
 import family.fisa.hangangpay.domain.transaction.dto.request.PaymentCancelRequest;
 import family.fisa.hangangpay.domain.transaction.dto.request.PaymentExecuteRequest;
+import family.fisa.hangangpay.domain.transaction.dto.response.ChargeReceiptResponse;
+import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeReceiptResponse;
 import family.fisa.hangangpay.domain.transaction.dto.response.PaymentCancelResponse;
 import family.fisa.hangangpay.domain.transaction.dto.response.PaymentResponse;
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
-import family.fisa.hangangpay.domain.transaction.dto.request.ChargeExecuteRequest;
-import family.fisa.hangangpay.domain.transaction.dto.response.ChargeReceiptResponse;
-import family.fisa.hangangpay.domain.transaction.dto.request.ExchangeExecuteRequest;
-import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeReceiptResponse;
 import family.fisa.hangangpay.domain.user.code.error.UserErrorCode;
 import family.fisa.hangangpay.domain.wallet.entity.Wallet;
 import family.fisa.hangangpay.domain.wallet.repository.WalletRepository;
@@ -46,11 +46,7 @@ public class TransactionCommandService {
     private final PartyRepository partyRepository;
     private final BankClient bankClient;
 
-    /** CHARGE 실행 — 은행 계좌 출금 + 토큰 mint */
     public ChargeReceiptResponse charge(Long partyId, ChargeExecuteRequest request) {
-        log.info("충전 실행 시작. partyId={}, transactionUuid={}", partyId, request.transactionUuid());
-
-        // 1. 소유 계좌 + 지갑 조회
         Account account =
                 accountRepository
                         .findByIdAndParty_Id(request.accountId(), partyId)
@@ -65,7 +61,6 @@ public class TransactionCommandService {
                         .findById(partyId)
                         .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
 
-        // 2. Transaction Entity 생성 + PENDING 저장
         Transaction transaction =
                 Transaction.forCharge(
                         request.transactionUuid(),
@@ -77,7 +72,6 @@ public class TransactionCommandService {
                         request.discountRate());
         Transaction saved = transactionRepository.save(transaction);
 
-        // 3. BankClient 호출 (동기 - bank가 mint 처리 후 응답)
         try {
             ChargeResponse bankResponse =
                     bankClient.charge(
@@ -87,8 +81,6 @@ public class TransactionCommandService {
                                     account.getAccountNumber(),
                                     wallet.getAddress(),
                                     request.amount()));
-
-            // 4. 응답 반영 — bankTransactionId는 Long, Entity 필드는 String 이므로 변환
             String bankTxId =
                     bankResponse.bankTransactionId() != null
                             ? String.valueOf(bankResponse.bankTransactionId())
@@ -103,15 +95,10 @@ public class TransactionCommandService {
             throw new BusinessException(GeneralErrorCode.BANK_CALL_FAILED);
         }
 
-        log.info("충전 실행 완료. transactionId={}, txHash={}", saved.getId(), saved.getTxHash());
         return ChargeReceiptResponse.from(saved, null);
     }
 
-    /** EXCHANGE 실행 — 토큰 burn + 은행 계좌 입금 */
     public ExchangeReceiptResponse exchange(Long partyId, ExchangeExecuteRequest request) {
-        log.info("환전 실행 시작. partyId={}, transactionUuid={}", partyId, request.transactionUuid());
-
-        // 1. 소유 지갑 + 계좌 조회
         Wallet wallet =
                 walletRepository
                         .findByIdAndParty_Id(request.walletId(), partyId)
@@ -126,7 +113,6 @@ public class TransactionCommandService {
                         .findById(partyId)
                         .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
 
-        // 2. Transaction Entity 생성 + PENDING 저장
         Transaction transaction =
                 Transaction.forExchange(
                         request.transactionUuid(),
@@ -138,7 +124,6 @@ public class TransactionCommandService {
                         request.discountRate());
         Transaction saved = transactionRepository.save(transaction);
 
-        // 3. BankClient 호출 (동기)
         try {
             ExchangeResponse bankResponse =
                     bankClient.exchange(
@@ -148,8 +133,6 @@ public class TransactionCommandService {
                                     wallet.getAddress(),
                                     account.getAccountNumber(),
                                     request.amount()));
-
-            // 4. 응답 반영
             String bankTxId =
                     bankResponse.bankTransactionId() != null
                             ? String.valueOf(bankResponse.bankTransactionId())
@@ -164,16 +147,10 @@ public class TransactionCommandService {
             throw new BusinessException(GeneralErrorCode.BANK_CALL_FAILED);
         }
 
-        log.info("환전 실행 완료. transactionId={}, txHash={}", saved.getId(), saved.getTxHash());
         return ExchangeReceiptResponse.from(saved, null);
     }
 
-    /** PAYMENT 실행 — 지갑 → 지갑 transfer */
     public PaymentResponse payment(Long partyId, PaymentExecuteRequest request) {
-        log.info("결제 실행 시작. partyId={}, transactionUuid={}", partyId, request.transactionUuid());
-
-        // 1. 송신 지갑 (소유자 검증) + 수신 지갑 조회
-        //    수신 지갑은 가맹점 지갑이므로 소유자 검증 안 함 (TODO: party_type=MERCHANT 검증)
         Wallet fromWallet =
                 walletRepository
                         .findByIdAndParty_Id(request.fromWalletId(), partyId)
@@ -189,11 +166,9 @@ public class TransactionCommandService {
                         .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
         Party toParty = toWallet.getParty();
 
-        // 2. 임시 approvalNumber로 PENDING 저장 (Transaction.id 채번 전이라 정식 패턴 적용 불가)
-        //    TODO: APV-YYYY-NNNNNNNN 패턴(transaction.id 8자리 zero padding)으로 채번 후 갱신
+        // TODO: APV-YYYY-NNNNNNNN 패턴(transaction.id 8자리 zero padding)으로 채번 후 갱신
         String tempApprovalNumber = "TEMP-" + request.transactionUuid().substring(0, 8);
 
-        // 3. Transaction Entity 생성 + 저장
         Transaction transaction =
                 Transaction.forPayment(
                         request.transactionUuid(),
@@ -206,7 +181,6 @@ public class TransactionCommandService {
                         request.itemName());
         Transaction saved = transactionRepository.save(transaction);
 
-        // 4. BankClient 호출
         try {
             family.fisa.hangangpay.client.bank.dto.PaymentResponse bankResponse =
                     bankClient.payment(
@@ -215,8 +189,6 @@ public class TransactionCommandService {
                                     fromWallet.getAddress(),
                                     toWallet.getAddress(),
                                     request.amount()));
-
-            // 5. 응답 반영 (PaymentResponse에는 bankTransactionId 없음 — 결제는 account_ledger 거치지 않음)
             saved.completeWithBankResponse(bankResponse.txHash(), null);
         } catch (BusinessException e) {
             saved.markFailed();
@@ -227,28 +199,16 @@ public class TransactionCommandService {
             throw new BusinessException(GeneralErrorCode.BANK_CALL_FAILED);
         }
 
-        log.info("결제 실행 완료. transactionId={}, txHash={}", saved.getId(), saved.getTxHash());
         return PaymentResponse.from(saved, null);
     }
 
-    /** PAYMENT CANCEL 실행 — 원본 PAYMENT의 역방향 transfer */
     public PaymentCancelResponse cancelPayment(Long partyId, PaymentCancelRequest request) {
-        log.info(
-                "결제 취소 실행 시작. partyId={}, transactionUuid={}, originalTransactionUuid={}",
-                partyId,
-                request.transactionUuid(),
-                request.originalTransactionUuid());
-
-        // 1. 원본 PAYMENT 조회 (역방향 wallets 추출용)
-        //    TODO: 원본 transaction_type=PAYMENT 검증, 취소 가능 여부 검증 등은 향후 작업
         Transaction original =
                 transactionRepository
                         .findByTransactionUuid(request.originalTransactionUuid())
                         .orElseThrow(
                                 () -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
 
-        // 2. CANCEL Transaction 생성 - 원본의 from/to를 뒤집어서 저장
-        //    cancel-sender(원본 수취자 = 가맹점)가 cancel-receiver(원본 송신자 = 사용자)에게 환불
         Transaction cancelTransaction =
                 Transaction.forCancel(
                         request.transactionUuid(),
@@ -261,7 +221,6 @@ public class TransactionCommandService {
                         original.getApprovalNumber());
         Transaction saved = transactionRepository.save(cancelTransaction);
 
-        // 3. BankClient 호출 (역방향 transfer)
         try {
             CancelResponse bankResponse =
                     bankClient.cancel(
@@ -271,8 +230,6 @@ public class TransactionCommandService {
                                     original.getToWallet().getAddress(),
                                     original.getFromWallet().getAddress(),
                                     original.getAmount()));
-
-            // 4. 응답 반영
             saved.completeWithBankResponse(bankResponse.txHash(), null);
         } catch (BusinessException e) {
             saved.markFailed();
@@ -283,7 +240,6 @@ public class TransactionCommandService {
             throw new BusinessException(GeneralErrorCode.BANK_CALL_FAILED);
         }
 
-        log.info("결제 취소 실행 완료. transactionId={}, txHash={}", saved.getId(), saved.getTxHash());
         return PaymentCancelResponse.from(saved, null);
     }
 }

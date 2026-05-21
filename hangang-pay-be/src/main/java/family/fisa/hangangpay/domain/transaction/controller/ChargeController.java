@@ -2,9 +2,12 @@ package family.fisa.hangangpay.domain.transaction.controller;
 
 import family.fisa.hangangpay.domain.transaction.code.TransferSuccessCode;
 import family.fisa.hangangpay.domain.transaction.dto.request.ChargeCalculateRequest;
+import family.fisa.hangangpay.domain.transaction.dto.request.ChargeExecuteRequest;
 import family.fisa.hangangpay.domain.transaction.dto.response.ChargeCalculateResponse;
 import family.fisa.hangangpay.domain.transaction.dto.response.ChargeLimitResponse;
-import family.fisa.hangangpay.domain.transfer.service.FundTransferQueryService;
+import family.fisa.hangangpay.domain.transaction.dto.response.ChargeReceiptResponse;
+import family.fisa.hangangpay.domain.transaction.service.TransactionCommandService;
+import family.fisa.hangangpay.domain.transaction.service.TransactionQueryService;
 import family.fisa.hangangpay.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -18,54 +21,42 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 충전 관련 HTTP 요청 처리 컨트롤러 */
 @Tag(name = "충전", description = "충전 API")
 @RestController
 @RequestMapping("/api/v1/charge")
 @RequiredArgsConstructor
 public class ChargeController {
 
-    /** 자금 이체 서비스 */
-    private final FundTransferQueryService fundTransferQueryService;
+    private final TransactionQueryService transactionQueryService;
+    private final TransactionCommandService transactionCommandService;
 
-    /** CHARGE-001 충전 한도 조회 엔드포인트 */
     @Operation(summary = "충전 한도 조회 (CHARGE-001)", description = "이번 달 충전 사용액과 잔여 한도를 조회한다.")
     @GetMapping("/limit")
     public ResponseEntity<ApiResponse<ChargeLimitResponse>> getChargeLimit(
-            // TODO: 로그인 구현 후 HttpSession session 파라미터로 교체 및 아래 세션 인증 블록 주석 해제
             @RequestParam Long partyId) {
-
-        // TODO: 로그인 구현 후 아래 세션 인증 블록 주석 해제
-        // Long partyId = (Long) session.getAttribute("partyId");
-        // if (partyId == null) {
-        //     throw new BusinessException(GeneralErrorCode.UNAUTHORIZED_401);
-        // }
-
-        // 충전 한도 조회 후 응답 반환
-        ChargeLimitResponse response = fundTransferQueryService.getChargeLimit(partyId);
+        ChargeLimitResponse response = transactionQueryService.getChargeLimit(partyId);
         return ResponseEntity.ok(
                 ApiResponse.onSuccess(TransferSuccessCode.CHARGE_LIMIT_RETRIEVED, response));
     }
 
-    /** CHARGE-002 충전 금액 및 할인 계산 엔드포인트 */
     @Operation(
             summary = "충전 금액 및 할인 계산 (CHARGE-002)",
             description = "충전 금액 입력 시 할인율 10% 적용 후 실 결제 금액을 계산한다.")
     @PostMapping("/calculate")
     public ResponseEntity<ApiResponse<ChargeCalculateResponse>> calculateCharge(
-            // TODO: 로그인 구현 후 HttpSession session 파라미터로 교체 및 아래 세션 인증 블록 주석 해제
             @RequestParam Long partyId, @Valid @RequestBody ChargeCalculateRequest request) {
-
-        // TODO: 로그인 구현 후 아래 세션 인증 블록 주석 해제
-        // Long partyId = (Long) session.getAttribute("partyId");
-        // if (partyId == null) {
-        //     throw new BusinessException(GeneralErrorCode.UNAUTHORIZED_401);
-        // }
-
-        // 충전 금액 계산 후 응답 반환
         ChargeCalculateResponse response =
-                fundTransferQueryService.calculateCharge(partyId, request.getChargeAmount());
+                transactionQueryService.calculateCharge(partyId, request.getChargeAmount());
         return ResponseEntity.ok(
                 ApiResponse.onSuccess(TransferSuccessCode.CHARGE_CALCULATED, response));
+    }
+
+    @Operation(summary = "충전 실행 (CHARGE-003)", description = "은행 계좌 출금 + 한강페이 토큰 mint를 동기 처리한다.")
+    @PostMapping("/execute")
+    public ResponseEntity<ApiResponse<ChargeReceiptResponse>> executeCharge(
+            @RequestParam Long partyId, @Valid @RequestBody ChargeExecuteRequest request) {
+        ChargeReceiptResponse response = transactionCommandService.charge(partyId, request);
+        return ResponseEntity.ok(
+                ApiResponse.onSuccess(TransferSuccessCode.CHARGE_EXECUTED, response));
     }
 }

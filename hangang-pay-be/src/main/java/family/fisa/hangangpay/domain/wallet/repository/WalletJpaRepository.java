@@ -8,5 +8,7 @@ public interface WalletJpaRepository extends JpaRepository<Wallet, Long> {
 
     Optional<Wallet> findByParty_Id(Long partyId);
 
+    Optional<Wallet> findByIdAndParty_Id(Long id, Long partyId);
+
     Wallet save(Wallet wallet);
 }

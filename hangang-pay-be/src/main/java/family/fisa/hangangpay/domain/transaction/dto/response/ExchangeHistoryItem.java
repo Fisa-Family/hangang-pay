@@ -1,7 +1,7 @@
 package family.fisa.hangangpay.domain.transaction.dto.response;
 
-import family.fisa.hangangpay.domain.transfer.entity.FundTransfer;
-import family.fisa.hangangpay.domain.transfer.entity.TransferStatus;
+import family.fisa.hangangpay.domain.transaction.entity.Transaction;
+import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.user.dto.UserHistoryType;
 import family.fisa.hangangpay.global.pagination.CursorItem;
 import java.math.BigDecimal;
@@ -12,18 +12,18 @@ import lombok.Builder;
 public record ExchangeHistoryItem(
         Long id,
         BigDecimal amount,
-        TransferStatus status,
+        TransactionStatus status,
         UserHistoryType historyType,
         LocalDateTime exchangedAt)
         implements CursorItem {
 
-    public static ExchangeHistoryItem from(FundTransfer fundTransfer) {
+    public static ExchangeHistoryItem from(Transaction transaction) {
         return ExchangeHistoryItem.builder()
-                .id(fundTransfer.getId())
-                .amount(fundTransfer.getAmount())
-                .status(fundTransfer.getStatus())
+                .id(transaction.getId())
+                .amount(transaction.getAmount())
+                .status(transaction.getStatus())
                 .historyType(UserHistoryType.EXCHANGE)
-                .exchangedAt(fundTransfer.getCreatedAt())
+                .exchangedAt(transaction.getCreatedAt())
                 .build();
     }
 
