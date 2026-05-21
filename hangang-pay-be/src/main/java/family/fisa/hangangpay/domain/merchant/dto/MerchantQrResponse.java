@@ -2,6 +2,7 @@ package family.fisa.hangangpay.domain.merchant.dto;
 
 import lombok.Builder;
 
+/** 가맹점 QR 조회 응답 */
 @Builder
 public record MerchantQrResponse(String qrImageBase64) {
 
