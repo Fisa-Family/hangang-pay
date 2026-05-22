@@ -14,9 +14,6 @@ import family.fisa.hangangpay.domain.merchant.dto.MerchantQrPayload;
 import family.fisa.hangangpay.domain.merchant.dto.MerchantQrResponse;
 import family.fisa.hangangpay.domain.merchant.entity.Merchant;
 import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
-import family.fisa.hangangpay.domain.party.entity.Party;
-import family.fisa.hangangpay.domain.party.entity.PartyType;
-import family.fisa.hangangpay.domain.party.repository.PartyRepository;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -45,7 +42,6 @@ public class MerchantQrService {
     // data URL prefix. 프론트에서 <img src="..."> 로 사용 가능
     private static final String DATA_URL_PREFIX = "data:image/png;base64,";
 
-    private final PartyRepository partyRepository;
     private final MerchantRepository merchantRepository;
     private final ObjectMapper objectMapper;
 
@@ -53,36 +49,18 @@ public class MerchantQrService {
     public MerchantQrResponse getQrForPartyId(Long partyId) {
         log.info("가맹점 QR 조회 시작. partyId={}", partyId);
 
-        // 1. 권한 검증
-        findMerchantParty(partyId);
-
-        // 2. 가맹점 정보 조회
+        // 1. 가맹점 정보 조회
         Merchant merchant = findMerchantByPartyId(partyId);
 
-        // 3. 페이로드 직렬화
+        // 2. 페이로드 직렬화
         String payloadJson = serializePayload(merchant.getId());
 
-        // 4. QR PNG 생성 + base64 인코딩
+        // 3. QR PNG 생성 + base64 인코딩
         String qrImageBase64 = generateQrPngBase64(payloadJson);
 
         log.info("가맹점 QR 조회 완료. partyId={}, merchantId={}", partyId, merchant.getId());
 
         return MerchantQrResponse.of(qrImageBase64);
-    }
-
-    /** Party 조회 */
-    private Party findMerchantParty(Long partyId) {
-        Party party =
-                partyRepository
-                        .findById(partyId)
-                        .orElseThrow(
-                                () -> new BusinessException(MerchantErrorCode.MERCHANT_NOT_FOUND));
-
-        if (party.getPartyType() != PartyType.MERCHANT) {
-            log.warn("가맹점 권한 없음. partyId={}, partyType={}", partyId, party.getPartyType());
-            throw new BusinessException(MerchantErrorCode.FORBIDDEN_MERCHANT);
-        }
-        return party;
     }
 
     /** partyId로 연결된 Merchant 엔티티 조회 */

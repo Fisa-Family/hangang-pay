@@ -1,4 +1,4 @@
-package family.fisa.hangangpay.domain.transaction.repository.jpa;
+package family.fisa.hangangpay.domain.transaction.repository;
 
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
@@ -21,24 +21,17 @@ public interface TransactionJpaRepository extends JpaRepository<Transaction, Lon
     @EntityGraph(attributePaths = {"fromParty", "toParty", "fromWallet", "toWallet"})
     Optional<Transaction> findByTransactionUuid(String transactionUuid);
 
-    /** CHARGE/EXCHANGE 페이징 - 어댑터에서 .map으로 DTO 변환 */
-    Window<Transaction> findByFromParty_IdAndTransactionTypeOrderByCreatedAtDescIdDesc(
+    /** 거래 이력 페이징 - 수취자(toParty) fetch join */
+    @EntityGraph(attributePaths = {"toParty"})
+    Window<Transaction> findByFromParty_IdAndStatusAndTransactionTypeInOrderByCreatedAtDescIdDesc(
             Long fromPartyId,
-            TransactionType transactionType,
+            TransactionStatus status,
+            List<TransactionType> transactionTypes,
             ScrollPosition position,
             Limit limit);
 
-    /** PAYMENT 페이징 - 수취자(toParty) fetch join */
-    @EntityGraph(attributePaths = {"toParty"})
-    Window<Transaction> findByFromParty_IdAndTransactionTypeAndStatusInOrderByCreatedAtDescIdDesc(
-            Long fromPartyId,
-            TransactionType transactionType,
-            List<TransactionStatus> statuses,
-            Limit limit,
-            ScrollPosition position);
-
-    /** CHARGE/EXCHANGE 상세 - fromParty + Account + Wallet fetch join */
-    @Query("SELECT t FROM Transaction t WHERE t.id = :id")
+    /** 거래 상세 - fromParty + Account + Wallet fetch join */
+    @Query("SELECT t FROM Transaction t WHERE t.id = :id AND t.transactionType IN :types")
     @EntityGraph(
             attributePaths = {
                 "fromParty",
@@ -49,7 +42,8 @@ public interface TransactionJpaRepository extends JpaRepository<Transaction, Lon
                 "fromWallet",
                 "toWallet"
             })
-    Optional<Transaction> findByIdWithFromPartyAccountWallet(@Param("id") Long id);
+    Optional<Transaction> findByIdAndTransactionTypeIn(
+            @Param("id") Long id, @Param("types") List<TransactionType> types);
 
     /** PAYMENT 상세 - fromParty fetch join */
     @Query("SELECT t FROM Transaction t WHERE t.id = :id")

@@ -1,6 +1,6 @@
 package family.fisa.hangangpay.domain.transaction.controller;
 
-import family.fisa.hangangpay.domain.transaction.code.TransferSuccessCode;
+import family.fisa.hangangpay.domain.transaction.code.TransactionSuccessCode;
 import family.fisa.hangangpay.domain.transaction.dto.request.ExchangeExecuteRequest;
 import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeReceiptResponse;
 import family.fisa.hangangpay.domain.transaction.service.TransactionCommandService;
@@ -30,6 +30,6 @@ public class ExchangeController {
             @RequestParam Long partyId, @Valid @RequestBody ExchangeExecuteRequest request) {
         ExchangeReceiptResponse response = transactionCommandService.exchange(partyId, request);
         return ResponseEntity.ok(
-                ApiResponse.onSuccess(TransferSuccessCode.EXCHANGE_EXECUTED, response));
+                ApiResponse.onSuccess(TransactionSuccessCode.EXCHANGE_EXECUTED, response));
     }
 }

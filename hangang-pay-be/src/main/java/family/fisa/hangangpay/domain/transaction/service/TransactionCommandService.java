@@ -12,7 +12,7 @@ import family.fisa.hangangpay.domain.account.entity.Account;
 import family.fisa.hangangpay.domain.account.repository.AccountRepository;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.repository.PartyRepository;
-import family.fisa.hangangpay.domain.transaction.code.error.PaymentErrorCode;
+import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
 import family.fisa.hangangpay.domain.transaction.dto.request.ChargeExecuteRequest;
 import family.fisa.hangangpay.domain.transaction.dto.request.ExchangeExecuteRequest;
 import family.fisa.hangangpay.domain.transaction.dto.request.PaymentCancelRequest;
@@ -207,7 +207,9 @@ public class TransactionCommandService {
                 transactionRepository
                         .findByTransactionUuid(request.originalTransactionUuid())
                         .orElseThrow(
-                                () -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
+                                () ->
+                                        new BusinessException(
+                                                TransactionErrorCode.PAYMENT_NOT_FOUND));
 
         Transaction cancelTransaction =
                 Transaction.forCancel(
