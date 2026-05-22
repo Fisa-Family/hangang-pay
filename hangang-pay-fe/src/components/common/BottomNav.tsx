@@ -17,6 +17,7 @@ interface BottomNavTab {
   disabled?: boolean
 }
 
+// 소비자 탭 (미구현 탭은 disabled)
 const userTabs: BottomNavTab[] = [
   { id: 'home', label: '홈', path: '/home' },
   { id: 'payments', label: '결제내역', path: '/mypage/payments' },
@@ -25,14 +26,14 @@ const userTabs: BottomNavTab[] = [
   { id: 'mypage', label: '마이페이지', path: '/mypage' },
 ]
 
+// 가맹점 탭
 const merchantTabs: BottomNavTab[] = [
   { id: 'home', label: '홈', path: '/merchant/home' },
   { id: 'payments', label: '내역', path: '/merchant/payments' },
   { id: 'mypage', label: '마이', path: '/merchant/mypage' },
 ]
 
-// ── SVG 아이콘 ──────────────────────────────────────────────
-
+// SVG 아이콘 (Lucide 계열 라인 스타일)
 function HomeIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -141,7 +142,7 @@ function UserIcon({ className }: { className?: string }) {
   )
 }
 
-// tab id → 아이콘 컴포넌트 매핑
+// 탭 아이디별 아이콘 매핑
 const tabIcons: Record<string, (className?: string) => React.ReactNode> = {
   home:     (cls) => <HomeIcon className={cls} />,
   payments: (cls) => <FileTextIcon className={cls} />,
@@ -149,8 +150,6 @@ const tabIcons: Record<string, (className?: string) => React.ReactNode> = {
   merchant: (cls) => <StoreIcon className={cls} />,
   mypage:   (cls) => <UserIcon className={cls} />,
 }
-
-// ── 컴포넌트 ────────────────────────────────────────────────
 
 export function BottomNav({ type, active, onNavigate, className }: BottomNavProps) {
   const tabs = type === 'user' ? userTabs : merchantTabs

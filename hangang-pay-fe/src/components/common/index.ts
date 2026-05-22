@@ -1,4 +1,5 @@
 export { AccountRow } from './AccountRow'
+export { ErrorBoundary } from './ErrorBoundary'
 export { AmountInput } from './AmountInput'
 export { AppShell } from './AppShell'
 export { BalanceCard } from './BalanceCard'

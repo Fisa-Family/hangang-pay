@@ -1,8 +1,12 @@
 import { apiFetch } from './client'
 
+// 거래 유형 (BE UserHistoryType enum 동일)
 export type HistoryType = 'PAYMENT' | 'CHARGE' | 'EXCHANGE' | (string & {})
+
+// 거래 상태
 export type HistoryStatus = 'COMPLETED' | 'PENDING' | 'FAILED' | 'CANCELLED' | (string & {})
 
+// 거래 내역 단건
 export interface UserHistoryItem {
   id: number
   type: HistoryType
@@ -12,7 +16,7 @@ export interface UserHistoryItem {
   createdAt: string
 }
 
-// BE 응답: 커서 페이지네이션 래퍼
+// 커서 페이지네이션 응답 (MY-002)
 export interface UserHistoryPage<T> {
   historyType: HistoryType
   page: {
@@ -22,12 +26,14 @@ export interface UserHistoryPage<T> {
   }
 }
 
+// 내역 조회 파라미터
 export interface UserHistoryParams {
   historyType: HistoryType
   size?: number
   cursor?: string
 }
 
+// MY-002 내역 조회
 export function fetchUserHistories(
   params: UserHistoryParams
 ): Promise<UserHistoryPage<UserHistoryItem>> {

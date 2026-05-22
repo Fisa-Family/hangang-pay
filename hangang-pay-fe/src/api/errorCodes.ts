@@ -1,3 +1,4 @@
+// BE 에러 코드
 export const ApiErrorCode = {
   COMMON_BAD_REQUEST: 'COMMON_BAD_REQUEST',
   COMMON_UNAUTHORIZED: 'COMMON_UNAUTHORIZED',
@@ -18,6 +19,7 @@ export const ApiErrorCode = {
 
 export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode]
 
+// 에러 코드별 한국어 메시지
 export const apiErrorMessages: Record<ApiErrorCode, string> = {
   [ApiErrorCode.COMMON_BAD_REQUEST]: '잘못된 요청입니다',
   [ApiErrorCode.COMMON_UNAUTHORIZED]: '인증이 필요합니다',
@@ -36,13 +38,14 @@ export const apiErrorMessages: Record<ApiErrorCode, string> = {
   [ApiErrorCode.USER_NOT_FOUND]: '사용자를 찾을 수 없습니다',
 }
 
+// 타입 가드
 const knownApiErrorCodes = new Set<string>(Object.values(ApiErrorCode))
 
 export function isApiErrorCode(code: string): code is ApiErrorCode {
   return knownApiErrorCodes.has(code)
 }
 
-// 화면별 HTTP 상태 코드에서 사용자 메시지로 매핑
+// HTTP 상태 코드 기반 화면별 오류 메시지
 export const apiUserErrorMessages: Record<string, Record<number, string>> = {
   'WALLET-001': {
     0:   '잔액 정보를 불러올 수 없습니다. 네트워크 연결을 확인해 주세요.',

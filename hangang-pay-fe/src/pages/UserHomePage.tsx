@@ -1,8 +1,9 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import { Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { useCurrentUser } from '@/auth/useCurrentUser'
-import { BalanceCard, EmptyState, ListItem } from '@/components/common'
+import { BalanceCard, EmptyState, ErrorBoundary, ListItem } from '@/components/common'
 import { fetchWalletBalance } from '@/api/wallet'
 import { fetchUserHistories, type UserHistoryItem, type HistoryType } from '@/api/user'
 import { ApiError, type ApiError as ApiErrorType } from '@/api/client'
@@ -16,6 +17,7 @@ const API_SPEC = {
   MY_002:     { id: 'MY-002',     path: 'GET /users/histories', role: 'USER' },
 } as const
 
+// errorCodes.ts 기반 오류 메시지 반환
 function buildErrorMessage(spec: (typeof API_SPEC)[keyof typeof API_SPEC], error: unknown): string {
   if (!(error instanceof ApiError)) {
     return apiUserErrorMessages[spec.id]?.[0] ?? '서비스에 연결할 수 없습니다. 네트워크 연결을 확인해 주세요.'
@@ -28,14 +30,17 @@ function buildErrorMessage(spec: (typeof API_SPEC)[keyof typeof API_SPEC], error
   return apiUserErrorMessages[spec.id]?.[status] ?? '일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
 }
 
+// 최대 조회 수
 const HISTORY_LIMIT = 5
 
+// 거래 유형 라벨
 const TYPE_LABEL: Record<string, string> = {
   PAYMENT: '결제',
   CHARGE: '충전',
   EXCHANGE: '환불',
 }
 
+// 날짜 포맷 MM.DD HH:mm
 function formatHistoryDate(isoString: string): string {
   const d = new Date(isoString)
   const mm = String(d.getMonth() + 1).padStart(2, '0')
@@ -45,18 +50,17 @@ function formatHistoryDate(isoString: string): string {
   return `${mm}.${dd} ${hh}:${min}`
 }
 
+// 입금 여부 판별
 function isCredit(type: HistoryType): boolean {
   return type === 'CHARGE' || type === 'EXCHANGE'
 }
 
+// 상대방 이름, 없으면 거래 유형으로 대체
 function resolveTitle(tx: UserHistoryItem): string {
   return tx.counterpartName || TYPE_LABEL[tx.type] || tx.type
 }
 
-// ─────────────────────────────────────────────
-// Quick action button
-// ─────────────────────────────────────────────
-
+// 빠른 실행 버튼
 interface QuickActionProps {
   label: string
   icon: ReactNode
@@ -78,7 +82,7 @@ function QuickAction({ label, icon, onClick }: QuickActionProps) {
   )
 }
 
-// SVG icons
+// 아이콘 (BottomNav.tsx 동일 스타일)
 function QrIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -123,10 +127,7 @@ function UndoIcon() {
   )
 }
 
-// ─────────────────────────────────────────────
-// Amount cell with +/- colour coding
-// ─────────────────────────────────────────────
-
+// 금액 표시 (입금 초록, 지출 빨강)
 function HistoryAmount({ type, amount }: { type: HistoryType; amount: number }) {
   const credit = isCredit(type)
   return (
@@ -142,34 +143,50 @@ function HistoryAmount({ type, amount }: { type: HistoryType; amount: number }) 
   )
 }
 
-// ─────────────────────────────────────────────
-// Page
-// ─────────────────────────────────────────────
+// 최근 거래 목록 (Suspense 전용, 오류는 상위 ErrorBoundary 위임)
+function RecentTransactionList() {
+  const { data } = useSuspenseQuery({
+    queryKey: ['users', 'histories', 'PAYMENT'],
+    queryFn: () => fetchUserHistories({ historyType: 'PAYMENT', size: HISTORY_LIMIT }),
+    retry: false,
+  })
+
+  const histories = data.page.content
+
+  if (histories.length === 0) {
+    return <EmptyState message="최근 거래 내역이 없습니다." />
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      {histories.map((tx) => (
+        <ListItem
+          key={tx.id}
+          title={resolveTitle(tx)}
+          description={formatHistoryDate(tx.createdAt)}
+          rightAction={<HistoryAmount type={tx.type} amount={tx.amount} />}
+        />
+      ))}
+    </div>
+  )
+}
 
 export function UserHomePage() {
   const navigate = useNavigate()
   const { currentUser } = useCurrentUser()
 
+  // 잔액 조회 (WALLET-001, 현재 미구현)
   const balanceQuery = useQuery({
     queryKey: ['wallet', 'balance'],
     queryFn: fetchWalletBalance,
     retry: false,
   })
 
-  const paymentHistoryQuery = useQuery({
-    queryKey: ['users', 'histories', 'PAYMENT'],
-    queryFn: () => fetchUserHistories({ historyType: 'PAYMENT', size: HISTORY_LIMIT }),
-    retry: false,
-  })
-
   const balance = balanceQuery.data?.balance ?? 0
-  const histories = paymentHistoryQuery.data?.page.content ?? []
 
-  // 잔액 오류를 우선 표시, 정상이면 내역 오류 표시 (동시 표시 금지)
+  // 내역 오류는 ErrorBoundary로 위임하므로 잔액 오류만 처리
   const activeErrorMessage = balanceQuery.error
     ? buildErrorMessage(API_SPEC.WALLET_001, balanceQuery.error)
-    : paymentHistoryQuery.error
-    ? buildErrorMessage(API_SPEC.MY_002, paymentHistoryQuery.error)
     : null
 
   return (
@@ -181,7 +198,7 @@ export function UserHomePage() {
         </h1>
       </header>
 
-      {/* API 오류 안내 (단일 표시) */}
+      {/* API 오류 안내 */}
       {activeErrorMessage && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm font-medium text-destructive">
           {activeErrorMessage}
@@ -229,24 +246,18 @@ export function UserHomePage() {
           </button>
         </div>
 
-        {paymentHistoryQuery.isLoading ? (
-          <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
-            불러오는 중…
-          </div>
-        ) : histories.length === 0 ? (
-          <EmptyState message="최근 거래 내역이 없습니다." />
-        ) : (
-          <div className="flex flex-col gap-2">
-            {histories.map((tx) => (
-              <ListItem
-                key={tx.id}
-                title={resolveTitle(tx)}
-                description={formatHistoryDate(tx.createdAt)}
-                rightAction={<HistoryAmount type={tx.type} amount={tx.amount} />}
-              />
-            ))}
-          </div>
-        )}
+        {/* TODO: 로딩용 컴포넌트: 추후 교체 예정 */}
+        <ErrorBoundary fallback={<EmptyState message="최근 거래 내역이 없습니다." />}>
+          <Suspense
+            fallback={
+              <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
+                불러오는 중…
+              </div>
+            }
+          >
+            <RecentTransactionList />
+          </Suspense>
+        </ErrorBoundary>
       </section>
     </div>
   )
