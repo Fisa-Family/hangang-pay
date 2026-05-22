@@ -1,6 +1,5 @@
 package family.fisa.hangangpay.domain.transaction.dto.response;
 
-import family.fisa.hangangpay.client.bank.dto.BlockchainLedgerResponse;
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -20,8 +19,7 @@ public record UserExchangeHistoryDetail(
         String txHash,
         String blockchainStatus) {
 
-    public static UserExchangeHistoryDetail from(
-            Transaction transaction, BlockchainLedgerResponse blockchainLedger) {
+    public static UserExchangeHistoryDetail from(Transaction transaction) {
         return UserExchangeHistoryDetail.builder()
                 .historyId(transaction.getId())
                 .amount(transaction.getAmount())
@@ -33,7 +31,7 @@ public record UserExchangeHistoryDetail(
                 .createdAt(transaction.getCreatedAt())
                 .updatedAt(transaction.getUpdatedAt())
                 .txHash(transaction.getTxHash())
-                .blockchainStatus(blockchainLedger != null ? blockchainLedger.status() : null)
+                .blockchainStatus(transaction.getStatus().name())
                 .build();
     }
 }

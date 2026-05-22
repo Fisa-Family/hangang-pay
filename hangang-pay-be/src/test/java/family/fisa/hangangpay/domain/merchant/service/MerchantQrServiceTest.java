@@ -35,8 +35,7 @@ class MerchantQrServiceTest {
 
     @BeforeEach
     void setUp() {
-        merchantQrService =
-                new MerchantQrService(partyRepository, merchantRepository, new ObjectMapper());
+        merchantQrService = new MerchantQrService(merchantRepository, new ObjectMapper());
     }
 
     private Party party(Long partyId, PartyType type) {
@@ -67,7 +66,6 @@ class MerchantQrServiceTest {
             Party merchantParty = party(PARTY_ID, PartyType.MERCHANT);
             Merchant merchant = merchant(MERCHANT_ID, merchantParty);
 
-            when(partyRepository.findById(PARTY_ID)).thenReturn(Optional.of(merchantParty));
             when(merchantRepository.findByParty_Id(PARTY_ID)).thenReturn(Optional.of(merchant));
 
             // when
@@ -80,36 +78,9 @@ class MerchantQrServiceTest {
         }
 
         @Test
-        @DisplayName("Party 없음 -> MERCHANT_NOT_FOUND")
-        void throws_whenPartyNotFound() {
+        @DisplayName("partyId 에 연결된 Merchant 없음 -> MERCHANT_NOT_FOUND")
+        void throws_whenMerchantNotFound() {
             // given
-            when(partyRepository.findById(PARTY_ID)).thenReturn(Optional.empty());
-
-            // when, then
-            assertThatThrownBy(() -> merchantQrService.getQrForPartyId(PARTY_ID))
-                    .isInstanceOf(BusinessException.class)
-                    .hasFieldOrPropertyWithValue("code", MerchantErrorCode.MERCHANT_NOT_FOUND);
-        }
-
-        @Test
-        @DisplayName("PartyType 이 USER -> FORBIDDEN_MERCHANT")
-        void throws_whenPartyIsUser() {
-            // given
-            Party userParty = party(PARTY_ID, PartyType.USER);
-            when(partyRepository.findById(PARTY_ID)).thenReturn(Optional.of(userParty));
-
-            // when, then
-            assertThatThrownBy(() -> merchantQrService.getQrForPartyId(PARTY_ID))
-                    .isInstanceOf(BusinessException.class)
-                    .hasFieldOrPropertyWithValue("code", MerchantErrorCode.FORBIDDEN_MERCHANT);
-        }
-
-        @Test
-        @DisplayName("Party 는 MERCHANT 지만 Merchant 레코드 없음 -> MERCHANT_NOT_FOUND")
-        void throws_whenMerchantRecordMissing() {
-            // given
-            Party merchantParty = party(PARTY_ID, PartyType.MERCHANT);
-            when(partyRepository.findById(PARTY_ID)).thenReturn(Optional.of(merchantParty));
             when(merchantRepository.findByParty_Id(PARTY_ID)).thenReturn(Optional.empty());
 
             // when, then

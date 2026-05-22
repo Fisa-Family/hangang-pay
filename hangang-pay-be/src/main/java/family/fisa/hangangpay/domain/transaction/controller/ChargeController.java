@@ -1,6 +1,6 @@
 package family.fisa.hangangpay.domain.transaction.controller;
 
-import family.fisa.hangangpay.domain.transaction.code.TransferSuccessCode;
+import family.fisa.hangangpay.domain.transaction.code.TransactionSuccessCode;
 import family.fisa.hangangpay.domain.transaction.dto.request.ChargeCalculateRequest;
 import family.fisa.hangangpay.domain.transaction.dto.request.ChargeExecuteRequest;
 import family.fisa.hangangpay.domain.transaction.dto.response.ChargeCalculateResponse;
@@ -36,7 +36,7 @@ public class ChargeController {
             @RequestParam Long partyId) {
         ChargeLimitResponse response = transactionQueryService.getChargeLimit(partyId);
         return ResponseEntity.ok(
-                ApiResponse.onSuccess(TransferSuccessCode.CHARGE_LIMIT_RETRIEVED, response));
+                ApiResponse.onSuccess(TransactionSuccessCode.CHARGE_LIMIT_RETRIEVED, response));
     }
 
     @Operation(
@@ -48,7 +48,7 @@ public class ChargeController {
         ChargeCalculateResponse response =
                 transactionQueryService.calculateCharge(partyId, request.getChargeAmount());
         return ResponseEntity.ok(
-                ApiResponse.onSuccess(TransferSuccessCode.CHARGE_CALCULATED, response));
+                ApiResponse.onSuccess(TransactionSuccessCode.CHARGE_CALCULATED, response));
     }
 
     @Operation(summary = "충전 실행 (CHARGE-003)", description = "은행 계좌 출금 + 한강페이 토큰 mint를 동기 처리한다.")
@@ -57,6 +57,6 @@ public class ChargeController {
             @RequestParam Long partyId, @Valid @RequestBody ChargeExecuteRequest request) {
         ChargeReceiptResponse response = transactionCommandService.charge(partyId, request);
         return ResponseEntity.ok(
-                ApiResponse.onSuccess(TransferSuccessCode.CHARGE_EXECUTED, response));
+                ApiResponse.onSuccess(TransactionSuccessCode.CHARGE_EXECUTED, response));
     }
 }
