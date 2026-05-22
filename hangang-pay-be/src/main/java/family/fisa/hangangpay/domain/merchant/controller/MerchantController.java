@@ -40,7 +40,7 @@ public class MerchantController {
             description = "QR에서 추출한 merchantId로 서버 DB의 신뢰된 가맹점 정보(이름, 주소, 지갑 주소)를 조회한다.")
     @GetMapping("/{merchantId}")
     public ResponseEntity<ApiResponse<MerchantInfoResponse>> getMerchantInfo(
-            @PathVariable Long merchantId, @SessionAttribute("partyId") Long partyId) {
+            @PathVariable Long merchantId) {
         MerchantInfoResponse response = merchantQueryService.getMerchantInfo(merchantId);
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
     }

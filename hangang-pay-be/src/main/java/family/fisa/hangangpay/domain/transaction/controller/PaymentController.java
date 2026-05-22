@@ -1,6 +1,6 @@
 package family.fisa.hangangpay.domain.transaction.controller;
 
-import family.fisa.hangangpay.domain.transaction.code.PaymentSuccessCode;
+import family.fisa.hangangpay.domain.transaction.code.TransactionSuccessCode;
 import family.fisa.hangangpay.domain.transaction.dto.request.PaymentCancelRequest;
 import family.fisa.hangangpay.domain.transaction.dto.request.PaymentExecuteRequest;
 import family.fisa.hangangpay.domain.transaction.dto.response.PaymentCancelResponse;
@@ -38,7 +38,7 @@ public class PaymentController {
             @RequestParam Long partyId, @Valid @RequestBody PaymentExecuteRequest request) {
         PaymentResponse response = transactionCommandService.payment(partyId, request);
         return ResponseEntity.ok(
-                ApiResponse.onSuccess(PaymentSuccessCode.PAYMENT_EXECUTED, response));
+                ApiResponse.onSuccess(TransactionSuccessCode.PAYMENT_EXECUTED, response));
     }
 
     @PostMapping("/cancel")
@@ -46,7 +46,7 @@ public class PaymentController {
             @RequestParam Long partyId, @Valid @RequestBody PaymentCancelRequest request) {
         PaymentCancelResponse response = transactionCommandService.cancelPayment(partyId, request);
         return ResponseEntity.ok(
-                ApiResponse.onSuccess(PaymentSuccessCode.PAYMENT_CANCELLED, response));
+                ApiResponse.onSuccess(TransactionSuccessCode.PAYMENT_CANCELLED, response));
     }
 
     @GetMapping
@@ -58,7 +58,7 @@ public class PaymentController {
         CursorPageResponse<PaymentHistoryItem> response =
                 transactionQueryService.getUserPaymentHistory(partyId, cursor, size);
         return ResponseEntity.ok(
-                ApiResponse.onSuccess(PaymentSuccessCode.PAYMENT_HISTORY_RETRIEVED, response));
+                ApiResponse.onSuccess(TransactionSuccessCode.PAYMENT_HISTORY_RETRIEVED, response));
     }
 
     @GetMapping("/{transactionId}")
@@ -67,6 +67,6 @@ public class PaymentController {
         UserPaymentHistoryDetail response =
                 transactionQueryService.getUserPaymentHistoryDetail(partyId, transactionId);
         return ResponseEntity.ok(
-                ApiResponse.onSuccess(PaymentSuccessCode.PAYMENT_DETAIL_RETRIEVED, response));
+                ApiResponse.onSuccess(TransactionSuccessCode.PAYMENT_DETAIL_RETRIEVED, response));
     }
 }

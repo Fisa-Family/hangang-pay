@@ -1,6 +1,6 @@
 # Auth / Signup 화면 명세
 
-대상 화면: A-_, U-REG-_, M-REG-\*
+대상 화면: `A-*`, `U-REG-*`, `M-REG-*`
 
 ---
 
@@ -8,464 +8,396 @@
 
 ### A-01 시작 화면
 
-- 타입: page
-- 경로: /
+- type: page
+- route: `/`
+- auth: public
+- purpose: 로그인 또는 회원가입 플로우로 진입한다.
 
-**UI**
+**actions**
 
-- 앱 로고 / 서비스명 (한강페이)
-- 서비스 설명: "지역화폐를 쉽고 안전하게"
-- 버튼: 로그인, 사용자 회원가입, 가맹점 회원가입
-
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 로그인 | /login |
-| 사용자 회원가입 | /register/terms |
-| 가맹점 회원가입 | /merchant/register/terms |
+| trigger         | result                     |
+| --------------- | -------------------------- |
+| 로그인          | `/login`                   |
+| 사용자 회원가입 | `/register/terms`          |
+| 가맹점 회원가입 | `/merchant/register/terms` |
 
 ---
 
 ### A-02 로그인 화면
 
-- 타입: page
-- 경로: /login
+- type: page
+- route: `/login`
+- auth: public
+- purpose: 사용자 또는 가맹점 계정으로 로그인한다.
 
-**UI**
+**states**
 
-- 세그먼트 토글: 사용자 / 가맹점
-- 전화번호 입력
-- 비밀번호 입력
-- 로그인 오류 메시지 영역
-- 버튼: 로그인, 비밀번호 찾기, 회원가입
+| state      | contract              |
+| ---------- | --------------------- |
+| idle       | 로그인 입력 대기      |
+| submitting | 로그인 요청 처리중    |
+| error      | 로그인 실패 사유 표시 |
 
-**액션**
-| 트리거 | 조건 | 이동 |
-|--------|------|------|
-| 로그인 | 사용자 로그인 성공 | /home |
-| 로그인 | 가맹점 로그인 성공 | /merchant/home |
-| 로그인 | 실패 | 현재 화면 (오류 메시지 표시) |
-| 비밀번호 찾기 | - | /password-reset/phone |
-| 회원가입 | - | / |
+**actions**
 
----
-
-### A-PW-01 휴대폰 인증
-
-- 타입: page
-- 경로: /password-reset/phone
-
-**UI**
-
-- 페이지 타이틀: 비밀번호 찾기
-- 휴대폰 번호 입력
-- 버튼: 인증번호 발송, 이전
-
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 인증번호 발송 | /password-reset/verify |
-| 이전 | /login |
-
----
-
-### A-PW-02 인증번호 확인
-
-- 타입: page
-- 경로: /password-reset/verify
-
-**UI**
-
-- 인증번호 입력
-- 타이머 (예: 02:59)
-- 오류 메시지 영역
-- 버튼: 확인, 재발송
-
-**액션**
-| 트리거 | 조건 | 이동 |
-|--------|------|------|
-| 확인 | 인증 성공 | /password-reset/new-password |
-| 확인 | 인증 실패 | 현재 화면 (오류 메시지) |
-| 재발송 | - | 현재 화면 (타이머 초기화) |
-| 이전 | - | /password-reset/phone |
-
----
-
-### A-PW-03 새 비밀번호 설정
-
-- 타입: page
-- 경로: /password-reset/new-password
-
-**UI**
-
-- 새 비밀번호 입력
-- 비밀번호 확인 입력
-- 비밀번호 규칙 안내 문구
-- 버튼: 비밀번호 변경
-
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 비밀번호 변경 | /password-reset/complete |
-| 이전 | /password-reset/verify |
-
----
-
-### A-PW-04 비밀번호 변경 완료
-
-- 타입: page
-- 경로: /password-reset/complete
-
-**UI**
-
-- 완료 아이콘
-- 메시지: 비밀번호가 변경되었습니다
-- 버튼: 로그인하러 가기
-
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 로그인하러 가기 | /login |
+| trigger  | condition          | result                 |
+| -------- | ------------------ | ---------------------- |
+| 로그인   | 사용자 로그인 성공 | `/home`                |
+| 로그인   | 가맹점 로그인 성공 | `/merchant/home`       |
+| 로그인   | 실패               | 현재 화면 `error` 상태 |
+| 회원가입 | -                  | `/`                    |
 
 ---
 
 ## 사용자 회원가입 플로우
 
-순서: 약관 동의 → 본인 인증 → 계정 정보(비밀번호) → 기본 정보 → 계좌 연결 → 계좌 인증 → 지갑 개설 → 완료
+순서: 약관 동의 -> 휴대폰 본인인증 -> 비밀번호 설정 -> 계좌 입력 및 1원 인증 -> PIN 입력 -> PIN 재입력 -> 회원가입 처리중 -> 가입 완료
 
 ### U-REG-01 사용자 가입: 약관 동의
 
-- 타입: page
-- 경로: /register/terms
+- type: page
+- route: `/register/terms`
+- auth: public
+- purpose: 사용자 회원가입 약관 동의를 수집한다.
 
-**UI**
+**actions**
 
-- 전체 동의 체크박스
-- 필수 약관 목록 (개별 체크박스)
-- 선택 약관 목록 (개별 체크박스)
-- 버튼: 다음, 이전
-
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 다음 | /register/verify |
-| 이전 | / |
+| trigger | result             |
+| ------- | ------------------ |
+| 다음    | `/register/verify` |
+| 이전    | `/`                |
 
 ---
 
-### U-REG-02 사용자 가입: 본인 인증
+### U-REG-02 사용자 가입: 휴대폰 본인인증
 
-- 타입: page
-- 경로: /register/verify
+- type: page
+- route: `/register/verify`
+- auth: public
+- purpose: 사용자 본인 명의의 휴대폰 인증을 완료한다.
 
-**UI**
+**states**
 
-- 이름 입력
-- 휴대폰 번호 입력
-- 통신사 선택
-- 인증번호 입력 (인증번호 발송 후 활성화)
-- 타이머
-- 버튼: 인증번호 발송, 확인, 이전
+| state     | contract                     |
+| --------- | ---------------------------- |
+| idle      | 인증번호 발송 전             |
+| code_sent | 인증번호 입력 및 타이머 진행 |
+| error     | 인증 실패 사유 표시          |
 
-**액션**
-| 트리거 | 조건 | 이동 |
-|--------|------|------|
-| 인증번호 발송 | - | 현재 화면 (인증번호 입력 영역 활성화, 타이머 시작) |
-| 확인 | 인증 성공 | /register/account |
-| 확인 | 인증 실패 | 현재 화면 (오류 메시지) |
-| 이전 | - | /register/terms |
+**actions**
 
----
-
-### U-REG-03 사용자 가입: 계정 정보
-
-- 타입: page
-- 경로: /register/account
-
-**UI**
-
-- 비밀번호 입력
-- 비밀번호 확인 입력
-- 버튼: 다음, 이전
-
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 다음 | /register/profile |
-| 이전 | /register/verify |
+| trigger       | condition | result                                     |
+| ------------- | --------- | ------------------------------------------ |
+| 인증번호 발송 | -         | 현재 화면 `code_sent` 상태                 |
+| 확인          | 인증 성공 | `/register/password`                       |
+| 확인          | 인증 실패 | 현재 화면 `error` 상태                     |
+| 재발송        | -         | 현재 화면 `code_sent` 상태로 타이머 초기화 |
+| 이전          | -         | `/register/terms`                          |
 
 ---
 
-### U-REG-04 사용자 가입: 기본 정보 입력
+### U-REG-03 사용자 가입: 비밀번호 설정
 
-- 타입: page
-- 경로: /register/profile
+- type: page
+- route: `/register/password`
+- auth: public
+- purpose: 로그인에 사용할 비밀번호를 설정한다.
 
-**UI**
+**actions**
 
-- 이름 입력
-- 생년월일 입력
-- 휴대폰 번호 입력
-- 지역구 선택 (드롭다운, 탭 시 목록 표시)
-  - 서울시 25개 자치구, 가나다 순 정렬:
-    강남구, 강동구, 강북구, 강서구, 관악구, 광진구, 구로구, 금천구,
-    노원구, 도봉구, 동대문구, 동작구, 마포구, 서대문구, 서초구,
-    성동구, 성북구, 송파구, 양천구, 영등포구, 용산구, 은평구,
-    종로구, 중구, 중랑구
-- 버튼: 다음, 이전
-
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 다음 | /register/account-link |
-| 이전 | /register/account |
+| trigger | condition              | result                  |
+| ------- | ---------------------- | ----------------------- |
+| 다음    | 비밀번호와 확인값 일치 | `/register/account`     |
+| 다음    | 검증 실패              | 현재 화면에서 오류 표시 |
+| 이전    | -                      | `/register/verify`      |
 
 ---
 
-### U-REG-05 사용자 가입: 계좌 연결
+### U-REG-04 사용자 가입: 계좌 입력 및 1원 인증
 
-- 타입: page
-- 경로: /register/account-link
+- type: page
+- route: `/register/account`
+- auth: public
+- purpose: 충전/환불에 사용할 계좌를 입력하고 같은 화면에서 1원 인증을 완료한다.
 
-**UI**
+**states**
 
-- 은행 선택
-- 계좌번호 입력
-- 예금주명 입력
-- 버튼: 1원 인증 발송, 나중에 하기, 이전
+| state     | contract                           |
+| --------- | ---------------------------------- |
+| idle      | 계좌 입력 대기                     |
+| code_sent | 1원 인증번호 입력 및 타이머 진행   |
+| verified  | 계좌 인증 완료                     |
+| error     | 계좌 확인 또는 인증 실패 사유 표시 |
 
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 1원 인증 발송 | /register/account-verify |
-| 나중에 하기 | /register/processing |
-| 이전 | /register/profile |
+**actions**
 
----
-
-### U-REG-06 사용자 가입: 계좌 인증
-
-- 타입: page
-- 경로: /register/account-verify
-
-**UI**
-
-- 인증 코드 입력
-- 타이머
-- 안내 문구: 입금자명에 표시된 숫자를 입력해주세요
-- 버튼: 인증 완료, 재발송, 이전
-
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 인증 완료 | /register/processing |
-| 재발송 | 현재 화면 (타이머 초기화) |
-| 이전 | /register/account-link |
+| trigger       | condition      | result                                     |
+| ------------- | -------------- | ------------------------------------------ |
+| 1원 인증 발송 | 발송 성공      | 현재 화면 `code_sent` 상태                 |
+| 인증 확인     | 인증 성공      | 현재 화면 `verified` 상태                  |
+| 인증 확인     | 인증 실패      | 현재 화면 `error` 상태                     |
+| 재발송        | -              | 현재 화면 `code_sent` 상태로 타이머 초기화 |
+| 다음          | 계좌 인증 완료 | `/register/pin`                            |
+| 이전          | -              | `/register/password`                       |
 
 ---
 
-### U-REG-07 사용자 가입: 지갑 개설 처리중
+### U-REG-05 사용자 가입: PIN 입력
 
-- 타입: page
-- 경로: /register/processing
-- 초기 상태: loading
+- type: page
+- route: `/register/pin`
+- auth: public
+- purpose: 결제 및 민감 작업에 사용할 PIN을 입력한다.
 
-**상태별 UI**
-| 상태 | 렌더 |
-|------|------|
-| loading | 스피너 + "지갑을 개설하고 있어요" |
-| error | 오류 아이콘 + "지갑 개설에 실패했습니다" + 실패 사유: "계좌 연결 정보를 다시 확인해주세요" + 버튼: 계좌 연결 다시 시도하기 |
+**actions**
 
-**액션**
-| 트리거 | 조건 | 이동 |
-|--------|------|------|
-| 처리 성공 | - | /register/complete |
-| 처리 실패 | - | 현재 화면 error 상태 |
-| 계좌 연결 다시 시도하기 | error 상태 | /register/account-link |
+| trigger       | result                  |
+| ------------- | ----------------------- |
+| PIN 입력 완료 | `/register/pin-confirm` |
+| 이전          | `/register/account`     |
+
+---
+
+### U-REG-06 사용자 가입: PIN 재입력
+
+- type: page
+- route: `/register/pin-confirm`
+- auth: public
+- purpose: PIN을 재입력해 일치 여부를 확인한다.
+
+**actions**
+
+| trigger         | condition       | result                            |
+| --------------- | --------------- | --------------------------------- |
+| PIN 재입력 완료 | 최초 PIN과 일치 | `/register/processing`            |
+| PIN 재입력 완료 | 불일치          | 현재 화면에서 오류 표시 후 재입력 |
+| 이전            | -               | `/register/pin`                   |
+
+---
+
+### U-REG-07 사용자 가입: 회원가입 처리중
+
+- type: page
+- route: `/register/processing`
+- auth: public
+- purpose: 사용자 회원가입 요청을 최종 처리한다.
+- initial state: loading
+
+**states**
+
+| state   | contract        |
+| ------- | --------------- |
+| loading | 회원가입 처리중 |
+
+**actions**
+
+| trigger   | condition | result                                      |
+| --------- | --------- | ------------------------------------------- |
+| 처리 성공 | -         | `/register/complete`                        |
+| 처리 실패 | -         | `/register/account`로 돌아가 실패 사유 표시 |
 
 ---
 
 ### U-REG-08 사용자 가입 완료
 
-- 타입: page
-- 경로: /register/complete
+- type: page
+- route: `/register/complete`
+- auth: public
+- purpose: 사용자 회원가입 완료를 안내하고 사용자 홈으로 진입한다.
 
-**UI**
+**actions**
 
-- 완료 아이콘
-- 메시지: 가입이 완료되었습니다
-- 버튼: 시작하기
-
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 시작하기 | /home |
+| trigger  | result  |
+| -------- | ------- |
+| 시작하기 | `/home` |
 
 ---
 
 ## 가맹점 회원가입 플로우
 
-순서: 약관 동의 → 본인 인증 → 비밀번호 설정 → 사업자 정보 → 계좌 연결 → 계좌 인증 → 지갑 개설 → 완료
+순서: 약관 동의 -> 휴대폰 본인인증 -> 비밀번호 설정 -> 사업자 정보 입력 -> 계좌 입력 및 1원 인증 -> PIN 입력 -> PIN 재입력 -> 회원가입 처리중 -> 가입 완료
 
 ### M-REG-01 가맹점 가입: 약관 동의
 
-- 타입: page
-- 경로: /merchant/register/terms
+- type: page
+- route: `/merchant/register/terms`
+- auth: public
+- purpose: 가맹점 회원가입 약관 동의를 수집한다.
 
-**UI**
+**actions**
 
-- 전체 동의 체크박스
-- 필수 약관 목록 (개별 체크박스)
-- 선택 약관 목록 (개별 체크박스)
-- 버튼: 다음, 이전
-
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 다음 | /merchant/register/verify |
-| 이전 | / |
+| trigger | result                      |
+| ------- | --------------------------- |
+| 다음    | `/merchant/register/verify` |
+| 이전    | `/`                         |
 
 ---
 
-### M-REG-02 가맹점 가입: 본인 인증
+### M-REG-02 가맹점 가입: 휴대폰 본인인증
 
-- 타입: page
-- 경로: /merchant/register/verify
+- type: page
+- route: `/merchant/register/verify`
+- auth: public
+- purpose: 가맹점 대표자 휴대폰 인증을 완료한다.
 
-**UI**
+**states**
 
-- 대표자명 입력
-- 휴대폰 번호 입력
-- 통신사 선택
-- 인증번호 입력 (인증번호 발송 후 활성화)
-- 타이머
-- 버튼: 인증번호 발송, 확인, 이전
+| state     | contract                     |
+| --------- | ---------------------------- |
+| idle      | 인증번호 발송 전             |
+| code_sent | 인증번호 입력 및 타이머 진행 |
+| error     | 인증 실패 사유 표시          |
 
-**액션**
-| 트리거 | 조건 | 이동 |
-|--------|------|------|
-| 인증번호 발송 | - | 현재 화면 (인증번호 입력 영역 활성화, 타이머 시작) |
-| 확인 | 인증 성공 | /merchant/register/account |
-| 확인 | 인증 실패 | 현재 화면 (오류 메시지) |
-| 이전 | - | /merchant/register/terms |
+**actions**
+
+| trigger       | condition | result                                     |
+| ------------- | --------- | ------------------------------------------ |
+| 인증번호 발송 | -         | 현재 화면 `code_sent` 상태                 |
+| 확인          | 인증 성공 | `/merchant/register/password`              |
+| 확인          | 인증 실패 | 현재 화면 `error` 상태                     |
+| 재발송        | -         | 현재 화면 `code_sent` 상태로 타이머 초기화 |
+| 이전          | -         | `/merchant/register/terms`                 |
 
 ---
 
 ### M-REG-03 가맹점 가입: 비밀번호 설정
 
-- 타입: page
-- 경로: /merchant/register/account
+- type: page
+- route: `/merchant/register/password`
+- auth: public
+- purpose: 가맹점 로그인에 사용할 비밀번호를 설정한다.
 
-**UI**
+**actions**
 
-- 비밀번호 입력
-- 비밀번호 확인 입력
-- 버튼: 다음, 이전
-
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 다음 | /merchant/register/business |
-| 이전 | /merchant/register/verify |
+| trigger | condition              | result                        |
+| ------- | ---------------------- | ----------------------------- |
+| 다음    | 비밀번호와 확인값 일치 | `/merchant/register/business` |
+| 다음    | 검증 실패              | 현재 화면에서 오류 표시       |
+| 이전    | -                      | `/merchant/register/verify`   |
 
 ---
 
 ### M-REG-04 가맹점 가입: 사업자 정보 입력
 
-- 타입: page
-- 경로: /merchant/register/business
+- type: page
+- route: `/merchant/register/business`
+- auth: public
+- purpose: 사업자 정보를 입력하고 백엔드 사업자 확인 API로 유효성을 확인한다.
 
-**UI**
+**states**
 
-- 사업자 등록번호 입력 + 사업자 확인 버튼
-- 상호명 입력
-- 대표자명 입력
-- 사업장 주소 입력
-- 업종 입력
-- 버튼: 다음, 이전
+| state    | contract                   |
+| -------- | -------------------------- |
+| idle     | 사업자 확인 전             |
+| checking | 사업자 확인 요청 처리중    |
+| verified | 사업자 확인 완료           |
+| error    | 사업자 확인 실패 사유 표시 |
 
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 사업자 확인 | 현재 화면 (확인 결과 인라인 표시) |
-| 다음 | /merchant/register/account-link |
-| 이전 | /merchant/register/account |
+**actions**
 
----
-
-### M-REG-05 가맹점 가입: 정산 계좌 연결
-
-- 타입: page
-- 경로: /merchant/register/account-link
-
-**UI**
-
-- 은행 선택
-- 계좌번호 입력
-- 예금주명 입력
-- 버튼: 1원 인증 발송, 이전
-
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 1원 인증 발송 | /merchant/register/account-verify |
-| 이전 | /merchant/register/business |
+| trigger     | condition        | result                        |
+| ----------- | ---------------- | ----------------------------- |
+| 사업자 확인 | 요청 성공        | 현재 화면 `verified` 상태     |
+| 사업자 확인 | 요청 실패        | 현재 화면 `error` 상태        |
+| 다음        | 사업자 확인 완료 | `/merchant/register/account`  |
+| 이전        | -                | `/merchant/register/password` |
 
 ---
 
-### M-REG-06 가맹점 가입: 계좌 인증
+### M-REG-05 가맹점 가입: 계좌 입력 및 1원 인증
 
-- 타입: page
-- 경로: /merchant/register/account-verify
+- type: page
+- route: `/merchant/register/account`
+- auth: public
+- purpose: 정산 계좌를 입력하고 같은 화면에서 1원 인증을 완료한다.
 
-**UI**
+**states**
 
-- 인증 코드 입력
-- 타이머
-- 안내 문구: 입금자명에 표시된 숫자를 입력해주세요
-- 버튼: 인증 완료, 재발송, 이전
+| state     | contract                           |
+| --------- | ---------------------------------- |
+| idle      | 계좌 입력 대기                     |
+| code_sent | 1원 인증번호 입력 및 타이머 진행   |
+| verified  | 계좌 인증 완료                     |
+| error     | 계좌 확인 또는 인증 실패 사유 표시 |
 
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 인증 완료 | /merchant/register/processing |
-| 재발송 | 현재 화면 (타이머 초기화) |
-| 이전 | /merchant/register/account-link |
+**actions**
 
----
-
-### M-REG-07 가맹점 가입: 지갑 개설 처리중
-
-- 타입: page
-- 경로: /merchant/register/processing
-- 초기 상태: loading
-
-**상태별 UI**
-| 상태 | 렌더 |
-|------|------|
-| loading | 스피너 + "가맹점 지갑을 개설하고 있어요" |
-
-> 실패 상태 UI 미정의. 현재는 성공 경로만 구현.
-
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 처리 성공 | /merchant/register/complete |
+| trigger       | condition      | result                                     |
+| ------------- | -------------- | ------------------------------------------ |
+| 1원 인증 발송 | 발송 성공      | 현재 화면 `code_sent` 상태                 |
+| 인증 확인     | 인증 성공      | 현재 화면 `verified` 상태                  |
+| 인증 확인     | 인증 실패      | 현재 화면 `error` 상태                     |
+| 재발송        | -              | 현재 화면 `code_sent` 상태로 타이머 초기화 |
+| 다음          | 계좌 인증 완료 | `/merchant/register/pin`                   |
+| 이전          | -              | `/merchant/register/business`              |
 
 ---
 
-### M-REG-08 가맹점 가입 완료
+### M-REG-06 가맹점 가입: PIN 입력
 
-- 타입: page
-- 경로: /merchant/register/complete
+- type: page
+- route: `/merchant/register/pin`
+- auth: public
+- purpose: 결제 및 민감 작업에 사용할 PIN을 입력한다.
 
-**UI**
+**actions**
 
-- 완료 아이콘
-- 메시지: 가맹점 등록이 완료되었습니다
-- 버튼: 시작하기
+| trigger       | result                           |
+| ------------- | -------------------------------- |
+| PIN 입력 완료 | `/merchant/register/pin-confirm` |
+| 이전          | `/merchant/register/account`     |
 
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 시작하기 | /merchant/home |
+---
+
+### M-REG-07 가맹점 가입: PIN 재입력
+
+- type: page
+- route: `/merchant/register/pin-confirm`
+- auth: public
+- purpose: PIN을 재입력해 일치 여부를 확인한다.
+
+**actions**
+
+| trigger         | condition       | result                            |
+| --------------- | --------------- | --------------------------------- |
+| PIN 재입력 완료 | 최초 PIN과 일치 | `/merchant/register/processing`   |
+| PIN 재입력 완료 | 불일치          | 현재 화면에서 오류 표시 후 재입력 |
+| 이전            | -               | `/merchant/register/pin`          |
+
+---
+
+### M-REG-08 가맹점 가입: 회원가입 처리중
+
+- type: page
+- route: `/merchant/register/processing`
+- auth: public
+- purpose: 가맹점 회원가입 요청을 최종 처리한다.
+- initial state: loading
+
+**states**
+
+| state   | contract        |
+| ------- | --------------- |
+| loading | 회원가입 처리중 |
+
+**actions**
+
+| trigger   | condition | result                                               |
+| --------- | --------- | ---------------------------------------------------- |
+| 처리 성공 | -         | `/merchant/register/complete`                        |
+| 처리 실패 | -         | `/merchant/register/account`로 돌아가 실패 사유 표시 |
+
+---
+
+### M-REG-09 가맹점 가입 완료
+
+- type: page
+- route: `/merchant/register/complete`
+- auth: public
+- purpose: 가맹점 회원가입 완료를 안내하고 가맹점 홈으로 진입한다.
+
+**actions**
+
+| trigger  | result           |
+| -------- | ---------------- |
+| 시작하기 | `/merchant/home` |

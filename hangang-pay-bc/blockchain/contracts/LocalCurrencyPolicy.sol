@@ -17,6 +17,10 @@ interface ILocalDepositToken {
 }
 
 interface ISettlement {
+    function registeredBank(
+        uint256 institutionId
+    ) external view returns (bool);
+
     function moveReserve(
         uint256 fromInstitutionId,
         uint256 toInstitutionId,
@@ -55,6 +59,7 @@ contract LocalCurrencyPolicy {
     error DepositTokenMintFailed();
     error DepositTokenBurnFailed();
     error TransferFailed();
+    error BankNotRegistered();
 
     // 가맹점 등록 이벤트
     event MerchantUpdated(
@@ -148,6 +153,9 @@ contract LocalCurrencyPolicy {
     ) external onlyOwner returns (bool) {
         if (user == address(0)) revert InvalidAddress();
         if (amount == 0) revert InvalidAmount();
+        if (!ISettlement(settlement).registeredBank(fromInstitutionId)) {
+            revert BankNotRegistered();
+        }
         if (fromInstitutionId != WOORI_BANK_ID) {
             if (
                 !ISettlement(settlement).moveReserve(
@@ -183,6 +191,9 @@ contract LocalCurrencyPolicy {
     ) external onlyOwner returns (bool) {
         if (user == address(0)) revert InvalidAddress();
         if (amount == 0) revert InvalidAmount();
+        if (!ISettlement(settlement).registeredBank(toInstitutionId)) {
+            revert BankNotRegistered();
+        }
         if (
             !ILocalDepositToken(depositToken).burn(
                 user,
@@ -210,111 +221,111 @@ contract LocalCurrencyPolicy {
         return true;
     }
 
-// 결제 함수
-// 사용자 -> 가맹점 방향으로 예금토큰을 이동
-function pay(
-    address from,
-    address to,
-    uint256 amount
-) external onlyOwner returns (bool) {
-    // 주소 검증
-    if (
-        from == address(0) ||
-        to == address(0)
-    ) {
-        revert InvalidAddress();
-    }
+    // 결제 함수
+    // 사용자 -> 가맹점 방향으로 예금토큰을 이동
+    function pay(
+        address from,
+        address to,
+        uint256 amount
+    ) external onlyOwner returns (bool) {
+        // 주소 검증
+        if (
+            from == address(0) ||
+            to == address(0)
+        ) {
+            revert InvalidAddress();
+        }
 
-    // 금액 검증
-    if (amount == 0) {
-        revert InvalidAmount();
-    }
+        // 금액 검증
+        if (amount == 0) {
+            revert InvalidAmount();
+        }
 
-    // 수취 가맹점 등록 여부 검증
-    if (!merchants[to]) {
-        revert MerchantNotRegistered();
-    }
+        // 수취 가맹점 등록 여부 검증
+        if (!merchants[to]) {
+            revert MerchantNotRegistered();
+        }
 
-    // 총 사용 한도 초과 여부 검증
-    if (
-        totalUsed + amount >
-        maxTotalUsage
-    ) {
-        revert UsageLimitExceeded();
-    }
+        // 총 사용 한도 초과 여부 검증
+        if (
+            totalUsed + amount >
+            maxTotalUsage
+        ) {
+            revert UsageLimitExceeded();
+        }
 
-    // 누적 사용 금액 증가
-    totalUsed += amount;
-    // from -> to 예금토큰 강제 이체
-    if (
-        !ILocalDepositToken(depositToken).forceTransfer(
+        // 누적 사용 금액 증가
+        totalUsed += amount;
+        // from -> to 예금토큰 강제 이체
+        if (
+            !ILocalDepositToken(depositToken).forceTransfer(
+                from,
+                to,
+                amount
+            )
+        ) {
+            revert TransferFailed();
+        }
+
+        emit Paid(
             from,
             to,
             amount
-        )
-    ) {
-        revert TransferFailed();
+        );
+        return true;
     }
 
-    emit Paid(
-        from,
-        to,
-        amount
-    );
-    return true;
-}
 
+    // 결제 취소 함수
+    // 가맹점 -> 사용자 방향으로 예금토큰을 반환
+    function cancelPayment(
+        address from,
+        address to,
+        uint256 amount
+    ) external onlyOwner returns (bool) {
 
-// 결제 취소 함수
-// 가맹점 -> 사용자 방향으로 예금토큰을 반환
-function cancelPayment(
-    address from,
-    address to,
-    uint256 amount
-) external onlyOwner returns (bool) {
+        // 주소 검증
+        if (
+            from == address(0) ||
+            to == address(0)
+        ) {
+            revert InvalidAddress();
+        }
 
-    // 주소 검증
-    if (
-        from == address(0) ||
-        to == address(0)
-    ) {
-        revert InvalidAddress();
-    }
+        // 금액 검증
+        if (amount == 0) {
+            revert InvalidAmount();
+        }
 
-    // 금액 검증
-    if (amount == 0) {
-        revert InvalidAmount();
-    }
+        // 결제 취소 요청자는 등록된 가맹점이어야 함
+        if (!merchants[from]) {
+            revert MerchantNotRegistered();
+        }
 
-    // 결제 취소 요청자는 등록된 가맹점이어야 함
-    if (!merchants[from]) {
-        revert MerchantNotRegistered();
-    }
+        // 누적 사용 금액 감소
+        if (totalUsed >= amount) {
+            totalUsed -= amount;
+        } else {
+            totalUsed = 0;
+        }
 
-    // 누적 사용 금액 감소
-    if (totalUsed >= amount) {
-        totalUsed -= amount;
-    } else {
-        totalUsed = 0;
-    }
-
-    // from -> to 예금토큰 강제 이체
-    // (가맹점 -> 사용자)
-    if (
-        !ILocalDepositToken(depositToken).forceTransfer(
+        // from -> to 예금토큰 강제 이체
+        // (가맹점 -> 사용자)
+        if (
+            !ILocalDepositToken(depositToken).forceTransfer(
+                from,
+                to,
+                amount
+            )
+        ) {
+            revert TransferFailed();
+        }
+        emit PaymentCanceled(
             from,
             to,
             amount
-        )
-    ) {
-        revert TransferFailed();
-    }
-    emit PaymentCanceled(
-        from,
-        to,
-        amount
-    );
-    return true;
+        );
+        return true;
 
-}
+    }
 }
