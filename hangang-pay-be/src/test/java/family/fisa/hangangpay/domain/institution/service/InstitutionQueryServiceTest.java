@@ -23,11 +23,9 @@ class InstitutionQueryServiceTest {
     private static final Long INSTITUTION_ID = 1L;
     private static final String INSTITUTION_CODE = "WR";
 
-    @Mock
-    private InstitutionRepository institutionRepository;
+    @Mock private InstitutionRepository institutionRepository;
 
-    @InjectMocks
-    private InstitutionQueryService institutionQueryService;
+    @InjectMocks private InstitutionQueryService institutionQueryService;
 
     @Test
     @DisplayName("기관 식별자로 기관을 조회한다")

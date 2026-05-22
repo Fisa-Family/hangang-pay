@@ -58,9 +58,9 @@ sequenceDiagram
 
 ## Settlement and Exchange
 
-정산은 별도 배치나 적재 프로세스가 아니다. 소비자가 결제하면 가맹점 월렛으로 코인이 즉시 이체된다. 가맹점은 쌓인 코인을 1:1 비율로 계좌 환전할 수 있다.
+정산은 가맹점이 보유한 토큰을 1:1 비율로 계좌 환전 신청한 기록을 의미한다.
 
-`/merchant/settlements`는 실제 정산 테이블 조회가 아니라 `payment`와 `payment_cancellation` 기반 기록 조회 API다.
+`/merchant/settlements`는 별도 정산 테이블 조회가 아니라 `transaction` 테이블에서 현재 가맹점의 환전 거래를 조회하는 API다. 조회 대상은 `from_party_id`가 현재 가맹점의 `partyId`이고 `transaction_type`이 `EXCHANGE`인 거래다.
 
 서비스 용어는 `exchange`와 `환전`을 사용한다.
 
@@ -100,13 +100,13 @@ SMS 인증은 Octomo를 사용한다. SMS 발송 API도 백엔드에 둔다.
 | `MERCHANT-001` | 가맹점 매출 요약 조회 | `GET` | `/merchant/dashboard` | `O` | `MERCHANT` | 가맹점 전용 |
 | `MERCHANT-002` | 가맹점 결제 내역 조회 | `GET` | `/merchant/payments` | `O` | `MERCHANT` | 가맹점 전용 |
 | `MERCHANT-003` | 가맹점 결제 상세 조회 | `GET` | `/merchant/payments/{paymentId}` | `O` | `MERCHANT` | |
-| `MERCHANT-003` | 결제 취소 | `POST` | `/merchant/payments/{paymentId}/cancel` | `O` | `MERCHANT` | 시간 제한 없음 |
-| `MERCHANT-004` | 가맹점 정산 내역 조회 | `GET` | `/merchant/settlements` | `O` | `MERCHANT` | `payment`/`payment_cancellation` 기반 기록 조회 |
-| `MERCHANT-005` | 가맹점 정산 신청 조회 | `GET` | `/merchant/redeem` | `O` | `MERCHANT` | 토큰→현금 |
-| `MERCHANT-006` | 가맹점 정산 신청 실행 | `POST` | `/merchant/redeem` | `O` | `MERCHANT` | 토큰→현금 |
-| `MERCHANT-007` | 가맹점 QR 생성/조회 | `GET` | `/merchants/qr` | `O` | `MERCHANT` | 결제용 QR 코드 (merchantId 포함) |
-| `MERCHANT-008` | 가맹점 마이페이지 조회 | `GET` | `/merchant/mypage` | `O` | `MERCHANT` | |
-| `MERCHANT-009` | 가맹점 계좌 변경 | `PATCH` | `/merchant/accounts` | `O` | `MERCHANT` | SETTLEMENT 계좌 upsert |
+| `MERCHANT-004` | 결제 취소 | `POST` | `/merchant/payments/{paymentId}/cancel` | `O` | `MERCHANT` | 시간 제한 없음 |
+| `MERCHANT-005` | 가맹점 정산 내역 조회 | `GET` | `/merchant/settlements` | `O` | `MERCHANT` | 현재 가맹점의 `EXCHANGE` 거래 조회 (`transaction.from_party_id = partyId`) |
+| `MERCHANT-006` | 가맹점 정산 신청 조회 | `GET` | `/merchant/redeem` | `O` | `MERCHANT` | 토큰→현금 |
+| `MERCHANT-007` | 가맹점 정산 신청 실행 | `POST` | `/merchant/redeem` | `O` | `MERCHANT` | 토큰→현금 |
+| `MERCHANT-008` | 가맹점 QR 생성/조회 | `GET` | `/merchants/qr` | `O` | `MERCHANT` | 결제용 QR 코드 (merchantId 포함) |
+| `MERCHANT-009` | 가맹점 마이페이지 조회 | `GET` | `/merchant/mypage` | `O` | `MERCHANT` | |
+| `MERCHANT-010` | 가맹점 계좌 변경 | `PATCH` | `/merchant/accounts` | `O` | `MERCHANT` | SETTLEMENT 계좌 upsert |
 | `MY-001` | 사용자 마이페이지 조회 | `GET` | `/users/profile` | `O` | `USER` | 소비자 전용 |
 | `MY-002` | 사용자 내역 조회 | `GET` | `/users/histories` | `O` | `USER` | 소비자 전용 |
 | `MY-003` | 내역 상세 조회 | `GET` | `/users/histories/{partyId}` | `O` | `USER` | 소비자 전용 |
