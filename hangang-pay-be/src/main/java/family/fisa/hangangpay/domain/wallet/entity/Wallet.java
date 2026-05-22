@@ -24,8 +24,8 @@ public class Wallet extends BaseEntity {
     private Long id;
 
     /** 소유자 (party.id) */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "party_id", nullable = false)
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "party_id", nullable = false, unique = true)
     private Party party;
 
     /** 발급 기관 (institution.id) */
@@ -34,6 +34,6 @@ public class Wallet extends BaseEntity {
     private Institution institution;
 
     /** 지갑 주소 */
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true, length = 100)
     private String address;
 }

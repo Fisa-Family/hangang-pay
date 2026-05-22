@@ -30,7 +30,7 @@ public class User extends BaseEntity {
     private Party party;
 
     /** 사용자 실명 */
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String username;
 
     /** 비밀번호 해시 */
@@ -42,6 +42,7 @@ public class User extends BaseEntity {
     private String paymentPinHash;
 
     /** 휴대폰 번호 */
+    @Column(nullable = false, unique = true, length = 20)
     private String phoneNumber;
 
     /** 생년월일 */
