@@ -6,7 +6,7 @@ import { BalanceCard, EmptyState, ListItem } from '@/components/common'
 import { fetchWalletBalance } from '@/api/wallet'
 import { fetchUserHistories, type UserHistoryItem, type HistoryType } from '@/api/user'
 import { ApiError, type ApiError as ApiErrorType } from '@/api/client'
-import { apiErrorMessages, isApiErrorCode } from '@/api/errorCodes'
+import { apiErrorMessages, isApiErrorCode, apiUserErrorMessages } from '@/api/errorCodes'
 import { formatWon } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -16,35 +16,16 @@ const API_SPEC = {
   MY_002:     { id: 'MY-002',     path: 'GET /users/histories', role: 'USER' },
 } as const
 
-const USER_ERROR: Record<string, Record<number, string>> = {
-  'WALLET-001': {
-    0:   '잔액 정보를 불러올 수 없습니다. 네트워크 연결을 확인해 주세요.',
-    400: '잔액 조회 요청에 문제가 있습니다.',
-    401: '잔액을 조회하려면 로그인이 필요합니다.',
-    403: '잔액 조회 권한이 없습니다.',
-    404: '잔액 조회 서비스를 현재 이용할 수 없습니다.',
-    500: '잠시 후 다시 시도해 주세요.',
-  },
-  'MY-002': {
-    0:   '거래 내역을 불러올 수 없습니다. 네트워크 연결을 확인해 주세요.',
-    400: '거래 내역 조회 요청에 문제가 있습니다.',
-    401: '거래 내역을 조회하려면 로그인이 필요합니다.',
-    403: '거래 내역 조회 권한이 없습니다.',
-    404: '거래 내역 서비스를 현재 이용할 수 없습니다.',
-    500: '잠시 후 다시 시도해 주세요.',
-  },
-}
-
 function buildErrorMessage(spec: (typeof API_SPEC)[keyof typeof API_SPEC], error: unknown): string {
   if (!(error instanceof ApiError)) {
-    return USER_ERROR[spec.id]?.[0] ?? '서비스에 연결할 수 없습니다. 네트워크 연결을 확인해 주세요.'
+    return apiUserErrorMessages[spec.id]?.[0] ?? '서비스에 연결할 수 없습니다. 네트워크 연결을 확인해 주세요.'
   }
 
   const { status, code } = error as ApiErrorType
 
   if (code && isApiErrorCode(code)) return apiErrorMessages[code]
 
-  return USER_ERROR[spec.id]?.[status] ?? '일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
+  return apiUserErrorMessages[spec.id]?.[status] ?? '일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
 }
 
 const HISTORY_LIMIT = 5
