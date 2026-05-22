@@ -1,13 +1,36 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createBrowserRouter, Navigate, useRouteError } from 'react-router-dom'
 import { MainLayout } from '@/routes/layouts'
 import { RequireAuth, RequireRole } from '@/routes/guards'
 import { LoginPage } from '@/pages/LoginPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
+import { UserHomePage } from '@/pages/UserHomePage'
+import { AppShell } from '@/components/common'
+
+// 라우트 레벨 에러 fallback (예상치 못한 에러 전체 포착)
+function RootErrorElement() {
+  const error = useRouteError()
+  const message = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.'
+  return (
+    <AppShell>
+      <section className="flex h-full flex-col items-center justify-center gap-4 text-center">
+        <p className="text-sm font-semibold text-destructive">{message}</p>
+        <button
+          type="button"
+          className="text-sm font-semibold text-primary"
+          onClick={() => window.location.replace('/')}
+        >
+          홈으로 돌아가기
+        </button>
+      </section>
+    </AppShell>
+  )
+}
 
 export const router = createBrowserRouter([
   {
     path: '/',
     element: <Navigate to="/home" replace />,
+    errorElement: <RootErrorElement />,
   },
   {
     path: '/login',
@@ -16,13 +39,14 @@ export const router = createBrowserRouter([
   {
     element: <RequireAuth />,
     children: [
+      // 소비자 화면 (USER 권한)
       {
         element: <RequireRole roles={['USER']} />,
         children: [
           {
             element: <MainLayout navType="user" />,
             children: [
-              { path: '/home', element: <PlaceholderPage title="홈" screenId="U-HOME" /> },
+              { path: '/home', element: <UserHomePage /> },
               {
                 path: '/pay/scan',
                 element: <PlaceholderPage title="QR 스캔" screenId="U-PAY-SCAN" />,
@@ -36,6 +60,7 @@ export const router = createBrowserRouter([
           },
         ],
       },
+      // 가맹점 화면 (MERCHANT 권한)
       {
         element: <RequireRole roles={['MERCHANT']} />,
         children: [
@@ -60,6 +85,7 @@ export const router = createBrowserRouter([
       },
     ],
   },
+  // 미매칭 경로 홈으로 리다이렉트
   {
     path: '*',
     element: <Navigate to="/home" replace />,
