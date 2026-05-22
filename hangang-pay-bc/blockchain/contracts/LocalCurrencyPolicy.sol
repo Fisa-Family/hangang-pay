@@ -40,9 +40,8 @@ contract LocalCurrencyPolicy {
     address public depositToken;
     address public settlement;
 
-    // 지역화폐 총 발행 가능 한도
-    uint256 public maxTotalIssuance;
-
+    // 지역화폐 총 누적 발행 가능 한도
+    uint256 public constant MAX_TOTAL_ISSUANCE = 10_000_000 * 10 ** 18;
     // 누적 지역화폐 발행량
     uint256 public totalIssued;
 
@@ -104,9 +103,8 @@ contract LocalCurrencyPolicy {
     // 배포 시 예금토큰 주소, Settlement 주소 및 최대 발행 한도 저장
     constructor(
         address _depositToken,
-        address _settlement,
-        uint256 _maxTotalIssuance
-    ) {
+        address _settlement
+        ) {
         // 주소 검증
         if (
             _depositToken == address(0) ||
@@ -121,9 +119,6 @@ contract LocalCurrencyPolicy {
         // 예금토큰 컨트랙트 저장
         depositToken = _depositToken;
         settlement = _settlement;
-
-        // 지역화폐 총 누적 발행 가능 한도 저장
-        maxTotalIssuance = _maxTotalIssuance;
     }
 
     // 가맹점 등록 및 해제 함수
@@ -156,7 +151,7 @@ contract LocalCurrencyPolicy {
         if (!ISettlement(settlement).registeredBank(fromInstitutionId)) {
             revert BankNotRegistered();
         }
-        if (totalIssued + amount > maxTotalIssuance) {
+        if (totalIssued + amount > MAX_TOTAL_ISSUANCE) {
             revert IssuanceLimitExceeded();
         }
 
