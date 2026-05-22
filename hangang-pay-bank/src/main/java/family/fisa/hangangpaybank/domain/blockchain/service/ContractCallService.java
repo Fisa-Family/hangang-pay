@@ -115,7 +115,7 @@ public class ContractCallService {
         }
     }
 
-    private TransactionReceipt sendFunctionTransaction(
+    public TransactionReceipt sendFunctionTransaction(
             Web3j web3j,
             Credentials credentials,
             String contractAddress,
@@ -150,7 +150,7 @@ public class ContractCallService {
         return receipt;
     }
 
-    private TransactionReceipt waitForReceipt(Web3j web3j, String txHash) {
+    public TransactionReceipt waitForReceipt(Web3j web3j, String txHash) {
         try {
             PollingTransactionReceiptProcessor processor =
                     new PollingTransactionReceiptProcessor(
