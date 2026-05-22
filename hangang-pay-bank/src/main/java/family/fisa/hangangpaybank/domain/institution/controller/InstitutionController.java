@@ -1,8 +1,8 @@
 package family.fisa.hangangpaybank.domain.institution.controller;
 
+import family.fisa.hangangpaybank.domain.institution.code.InstitutionSuccessCode;
 import family.fisa.hangangpaybank.domain.institution.dto.response.DeployAllContractsResponse;
 import family.fisa.hangangpaybank.domain.institution.service.InstitutionDeployService;
-import family.fisa.hangangpaybank.global.code.success.GeneralSuccessCode;
 import family.fisa.hangangpaybank.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,7 +27,7 @@ public class InstitutionController {
     public ResponseEntity<ApiResponse<DeployAllContractsResponse>> deployAllContracts() {
         DeployAllContractsResponse response = institutionDeployService.deployAll();
 
-        return ResponseEntity.status(GeneralSuccessCode.COMMON_CREATED.getStatus())
-                .body(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_CREATED, response));
+        return ResponseEntity.status(InstitutionSuccessCode.CONTRACTS_DEPLOYED.getStatus())
+                .body(ApiResponse.onSuccess(InstitutionSuccessCode.CONTRACTS_DEPLOYED, response));
     }
 }

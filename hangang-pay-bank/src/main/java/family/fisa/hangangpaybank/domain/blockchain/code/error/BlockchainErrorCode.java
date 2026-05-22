@@ -8,6 +8,11 @@ import org.springframework.http.HttpStatus;
 @Getter
 @RequiredArgsConstructor
 public enum BlockchainErrorCode implements BaseErrorCode {
+    BLOCKCHAIN_RPC_FAILED(HttpStatus.BAD_GATEWAY, "BLOCKCHAIN_RPC_FAILED", "블록체인 RPC 요청에 실패했습니다."),
+    BLOCKCHAIN_TRANSACTION_REVERTED(
+            HttpStatus.BAD_GATEWAY, "BLOCKCHAIN_TRANSACTION_REVERTED", "블록체인 트랜잭션이 실패했습니다."),
+    BLOCKCHAIN_RECEIPT_TIMEOUT(
+            HttpStatus.GATEWAY_TIMEOUT, "BLOCKCHAIN_RECEIPT_TIMEOUT", "블록체인 트랜잭션 확인 시간이 초과되었습니다."),
     BLOCKCHAIN_LEDGER_NOT_FOUND(
             HttpStatus.NOT_FOUND, "BLOCKCHAIN_LEDGER_NOT_FOUND", "블록체인 거래를 찾을 수 없습니다.");
 
