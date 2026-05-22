@@ -14,8 +14,6 @@ import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.entity.PartyType;
 import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
-import family.fisa.hangangpay.domain.transaction.dto.response.ChargeCalculateResponse;
-import family.fisa.hangangpay.domain.transaction.dto.response.ChargeLimitResponse;
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
@@ -323,80 +321,6 @@ class TransactionQueryServiceTest {
                                             PARTY_ID, TRANSACTION_ID))
                     .isInstanceOf(BusinessException.class)
                     .hasFieldOrPropertyWithValue("code", UserErrorCode.NOT_OWNER);
-        }
-    }
-
-    @Nested
-    @DisplayName("충전 한도 조회 (getChargeLimit)")
-    class GetChargeLimit {
-
-        @Test
-        @DisplayName("정상: 월 한도 - 사용액 = 남은 한도")
-        void success() {
-            when(transactionRepository.sumMonthlyAmount(
-                            eq(PARTY_ID),
-                            eq(TransactionType.CHARGE),
-                            eq(TransactionStatus.SUCCESS),
-                            any(LocalDateTime.class),
-                            any(LocalDateTime.class)))
-                    .thenReturn(new BigDecimal("400000"));
-
-            ChargeLimitResponse result = transactionQueryService.getChargeLimit(PARTY_ID);
-
-            assertThat(result).isNotNull();
-        }
-
-        @Test
-        @DisplayName("사용액이 한도 초과해도 예외 없이 정상 반환")
-        void exceeded_remainZero() {
-            when(transactionRepository.sumMonthlyAmount(any(), any(), any(), any(), any()))
-                    .thenReturn(new BigDecimal("1500000"));
-
-            ChargeLimitResponse result = transactionQueryService.getChargeLimit(PARTY_ID);
-
-            assertThat(result).isNotNull();
-        }
-    }
-
-    @Nested
-    @DisplayName("충전 금액 계산 (calculateCharge)")
-    class CalculateCharge {
-
-        @Test
-        @DisplayName("정상: 10% 할인 적용 (예외 없이 정상 반환)")
-        void success() {
-            when(transactionRepository.sumMonthlyAmount(any(), any(), any(), any(), any()))
-                    .thenReturn(BigDecimal.ZERO);
-
-            ChargeCalculateResponse result =
-                    transactionQueryService.calculateCharge(PARTY_ID, new BigDecimal("100000"));
-
-            assertThat(result).isNotNull();
-        }
-
-        @Test
-        @DisplayName("만원 단위 아님 -> INVALID_UNIT")
-        void throws_whenInvalidUnit() {
-            assertThatThrownBy(
-                            () ->
-                                    transactionQueryService.calculateCharge(
-                                            PARTY_ID, new BigDecimal("15000")))
-                    .isInstanceOf(BusinessException.class)
-                    .hasFieldOrPropertyWithValue("code", TransactionErrorCode.INVALID_UNIT);
-        }
-
-        @Test
-        @DisplayName("한도 초과 -> LIMIT_EXCEEDED")
-        void throws_whenLimitExceeded() {
-            when(transactionRepository.sumMonthlyAmount(any(), any(), any(), any(), any()))
-                    .thenReturn(new BigDecimal("950000"));
-
-            assertThatThrownBy(
-                            () ->
-                                    transactionQueryService.calculateCharge(
-                                            PARTY_ID, new BigDecimal("100000")))
-                    .isInstanceOf(BusinessException.class)
-                    .hasFieldOrPropertyWithValue("code", TransactionErrorCode.LIMIT_EXCEEDED);
         }
     }
 }

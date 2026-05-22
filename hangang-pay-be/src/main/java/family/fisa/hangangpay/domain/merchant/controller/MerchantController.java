@@ -51,7 +51,7 @@ public class MerchantController {
             description = "현재 세션의 가맹점 식별값(merchantId, partyId)을 담은 PNG QR을 base64로 반환한다.")
     @GetMapping("/qr")
     public ResponseEntity<ApiResponse<MerchantQrResponse>> getMerchantQr(
-            @SessionAttribute("partyId") Long partyId) {
+            @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId) {
         MerchantQrResponse response = qrService.getQrForPartyId(partyId);
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
     }

@@ -3,9 +3,7 @@ package family.fisa.hangangpay.domain.transaction.service;
 import family.fisa.hangangpay.domain.merchant.entity.Merchant;
 import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
-import family.fisa.hangangpay.domain.transaction.dto.response.ChargeCalculateResponse;
 import family.fisa.hangangpay.domain.transaction.dto.response.ChargeHistoryItem;
-import family.fisa.hangangpay.domain.transaction.dto.response.ChargeLimitResponse;
 import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeHistoryItem;
 import family.fisa.hangangpay.domain.transaction.dto.response.PaymentHistoryItem;
 import family.fisa.hangangpay.domain.transaction.dto.response.UserChargeHistoryDetail;
@@ -20,9 +18,6 @@ import family.fisa.hangangpay.global.exception.BusinessException;
 import family.fisa.hangangpay.global.pagination.CursorPageRequest;
 import family.fisa.hangangpay.global.pagination.CursorPageResponse;
 import family.fisa.hangangpay.global.pagination.PaginationService;
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -39,8 +34,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class TransactionQueryService {
-
-    private static final BigDecimal MONTHLY_LIMIT = new BigDecimal("1000000");
 
     private final MerchantRepository merchantRepository;
     private final TransactionRepository transactionRepository;
@@ -195,48 +188,5 @@ public class TransactionQueryService {
         if (!transaction.getFromParty().getId().equals(partyId)) {
             throw new BusinessException(UserErrorCode.NOT_OWNER);
         }
-    }
-
-    /** 충전 한도 조회 */
-    public ChargeLimitResponse getChargeLimit(Long partyId) {
-        LocalDateTime startOfMonth = LocalDate.now().withDayOfMonth(1).atStartOfDay();
-        LocalDateTime startOfNextMonth = startOfMonth.plusMonths(1);
-        BigDecimal usedAmount =
-                transactionRepository.sumMonthlyAmount(
-                        partyId,
-                        TransactionType.CHARGE,
-                        TransactionStatus.SUCCESS,
-                        startOfMonth,
-                        startOfNextMonth);
-        BigDecimal remainLimit = MONTHLY_LIMIT.subtract(usedAmount).max(BigDecimal.ZERO);
-        return ChargeLimitResponse.of(
-                MONTHLY_LIMIT, usedAmount, remainLimit, startOfNextMonth.toLocalDate().toString());
-    }
-
-    public ChargeCalculateResponse calculateCharge(Long partyId, BigDecimal chargeAmount) {
-        if (chargeAmount.remainder(new BigDecimal("10000")).compareTo(BigDecimal.ZERO) != 0) {
-            throw new BusinessException(TransactionErrorCode.INVALID_UNIT);
-        }
-        LocalDateTime startOfMonth = LocalDate.now().withDayOfMonth(1).atStartOfDay();
-        LocalDateTime startOfNextMonth = startOfMonth.plusMonths(1);
-        BigDecimal usedAmount =
-                transactionRepository.sumMonthlyAmount(
-                        partyId,
-                        TransactionType.CHARGE,
-                        TransactionStatus.SUCCESS,
-                        startOfMonth,
-                        startOfNextMonth);
-        if (usedAmount.add(chargeAmount).compareTo(MONTHLY_LIMIT) > 0) {
-            throw new BusinessException(TransactionErrorCode.LIMIT_EXCEEDED);
-        }
-        BigDecimal discountRate = new BigDecimal("0.10");
-        BigDecimal discountAmount = chargeAmount.multiply(discountRate);
-        BigDecimal actualPayAmount = chargeAmount.subtract(discountAmount);
-        return ChargeCalculateResponse.builder()
-                .chargeAmount(chargeAmount)
-                .discountRate(discountRate)
-                .discountAmount(discountAmount)
-                .actualPayAmount(actualPayAmount)
-                .build();
     }
 }
