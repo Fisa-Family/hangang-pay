@@ -1,5 +1,6 @@
 package family.fisa.hangangpaybank.domain.blockchain.service;
 
+import family.fisa.hangangpaybank.domain.blockchain.code.error.BlockchainErrorCode;
 import family.fisa.hangangpaybank.domain.institution.code.error.InstitutionErrorCode;
 import family.fisa.hangangpaybank.domain.institution.entity.Contract;
 import family.fisa.hangangpaybank.domain.institution.entity.ContractType;
@@ -109,13 +110,13 @@ public class ContractCallService {
             return sendFunctionTransaction(
                     web3j, credentials, contract.getAddress(), gasLimit, function);
         } catch (IOException e) {
-            throw new BusinessException(InstitutionErrorCode.INSTITUTION_BLOCKCHAIN_RPC_FAILED);
+            throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
         } finally {
             web3j.shutdown();
         }
     }
 
-    private TransactionReceipt sendFunctionTransaction(
+    public TransactionReceipt sendFunctionTransaction(
             Web3j web3j,
             Credentials credentials,
             String contractAddress,
@@ -129,7 +130,7 @@ public class ContractCallService {
                                 credentials.getAddress(), DefaultBlockParameterName.PENDING)
                         .send();
         if (nonceResponse.hasError()) {
-            throw new BusinessException(InstitutionErrorCode.INSTITUTION_BLOCKCHAIN_RPC_FAILED);
+            throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
         }
         RawTransaction tx =
                 RawTransaction.createTransaction(
@@ -141,23 +142,23 @@ public class ContractCallService {
                         FunctionEncoder.encode(function));
         EthSendTransaction sendResponse = mgr.signAndSend(tx);
         if (sendResponse.hasError()) {
-            throw new BusinessException(InstitutionErrorCode.INSTITUTION_BLOCKCHAIN_RPC_FAILED);
+            throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
         }
         TransactionReceipt receipt = waitForReceipt(web3j, sendResponse.getTransactionHash());
         if (!receipt.isStatusOK()) {
-            throw new BusinessException(InstitutionErrorCode.INSTITUTION_TRANSACTION_REVERTED);
+            throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_TRANSACTION_REVERTED);
         }
         return receipt;
     }
 
-    private TransactionReceipt waitForReceipt(Web3j web3j, String txHash) {
+    public TransactionReceipt waitForReceipt(Web3j web3j, String txHash) {
         try {
             PollingTransactionReceiptProcessor processor =
                     new PollingTransactionReceiptProcessor(
                             web3j, RECEIPT_POLLING_INTERVAL_MS, RECEIPT_POLLING_ATTEMPTS);
             return processor.waitForTransactionReceipt(txHash);
         } catch (IOException | TransactionException e) {
-            throw new BusinessException(InstitutionErrorCode.INSTITUTION_RECEIPT_TIMEOUT);
+            throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_RECEIPT_TIMEOUT);
         }
     }
 }
