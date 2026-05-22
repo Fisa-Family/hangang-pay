@@ -1,5 +1,6 @@
 package family.fisa.hangangpaybank.domain.institution.service;
 
+import family.fisa.hangangpaybank.domain.blockchain.code.error.BlockchainErrorCode;
 import family.fisa.hangangpaybank.domain.blockchain.service.ContractCallService;
 import family.fisa.hangangpaybank.domain.institution.code.error.InstitutionErrorCode;
 import family.fisa.hangangpaybank.domain.institution.dto.response.DeployAllContractsResponse;
@@ -144,7 +145,7 @@ public class InstitutionDeployService {
                                 signerCredentials.getAddress());
                     });
         } catch (IOException e) {
-            throw new BusinessException(InstitutionErrorCode.INSTITUTION_BLOCKCHAIN_RPC_FAILED);
+            throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
         }
     }
 
@@ -160,7 +161,7 @@ public class InstitutionDeployService {
                         .send();
 
         if (nonceResponse.hasError()) {
-            throw new BusinessException(InstitutionErrorCode.INSTITUTION_BLOCKCHAIN_RPC_FAILED);
+            throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
         }
 
         RawTransaction deployTransaction =
@@ -174,19 +175,18 @@ public class InstitutionDeployService {
         EthSendTransaction sendResponse = transactionManager.signAndSend(deployTransaction);
 
         if (sendResponse.hasError()) {
-            throw new BusinessException(InstitutionErrorCode.INSTITUTION_BLOCKCHAIN_RPC_FAILED);
+            throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
         }
 
         TransactionReceipt receipt =
                 contractCallService.waitForReceipt(web3j, sendResponse.getTransactionHash());
 
         if (!receipt.isStatusOK()) {
-            throw new BusinessException(InstitutionErrorCode.INSTITUTION_TRANSACTION_REVERTED);
+            throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_TRANSACTION_REVERTED);
         }
 
         if (receipt.getContractAddress() == null || receipt.getContractAddress().isBlank()) {
-            throw new BusinessException(
-                    InstitutionErrorCode.INSTITUTION_DEPLOYMENT_RECEIPT_MISSING);
+            throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_DEPLOYMENT_RECEIPT_MISSING);
         }
 
         return receipt;
