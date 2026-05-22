@@ -3,6 +3,7 @@ import { MainLayout } from '@/routes/layouts'
 import { RequireAuth, RequireRole } from '@/routes/guards'
 import { LoginPage } from '@/pages/LoginPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
+import { UserHomePage } from '@/pages/UserHomePage'
 
 export const router = createBrowserRouter([
   {
@@ -22,7 +23,7 @@ export const router = createBrowserRouter([
           {
             element: <MainLayout navType="user" />,
             children: [
-              { path: '/home', element: <PlaceholderPage title="홈" screenId="U-HOME" /> },
+              { path: '/home', element: <UserHomePage /> },
               {
                 path: '/pay/scan',
                 element: <PlaceholderPage title="QR 스캔" screenId="U-PAY-SCAN" />,

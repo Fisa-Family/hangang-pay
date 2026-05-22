@@ -31,6 +31,127 @@ const merchantTabs: BottomNavTab[] = [
   { id: 'mypage', label: '마이', path: '/merchant/mypage' },
 ]
 
+// ── SVG 아이콘 ──────────────────────────────────────────────
+
+function HomeIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      <polyline points="9 22 9 12 15 12 15 22" />
+    </svg>
+  )
+}
+
+function FileTextIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+      <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+      <path d="M10 9H8" />
+      <path d="M16 13H8" />
+      <path d="M16 17H8" />
+    </svg>
+  )
+}
+
+function QrCodeIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <rect width="5" height="5" x="3" y="3" rx="1" />
+      <rect width="5" height="5" x="16" y="3" rx="1" />
+      <rect width="5" height="5" x="3" y="16" rx="1" />
+      <path d="M21 16V21H16" />
+      <path d="M9 9h.01" />
+      <path d="M15 9h.01" />
+      <path d="M9 15h.01" />
+      <path d="M14 14h.01" />
+      <path d="M18 18h.01" />
+    </svg>
+  )
+}
+
+function StoreIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" />
+      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+      <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4" />
+      <path d="M2 7h20" />
+      <path d="M22 7a4 4 0 0 1-8 0 4 4 0 0 1-8 0 4 4 0 0 1-6 0" />
+    </svg>
+  )
+}
+
+function UserIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  )
+}
+
+// tab id → 아이콘 컴포넌트 매핑
+const tabIcons: Record<string, (className?: string) => React.ReactNode> = {
+  home:     (cls) => <HomeIcon className={cls} />,
+  payments: (cls) => <FileTextIcon className={cls} />,
+  scan:     (cls) => <QrCodeIcon className={cls} />,
+  merchant: (cls) => <StoreIcon className={cls} />,
+  mypage:   (cls) => <UserIcon className={cls} />,
+}
+
+// ── 컴포넌트 ────────────────────────────────────────────────
+
 export function BottomNav({ type, active, onNavigate, className }: BottomNavProps) {
   const tabs = type === 'user' ? userTabs : merchantTabs
 
@@ -47,6 +168,8 @@ export function BottomNav({ type, active, onNavigate, className }: BottomNavProp
       >
         {tabs.map((tab) => {
           const isActive = active === tab.id
+          const icon = tabIcons[tab.id]
+
           return (
             <button
               key={tab.id}
@@ -54,14 +177,14 @@ export function BottomNav({ type, active, onNavigate, className }: BottomNavProp
               disabled={tab.disabled}
               onClick={() => onNavigate(tab.path)}
               className={cn(
-                'flex min-h-12 flex-col items-center justify-center rounded-lg px-1 text-xs font-semibold text-muted-foreground transition-colors',
-                isActive && 'text-primary',
+                'flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg px-1 text-xs font-semibold text-muted-foreground transition-colors',
+                isActive && !tab.featured && 'text-primary',
                 tab.featured && 'bg-primary text-primary-foreground shadow-sm shadow-primary/20',
                 tab.disabled && 'opacity-40'
               )}
             >
-              <span className="text-lg leading-none">{tab.featured ? '□' : '•'}</span>
-              <span className="mt-1 truncate">{tab.label}</span>
+              {icon?.('w-[22px] h-[22px]')}
+              <span className="truncate">{tab.label}</span>
             </button>
           )
         })}
