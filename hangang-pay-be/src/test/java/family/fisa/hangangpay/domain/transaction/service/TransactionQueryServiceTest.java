@@ -323,5 +323,4 @@ class TransactionQueryServiceTest {
                     .hasFieldOrPropertyWithValue("code", UserErrorCode.NOT_OWNER);
         }
     }
-
 }
