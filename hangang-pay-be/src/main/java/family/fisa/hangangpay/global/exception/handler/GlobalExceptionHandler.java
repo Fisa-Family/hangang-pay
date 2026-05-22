@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @Slf4j
@@ -30,6 +31,19 @@ public class GlobalExceptionHandler {
         ApiResponse<?> errorResponse = ApiResponse.onFailure(errorCode);
 
         return ResponseEntity.status(errorCode.getStatus()).body(errorResponse);
+    }
+
+    /** 은행 서버가 오류 응답을 반환한 경우 */
+    @ExceptionHandler(RestClientResponseException.class)
+    public ResponseEntity<ApiResponse<?>> handleBankServerException(
+            RestClientResponseException ex) {
+        log.warn(
+                "Bank server returned error. status={}, body={}",
+                ex.getStatusCode(),
+                ex.getResponseBodyAsString());
+
+        BaseErrorCode errorCode = GeneralErrorCode.BANK_SERVER_ERROR;
+        return ResponseEntity.status(errorCode.getStatus()).body(ApiResponse.onFailure(errorCode));
     }
 
     /**

@@ -49,27 +49,21 @@ class UserRegistrationServiceTest {
     private static final String PHONE_NUMBER = "010-1234-5678";
     private static final String ACCOUNT_NUMBER = "1002123456789";
 
-    @Mock
-    private PartyRepository partyRepository;
-    @Mock
-    private UserRepository userRepository;
-    @Mock
-    private AccountRepository accountRepository;
-    @Mock
-    private WalletCommandService walletCommandService;
-    @Mock
-    private InstitutionRepository institutionRepository;
-    @Mock
-    private PasswordEncoder passwordEncoder;
+    @Mock private PartyRepository partyRepository;
+    @Mock private UserRepository userRepository;
+    @Mock private AccountRepository accountRepository;
+    @Mock private WalletCommandService walletCommandService;
+    @Mock private InstitutionRepository institutionRepository;
+    @Mock private PasswordEncoder passwordEncoder;
 
-    @InjectMocks
-    private UserRegistrationService userRegistrationService;
+    @InjectMocks private UserRegistrationService userRegistrationService;
 
     @Test
     @DisplayName("세션 인증값과 요청값이 일치하면 소비자 회원가입을 완료한다")
     void register() {
         MockHttpSession session = verifiedSession();
-        Institution institution = Institution.builder().institutionCode("WR").institutionName("우리은행").build();
+        Institution institution =
+                Institution.builder().institutionCode("WR").institutionName("우리은행").build();
 
         given(userRepository.findByPhoneNumberWithParty(PHONE_NUMBER)).willReturn(Optional.empty());
         given(institutionRepository.findById(INSTITUTION_ID)).willReturn(Optional.of(institution));
@@ -136,9 +130,10 @@ class UserRegistrationServiceTest {
         MockHttpSession session = verifiedSession();
 
         assertThatThrownBy(
-                () -> userRegistrationService.register(
-                        request(PHONE_NUMBER, INSTITUTION_ID, "9999999999"),
-                        session))
+                        () ->
+                                userRegistrationService.register(
+                                        request(PHONE_NUMBER, INSTITUTION_ID, "9999999999"),
+                                        session))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
                 .isEqualTo(AuthErrorCode.SIGNUP_ACCOUNT_MISMATCH);
