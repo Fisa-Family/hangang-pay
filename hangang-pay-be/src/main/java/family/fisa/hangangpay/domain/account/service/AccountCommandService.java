@@ -33,30 +33,35 @@ public class AccountCommandService {
     private final BankClient bankClient;
 
     public MerchantAccountUpdateResponse updateMerchantSettlementAccount(
-        Long partyId, MerchantAccountUpdateRequest request) {
+            Long partyId, MerchantAccountUpdateRequest request) {
 
         // 1. 가맹점 조회
-        Merchant merchant = merchantRepository.findByParty_Id(partyId)
-                                              .orElseThrow(() -> new BusinessException(
-                                                  MerchantErrorCode.MERCHANT_NOT_FOUND));
+        Merchant merchant =
+                merchantRepository
+                        .findByParty_Id(partyId)
+                        .orElseThrow(
+                                () -> new BusinessException(MerchantErrorCode.MERCHANT_NOT_FOUND));
 
         // 2. 은핸 정보 조회
-        Institution institution = institutionRepository.findByInstitutionCode(
-                                                           request.institutionCode())
-                                                       .orElseThrow(() -> new BusinessException(
-                                                           InstitutionErrorCode.INSTITUTION_NOT_FOUND));
+        Institution institution =
+                institutionRepository
+                        .findByInstitutionCode(request.institutionCode())
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                InstitutionErrorCode.INSTITUTION_NOT_FOUND));
 
         // 3. 은행에서 계좌 가져오기 -> 존재 하는 지 확인
-        BankAccountResponse accountResponse = bankClient
-            .getBankAccount(institution.getId(), request.accountNumber());
+        BankAccountResponse accountResponse =
+                bankClient.getBankAccount(institution.getId(), request.accountNumber());
 
         if (accountResponse == null) {
             throw new BusinessException(AccountErrorCode.BANK_ACCOUNT_NOT_FOUND);
         }
 
         // 4. 정산 계좌가 았으면 수정, 없으면 생성
-        Optional<Account> existing = accountRepository.findByParty_IdAndAccountType(partyId,
-            AccountType.SETTLEMENT);
+        Optional<Account> existing =
+                accountRepository.findByParty_IdAndAccountType(partyId, AccountType.SETTLEMENT);
         Account account;
 
         // 계좌가 존재한는 경우 업데이트
@@ -65,25 +70,26 @@ public class AccountCommandService {
             account.update(institution, request.accountNumber());
 
             log.info(
-                "가맹점 정산 계좌 수정: partyId={}, accountId={}, institutionCode={}",
-                partyId,
-                account.getId(),
-                institution.getInstitutionCode());
+                    "가맹점 정산 계좌 수정: partyId={}, accountId={}, institutionCode={}",
+                    partyId,
+                    account.getId(),
+                    institution.getInstitutionCode());
 
         } else { // 계좌가 존재하지 않는 경우 새로 생성
-            account = Account.builder()
-                             .party(merchant.getParty())
-                             .institution(institution)
-                             .accountType(AccountType.SETTLEMENT)
-                             .accountNumber(request.accountNumber())
-                             .build();
+            account =
+                    Account.builder()
+                            .party(merchant.getParty())
+                            .institution(institution)
+                            .accountType(AccountType.SETTLEMENT)
+                            .accountNumber(request.accountNumber())
+                            .build();
             account = accountRepository.save(account);
 
             log.info(
-                "가맹점 정산 계좌 생성: partyId={}, accountId={}, institutionCode={}",
-                partyId,
-                account.getId(),
-                institution.getInstitutionCode());
+                    "가맹점 정산 계좌 생성: partyId={}, accountId={}, institutionCode={}",
+                    partyId,
+                    account.getId(),
+                    institution.getInstitutionCode());
         }
 
         return MerchantAccountUpdateResponse.from(account);
