@@ -47,7 +47,6 @@ public class UserController {
     @Operation(summary = "소비자 내역 조회 (MY-002)", description = "결제, 충전, 환전에 대한 모든 조회를 한번에 처리한다.")
     @GetMapping("/histories")
     public ResponseEntity<ApiResponse<UserHistoryResponse<?>>> getHistories(
-            @SessionAttribute("userId") Long userId,
             @SessionAttribute("partyId") Long partyId,
             @RequestParam UserHistoryType historyType,
             CursorPageRequest cursor,
@@ -55,7 +54,7 @@ public class UserController {
 
         UserHistoryResponse<?> result =
                 switch (historyType) {
-                    case PAYMENT -> {
+                    case PAYMENT, CANCEL -> {
                         CursorPageResponse<PaymentHistoryItem> page =
                                 transactionQueryService.getUserPaymentHistory(
                                         partyId, cursor, size);
@@ -63,12 +62,12 @@ public class UserController {
                     }
                     case CHARGE -> {
                         CursorPageResponse<ChargeHistoryItem> page =
-                                transactionQueryService.getChargeHistories(userId, cursor, size);
+                                transactionQueryService.getChargeHistories(partyId, cursor, size);
                         yield UserHistoryResponse.of(CHARGE, page);
                     }
                     case EXCHANGE -> {
                         CursorPageResponse<ExchangeHistoryItem> page =
-                                transactionQueryService.getExchangeHistories(userId, cursor, size);
+                                transactionQueryService.getExchangeHistories(partyId, cursor, size);
                         yield UserHistoryResponse.of(EXCHANGE, page);
                     }
                 };
@@ -85,7 +84,7 @@ public class UserController {
             @RequestParam UserHistoryType type) {
         UserHistoryDetailResponse<?> result =
                 switch (type) {
-                    case PAYMENT ->
+                    case PAYMENT, CANCEL ->
                             UserHistoryDetailResponse.of(
                                     type,
                                     transactionQueryService.getUserPaymentHistoryDetail(
