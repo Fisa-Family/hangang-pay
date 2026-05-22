@@ -8,9 +8,8 @@ import family.fisa.hangangpay.domain.account.dto.PrimaryAccountResponse;
 import family.fisa.hangangpay.domain.account.entity.Account;
 import family.fisa.hangangpay.domain.account.entity.AccountType;
 import family.fisa.hangangpay.domain.account.repository.AccountRepository;
-import family.fisa.hangangpay.domain.institution.code.error.InstitutionErrorCode;
 import family.fisa.hangangpay.domain.institution.entity.Institution;
-import family.fisa.hangangpay.domain.institution.repository.InstitutionRepository;
+import family.fisa.hangangpay.domain.institution.service.InstitutionQueryService;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.repository.PartyRepository;
 import family.fisa.hangangpay.global.code.error.AccountErrorCode;
@@ -29,7 +28,7 @@ public class AccountService {
 
     private final AccountRepository accountRepository;
     private final PartyRepository partyRepository;
-    private final InstitutionRepository institutionRepository;
+    private final InstitutionQueryService institutionQueryService;
     private final BankClient bankClient;
 
     /** 현재 로그인한 사용자의 등록 계좌 목록 조회 메서드 */
@@ -53,13 +52,7 @@ public class AccountService {
     @Transactional
     public AccountResponse addAccount(Long partyId, AccountAddRequest request) {
         // 1. 기관 코드로 BE 캐시에서 institution 조회
-        Institution institution =
-                institutionRepository
-                        .findByInstitutionCode(request.getInstitutionCode())
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                InstitutionErrorCode.INSTITUTION_NOT_FOUND));
+        Institution institution = institutionQueryService.getByCode(request.getInstitutionCode());
 
         // 2. 동일 계좌 중복 등록 여부 확인
         if (accountRepository.existsByParty_IdAndAccountNumber(

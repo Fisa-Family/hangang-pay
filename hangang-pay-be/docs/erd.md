@@ -42,11 +42,6 @@ erDiagram
     BIGINT id PK
     VARCHAR institution_code
     VARCHAR institution_name
-    VARCHAR account_number
-    VARCHAR wallet_address
-    TEXT encrypted_private_key
-    VARCHAR enode_url
-    VARCHAR rpc_endpoint
     DATETIME created_at
     DATETIME updated_at
   }
@@ -68,34 +63,6 @@ erDiagram
     VARCHAR address
     DATETIME created_at
     DATETIME updated_at
-  }
-
-  BANK_ACCOUNT {
-    BIGINT id PK
-    BIGINT institution_id FK "institution.id"
-    VARCHAR account_number
-    DECIMAL balance
-    DATETIME created_at
-    DATETIME updated_at
-  }
-
-  BANK_WALLET {
-    BIGINT id PK
-    BIGINT institution_id FK "institution.id"
-    VARCHAR wallet_address
-    DECIMAL balance
-    TEXT encrypted_private_key
-    DATETIME created_at
-    DATETIME updated_at
-  }
-
-  CONTRACT_ADDRESS {
-    BIGINT id PK
-    BIGINT institution_id FK "institution.id"
-    VARCHAR name "CBDC | DEPOSIT_TOKEN | CONTRACT"
-    CHAR address
-    TIMESTAMP created_at
-    TIMESTAMP updated_at
   }
 
   FUND_TRANSFER {
@@ -158,9 +125,6 @@ erDiagram
 
   INSTITUTION ||--o{ ACCOUNT : "issues linked account"
   INSTITUTION ||--o{ WALLET : "issues linked wallet"
-  INSTITUTION ||--o{ BANK_ACCOUNT : "holds"
-  INSTITUTION ||--o{ BANK_WALLET : "holds"
-  INSTITUTION ||--o{ CONTRACT_ADDRESS : "deploys"
 
   ACCOUNT ||--o{ FUND_TRANSFER : "used by"
   WALLET ||--o{ FUND_TRANSFER : "used by"
@@ -173,7 +137,8 @@ erDiagram
 
 - `party`는 `user`와 `merchant`의 상위 엔티티다.
 - `account`와 `wallet`은 `party_id`를 통해 소비자와 가맹점 모두 소유할 수 있다.
-- `bank_account`, `bank_wallet`, `contract_address`는 `institution` 도메인에 둔다.
+- `institution`은 BE에서 계좌/지갑이 참조하는 기관 캐시만 담당한다.
+- `bank_account`, `bank_wallet`, 컨트랙트 주소와 배포 책임은 `hangang-pay-bank`에 둔다.
 - `blockchain_tx.reference_type`은 `FUND_TRANSFER`, `PAYMENT`, `PAYMENT_CANCELLATION`만 사용한다.
 - `blockchain_tx.reference_id`는 `reference_type`에 따라 원본 테이블의 id를 의미한다.
 - `blockchain_tx.reference_id`는 다형 참조이므로 단일 FK로 특정 테이블 하나에만 묶지 않는다.
@@ -192,7 +157,6 @@ erDiagram
 | `payment_cancellation.status` | `PENDING`, `SUCCESS`, `FAILED`                     |
 | `blockchain_tx.reference_type` | `FUND_TRANSFER`, `PAYMENT`, `PAYMENT_CANCELLATION` |
 | `blockchain_tx.status` | `PENDING`, `CONFIRMED`, `FAILED`                   |
-| `contract_address.name` | `CBDC`, `DEPOSIT_TOKEN`, `CONTRACT`                |
 
 ## Settlement Meaning
 

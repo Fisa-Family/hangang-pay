@@ -18,7 +18,7 @@ import family.fisa.hangangpay.auth.dto.UserRegisterResponse;
 import family.fisa.hangangpay.domain.account.entity.Account;
 import family.fisa.hangangpay.domain.account.repository.AccountRepository;
 import family.fisa.hangangpay.domain.institution.entity.Institution;
-import family.fisa.hangangpay.domain.institution.repository.InstitutionRepository;
+import family.fisa.hangangpay.domain.institution.service.InstitutionQueryService;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.entity.PartyType;
 import family.fisa.hangangpay.domain.party.repository.PartyRepository;
@@ -53,7 +53,7 @@ class UserRegistrationServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private AccountRepository accountRepository;
     @Mock private WalletCommandService walletCommandService;
-    @Mock private InstitutionRepository institutionRepository;
+    @Mock private InstitutionQueryService institutionQueryService;
     @Mock private PasswordEncoder passwordEncoder;
 
     @InjectMocks private UserRegistrationService userRegistrationService;
@@ -66,7 +66,7 @@ class UserRegistrationServiceTest {
                 Institution.builder().institutionCode("WR").institutionName("우리은행").build();
 
         given(userRepository.findByPhoneNumberWithParty(PHONE_NUMBER)).willReturn(Optional.empty());
-        given(institutionRepository.findById(INSTITUTION_ID)).willReturn(Optional.of(institution));
+        given(institutionQueryService.getById(INSTITUTION_ID)).willReturn(institution);
         given(passwordEncoder.encode("abc123!@")).willReturn("passwordHash");
         given(passwordEncoder.encode("123456")).willReturn("pinHash");
         given(partyRepository.save(any(Party.class)))

@@ -16,7 +16,7 @@ flowchart TD
   domain --> merchant["merchant<br/>가맹점"]
   domain --> account["account<br/>소비자·가맹점 연결 은행 계좌"]
   domain --> wallet["wallet<br/>소비자·가맹점 블록체인 지갑"]
-  domain --> institution["institution<br/>기관, 은행/PG 계좌·지갑, contract 주소"]
+  domain --> institution["institution<br/>기관 목록·참조용 캐시"]
   domain --> transfer["transfer<br/>fund_transfer<br/>CHARGE | EXCHANGE"]
   domain --> payment["payment<br/>payment + payment_cancellation"]
   domain --> blockchain["blockchain<br/>blockchain_tx"]
@@ -45,7 +45,7 @@ controller/
 | `merchant` | 가맹점 회원 정보, 사업자 정보, 가맹점 대시보드 |
 | `account` | 소비자와 가맹점이 등록한 외부 은행 계좌 |
 | `wallet` | 소비자와 가맹점의 서비스 월렛 |
-| `institution` | 기관 목록, 은행/PG 보유 계좌, 은행/PG 보유 지갑, 배포 contract 주소 |
+| `institution` | BE에서 참조하는 기관 목록과 기관 코드/식별자 조회 |
 | `transfer` | 충전과 환전 신청/상태/영수증 |
 | `payment` | 결제와 결제 취소 |
 | `blockchain` | 블록체인 트랜잭션 기록 |
@@ -53,7 +53,8 @@ controller/
 
 ## Placement Rules
 
-- `bank_account`, `bank_wallet`, `contract_address`는 `institution` 도메인에 위치한다.
+- 은행 원장 계좌, 은행 보유 지갑, 컨트랙트 주소와 배포 책임은 `hangang-pay-bank`에 둔다.
+- BE `institution` 도메인은 계좌/지갑/거래에서 참조할 기관 캐시만 담당한다.
 - `account` 도메인은 소비자/가맹점이 등록한 연결 은행 계좌만 담당한다.
 - `wallet` 도메인은 소비자/가맹점이 사용하는 서비스 월렛만 담당한다.
 - `blockchain_tx`는 `blockchain` 도메인에 둔다.

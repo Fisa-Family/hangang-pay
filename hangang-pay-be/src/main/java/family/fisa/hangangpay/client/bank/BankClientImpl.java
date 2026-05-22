@@ -14,14 +14,12 @@ import family.fisa.hangangpay.client.bank.dto.CreateBankAccountRequest;
 import family.fisa.hangangpay.client.bank.dto.CreateBankWalletRequest;
 import family.fisa.hangangpay.client.bank.dto.ExchangeRequest;
 import family.fisa.hangangpay.client.bank.dto.ExchangeResponse;
-import family.fisa.hangangpay.client.bank.dto.InstitutionResponse;
 import family.fisa.hangangpay.client.bank.dto.PaymentRequest;
 import family.fisa.hangangpay.client.bank.dto.PaymentResponse;
 import family.fisa.hangangpay.global.code.error.AccountErrorCode;
 import family.fisa.hangangpay.global.code.error.BaseErrorCode;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import family.fisa.hangangpay.global.response.ApiResponse;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -48,38 +46,6 @@ public class BankClientImpl implements BankClient {
                             AccountErrorCode.BANK_ACCOUNT_NOT_FOUND));
 
     private final RestClient bankRestClient;
-
-    @Override
-    public List<InstitutionResponse> getInstitutions() {
-        // 1. 은행에 기관 목록 조회 요청
-        ApiResponse<List<InstitutionResponse>> response =
-                callBank(
-                        () ->
-                                bankRestClient
-                                        .get()
-                                        .uri("/api/v1/institutions")
-                                        .retrieve()
-                                        .body(new ParameterizedTypeReference<>() {}));
-
-        // 2. 응답에서 결과 추출
-        return response.getResult();
-    }
-
-    @Override
-    public InstitutionResponse getInstitution(Long id) {
-        // 1. 은행에 특정 기관 정보 조회 요청
-        ApiResponse<InstitutionResponse> response =
-                callBank(
-                        () ->
-                                bankRestClient
-                                        .get()
-                                        .uri("/api/v1/institutions/{id}", id)
-                                        .retrieve()
-                                        .body(new ParameterizedTypeReference<>() {}));
-
-        // 2. 응답에서 결과 추출
-        return response.getResult();
-    }
 
     @Override
     public BankAccountResponse createBankAccount(CreateBankAccountRequest request) {

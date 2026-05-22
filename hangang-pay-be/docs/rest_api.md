@@ -1,7 +1,7 @@
 # REST API
 
 모든 API 경로 앞에는 `/api/v1` prefix를 붙인다. 아래 표의 path는 prefix를 제외한 경로다.  
-단, `INSTITUTION-001`과 `MERCHANT-009`는 예외 — 각각 prefix가 없거나 `/api/v2`를 사용한다.
+단, `MERCHANT-009`는 예외로 `/api/v2`를 사용한다.
 
 ## Common Rules
 
@@ -97,7 +97,6 @@ SMS 인증은 Octomo를 사용한다. SMS 발송 API도 백엔드에 둔다.
 | `CHARGE-002` | 충전 실행 | `POST` | `/charges` | `O` | `USER` | 소비자 전용 |
 | `EXCHANGE-001` | 환전 정보 조회 | `GET` | `/exchange/{partyId}/init` | `O` | `USER \| MERCHANT` | 환전 가능 여부·예정 금액 포함 |
 | `EXCHANGE-002` | 환전 실행 | `POST` | `/exchange` | `O` | `USER \| MERCHANT` | 서비스 용어는 환전 |
-| `INSTITUTION-001` | 컨트랙트 배포 | `POST` | `/institutions/contracts/deploy` | `X` | `PUBLIC` | `/api/v1` prefix 미적용. 내부 관리용 |
 | `MERCHANT-001` | 가맹점 매출 요약 조회 | `GET` | `/merchant/dashboard` | `O` | `MERCHANT` | 가맹점 전용 |
 | `MERCHANT-002` | 가맹점 결제 내역 조회 | `GET` | `/merchant/payments` | `O` | `MERCHANT` | 가맹점 전용 |
 | `MERCHANT-003` | 가맹점 결제 상세 조회 | `GET` | `/merchant/payments/{paymentId}` | `O` | `MERCHANT` | |
