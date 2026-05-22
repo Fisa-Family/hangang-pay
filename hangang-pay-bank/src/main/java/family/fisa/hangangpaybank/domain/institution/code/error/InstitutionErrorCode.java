@@ -17,7 +17,6 @@ public enum InstitutionErrorCode implements BaseErrorCode {
             HttpStatus.INTERNAL_SERVER_ERROR,
             "INSTITUTION_ARTIFACT_NOT_FOUND",
             "컨트랙트 artifact를 찾을 수 없습니다."),
-
     INSTITUTION_DEPLOYMENT_RECEIPT_MISSING(
             HttpStatus.BAD_GATEWAY,
             "INSTITUTION_DEPLOYMENT_RECEIPT_MISSING",
