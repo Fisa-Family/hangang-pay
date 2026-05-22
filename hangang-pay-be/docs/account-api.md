@@ -53,7 +53,7 @@ GET http://localhost:8080/api/v1/accounts?partyId=1
 
 ## ACCOUNT-002: 계좌 추가
 
-은행 원장(bank_account 테이블) 조회 후 예금주명을 대조하고 계좌를 등록합니다.
+BE institution 캐시에서 기관을 조회하고, bank 서버의 은행 원장(bank_account 테이블)을 확인한 뒤 계좌를 등록합니다.
 최대 3개까지 등록 가능하며, 첫 번째 계좌는 자동으로 PRIMARY로 설정됩니다.
 1원 인증은 AUTH-003, AUTH-004 구현 이후 연동 예정입니다.
 
@@ -75,8 +75,8 @@ Content-Type: application/json
 
 **테스트 데이터 삽입 SQL**
 
-institution, bank_account 테이블에 데이터가 없으면 BANK_ACCOUNT_NOT_FOUND가 발생합니다.
-아래 SQL을 순서대로 실행한 뒤 테스트합니다.
+BE institution 테이블에 기관이 없으면 INSTITUTION_NOT_FOUND, bank 서버 bank_account 테이블에 계좌가 없으면 BANK_ACCOUNT_NOT_FOUND가 발생합니다.
+BE DB에는 institution 데이터를, bank DB에는 bank_account 데이터를 넣은 뒤 테스트합니다.
 
 ```sql
 INSERT INTO institution (institution_code, institution_name, created_at, updated_at)

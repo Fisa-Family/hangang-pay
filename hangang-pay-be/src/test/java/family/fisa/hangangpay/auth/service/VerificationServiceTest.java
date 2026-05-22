@@ -9,21 +9,31 @@ import static family.fisa.hangangpay.global.session.SessionAttributeNames.SIGNUP
 import static family.fisa.hangangpay.global.session.SessionAttributeNames.SIGNUP_PHONE_VERIFIED_AT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.BDDMockito.given;
 
 import family.fisa.hangangpay.auth.code.error.AuthErrorCode;
+import family.fisa.hangangpay.client.bank.BankClient;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.web.client.RestClientResponseException;
 
+@ExtendWith(MockitoExtension.class)
 class VerificationServiceTest {
+
+    @Mock private BankClient bankClient;
 
     private static final String PHONE_NUMBER = "010-1234-5678";
     private static final Long INSTITUTION_ID = 1L;
     private static final String ACCOUNT_NUMBER = "1002123456789";
 
-    private final VerificationService verificationService = new VerificationService();
+    @InjectMocks private VerificationService verificationService;
 
     @Test
     @DisplayName("SMS 인증 성공 시 회원가입용 휴대폰 인증 상태를 세션에 저장한다")
@@ -57,6 +67,20 @@ class VerificationServiceTest {
         assertThat(session.getAttribute(SIGNUP_ACCOUNT_NUMBER)).isEqualTo(ACCOUNT_NUMBER);
         assertThat(session.getAttribute(SIGNUP_ACCOUNT_VERIFIED_AT))
                 .isInstanceOf(LocalDateTime.class);
+    }
+
+    @Test
+    @DisplayName("계좌 1원 인증 시 은행 서버에 저장된 계좌가 없으면 예외를 던진다")
+    void verifyAccountWithNonExistentAccount() {
+        MockHttpSession session = new MockHttpSession();
+        given(bankClient.getBankAccount(INSTITUTION_ID, ACCOUNT_NUMBER))
+                .willThrow(RestClientResponseException.class);
+
+        assertThatThrownBy(
+                        () ->
+                                verificationService.sendAccountVerification(
+                                        INSTITUTION_ID, ACCOUNT_NUMBER, session))
+                .isInstanceOf(RestClientResponseException.class);
     }
 
     @Test

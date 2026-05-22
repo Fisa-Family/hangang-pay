@@ -7,9 +7,8 @@ import family.fisa.hangangpay.domain.account.dto.MerchantAccountUpdateResponse;
 import family.fisa.hangangpay.domain.account.entity.Account;
 import family.fisa.hangangpay.domain.account.entity.AccountType;
 import family.fisa.hangangpay.domain.account.repository.AccountRepository;
-import family.fisa.hangangpay.domain.institution.code.error.InstitutionErrorCode;
 import family.fisa.hangangpay.domain.institution.entity.Institution;
-import family.fisa.hangangpay.domain.institution.repository.InstitutionRepository;
+import family.fisa.hangangpay.domain.institution.service.InstitutionQueryService;
 import family.fisa.hangangpay.domain.merchant.code.error.MerchantErrorCode;
 import family.fisa.hangangpay.domain.merchant.entity.Merchant;
 import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
@@ -29,7 +28,7 @@ public class AccountCommandService {
 
     private final MerchantRepository merchantRepository;
     private final AccountRepository accountRepository;
-    private final InstitutionRepository institutionRepository;
+    private final InstitutionQueryService institutionQueryService;
     private final BankClient bankClient;
 
     public MerchantAccountUpdateResponse updateMerchantSettlementAccount(
@@ -42,14 +41,7 @@ public class AccountCommandService {
                         .orElseThrow(
                                 () -> new BusinessException(MerchantErrorCode.MERCHANT_NOT_FOUND));
 
-        // 2. 은핸 정보 조회
-        Institution institution =
-                institutionRepository
-                        .findByInstitutionCode(request.institutionCode())
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                InstitutionErrorCode.INSTITUTION_NOT_FOUND));
+        Institution institution = institutionQueryService.getByCode(request.institutionCode());
 
         // 3. 은행에서 계좌 가져오기 -> 존재 하는 지 확인
         BankAccountResponse accountResponse =

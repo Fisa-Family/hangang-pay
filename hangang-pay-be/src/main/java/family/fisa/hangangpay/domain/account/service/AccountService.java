@@ -9,7 +9,7 @@ import family.fisa.hangangpay.domain.account.entity.Account;
 import family.fisa.hangangpay.domain.account.entity.AccountType;
 import family.fisa.hangangpay.domain.account.repository.AccountRepository;
 import family.fisa.hangangpay.domain.institution.entity.Institution;
-import family.fisa.hangangpay.domain.institution.repository.InstitutionRepository;
+import family.fisa.hangangpay.domain.institution.service.InstitutionQueryService;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.repository.PartyRepository;
 import family.fisa.hangangpay.global.code.error.AccountErrorCode;
@@ -28,7 +28,7 @@ public class AccountService {
 
     private final AccountRepository accountRepository;
     private final PartyRepository partyRepository;
-    private final InstitutionRepository institutionRepository;
+    private final InstitutionQueryService institutionQueryService;
     private final BankClient bankClient;
 
     /** 현재 로그인한 사용자의 등록 계좌 목록 조회 메서드 */
@@ -52,32 +52,25 @@ public class AccountService {
     @Transactional
     public AccountResponse addAccount(Long partyId, AccountAddRequest request) {
         // 1. 기관 코드로 BE 캐시에서 institution 조회
-        Institution institution =
-                institutionRepository
-                        .findByInstitutionCode(request.getInstitutionCode())
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                AccountErrorCode.BANK_ACCOUNT_NOT_FOUND));
+        Institution institution = institutionQueryService.getByCode(request.getInstitutionCode());
 
-        // 2. bank에서 계좌 존재 확인
-        // TODO: bank 4xx 응답을 명확한 BusinessException으로 변환
-        bankClient.getBankAccount(institution.getId(), request.getAccountNumber());
-
-        // 3. 동일 계좌 중복 등록 여부 확인
+        // 2. 동일 계좌 중복 등록 여부 확인
         if (accountRepository.existsByParty_IdAndAccountNumber(
                 partyId, request.getAccountNumber())) {
             throw new BusinessException(AccountErrorCode.DUPLICATE_ACCOUNT);
         }
 
-        // 4. 등록 계좌 수 조회 - 한도 초과 및 계좌 유형 결정에 동시 사용
+        // 3. 등록 계좌 수 조회 - 한도 초과 확인
         long count = accountRepository.countByParty_Id(partyId);
         if (count >= 3) {
             throw new BusinessException(AccountErrorCode.MAX_ACCOUNT_EXCEEDED);
         }
 
-        // 5. 첫 번째 계좌는 주거래 계좌로 등록
-        AccountType accountType = (count == 0) ? AccountType.PRIMARY : AccountType.SECONDARY;
+        // 4. bank에서 계좌 존재 확인
+        bankClient.getBankAccount(institution.getId(), request.getAccountNumber());
+
+        // 5. 회원가입 시 생성된 주거래 계좌 이후 추가되는 계좌는 일반 계좌로 등록
+        AccountType accountType = AccountType.SECONDARY;
 
         // 6. 파티 프록시 참조 로드
         Party party = partyRepository.getReferenceById(partyId);

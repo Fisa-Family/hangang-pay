@@ -7,7 +7,7 @@ import family.fisa.hangangpay.domain.account.entity.Account;
 import family.fisa.hangangpay.domain.account.entity.AccountType;
 import family.fisa.hangangpay.domain.account.repository.AccountRepository;
 import family.fisa.hangangpay.domain.institution.entity.Institution;
-import family.fisa.hangangpay.domain.institution.repository.InstitutionRepository;
+import family.fisa.hangangpay.domain.institution.service.InstitutionQueryService;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.entity.PartyType;
 import family.fisa.hangangpay.domain.party.repository.PartyRepository;
@@ -37,7 +37,7 @@ public class UserRegistrationService {
     private final UserRepository userRepository;
     private final AccountRepository accountRepository;
     private final WalletCommandService walletCommandService;
-    private final InstitutionRepository institutionRepository;
+    private final InstitutionQueryService institutionQueryService;
     private final PasswordEncoder passwordEncoder;
 
     public UserRegisterResponse register(UserRegisterRequest request, HttpSession session) {
@@ -52,11 +52,7 @@ public class UserRegistrationService {
                             throw new BusinessException(AuthErrorCode.DUPLICATE_PHONE_NUMBER);
                         });
 
-        Institution institution =
-                institutionRepository
-                        .findById(request.institutionId())
-                        .orElseThrow(
-                                () -> new BusinessException(AuthErrorCode.INSTITUTION_NOT_FOUND));
+        Institution institution = institutionQueryService.getById(request.institutionId());
 
         Party party = partyRepository.save(Party.of(PartyType.USER));
         User user =

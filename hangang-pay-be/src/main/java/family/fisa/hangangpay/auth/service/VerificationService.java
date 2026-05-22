@@ -1,18 +1,23 @@
 package family.fisa.hangangpay.auth.service;
 
 import family.fisa.hangangpay.auth.code.error.AuthErrorCode;
+import family.fisa.hangangpay.client.bank.BankClient;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import family.fisa.hangangpay.global.session.SessionAttributeNames;
 import jakarta.servlet.http.HttpSession;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /** SMS 및 계좌 1원 인증 처리 서비스 */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class VerificationService {
+
+    private final BankClient bankClient;
 
     private static final String SESSION_SMS_CODE = "sms_code";
     private static final String SESSION_SMS_PHONE = "sms_phone";
@@ -69,6 +74,9 @@ public class VerificationService {
     /** 계좌 1원 인증 코드 발송 */
     public String sendAccountVerification(
             Long institutionId, String accountNumber, HttpSession session) {
+
+        // 계좌 1원 인증 발송 전 bank 서버에서 institutionId + accountNumber 존재 여부 확인
+        bankClient.getBankAccount(institutionId, accountNumber);
         String code = String.format("%06d", random.nextInt(1_000_000));
         session.setAttribute(SESSION_ACCOUNT_CODE, code);
         session.setAttribute(SESSION_ACCOUNT_INSTITUTION_ID, institutionId);

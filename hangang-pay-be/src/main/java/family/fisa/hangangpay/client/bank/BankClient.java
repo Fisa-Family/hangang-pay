@@ -11,17 +11,10 @@ import family.fisa.hangangpay.client.bank.dto.CreateBankAccountRequest;
 import family.fisa.hangangpay.client.bank.dto.CreateBankWalletRequest;
 import family.fisa.hangangpay.client.bank.dto.ExchangeRequest;
 import family.fisa.hangangpay.client.bank.dto.ExchangeResponse;
-import family.fisa.hangangpay.client.bank.dto.InstitutionResponse;
 import family.fisa.hangangpay.client.bank.dto.PaymentRequest;
 import family.fisa.hangangpay.client.bank.dto.PaymentResponse;
-import java.util.List;
 
 public interface BankClient {
-
-    // institution 관련
-    List<InstitutionResponse> getInstitutions();
-
-    InstitutionResponse getInstitution(Long id);
 
     // bank_account 관련
     BankAccountResponse createBankAccount(CreateBankAccountRequest request);

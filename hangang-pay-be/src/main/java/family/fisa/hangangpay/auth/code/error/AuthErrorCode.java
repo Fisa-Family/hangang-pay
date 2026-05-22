@@ -25,8 +25,7 @@ public enum AuthErrorCode implements BaseErrorCode {
             HttpStatus.FORBIDDEN, "SIGNUP_ACCOUNT_MISMATCH", "인증한 계좌와 요청 정보가 일치하지 않습니다."),
     SIGNUP_ACCOUNT_VERIFICATION_EXPIRED(
             HttpStatus.FORBIDDEN, "SIGNUP_ACCOUNT_VERIFICATION_EXPIRED", "계좌 인증이 만료되었습니다."),
-    DUPLICATE_PHONE_NUMBER(HttpStatus.BAD_REQUEST, "DUPLICATE_PHONE_NUMBER", "이미 가입된 휴대폰 번호입니다."),
-    INSTITUTION_NOT_FOUND(HttpStatus.NOT_FOUND, "INSTITUTION_NOT_FOUND", "금융기관을 찾을 수 없습니다.");
+    DUPLICATE_PHONE_NUMBER(HttpStatus.BAD_REQUEST, "DUPLICATE_PHONE_NUMBER", "이미 가입된 휴대폰 번호입니다.");
 
     private final HttpStatus status;
     private final String code;
