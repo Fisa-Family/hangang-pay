@@ -5,15 +5,86 @@ pragma solidity 0.8.28
 정확한 버전을 사용해서 컨트랙트 코드를 작성해주세요. - 해당 버전 선택 이유 ? 말해야함
 
 ## 실행하기
-Requirements: node v22 
+
+Requirements:
+
+- Node.js v22
+
+---
+
+### 1. 컨트랙트 컴파일 (컨트랙트 변경 시에만 실행)
+
+`hangang-pay/hangang-pay-bc/blockchain` 경로에서 실행합니다.
 
 ```bash
-cd blockchain
+cd hangang-pay/hangang-pay-bc/blockchain
+
 npm i
 
-cd network
+npx hardhat compile
+```
+
+컴파일이 완료되면 ABI JSON 파일이 생성됩니다.
+
+---
+
+### 2. ABI JSON 파일 이동 (컨트랙트 변경 시에만 실행)
+
+생성된 ABI 파일들을 은행 서버 리소스 경로로 이동합니다.
+
+원본 경로:
+
+```text
+hangang-pay/hangang-pay-bc/blockchain/artifacts/contracts
+```
+
+대상 경로:
+
+```text
+hangang-pay/hangang-pay-bank/src/main/resources/contracts
+```
+
+`contracts` 내부의 각 컨트랙트 `.json` 파일들을 이동하면 됩니다.
+
+---
+
+### 3. 블록체인 노드 실행
+
+`hangang-pay/hangang-pay-bc/network` 경로에서 실행합니다.
+
+```bash
+cd hangang-pay/hangang-pay-bc/network
+
 docker compose up -d
 ```
+
+> 일반적으로는 여기서부터 실행하면 됩니다.
+>
+> (컨트랙트 수정이 없는 경우 1, 2번 과정은 생략 가능)
+
+---
+
+### 4. 컨트랙트 배포 실행
+
+`hangang-pay-bank` 프로젝트에서 Contract Deploy를 실행합니다.
+
+---
+
+## 블록체인 데이터 초기화
+
+노드 데이터가 꼬였거나 체인을 초기화해야 하는 경우 아래 명령어를 실행합니다.
+
+`hangang-pay/hangang-pay-bc/network` 경로에서 실행합니다.
+
+```bash
+find Node-1/data Node-2/data Node-3/data Node-4/data \
+  -mindepth 1 \
+  ! -name key \
+  ! -name key.pub \
+  -exec rm -rf {} +
+```
+
+> validator key / public key 파일은 유지하고 나머지 블록체인 데이터를 초기화합니다.
 
 ## 스크립트
 - [reset.sh](./network/scripts/reset.sh) : 도커 볼륨 삭제 및 연결된 로컬 파일 삭제. 블록체인 네트워크 초기화 시 사용하세요. 네트워크 초기화 시 연관된 엔티티가 존재하므로 backend db 초기화가 필요할 수 있습니다. (ex. institution, contract 엔티티)
