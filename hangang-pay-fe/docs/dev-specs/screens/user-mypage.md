@@ -1,6 +1,6 @@
 # 사용자 마이페이지 / 내역 / 계좌 화면 명세
 
-대상 화면: U-MY-_, U-ACC-_
+대상 화면: `U-MY-*`, `U-ACC-*`
 
 ---
 
@@ -8,247 +8,192 @@
 
 ### U-MY-01 마이페이지
 
-- 타입: page
-- 경로: /mypage
+- type: page
+- route: `/mypage`
+- auth: user
+- purpose: 사용자 내역, 계좌 관리, 로그아웃 진입점을 제공한다.
 
-**UI**
+**actions**
 
-- 사용자 이름
-- 메뉴: 결제 내역, 충전 내역, 환불 내역, 계좌 관리, 로그아웃
-- 하단 내비: → C-NAV-USER (활성: 마이페이지)
-
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 결제 내역 | /mypage/payments |
-| 충전 내역 | /mypage/charges |
-| 환불 내역 | /mypage/refunds |
-| 계좌 관리 | /mypage/accounts |
-| 로그아웃 | C-LOGOUT-01 모달 열기 |
+| trigger   | result                  |
+| --------- | ----------------------- |
+| 내역 확인 | `/mypage/history`       |
+| 계좌 관리 | `/mypage/accounts`      |
+| 로그아웃  | `C-LOGOUT-01` 모달 열기 |
 
 ---
 
-## 결제 내역
+## 내역 조회 플로우
 
-### U-MY-PAY-01 결제 내역
+순서: 내역 조회 -> 전체/결제/충전/환불 탭 선택 -> 항목 선택 -> 유형별 상세
 
-- 타입: page
-- 경로: /mypage/payments
+### U-MY-HIST-01 내역 조회
 
-**UI**
+- type: page
+- route: `/mypage/history`
+- auth: user
+- purpose: 사용자 거래 내역을 전체, 결제, 충전, 환불 탭으로 조회한다.
 
-- 상태 필터 탭: 전체, 결제, 취소
-- 결제 리스트:
-  - 가맹점명
-  - 금액 (음수 표시)
-  - 상태 배지: 결제 완료 (green) / 취소됨 (gray)
-  - 결제 일시
-- 빈 상태: "결제 내역이 없습니다"
+**states**
 
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 결제 항목 탭 | /mypage/payments/:id |
-| 뒤로 | /mypage |
+| state   | contract                 |
+| ------- | ------------------------ |
+| loading | 내역 조회중              |
+| ready   | 선택한 탭의 내역 표시    |
+| empty   | 선택한 탭의 내역 없음    |
+| error   | 내역 조회 실패 사유 표시 |
 
----
+**actions**
 
-### U-MY-PAY-02 결제 상세
-
-- 타입: page
-- 경로: /mypage/payments/:id
-
-**UI**
-
-- 가맹점명
-- 결제 금액
-- 상태 배지: 결제 완료 / 취소됨
-- 승인번호
-- 결제 일시
-- 취소 일시 (취소된 경우)
-
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 뒤로 | /mypage/payments |
+| trigger       | condition | result                         |
+| ------------- | --------- | ------------------------------ |
+| 전체 탭       | -         | 현재 화면에서 전체 내역 표시   |
+| 결제 탭       | -         | 현재 화면에서 결제 내역 표시   |
+| 충전 탭       | -         | 현재 화면에서 충전 내역 표시   |
+| 환불 탭       | -         | 현재 화면에서 환불 내역 표시   |
+| 결제 row 클릭 | -         | `/mypage/history/payments/:id` |
+| 충전 row 클릭 | -         | `/mypage/history/charges/:id`  |
+| 환불 row 클릭 | -         | `/mypage/history/refunds/:id`  |
+| 뒤로          | -         | `/mypage`                      |
 
 ---
 
-## 충전 내역
+### U-MY-HIST-PAY-01 결제 상세
 
-### U-MY-CHG-01 충전 내역
+- type: page
+- route: `/mypage/history/payments/:id`
+- auth: user
+- purpose: 선택한 결제 내역의 상세 정보를 조회한다.
 
-- 타입: page
-- 경로: /mypage/charges
+**states**
 
-**UI**
+| state   | contract                 |
+| ------- | ------------------------ |
+| loading | 상세 조회중              |
+| ready   | 결제 상세 표시           |
+| error   | 상세 조회 실패 사유 표시 |
 
-- 충전 리스트:
-  - 충전 금액 (양수 표시)
-  - 실제 결제금액
-  - 충전 일시
+**actions**
 
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 충전 항목 탭 | /mypage/charges/:id |
-| 뒤로 | /mypage |
-
----
-
-### U-MY-CHG-02 충전 상세
-
-- 타입: page
-- 경로: /mypage/charges/:id
-
-**UI**
-
-- 충전 금액
-- 할인 금액
-- 실제 결제금액
-- 계좌: 마스킹 계좌번호
-- 상태 배지
-- 트랜잭션 해시
-- 충전 일시
-
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 뒤로 | /mypage/charges |
+| trigger | result            |
+| ------- | ----------------- |
+| 뒤로    | `/mypage/history` |
 
 ---
 
-## 환불 내역
+### U-MY-HIST-CHG-01 충전 상세
 
-### U-MY-REF-01 환불 내역
+- type: page
+- route: `/mypage/history/charges/:id`
+- auth: user
+- purpose: 선택한 충전 내역의 상세 정보를 조회한다.
 
-- 타입: page
-- 경로: /mypage/refunds
+**states**
 
-**UI**
+| state   | contract                 |
+| ------- | ------------------------ |
+| loading | 상세 조회중              |
+| ready   | 충전 상세 표시           |
+| error   | 상세 조회 실패 사유 표시 |
 
-- 환불 리스트:
-  - 환불 금액
-  - 신청 일시
+**actions**
 
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 환불 항목 탭 | /mypage/refunds/:id |
-| 뒤로 | /mypage |
-
----
-
-### U-MY-REF-02 환불 상세
-
-- 타입: page
-- 경로: /mypage/refunds/:id
-
-**UI**
-
-- 환불 금액
-- 환불 계좌: 마스킹 계좌번호
-- 상태 배지
-- 트랜잭션 해시
-- 신청 일시
-- 완료 일시 (완료된 경우)
-
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 뒤로 | /mypage/refunds |
+| trigger | result            |
+| ------- | ----------------- |
+| 뒤로    | `/mypage/history` |
 
 ---
 
-## 계좌 관리
+### U-MY-HIST-REF-01 환불 상세
+
+- type: page
+- route: `/mypage/history/refunds/:id`
+- auth: user
+- purpose: 선택한 환불 내역의 상세 정보를 조회한다.
+
+**states**
+
+| state   | contract                 |
+| ------- | ------------------------ |
+| loading | 상세 조회중              |
+| ready   | 환불 상세 표시           |
+| error   | 상세 조회 실패 사유 표시 |
+
+**actions**
+
+| trigger | result            |
+| ------- | ----------------- |
+| 뒤로    | `/mypage/history` |
+
+---
+
+## 계좌 관리 플로우
+
+순서: 계좌 관리 -> 계좌 추가 및 1원 인증 -> 계좌 추가 완료
 
 ### U-ACC-01 계좌 관리
 
-- 타입: page
-- 경로: /mypage/accounts
+- type: page
+- route: `/mypage/accounts`
+- auth: user
+- purpose: 등록된 사용자 계좌를 조회하고 계좌 추가 플로우로 진입한다.
 
-**UI**
+**states**
 
-- 등록 계좌 목록 (계좌별 행):
-  - [우측 고정] 삭제 버튼
-  - 은행명
-  - 마스킹 계좌번호
-  - 주거래 배지 (해당 계좌)
-  - 버튼: 주거래 변경 (계좌 정보 하단 배치)
-- 안내 문구: 계좌는 최대 3개까지 등록할 수 있어요
-- 버튼: 계좌 추가
+| state   | contract                      |
+| ------- | ----------------------------- |
+| loading | 계좌 목록 조회중              |
+| ready   | 계좌 목록 표시                |
+| empty   | 등록된 계좌 없음              |
+| error   | 계좌 목록 조회 실패 사유 표시 |
 
-**모달**: 삭제 탭 시 인라인 오버레이 (별도 route 없음)
+**actions**
 
-- 삭제 확인 메시지
-- 계좌 정보 미리보기
-- 버튼: 취소, 삭제
-
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 계좌 추가 | /mypage/accounts/add |
-| 주거래 변경 | 현재 화면 (요청 후 목록 갱신, 화면 이동 없음) |
-| 삭제 | 현재 화면 위 삭제 확인 모달 열기 |
-| 삭제 확인 모달: 삭제 | 현재 화면 (요청 후 목록 갱신, 모달 닫기) |
-| 삭제 확인 모달: 취소 | 현재 화면 (모달 닫기) |
-| 뒤로 | /mypage |
+| trigger   | result                 |
+| --------- | ---------------------- |
+| 계좌 추가 | `/mypage/accounts/add` |
+| 뒤로      | `/mypage`              |
 
 ---
 
-### U-ACC-02 계좌 추가
+### U-ACC-02 계좌 추가 및 1원 인증
 
-- 타입: page
-- 경로: /mypage/accounts/add
+- type: page
+- route: `/mypage/accounts/add`
+- auth: user
+- purpose: 계좌 정보를 입력하고 같은 화면에서 1원 인증을 완료한다.
 
-**UI**
+**states**
 
-- 은행 선택
-- 계좌번호 입력
-- 예금주명 입력
-- 버튼: 1원 인증 발송, 이전
+| state     | contract                           |
+| --------- | ---------------------------------- |
+| idle      | 계좌 입력 대기                     |
+| code_sent | 1원 인증번호 입력 및 타이머 진행   |
+| verified  | 계좌 인증 완료                     |
+| error     | 계좌 확인 또는 인증 실패 사유 표시 |
 
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 1원 인증 발송 | /mypage/accounts/verify |
-| 이전 | /mypage/accounts |
+**actions**
 
----
-
-### U-ACC-03 계좌 인증
-
-- 타입: page
-- 경로: /mypage/accounts/verify
-
-**UI**
-
-- 인증 코드 입력
-- 타이머
-- 안내 문구: 입금자명에 표시된 숫자를 입력해주세요
-- 버튼: 인증 완료, 재발송, 이전
-
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 인증 완료 | /mypage/accounts/complete |
-| 재발송 | 현재 화면 (타이머 초기화) |
-| 이전 | /mypage/accounts/add |
+| trigger       | condition      | result                                     |
+| ------------- | -------------- | ------------------------------------------ |
+| 1원 인증 발송 | 발송 성공      | 현재 화면 `code_sent` 상태                 |
+| 인증 확인     | 인증 성공      | 현재 화면 `verified` 상태                  |
+| 인증 확인     | 인증 실패      | 현재 화면 `error` 상태                     |
+| 재발송        | -              | 현재 화면 `code_sent` 상태로 타이머 초기화 |
+| 다음          | 계좌 인증 완료 | `/mypage/accounts/complete`                |
+| 이전          | -              | `/mypage/accounts`                         |
 
 ---
 
-### U-ACC-04 계좌 추가 완료
+### U-ACC-03 계좌 추가 완료
 
-- 타입: page
-- 경로: /mypage/accounts/complete
+- type: page
+- route: `/mypage/accounts/complete`
+- auth: user
+- purpose: 계좌 추가 완료를 안내하고 계좌 관리 화면으로 복귀한다.
 
-**UI**
+**actions**
 
-- 완료 아이콘
-- 메시지: 계좌가 추가되었습니다
-- 버튼: 확인
-
-**액션**
-| 트리거 | 이동 |
-|--------|------|
-| 확인 | /mypage/accounts |
+| trigger | result             |
+| ------- | ------------------ |
+| 확인    | `/mypage/accounts` |
