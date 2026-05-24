@@ -47,11 +47,10 @@ public class UserController {
     @Operation(summary = "소비자 내역 조회 (MY-002)", description = "결제, 충전, 환전에 대한 모든 조회를 한번에 처리한다.")
     @GetMapping("/histories")
     public ResponseEntity<ApiResponse<UserHistoryResponse<?>>> getHistories(
-            @SessionAttribute("partyId") Long partyId,
+            @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId,
             @RequestParam UserHistoryType historyType,
-            CursorPageRequest cursor,
-            @RequestParam(defaultValue = "20") int size) {
-
+            @RequestParam(defaultValue = "20") int size,
+            CursorPageRequest cursor) {
         UserHistoryResponse<?> result =
                 switch (historyType) {
                     case PAYMENT, CANCEL -> {
@@ -79,7 +78,7 @@ public class UserController {
             description = "결제(PAYMENT)/충전(CHARGE)/환전(EXCHANGE) 내역의 상세 정보를 조회한다.")
     @GetMapping("/histories/{historyId}")
     public ResponseEntity<ApiResponse<UserHistoryDetailResponse<?>>> getDetailHistory(
-            @SessionAttribute("partyId") Long partyId,
+            @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId,
             @PathVariable Long historyId,
             @RequestParam UserHistoryType type) {
         UserHistoryDetailResponse<?> result =

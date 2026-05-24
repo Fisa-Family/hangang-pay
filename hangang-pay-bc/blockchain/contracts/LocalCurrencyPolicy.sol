@@ -40,11 +40,10 @@ contract LocalCurrencyPolicy {
     address public depositToken;
     address public settlement;
 
-    // 지역화폐 총 사용 가능 한도
-    uint256 public maxTotalUsage;
-
-    // 누적 사용 금액
-    uint256 public totalUsed;
+    // 지역화폐 총 누적 발행 가능 한도
+    uint256 public constant MAX_TOTAL_ISSUANCE = 10_000_000 * 10 ** 18;
+    // 누적 지역화폐 발행량
+    uint256 public totalIssued;
 
     // 등록된 가맹점 여부
     mapping(address => bool) public merchants;
@@ -54,7 +53,7 @@ contract LocalCurrencyPolicy {
     error InvalidAddress();
     error InvalidAmount();
     error MerchantNotRegistered();
-    error UsageLimitExceeded();
+    error IssuanceLimitExceeded();
     error ReserveMoveFailed();
     error DepositTokenMintFailed();
     error DepositTokenBurnFailed();
@@ -101,12 +100,11 @@ contract LocalCurrencyPolicy {
         _;
     }
 
-    // 배포 시 예금토큰 주소 및 최대 사용 한도 저장
+    // 배포 시 예금토큰 주소, Settlement 주소 및 최대 발행 한도 저장
     constructor(
         address _depositToken,
-        address _settlement,
-        uint256 _maxTotalUsage
-    ) {
+        address _settlement
+        ) {
         // 주소 검증
         if (
             _depositToken == address(0) ||
@@ -121,9 +119,6 @@ contract LocalCurrencyPolicy {
         // 예금토큰 컨트랙트 저장
         depositToken = _depositToken;
         settlement = _settlement;
-
-        // 지역화폐 총 사용 가능 한도 저장
-        maxTotalUsage = _maxTotalUsage;
     }
 
     // 가맹점 등록 및 해제 함수
@@ -156,6 +151,10 @@ contract LocalCurrencyPolicy {
         if (!ISettlement(settlement).registeredBank(fromInstitutionId)) {
             revert BankNotRegistered();
         }
+        if (totalIssued + amount > MAX_TOTAL_ISSUANCE) {
+            revert IssuanceLimitExceeded();
+        }
+
         if (fromInstitutionId != WOORI_BANK_ID) {
             if (
                 !ISettlement(settlement).moveReserve(
@@ -176,6 +175,9 @@ contract LocalCurrencyPolicy {
         ) {
             revert DepositTokenMintFailed();
         }
+
+        totalIssued += amount;
+        
         emit Charged(
             fromInstitutionId,
             user,
@@ -213,6 +215,7 @@ contract LocalCurrencyPolicy {
                 revert ReserveMoveFailed();
             }
         }
+
         emit Refunded(
             toInstitutionId,
             user,
@@ -246,16 +249,6 @@ contract LocalCurrencyPolicy {
             revert MerchantNotRegistered();
         }
 
-        // 총 사용 한도 초과 여부 검증
-        if (
-            totalUsed + amount >
-            maxTotalUsage
-        ) {
-            revert UsageLimitExceeded();
-        }
-
-        // 누적 사용 금액 증가
-        totalUsed += amount;
         // from -> to 예금토큰 강제 이체
         if (
             !ILocalDepositToken(depositToken).forceTransfer(
@@ -300,13 +293,6 @@ contract LocalCurrencyPolicy {
         // 결제 취소 요청자는 등록된 가맹점이어야 함
         if (!merchants[from]) {
             revert MerchantNotRegistered();
-        }
-
-        // 누적 사용 금액 감소
-        if (totalUsed >= amount) {
-            totalUsed -= amount;
-        } else {
-            totalUsed = 0;
         }
 
         // from -> to 예금토큰 강제 이체

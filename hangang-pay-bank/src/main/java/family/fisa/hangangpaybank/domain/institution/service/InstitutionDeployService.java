@@ -57,10 +57,6 @@ public class InstitutionDeployService {
     private static final BigInteger INITIAL_BANK_RESERVE_AMOUNT =
             BigInteger.valueOf(100_000_000L).multiply(TOKEN_DECIMALS);
 
-    // 지역화폐 총 사용 한도
-    private static final BigInteger LOCAL_CURRENCY_MAX_TOTAL_USAGE =
-            BigInteger.valueOf(1_000_000L).multiply(TOKEN_DECIMALS);
-
     @Value("${blockchain.private-network.chain-id}")
     private long privateNetworkChainId;
 
@@ -270,8 +266,8 @@ public class InstitutionDeployService {
                                                     ContractType.DEPOSIT_TOKEN)),
                                     new Address(
                                             resolveContractAddress(
-                                                    InstitutionCode.BOK, ContractType.SETTLEMENT)),
-                                    new Uint256(LOCAL_CURRENCY_MAX_TOTAL_USAGE)));
+                                                    InstitutionCode.BOK,
+                                                    ContractType.SETTLEMENT))));
         };
     }
 
