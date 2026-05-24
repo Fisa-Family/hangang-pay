@@ -214,6 +214,38 @@ class TransactionQueryServiceTest {
     }
 
     @Nested
+    @DisplayName("가맹점 정산 내역 조회 (getMerchantSettlementHistory)")
+    class GetMerchantSettlementHistory {
+
+        @Test
+        @DisplayName("정상: 현재 가맹점의 EXCHANGE 타입을 status=SUCCESS로 조회")
+        void success() {
+            Window<Transaction> empty = Window.from(List.of(), i -> ScrollPosition.offset(i));
+            when(paginationService.resolveScrollPosition(any()))
+                    .thenReturn(ScrollPosition.offset());
+            when(transactionRepository.findTransactionByPartyId(
+                            eq(PARTY_ID),
+                            eq(TransactionStatus.SUCCESS),
+                            eq(List.of(TransactionType.EXCHANGE)),
+                            any(ScrollPosition.class),
+                            any(Limit.class)))
+                    .thenReturn(empty);
+            when(paginationService.toCursorPage(any())).thenReturn(mock(CursorPageResponse.class));
+
+            transactionQueryService.getMerchantSettlementHistory(
+                    PARTY_ID, emptyRequest(), PAGE_SIZE);
+
+            verify(transactionRepository)
+                    .findTransactionByPartyId(
+                            eq(PARTY_ID),
+                            eq(TransactionStatus.SUCCESS),
+                            eq(List.of(TransactionType.EXCHANGE)),
+                            any(ScrollPosition.class),
+                            any(Limit.class));
+        }
+    }
+
+    @Nested
     @DisplayName("결제 상세 조회 (getUserPaymentHistoryDetail)")
     class GetUserPaymentHistoryDetail {
 

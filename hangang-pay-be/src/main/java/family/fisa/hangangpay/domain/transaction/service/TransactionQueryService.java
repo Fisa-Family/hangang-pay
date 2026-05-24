@@ -1,5 +1,6 @@
 package family.fisa.hangangpay.domain.transaction.service;
 
+import family.fisa.hangangpay.domain.merchant.dto.MerchantSettlementHistoryItem;
 import family.fisa.hangangpay.domain.merchant.entity.Merchant;
 import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
@@ -238,5 +239,26 @@ public class TransactionQueryService {
                 .discountAmount(discountAmount)
                 .actualPayAmount(actualPayAmount)
                 .build();
+    }
+
+    /** 가맹점 정산 내역 조회 */
+    public CursorPageResponse<MerchantSettlementHistoryItem> getMerchantSettlementHistory(
+            Long partyId, CursorPageRequest cursor, int size) {
+        log.info("가맹점 정산 내역 조회 시작. partyId={}", partyId);
+        ScrollPosition position = paginationService.resolveScrollPosition(cursor);
+
+        Window<Transaction> transactions =
+                transactionRepository.findTransactionByPartyId(
+                        partyId,
+                        TransactionStatus.SUCCESS,
+                        List.of(TransactionType.EXCHANGE),
+                        position,
+                        Limit.of(size));
+
+        Window<MerchantSettlementHistoryItem> window =
+                transactions.map(MerchantSettlementHistoryItem::from);
+
+        log.info("가맹점 정산 내역 조회 완료. partyId={}, count={}", partyId, window.getContent().size());
+        return paginationService.toCursorPage(window);
     }
 }
