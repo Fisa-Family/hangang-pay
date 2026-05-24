@@ -3,6 +3,7 @@ package family.fisa.hangangpay.global.config;
 import family.fisa.hangangpay.global.security.SessionAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -55,6 +56,9 @@ public class SecurityConfig {
                                 // 충전 도메인, 임시 인증 비활성화 상태
                                 .requestMatchers("/api/v1/charge/**")
                                 .permitAll()
+                                // 지갑 잔액 조회: USER, MERCHANT 모두 접근 가능
+                                .requestMatchers(HttpMethod.GET, "/api/v1/wallet/balance")
+                                .hasAnyRole("USER", "MERCHANT")
                                 .anyRequest()
                                 .authenticated());
 
