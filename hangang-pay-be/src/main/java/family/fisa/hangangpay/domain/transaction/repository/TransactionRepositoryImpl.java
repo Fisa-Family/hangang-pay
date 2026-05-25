@@ -62,4 +62,29 @@ public class TransactionRepositoryImpl implements TransactionRepository {
         return jpaRepository.sumMonthlyAmount(
                 partyId, type, status, startOfMonth, startOfNextMonth);
     }
+
+    @Override
+    public Optional<Transaction> findLatestSuccessCharge(Long partyId) {
+        return jpaRepository
+                .findFirstByFromParty_IdAndTransactionTypeAndStatusOrderByCreatedAtDescIdDesc(
+                        partyId, TransactionType.CHARGE, TransactionStatus.SUCCESS);
+    }
+
+    @Override
+    public BigDecimal sumSuccessByTypeBefore(
+            Long partyId, TransactionType type, LocalDateTime before) {
+        return jpaRepository.sumSuccessByTypeBefore(partyId, type, before);
+    }
+
+    @Override
+    public BigDecimal sumSuccessByTypeSince(
+            Long partyId, TransactionType type, LocalDateTime since) {
+        return jpaRepository.sumSuccessByTypeSince(partyId, type, since);
+    }
+
+    @Override
+    public boolean existsInflightExchange(Long partyId) {
+        return jpaRepository.existsByFromParty_IdAndTransactionTypeAndStatus(
+                partyId, TransactionType.EXCHANGE, TransactionStatus.PENDING);
+    }
 }

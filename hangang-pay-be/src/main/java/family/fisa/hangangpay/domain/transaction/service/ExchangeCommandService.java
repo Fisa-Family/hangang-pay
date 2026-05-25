@@ -1,0 +1,157 @@
+package family.fisa.hangangpay.domain.transaction.service;
+
+import family.fisa.hangangpay.client.bank.BankClient;
+import family.fisa.hangangpay.client.bank.dto.ExchangeResponse;
+import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
+import family.fisa.hangangpay.domain.transaction.dto.request.ExchangeExecuteRequest;
+import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeExecuteResponse;
+import family.fisa.hangangpay.domain.transaction.entity.Transaction;
+import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
+import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
+import family.fisa.hangangpay.global.exception.BusinessException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDateTime;
+import java.util.Optional;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+/** EXCHANGE 명령 오케스트레이터 */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class ExchangeCommandService {
+
+    /** 환전 자격 : 마지막 충전 직후 잔액의 60% 이상을 결제로 사용해야 함 */
+    private static final BigDecimal USAGE_THRESHOLD_RATE = new BigDecimal("0.60");
+
+    private final TransactionRepository transactionRepository;
+    private final ExchangeStateWriter stateWriter;
+    private final BankClient bankClient;
+
+    /** 사용자 환전 실행 */
+    public ExchangeExecuteResponse executeUserExchange(
+            Long partyId, ExchangeExecuteRequest request) {
+        log.info(
+                "환전 실행 시작. partyId={}, transactionUuid={}, amount={}",
+                partyId,
+                request.transactionUuid(),
+                request.amount());
+
+        // 1. 멱등 체크: 같은 transactionUuid 기존 결과 반환
+        Optional<ExchangeExecuteResponse> idempotentHit =
+                checkIdempotency(request.transactionUuid());
+
+        if (idempotentHit.isPresent()) {
+            log.info("멱등 hit. partyId={}, transactionUuid={}", partyId, request.transactionUuid());
+            return idempotentHit.get();
+        }
+
+        // 2. 환전 자격 검증 (마지막 충전 직후 잔액의 60% 이상 사용)
+        verifyEligibility(partyId);
+
+        // 3. 슬롯 선점: wallet 락 + inflight 체크 + PENDING 저장(별도 Tx)
+        Long transactionId = stateWriter.claimExchange(partyId, request);
+
+        // 4. 외부 호출: 락/Tx 밖에서 bank 호출
+        ExchangeResponse bankResponse;
+        try {
+            bankResponse =
+                    bankClient.exchange(stateWriter.buildBankRequest(transactionId, request));
+        } catch (RuntimeException ex) {
+
+            log.error(
+                    "환전 실행 실패. partyId={}, transactionUuid={}",
+                    partyId,
+                    request.transactionUuid(),
+                    ex);
+
+            stateWriter.failExchange(transactionId);
+            throw ex;
+        }
+
+        // 5. 완료 마킹 (별도 Tx) + 응답 빌드
+        ExchangeExecuteResponse response =
+                stateWriter.completeExchange(
+                        transactionId,
+                        bankResponse.txHash(),
+                        String.valueOf(bankResponse.bankTransactionId()));
+
+        log.info(
+                "환전 실행 완료. partyId={}, transactionId={}, txHash={}",
+                partyId,
+                transactionId,
+                bankResponse.txHash());
+
+        return response;
+    }
+
+    /** 멱등 체크 */
+    private Optional<ExchangeExecuteResponse> checkIdempotency(String transactionUuid) {
+        return transactionRepository
+                .findByTransactionUuid(transactionUuid)
+                .map(
+                        tx ->
+                                switch (tx.getStatus()) {
+                                    case SUCCESS -> ExchangeExecuteResponse.from(tx);
+                                    case PENDING ->
+                                            throw new BusinessException(
+                                                    TransactionErrorCode.EXCHANGE_IN_PROGRESS);
+                                    case FAILED ->
+                                            throw new BusinessException(
+                                                    TransactionErrorCode.EXCHANGE_ALREADY_FAILED);
+                                });
+    }
+
+    /** 환전 자격 검증 환전 자격 = (마지막 충전 직후 잔액) × 60% <= (마지막 충전 이후 SUCCESS PAYMENT 합계) */
+    private void verifyEligibility(Long partyId) {
+        // 1. 가장 마지막 충전 성공 거래 가져오기
+        Transaction latestCharge =
+                transactionRepository
+                        .findLatestSuccessCharge(partyId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                TransactionErrorCode.EXCHANGE_NOT_ELIGIBLE));
+
+        LocalDateTime chargeAt = latestCharge.getCreatedAt();
+
+        // 2. 마지막 충전 직전 시점에 잔액 계산
+        BigDecimal chargedBefore =
+                transactionRepository.sumSuccessByTypeBefore(
+                        partyId, TransactionType.CHARGE, chargeAt);
+        BigDecimal paidBefore =
+                transactionRepository.sumSuccessByTypeBefore(
+                        partyId, TransactionType.PAYMENT, chargeAt);
+        BigDecimal exchangedBefore =
+                transactionRepository.sumSuccessByTypeBefore(
+                        partyId, TransactionType.EXCHANGE, chargeAt);
+
+        // 3. 충전 직전 잔액 = (그동안 충전한 총액) - (결제로 나간 총액) - (환전으로 나간 총액)
+        BigDecimal balanceBefore = chargedBefore.subtract(paidBefore).subtract(exchangedBefore);
+
+        // 4. 마지막 충전이 반영된 직후의 잔액
+        BigDecimal balanceAfter = balanceBefore.add(latestCharge.getAmount());
+
+        // 5. 환전 자격 값 = balanceAfter * 60%
+        BigDecimal threshold =
+                balanceAfter.multiply(USAGE_THRESHOLD_RATE).setScale(0, RoundingMode.UP);
+
+        // 6. 마지막 충전 시점 이후 실제 사용액(SUCCESS PAYMENT) 합산.
+        BigDecimal usedSinceCharge =
+                transactionRepository.sumSuccessByTypeSince(
+                        partyId, TransactionType.PAYMENT, chargeAt);
+
+        // 7. 사용액이 임계값에 못 미치면 환전 거절
+        if (usedSinceCharge.compareTo(threshold) < 0) {
+            log.warn(
+                    "환전 자격 미달. partyId={}, balanceAfter={}, threshold={}, used={}",
+                    partyId,
+                    balanceAfter,
+                    threshold,
+                    usedSinceCharge);
+            throw new BusinessException(TransactionErrorCode.EXCHANGE_NOT_ELIGIBLE);
+        }
+    }
+}
