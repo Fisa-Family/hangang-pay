@@ -1,7 +1,6 @@
 package family.fisa.hangangpaybank.domain.blockchain.service;
 
 import family.fisa.hangangpaybank.domain.blockchain.code.error.BlockchainErrorCode;
-import family.fisa.hangangpaybank.domain.institution.code.error.InstitutionErrorCode;
 import family.fisa.hangangpaybank.domain.institution.entity.Contract;
 import family.fisa.hangangpaybank.domain.institution.entity.ContractType;
 import family.fisa.hangangpaybank.domain.institution.entity.Institution;
@@ -100,8 +99,7 @@ public class ContractCallService {
                         .orElseThrow(
                                 () ->
                                         new BusinessException(
-                                                InstitutionErrorCode
-                                                        .INSTITUTION_CONTRACT_NOT_DEPLOYED));
+                                                BlockchainErrorCode.BLOCKCHAIN_CONTRACT_NOT_FOUND));
         Institution owner = contract.getInstitution();
         Credentials credentials =
                 walletKeyCipher.decryptCredentials(owner.getEncryptedPrivateKey());

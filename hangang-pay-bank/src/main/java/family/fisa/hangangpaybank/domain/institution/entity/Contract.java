@@ -30,4 +30,8 @@ public class Contract extends BaseEntity {
 
     @Column(nullable = false, length = 42)
     private String address;
+
+    public void updateAddress(String address) {
+        this.address = address;
+    }
 }
