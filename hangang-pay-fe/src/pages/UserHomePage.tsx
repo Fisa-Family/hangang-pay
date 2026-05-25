@@ -151,7 +151,7 @@ function RecentTransactionList() {
     retry: false,
   })
 
-  const histories = data.page.content
+  const histories = data.response.content
 
   if (histories.length === 0) {
     return <EmptyState message="최근 거래 내역이 없습니다." />
@@ -175,7 +175,7 @@ export function UserHomePage() {
   const navigate = useNavigate()
   const { currentUser } = useCurrentUser()
 
-  // 잔액 조회 (WALLET-001, 현재 미구현)
+  // 잔액 조회
   const balanceQuery = useQuery({
     queryKey: ['wallet', 'balance'],
     queryFn: fetchWalletBalance,
@@ -246,7 +246,7 @@ export function UserHomePage() {
           </button>
         </div>
 
-        {/* TODO: 로딩용 컴포넌트: 추후 교체 예정 */}
+        {/* TODO: 로딩 중 텍스트 → 실제 레이아웃 모양의 회색 박스(스켈레톤 UI)로 교체 */}
         <ErrorBoundary fallback={<EmptyState message="최근 거래 내역이 없습니다." />}>
           <Suspense
             fallback={
