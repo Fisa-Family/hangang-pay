@@ -1,5 +1,11 @@
 package family.fisa.hangangpaybank.domain.blockchain.service;
 
+import java.util.List;
+import java.util.regex.Pattern;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import family.fisa.hangangpaybank.domain.blockchain.code.error.BlockchainErrorCode;
 import family.fisa.hangangpaybank.domain.blockchain.dto.request.ContractDeploymentRequest;
 import family.fisa.hangangpaybank.domain.blockchain.dto.request.SaveContractDeploymentsRequest;
@@ -10,11 +16,7 @@ import family.fisa.hangangpaybank.domain.institution.entity.Institution;
 import family.fisa.hangangpaybank.domain.institution.repository.ContractRepository;
 import family.fisa.hangangpaybank.domain.institution.repository.InstitutionRepository;
 import family.fisa.hangangpaybank.global.exception.BusinessException;
-import java.util.List;
-import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -41,13 +43,9 @@ public class ContractDeploymentCommandService {
     }
 
     /*
-
     * 기관 및 컨트랙트 타입 기준으로 proxy 주소를 저장한다.
-
     * 기존 데이터가 존재하면 주소를 업데이트하고,
-
     * 없으면 새로운 Contract 엔티티를 생성한다.
-
     */
     private SavedContractDeploymentResponse saveContract(ContractDeploymentRequest request) {
         validateContract(request);
@@ -88,9 +86,7 @@ public class ContractDeploymentCommandService {
     }
 
     /*
-
     * 배포 결과 요청값이 비어있는지 검증한다.
-
     */
     private static void validateRequest(SaveContractDeploymentsRequest request) {
         if (request == null || request.contracts() == null || request.contracts().isEmpty()) {
@@ -100,11 +96,8 @@ public class ContractDeploymentCommandService {
     }
 
     /*
-
     * 기관 코드, 컨트랙트 타입, proxy 주소 형식이 올바른지 검증한다.
-
     * implementation 주소는 선택값이며, 존재할 경우 Ethereum 주소 형식을 만족해야 한다.
-
     */
     private static void validateContract(ContractDeploymentRequest request) {
         if (request == null
@@ -118,27 +111,21 @@ public class ContractDeploymentCommandService {
     }
 
     /*
-
     * implementation 주소가 비어있거나 Ethereum 주소 형식인지 확인한다.
-
     */
     private static boolean isOptionalEthAddress(String value) {
         return isBlank(value) || isEthAddress(value);
     }
 
     /*
-
     * Ethereum 주소 형식(0x + 40자리 hex)인지 확인한다.
-
     */
     private static boolean isEthAddress(String value) {
         return value != null && ETH_ADDRESS_PATTERN.matcher(value).matches();
     }
 
     /*
-
     * 문자열이 null 또는 공백인지 확인한다.
-
     */
     private static boolean isBlank(String value) {
         return value == null || value.isBlank();
