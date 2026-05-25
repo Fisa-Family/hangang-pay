@@ -38,4 +38,16 @@ public interface TransactionRepository {
             TransactionStatus status,
             LocalDateTime startOfMonth,
             LocalDateTime startOfNextMonth);
+
+    /** 가장 최근 SUCCESS CHARGE 1건 - 환전 자격 판정 기준점 */
+    Optional<Transaction> findLatestSuccessCharge(Long partyId);
+
+    /** 특정 시점 이전(exclusive)의 SUCCESS 거래 타입별 누적 금액 - 잔액 산정용 */
+    BigDecimal sumSuccessByTypeBefore(Long partyId, TransactionType type, LocalDateTime before);
+
+    /** 특정 시점 이후(inclusive)의 SUCCESS 거래 타입별 누적 금액 - 사용액 산정용 */
+    BigDecimal sumSuccessByTypeSince(Long partyId, TransactionType type, LocalDateTime since);
+
+    /** 진행 중인 EXCHANGE 존재 여부 - single-flight 가드용 */
+    boolean existsInflightExchange(Long partyId);
 }

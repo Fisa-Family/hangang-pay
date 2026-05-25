@@ -27,7 +27,10 @@ public class SecurityConfig {
         http.csrf(
                 csrf ->
                         csrf.ignoringRequestMatchers(
-                                "/api/v1/auth/**", "/api/v1/accounts/**", "/api/v1/charge/**"));
+                                "/api/v1/auth/**",
+                                "/api/v1/accounts/**",
+                                "/api/v1/charge/**",
+                                "/api/v1/exchange/**"));
 
         // 경로별 접근 권한 설정, 새 도메인 개발 시 해당 경로 추가 필요
         http.authorizeHttpRequests(
