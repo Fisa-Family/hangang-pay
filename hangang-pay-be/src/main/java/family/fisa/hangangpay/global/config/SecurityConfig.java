@@ -3,6 +3,7 @@ package family.fisa.hangangpay.global.config;
 import family.fisa.hangangpay.global.security.SessionAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -27,7 +28,10 @@ public class SecurityConfig {
         http.csrf(
                 csrf ->
                         csrf.ignoringRequestMatchers(
-                                "/api/v1/auth/**", "/api/v1/accounts/**", "/api/v1/charge/**"));
+                                "/api/v1/auth/**",
+                                "/api/v1/accounts/**",
+                                "/api/v1/charge/**",
+                                "/api/v1/exchange/**"));
 
         // 경로별 접근 권한 설정, 새 도메인 개발 시 해당 경로 추가 필요
         http.authorizeHttpRequests(
@@ -55,6 +59,9 @@ public class SecurityConfig {
                                 // 충전 도메인, 임시 인증 비활성화 상태
                                 .requestMatchers("/api/v1/charge/**")
                                 .permitAll()
+                                // 지갑 잔액 조회: USER, MERCHANT 모두 접근 가능
+                                .requestMatchers(HttpMethod.GET, "/api/v1/wallet/balance")
+                                .hasAnyRole("USER", "MERCHANT")
                                 .anyRequest()
                                 .authenticated());
 
