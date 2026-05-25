@@ -24,7 +24,6 @@ public class WalletController {
     /** 지갑 조회 서비스 */
     private final WalletQueryService walletQueryService;
 
-    /** WALLET-001 잔액 조회 엔드포인트 */
     @Operation(summary = "잔액 조회 (WALLET-001)", description = "partyId 기준으로 지갑 잔액을 조회한다.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "200",
