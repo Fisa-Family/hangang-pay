@@ -5,9 +5,7 @@ import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.global.pagination.CursorItem;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import lombok.Builder;
 
-@Builder
 public record MerchantSettlementHistoryItem(
         Long settlementId,
         BigDecimal amount,
@@ -17,15 +15,14 @@ public record MerchantSettlementHistoryItem(
         LocalDateTime completedAt)
         implements CursorItem {
 
-    public static MerchantSettlementHistoryItem from(Transaction transaction) {
-        return MerchantSettlementHistoryItem.builder()
-                .settlementId(transaction.getId())
-                .amount(transaction.getAmount())
-                .settlementStatus(transaction.getStatus())
-                .settlementStatusText(toStatusText(transaction.getStatus()))
-                .requestedAt(transaction.getCreatedAt())
-                .completedAt(transaction.getUpdatedAt())
-                .build();
+    public static MerchantSettlementHistoryItem from(Transaction t) {
+        return new MerchantSettlementHistoryItem(
+                t.getId(),
+                t.getAmount(),
+                t.getStatus(),
+                toStatusText(t.getStatus()),
+                t.getCreatedAt(),
+                t.getUpdatedAt());
     }
 
     private static String toStatusText(TransactionStatus status) {
