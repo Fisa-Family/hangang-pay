@@ -9,6 +9,7 @@ import family.fisa.hangangpay.domain.merchant.dto.MerchantQrResponse;
 import family.fisa.hangangpay.domain.merchant.dto.MerchantSettlementHistoryItem;
 import family.fisa.hangangpay.domain.merchant.service.MerchantQrService;
 import family.fisa.hangangpay.domain.merchant.service.MerchantQueryService;
+import family.fisa.hangangpay.domain.transaction.dto.response.MerchantPaymentHistoryItem;
 import family.fisa.hangangpay.domain.transaction.service.TransactionQueryService;
 import family.fisa.hangangpay.global.code.success.GeneralSuccessCode;
 import family.fisa.hangangpay.global.pagination.CursorPageRequest;
@@ -62,6 +63,20 @@ public class MerchantController {
 
         CursorPageResponse<MerchantSettlementHistoryItem> page =
                 transactionQueryService.getMerchantSettlementHistory(partyId, cursor, size);
+        return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, page));
+    }
+
+    /** 가맹점의 결제 내역을 조회한다. */
+    @Operation(summary = "가맹점 결제 내역 조회 (MERCHANT-002)")
+    @GetMapping("/payments")
+    public ResponseEntity<ApiResponse<CursorPageResponse<MerchantPaymentHistoryItem>>>
+            getMerchantPayments(
+                    @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId,
+                    CursorPageRequest cursor,
+                    @RequestParam(defaultValue = "20") int size) {
+
+        CursorPageResponse<MerchantPaymentHistoryItem> page =
+                transactionQueryService.getMerchantPaymentHistory(partyId, cursor, size);
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, page));
     }
 

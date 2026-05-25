@@ -277,7 +277,7 @@ flowchart TD
 - 모든 엔드포인트 prefix: `/api/v1`
 - 응답 포맷: `{ isSuccess, status, code, message, result }`
 - 엔티티 직접 반환 금지. DTO 변환 필수.
-- 모든 엔드포인트 SpringDoc 어노테이션 필수: `@Operation`, `@ApiResponse`
+- 모든 엔드포인트 SpringDoc 어노테이션 필수: `@Operation` (`@ApiResponse`는 사용하지 않는다)
 - 승인번호 형식: `APV-YYYY-NNNNNNNN`
 - 승인번호는 `payment.id`를 8자리 zero padding해서 생성한다. 예: `payment.id=25` -> `APV-2026-00000025`
 - 승인번호 생성은 `payment` 저장으로 id를 확보한 뒤 수행한다.
