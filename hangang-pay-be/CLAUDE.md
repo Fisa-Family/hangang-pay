@@ -164,22 +164,26 @@ Checkpoints: 설계 확인 -> RED 실패 확인 -> GREEN 통과 확인
 - 도메인 서비스는 읽기/쓰기를 분리한다.
   - `XxxQueryService` — 조회 전용. `@Transactional(readOnly = true)` 적용.
   - `XxxCommandService` — 쓰기 전용. `@Transactional` 적용.
-- 단일 서비스(`XxxService`)는 사용하지 않는다.
+- 신규 서비스는 단일 서비스(`XxxService`)로 만들지 않는다.
+- 기존 `AccountService`, `WalletService`처럼 남아 있는 과도기 단일 서비스는 관련 기능을 수정할 때 Query/Command 분리를 우선 검토한다.
 
 ## DTO Naming Convention
 
-- 커서 페이지네이션 목록의 원소 DTO는 `Item` suffix를 사용한다. 예: `UserPaymentHistoryItem`, `ExchangeHistoryItem`
+- 커서 페이지네이션 목록의 원소 DTO는 `Item` suffix를 사용한다. 예: `PaymentHistoryItem`, `ChargeHistoryItem`, `ExchangeHistoryItem`
 - `CursorPageResponse<XxxItem>` 형태로 감싸서 반환한다.
 - `Response` suffix는 단일 객체 응답 DTO에만 사용한다. 예: `UserProfileResponse`
 - `Item`은 `CursorItem` 인터페이스를 구현하고 `getCursorCreatedAt()` / `getCursorId()`를 제공한다.
+- `Item` DTO는 Java `record`를 기본으로 한다.
+- `Item` DTO에는 Lombok `@Builder`를 붙이지 않는다. record canonical constructor 또는 정적 팩토리로 생성한다.
 
 ## Session Attribute Convention
 
-- 로그인 시 세션에 `userId`와 `partyId`를 모두 저장한다.
+- 로그인 시 세션에 소비자는 `userId`, 가맹점은 `merchantId`, 공통으로 `partyId`와 `role`을 저장한다.
 - 컨트롤러에서 세션 값은 `@SessionAttribute`로 꺼낸다. `HttpSession`을 직접 파라미터로 받지 않는다.
 - 컨트롤러 생성 시 세션 attribute 이름은 문자열 리터럴 대신 `SessionAttributeNames` 상수를 사용한다.
 - 예: `@SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId`, `@SessionAttribute(SessionAttributeNames.USER_ID) Long userId`
 - `@RequestParam`으로 인증 정보를 받지 않는다. 인증된 사용자 식별자는 반드시 세션에서 추출한다.
+- 예외: 현재 `AccountController`는 아직 임시 구현으로 `@RequestParam Long partyId`를 사용한다. 계좌 API를 수정할 때는 세션 기반으로 정렬한다.
 
 ## Root-Level Architecture Rules
 
@@ -232,12 +236,13 @@ Checkpoints: 설계 확인 -> RED 실패 확인 -> GREEN 통과 확인
 - Spring Data JPA + MySQL
 - SpringDoc OpenAPI 2.8.16 -> `/swagger-ui/index.html`
 - Actuator + Micrometer Prometheus -> `/actuator/prometheus`
+- RestClient 기반 `hangang-pay-bank` 연동
 - Lombok: `@RequiredArgsConstructor` 사용, `@Autowired` 금지
 
 ## Commands
 
 ```bash
-./gradlew bootRun --args='--spring.profiles.active=local'
+./gradlew bootRun --args='--spring.profiles.active=dev'
 ./gradlew test
 ./gradlew build -x test
 ```
@@ -253,21 +258,24 @@ flowchart TD
   root["family.fisa.hangangpay"]
   root --> domain["domain"]
   root --> global["global"]
-  root --> auth["auth<br/>세션 필터, 로그인/로그아웃 처리"]
+  root --> auth["auth<br/>로그인/로그아웃, 회원가입, 인증"]
+  root --> client["client<br/>외부 bank 서버 연동"]
+
+  client --> bank["bank<br/>RestClient"]
 
   domain --> party["party<br/>USER | MERCHANT 상위 엔티티"]
   domain --> user["user<br/>개인 사용자"]
   domain --> merchant["merchant<br/>가맹점"]
   domain --> account["account<br/>소비자·가맹점 연결 은행 계좌"]
-  domain --> wallet["wallet<br/>소비자·가맹점 블록체인 지갑"]
-  domain --> institution["institution<br/>기관, 은행/PG 계좌·지갑, contract 주소"]
-  domain --> transfer["transfer<br/>fund_transfer: CHARGE | EXCHANGE"]
-  domain --> payment["payment<br/>payment + payment_cancellation"]
-  domain --> blockchain["blockchain<br/>blockchain_tx"]
+  domain --> wallet["wallet<br/>소비자·가맹점 서비스 지갑 주소"]
+  domain --> institution["institution<br/>기관 목록·참조용 캐시"]
+  domain --> transaction["transaction<br/>CHARGE | EXCHANGE | PAYMENT | CANCEL"]
 
   global --> config["config<br/>Security, JPA, OpenAPI, CORS"]
   global --> exception["exception<br/>BusinessException, ErrorCode, GlobalExceptionHandler"]
   global --> response["response<br/>공통 API 응답 래퍼"]
+  global --> pagination["pagination<br/>cursor pagination"]
+  global --> security["security<br/>SessionAuthenticationFilter"]
 ```
 
 각 도메인 내부 기본 구조: `entity/ service/ repository/ dto/ controller/`
@@ -277,10 +285,10 @@ flowchart TD
 - 모든 엔드포인트 prefix: `/api/v1`
 - 응답 포맷: `{ isSuccess, status, code, message, result }`
 - 엔티티 직접 반환 금지. DTO 변환 필수.
-- 모든 엔드포인트 SpringDoc 어노테이션 필수: `@Operation`, `@ApiResponse`
+- 모든 엔드포인트 SpringDoc 어노테이션 필수: `@Operation`
 - 승인번호 형식: `APV-YYYY-NNNNNNNN`
-- 승인번호는 `payment.id`를 8자리 zero padding해서 생성한다. 예: `payment.id=25` -> `APV-2026-00000025`
-- 승인번호 생성은 `payment` 저장으로 id를 확보한 뒤 수행한다.
+- 승인번호는 `transaction.id`를 8자리 zero padding해서 생성한다. 예: `transaction.id=25` -> `APV-2026-00000025`
+- 승인번호 생성은 `transaction` 저장으로 id를 확보한 뒤 수행한다.
 - 상세 API 목록과 권한 규칙은 `docs/rest_api.md`를 따른다.
 
 ## Key Business Rules
@@ -297,7 +305,7 @@ flowchart TD
   coinFlow["코인 기반 처리"] --> immediateTransfer["소비자 결제 시<br/>가맹점 월렛으로 즉시 코인 이체"]
   immediateTransfer --> merchantExchange["가맹점은 쌓인 코인을<br/>1:1 비율로 계좌 환전 가능"]
   immediateTransfer --> noSettlement["별도 정산 배치·적재 없음"]
-  noSettlement --> settlementHistory["정산 내역<br/>payment/payment_cancellation 기반<br/>기록 조회 용도"]
+  noSettlement --> settlementHistory["정산 내역<br/>transaction EXCHANGE 기반<br/>기록 조회 용도"]
 
   accountRegistration["계좌 등록"] --> accountLimit["최대 3개"]
   accountRegistration --> ownerCheck["본인 명의"]
@@ -305,23 +313,20 @@ flowchart TD
   oneWon --> oneWonTx["1원 인증 트랜잭션 테이블<br/>추후 추가 예정"]
 ```
 
-## Blockchain Integration
+## Bank Integration
 
 ```mermaid
 flowchart LR
-  app["Spring Boot API"] --> web3j["Web3j"]
-  web3j --> besu["Besu<br/>QBFT"]
-  besu --> contract["Smart Contract"]
+  app["Spring Boot API"] --> bankClient["client.bank<br/>RestClient"]
+  bankClient --> bank["hangang-pay-bank"]
+  bank --> bankAccount["bank_account"]
+  bank --> bankWallet["bank_wallet<br/>custodial keypair"]
+  bank --> bankTx["transactions<br/>charge/exchange/payment/cancel"]
+  bank --> blockchainLedger["blockchain_ledger"]
 
-  contract --> mint["mint<br/>충전"]
-  contract --> burn["burn<br/>환전"]
-  contract --> transfer["transfer<br/>결제"]
-  contract --> whitelist["whitelist 등록"]
-
-  app --> blockchainTx["blockchain_tx"]
-  blockchainTx --> fundTransfer["reference_type:<br/>FUND_TRANSFER"]
-  blockchainTx --> payment["reference_type:<br/>PAYMENT"]
-  blockchainTx --> paymentCancellation["reference_type:<br/>PAYMENT_CANCELLATION"]
+  app --> account["account<br/>연결 계좌"]
+  app --> wallet["wallet<br/>address only"]
+  app --> transaction["transaction<br/>tx_hash / bank_transaction_id 저장"]
 ```
 
 ## Error Handling
@@ -372,19 +377,21 @@ OK(HttpStatus.OK, "COMMON200", "..."),
 ## Configuration
 
 - `application.yaml`: 공통 설정. 커밋 대상.
-- `application-local.yaml`: DB 연결 정보 등 secrets. 커밋 금지.
+- `application-dev.yml`: 개발 DB 설정. `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` 환경변수 필요.
+- `application-prod.yml`: 운영 DB 설정. `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `WALLET_KEY_CIPHER_SECRET` 환경변수 필요.
+- `application-test.yml`: 테스트 설정. H2와 `bank.base-url` 기본값 사용.
+- `bank.base-url`: `client.bank` RestClient 대상 서버 URL.
 
 ```yaml
-# application-local.yaml 로컬 개발 전용 예시
+# dev/prod 실행 시 필요한 환경변수 예시
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/hangang_pay
-    username: <username>
-    password: <password>
-  jpa:
-    hibernate:
-      ddl-auto: create-drop
-    show-sql: true
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+bank:
+  base-url: ${BANK_BASE_URL}
 ```
 
 ## Testing
@@ -398,7 +405,7 @@ Repository 테스트 작성 기준:
 
 - 생략 가능: `findById`, `save`, `delete`, 단순 `findByUsername` 같은 Spring Data JPA 기본/단순 derived query.
 - 작성 필요: 커스텀 `@Query`, fetch join, 집계, 페이징/정렬, 기간/상태/권한 조건, 소유권 검증 쿼리.
-- 작성 필요: 결제/환전/정산 내역, `blockchain_tx.reference_type + reference_id`, 주계좌 유일성처럼 돈 흐름이나 정합성에 직접 영향을 주는 조회.
+- 작성 필요: 결제/환전/정산 내역, `transaction` 소유권 검증, 주계좌 유일성처럼 돈 흐름이나 정합성에 직접 영향을 주는 조회.
 - 서비스 테스트에서 같은 조건을 충분히 검증한다면 중복 repository 테스트는 추가하지 않는다.
 
 ## What NOT to Do
@@ -406,6 +413,6 @@ Repository 테스트 작성 기준:
 - 컨트롤러에 비즈니스 로직 작성 금지
 - `@Autowired` 필드 주입 금지
 - 엔티티를 응답으로 직접 반환 금지
-- `application-local.yaml` 커밋 금지
 - 세션 인증을 JWT로 변경하지 말 것
-- `bank_account`, `bank_wallet`, `contract_address`는 `institution` 도메인에 위치
+- `Item` suffix record DTO에 Lombok `@Builder` 붙이지 말 것
+- `bank_account`, `bank_wallet`, `blockchain_ledger`, contract 실행 책임을 BE 도메인으로 가져오지 말 것
