@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+
 // 예금토큰 인터페이스
 // 지역화폐 정책 컨트랙트가 forceTransfer 호출을 위해 사용
 interface ILocalDepositToken {
@@ -29,7 +32,7 @@ interface ISettlement {
 
 }
 
-contract LocalCurrencyPolicy {
+contract LocalCurrencyPolicy is Initializable, UUPSUpgradeable {
 
     uint256 public constant WOORI_BANK_ID = 2;
 
@@ -100,21 +103,28 @@ contract LocalCurrencyPolicy {
         _;
     }
 
-    // 배포 시 예금토큰 주소, Settlement 주소 및 최대 발행 한도 저장
-    constructor(
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    // 배포 시 예금토큰 주소, Settlement 주소 저장
+    function initialize(
         address _depositToken,
-        address _settlement
-        ) {
+        address _settlement,
+        address initialOwner
+    ) public initializer {
         // 주소 검증
         if (
             _depositToken == address(0) ||
-            _settlement == address(0)
+            _settlement == address(0) ||
+            initialOwner == address(0)
         ) {
             revert InvalidAddress();
         }
 
-        // 배포자를 owner로 지정
-        owner = msg.sender;
+        // 초기 owner 지정
+        owner = initialOwner;
 
         // 예금토큰 컨트랙트 저장
         depositToken = _depositToken;
@@ -314,4 +324,15 @@ contract LocalCurrencyPolicy {
         return true;
 
     }
+
+    // UUPS 업그레이드는 owner만 허용
+    function _authorizeUpgrade(
+        address
+    ) internal override onlyOwner {}
+
+    uint256[50] private __gap;
+
+            function versionV5() external pure returns (string memory) {
+    return "v5";
+}
 }

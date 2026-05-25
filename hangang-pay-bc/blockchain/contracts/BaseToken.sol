@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 
-abstract contract BaseToken is ERC20 {
+abstract contract BaseToken is ERC20Upgradeable, UUPSUpgradeable {
     // 컨트랙트 소유자 주소
     address public owner;
 
@@ -48,13 +49,17 @@ abstract contract BaseToken is ERC20 {
         _;
     }
 
-    // 토큰 이름과 심볼을 초기화하는 생성자
-    constructor(
+    // 토큰 이름, 심볼, owner를 초기화하는 함수
+    function __BaseToken_init(
         string memory name_,
-        string memory symbol_
-    ) ERC20(name_, symbol_) {
-        owner = msg.sender;
-        operators[msg.sender] = true;
+        string memory symbol_,
+        address initialOwner
+    ) internal onlyInitializing {
+        require(initialOwner != address(0), "zero address");
+
+        __ERC20_init(name_, symbol_);
+        owner = initialOwner;
+        operators[initialOwner] = true;
     }
 
     // 운영자 권한 등록 및 해제 함수
@@ -118,4 +123,11 @@ abstract contract BaseToken is ERC20 {
 
         return true;
     }
+
+    // UUPS 업그레이드는 owner만 허용
+    function _authorizeUpgrade(
+        address
+    ) internal override onlyOwner {}
+
+    uint256[50] private __gap;
 }
