@@ -54,4 +54,8 @@ public class User extends BaseEntity {
     public boolean matchesPassword(String rawPassword, PasswordEncoder passwordEncoder) {
         return passwordEncoder.matches(rawPassword, passwordHash);
     }
+
+    public boolean matchesPaymentPin(String rawPaymentPin, PasswordEncoder passwordEncoder) {
+        return passwordEncoder.matches(rawPaymentPin, paymentPinHash);
+    }
 }

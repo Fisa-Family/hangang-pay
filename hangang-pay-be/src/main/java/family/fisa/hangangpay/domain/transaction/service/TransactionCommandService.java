@@ -1,20 +1,20 @@
 package family.fisa.hangangpay.domain.transaction.service;
 
 import family.fisa.hangangpay.client.bank.BankClient;
+import family.fisa.hangangpay.client.bank.dto.PaymentResponse;
 import family.fisa.hangangpay.domain.merchant.code.error.MerchantErrorCode;
 import family.fisa.hangangpay.domain.merchant.entity.Merchant;
 import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.repository.PartyRepository;
+import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
 import family.fisa.hangangpay.domain.transaction.dto.request.PaymentExecuteRequest;
 import family.fisa.hangangpay.domain.transaction.dto.request.PaymentIntentCreateRequest;
 import family.fisa.hangangpay.domain.transaction.dto.response.PaymentExecutionResponse;
 import family.fisa.hangangpay.domain.transaction.dto.response.PaymentIntentResponse;
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
-import family.fisa.hangangpay.domain.transaction.internal.PaymentIdempotencyStore;
-import family.fisa.hangangpay.domain.transaction.internal.PaymentLockManager;
-import family.fisa.hangangpay.domain.transaction.internal.PaymentRateLimiter;
-import family.fisa.hangangpay.domain.transaction.internal.PaymentRequestHashGenerator;
+import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
+import family.fisa.hangangpay.domain.transaction.internal.*;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
 import family.fisa.hangangpay.domain.user.code.error.UserErrorCode;
 import family.fisa.hangangpay.domain.user.entity.User;
@@ -26,9 +26,10 @@ import family.fisa.hangangpay.global.code.error.GeneralErrorCode;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.ResourceAccessException;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -46,11 +47,10 @@ public class TransactionCommandService {
     private final UserRepository userRepository;
     private final PartyRepository partyRepository;
     private final BankClient bankClient;
-    private final PasswordEncoder passwordEncoder;
     private final PaymentIdempotencyStore paymentIdempotencyStore;
     private final PaymentLockManager paymentLockManager;
     private final PaymentRateLimiter paymentRateLimiter;
-    private final PaymentRequestHashGenerator paymentRequestHashGenerator;
+    private final PaymentExecutionStateWriter paymentExecutionStateWriter;
 
     public PaymentIntentResponse createPaymentIntent(
             Long partyId, PaymentIntentCreateRequest request) {
@@ -59,7 +59,7 @@ public class TransactionCommandService {
         paymentRateLimiter.checkIntentRateLimit(partyId, request.merchantPartyId());
 
         /** DB 조회 */
-        Party userParty = getUserParty(partyId);
+        Party userParty = getParty(partyId);
         Merchant merchant = getMerchant(request.merchantPartyId());
         Wallet userWallet = getWallet(partyId);
         Wallet merchantWallet = getWallet(request.merchantPartyId());
@@ -86,12 +86,70 @@ public class TransactionCommandService {
         return PaymentIntentResponse.from(saved, merchant, expiresAt);
     }
 
+    /** Propagation.NOT_SUPPORTED: 트랜잭션 없이 실행 */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public PaymentExecutionResponse executePayment(
         Long userId,
         Long partyId,
         String transactionUuid,
         PaymentExecuteRequest request) {
-        throw new UnsupportedOperationException("Phase 3에서 구현");
+
+        return paymentLockManager.withTransactionLock(
+            transactionUuid,
+            () -> executePaymentWithLock(userId, partyId, transactionUuid, request)); // 콜백으로 락 걸고 이어서 수행
+    }
+
+    private PaymentExecutionResponse executePaymentWithLock(
+            Long userId,
+            Long partyId,
+            String transactionUuid,
+            PaymentExecuteRequest request) {
+
+        /** 1. 거래 조회/검증, PROCESSING 저장 */
+        PaymentExecutionPrepared prepared =
+            paymentExecutionStateWriter.prepareExecution(
+                userId,
+                partyId,
+                transactionUuid,
+                request.paymentPin()
+            );
+
+        /** 2. Bank 외부 호출 */
+        PaymentResponse bankResponse;
+        try {
+            bankResponse = bankClient.payment(prepared.toBankPaymentRequest());
+        } catch (ResourceAccessException ex) {
+            /** 3-1. 연결 실패된 기존 트랜잭션 수정 - UNKNOWN */
+            PaymentExecutionResponse response = paymentExecutionStateWriter.markUnknown(transactionUuid);
+
+            paymentIdempotencyStore.markExecutionStatus(
+                transactionUuid,
+                TransactionStatus.UNKNOWN
+            );
+            return response;
+        }
+
+        /** 3-2. 거래 완료된 기존 트랜잭션 수정 - SUCCESS*/
+        PaymentExecutionResponse response =
+            paymentExecutionStateWriter.completeSuccess(
+                transactionUuid,
+                bankResponse.txHash(),
+                String.valueOf(bankResponse.blockNumber()),
+                bankResponse.confirmedAt()
+            );
+
+        /** 4. Redis용 idempotency snapshot 저장 */
+        paymentIdempotencyStore.completeExecution(transactionUuid, response);
+
+        return response;
+    }
+
+
+
+    private Transaction getTransaction(String transactionUuid) {
+        return transactionRepository
+                .findByTransactionUuid(transactionUuid)
+                .orElseThrow(() -> new BusinessException(TransactionErrorCode.PAYMENT_NOT_FOUND));
     }
 
     public PaymentExecutionResponse recoverPayment(Long partyId, String transactionUuid) {
@@ -100,9 +158,15 @@ public class TransactionCommandService {
 
 
 
-    private Party getUserParty(Long partyId) {
+    private Party getParty(Long partyId) {
         return partyRepository
             .findById(partyId)
+            .orElseThrow(() -> new BusinessException(GeneralErrorCode.COMMON_NOT_FOUND));
+    }
+
+    private User getUser(Long userId) {
+        return userRepository
+            .findByIdWithParty(userId)
             .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
     }
 

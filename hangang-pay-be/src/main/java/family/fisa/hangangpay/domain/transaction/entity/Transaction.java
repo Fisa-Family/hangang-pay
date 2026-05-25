@@ -2,8 +2,11 @@ package family.fisa.hangangpay.domain.transaction.entity;
 
 import family.fisa.hangangpay.domain.account.entity.Account;
 import family.fisa.hangangpay.domain.party.entity.Party;
+import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
+import family.fisa.hangangpay.domain.user.code.error.UserErrorCode;
 import family.fisa.hangangpay.domain.wallet.entity.Wallet;
 import family.fisa.hangangpay.global.entity.BaseEntity;
+import family.fisa.hangangpay.global.exception.BusinessException;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import lombok.AccessLevel;
@@ -229,4 +232,22 @@ public class Transaction extends BaseEntity {
     public void markFailed() {
         this.status = TransactionStatus.FAILED;
     }
+
+    /** 트랜잭션 상태 전이 메서드 */
+    public void markProcessing() { this.status = TransactionStatus.PROCESSING; }
+
+    /** 결제 가능한 상태인지 검증 */
+    public void validateExecutableBy(Long partyId) {
+        if (!this.fromParty.getId().equals(partyId)) {
+            throw new BusinessException(UserErrorCode.NOT_OWNER);
+        }
+
+        if (this.status != TransactionStatus.PENDING) {
+            throw new BusinessException(TransactionErrorCode.INVALID_PAYMENT_STATUS);
+
+        }
+    }
+
+    /** 네트워크 오류로 인한 확인 불가 상태 */
+    public void markUnknown() { this.status = TransactionStatus.UNKNOWN; }
 }

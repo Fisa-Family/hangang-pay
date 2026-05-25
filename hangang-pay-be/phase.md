@@ -159,6 +159,13 @@
 
 - Update `docs/rest_api.md` when API path, request, response, or role rules change.
 - Keep state, Redis safety, and Bank lookup contract summarized here for future sessions.
+- UNKNOWN UX / recovery policy:
+  - If `execute` returns `UNKNOWN`, the client must not treat it as a final failure.
+  - The client should show a "payment confirmation in progress" state and poll payment status.
+  - The backend may run a scheduler that treats `UNKNOWN` or long-running `PROCESSING` `PAYMENT` transactions as recovery targets.
+  - Recovery must acquire the Redis lock again by `transactionUuid` before calling the Bank status lookup.
+  - Bank `SUCCESS` finalizes the local transaction as `SUCCESS`; Bank `FAILED` finalizes it as `FAILED`.
+  - Bank `PENDING`, `PROCESSING`, or unresolved results should leave the local transaction recoverable.
 - Verification commands:
   - `./gradlew test --tests family.fisa.hangangpay.domain.transaction.service.TransactionCommandServiceTest`
   - `./gradlew test --tests family.fisa.hangangpay.domain.transaction.controller.PaymentControllerTest`

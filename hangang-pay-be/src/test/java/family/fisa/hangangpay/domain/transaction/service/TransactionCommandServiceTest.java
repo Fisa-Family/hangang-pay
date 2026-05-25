@@ -1,6 +1,7 @@
 package family.fisa.hangangpay.domain.transaction.service;
 
 import family.fisa.hangangpay.client.bank.dto.BankTransactionStatusResponse;
+import family.fisa.hangangpay.client.bank.dto.PaymentRequest;
 import family.fisa.hangangpay.domain.transaction.dto.request.PaymentExecuteRequest;
 import family.fisa.hangangpay.domain.transaction.dto.request.PaymentIntentCreateRequest;
 import family.fisa.hangangpay.domain.transaction.dto.response.PaymentExecutionResponse;
@@ -84,6 +85,8 @@ class TransactionCommandServiceTest {
     private PaymentRateLimiter paymentRateLimiter;
     @Mock
     private PaymentRequestHashGenerator paymentRequestHashGenerator;
+    @Mock
+    private PaymentExecutionStateWriter paymentExecutionStateWriter;
 
     private TransactionCommandService transactionCommandService;
 
@@ -96,11 +99,10 @@ class TransactionCommandServiceTest {
             userRepository,
             partyRepository,
             bankClient,
-            passwordEncoder,
             paymentIdempotencyStore,
             paymentLockManager,
             paymentRateLimiter,
-            paymentRequestHashGenerator
+            paymentExecutionStateWriter
         );
     }
 
@@ -158,23 +160,62 @@ class TransactionCommandServiceTest {
     @DisplayName("정상 실행 시 PENDING -> PROCESSING -> SUCCESS 상태로 끝난다")
     void executePayment_success() {
         //given
-        /** PENDING */
-        Transaction transaction = paymentTransaction(TransactionStatus.PENDING);
+        // REQUIRES_NEW 구간에서 결제 실행 검증과 PROCESSING 전환이 끝났다고 가정
+        PaymentExecutionPrepared prepared =
+            new PaymentExecutionPrepared(
+                TRANSACTION_UUID,
+                REQUEST_HASH,
+                "0x-user",
+                "0x-merchant",
+                new BigDecimal("10000"));
 
-        givenExecutionBase(transaction);
-        given(paymentRequestHashGenerator.generatePaymentExecuteHash(transaction))
-            .willReturn(REQUEST_HASH);
-        given(paymentIdempotencyStore.beginExecution(TRANSACTION_UUID, REQUEST_HASH, TRANSACTION_ID))
-            .willReturn(PaymentIdempotencyDecision.newRequest());
+        // Bank 서버 결제 결과 정상 반환
+        PaymentResponse bankResponse = successBankPaymentResponse("0x-tx");
 
-        /** PROCESSING */
-        given(bankClient.payment(any()))
+        // SUCCESS 저장 후 command service가 최종 반환할 응답
+        PaymentExecutionResponse expected =
+            new PaymentExecutionResponse(
+                TRANSACTION_UUID,
+                TransactionStatus.SUCCESS,
+                "APV-2026-00000123",
+                "0x-tx",
+                new BigDecimal("10000"),
+                "성수 한강카페",
+                LocalDateTime.of(2026, 5, 25, 10, 0));
+
+        given(paymentExecutionStateWriter.prepareExecution(
+            USER_ID,
+            USER_PARTY_ID,
+            TRANSACTION_UUID,
+            "123456"))
+            .willReturn(prepared);
+
+        given(paymentExecutionStateWriter.prepareExecution(
+            USER_ID,
+            USER_PARTY_ID,
+            TRANSACTION_UUID,
+            "123456"))
+            .willReturn(prepared);
+
+        given(bankClient.payment(prepared.toBankPaymentRequest()))
+            .willReturn(bankResponse);
+
+        given(paymentExecutionStateWriter.completeSuccess(
+            TRANSACTION_UUID,
+            bankResponse.txHash(),
+            String.valueOf(bankResponse.blockNumber()),
+            bankResponse.confirmedAt()))
+            .willReturn(expected);
+
+        // Redis lock mock은 락 획득 성공 후 콜백을 바로 실행하도록 만든다.
+        given(paymentLockManager.withTransactionLock(eq(TRANSACTION_UUID), any()))
             .willAnswer(invocation -> {
-                assertThat(transaction.getStatus()).isEqualTo(TransactionStatus.PROCESSING);
-                return successBankPaymentResponse("0x-tx");
+                Supplier<?> supplier = invocation.getArgument(1);
+                return supplier.get();
             });
 
-        //when
+
+        // when
         PaymentExecutionResponse response =
             transactionCommandService.executePayment(
                 USER_ID,
@@ -182,44 +223,70 @@ class TransactionCommandServiceTest {
                 TRANSACTION_UUID,
                 new PaymentExecuteRequest("123456"));
 
-        //then
-        /** SUCCESS */
-        assertThat(response.status()).isEqualTo(TransactionStatus.SUCCESS);
-        assertThat(response.txHash()).isEqualTo("0x-tx");
-        assertThat(transaction.getStatus()).isEqualTo(TransactionStatus.SUCCESS);
-        assertThat(transaction.getTxHash()).isEqualTo("0x-tx");
+        // then
+        assertThat(response).isSameAs(expected);
 
-        verify(paymentRequestHashGenerator).generatePaymentExecuteHash(transaction);
-        verify(paymentIdempotencyStore)
-            .beginExecution(TRANSACTION_UUID, REQUEST_HASH, TRANSACTION_ID);
-        verify(paymentRateLimiter)
-            .checkExecutionRateLimit(USER_PARTY_ID, MERCHANT_PARTY_ID, TRANSACTION_UUID);
-        verify(paymentRateLimiter).checkBankOutboundRateLimit();
-        verify(bankClient).payment(any());
-        verify(paymentIdempotencyStore).completeExecution(TRANSACTION_UUID, response);
+        verify(paymentExecutionStateWriter).prepareExecution(
+            USER_ID,
+            USER_PARTY_ID,
+            TRANSACTION_UUID,
+            "123456");
+
+        verify(bankClient).payment(prepared.toBankPaymentRequest());
+
+        verify(paymentExecutionStateWriter).completeSuccess(
+            TRANSACTION_UUID,
+            bankResponse.txHash(),
+            String.valueOf(bankResponse.blockNumber()),
+            bankResponse.confirmedAt());
+
+        verify(paymentIdempotencyStore).completeExecution(TRANSACTION_UUID, expected);
     }
 
     @Test
     @DisplayName("Bank 타임아웃 시 PENDING -> PROCESSING -> UNKNOWN 상태로 끝난다")
     void executePayment_timeoutMarksUnknown() {
-        //given
-        /** PENDING */
-        Transaction transaction = paymentTransaction(TransactionStatus.PENDING);
+        // given
+        // REQUIRES_NEW 구간에서 검증과 PROCESSING 전환이 끝났다고 가정한다.
+        PaymentExecutionPrepared prepared =
+            new PaymentExecutionPrepared(
+                TRANSACTION_UUID,
+                REQUEST_HASH,
+                "0x-user",
+                "0x-merchant",
+                new BigDecimal("10000"));
 
-        givenExecutionBase(transaction);
-        given(paymentRequestHashGenerator.generatePaymentExecuteHash(transaction))
-            .willReturn(REQUEST_HASH);
-        given(paymentIdempotencyStore.beginExecution(TRANSACTION_UUID, REQUEST_HASH, TRANSACTION_ID))
-            .willReturn(PaymentIdempotencyDecision.newRequest());
+        PaymentExecutionResponse unknownResponse =
+            new PaymentExecutionResponse(
+                TRANSACTION_UUID,
+                TransactionStatus.UNKNOWN,
+                "APV-2026-00000123",
+                null,
+                new BigDecimal("10000"),
+                "성수 한강카페",
+                LocalDateTime.of(2026, 5, 25, 10, 0));
 
-        /** PROCESSING */
-        given(bankClient.payment(any()))
+        given(paymentExecutionStateWriter.prepareExecution(
+            USER_ID,
+            USER_PARTY_ID,
+            TRANSACTION_UUID,
+            "123456"))
+            .willReturn(prepared);
+
+        given(bankClient.payment(prepared.toBankPaymentRequest()))
+            .willThrow(new ResourceAccessException("timeout"));
+
+        given(paymentExecutionStateWriter.markUnknown(TRANSACTION_UUID))
+            .willReturn(unknownResponse);
+
+        // Redis lock mock은 락 획득 성공 후 콜백을 바로 실행하도록 만든다.
+        given(paymentLockManager.withTransactionLock(eq(TRANSACTION_UUID), any()))
             .willAnswer(invocation -> {
-                assertThat(transaction.getStatus()).isEqualTo(TransactionStatus.PROCESSING);
-                throw new ResourceAccessException("timeout");
+                Supplier<?> supplier = invocation.getArgument(1);
+                return supplier.get();
             });
 
-        //when
+        // when
         PaymentExecutionResponse response =
             transactionCommandService.executePayment(
                 USER_ID,
@@ -227,13 +294,21 @@ class TransactionCommandServiceTest {
                 TRANSACTION_UUID,
                 new PaymentExecuteRequest("123456"));
 
-        //then
-        /** UNKNOWN */
-        assertThat(response.status()).isEqualTo(TransactionStatus.UNKNOWN);
-        assertThat(transaction.getStatus()).isEqualTo(TransactionStatus.UNKNOWN);
+        // then
+        assertThat(response).isSameAs(unknownResponse);
 
+        verify(paymentExecutionStateWriter).prepareExecution(
+            USER_ID,
+            USER_PARTY_ID,
+            TRANSACTION_UUID,
+            "123456");
+
+        verify(bankClient).payment(prepared.toBankPaymentRequest());
+        verify(paymentExecutionStateWriter).markUnknown(TRANSACTION_UUID);
         verify(paymentIdempotencyStore)
             .markExecutionStatus(TRANSACTION_UUID, TransactionStatus.UNKNOWN);
+        verify(paymentExecutionStateWriter, never())
+            .completeSuccess(any(), any(), any(), any());
     }
 
     /**
