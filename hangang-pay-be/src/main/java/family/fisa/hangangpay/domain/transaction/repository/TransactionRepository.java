@@ -51,6 +51,8 @@ public interface TransactionRepository {
     /** 진행 중인 EXCHANGE 존재 여부 - single-flight 가드용 */
     boolean existsInflightExchange(Long partyId);
 
-    /** 배치 reconcile 대상 id 조회 - PENDING + EXCHANGE + createdAt < threshold  && attempt < maxAttempts */
+    /**
+     * 배치 reconcile 대상 id 조회 - PENDING + EXCHANGE + createdAt < threshold && attempt < maxAttempts
+     */
     List<Long> findPendingExchangeIdsForReconcile(LocalDateTime threshold, int maxAttempts);
 }

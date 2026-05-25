@@ -18,22 +18,16 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-/**
- * EXCHANGE 명령 오케스트레이터
- */
+/** EXCHANGE 명령 오케스트레이터 */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ExchangeCommandService {
 
-    /**
-     * 환전 자격 : 마지막 충전 직후 잔액의 60% 이상을 결제로 사용해야 함
-     */
+    /** 환전 자격 : 마지막 충전 직후 잔액의 60% 이상을 결제로 사용해야 함 */
     private static final BigDecimal USAGE_THRESHOLD_RATE = new BigDecimal("0.60");
 
-    /**
-     * PENDING 거래 임계 시간 - 초과 시 orphan으로 간주하고 reconcile 시도
-     */
+    /** PENDING 거래 임계 시간 - 초과 시 orphan으로 간주하고 reconcile 시도 */
     private static final int ORPHAN_THRESHOLD_MINUTES = 5;
 
     private final TransactionRepository transactionRepository;
@@ -41,20 +35,18 @@ public class ExchangeCommandService {
     private final BankClient bankClient;
     private final ExchangeReconcileService exchangeReconcileService;
 
-    /**
-     * 사용자 환전 실행
-     */
+    /** 사용자 환전 실행 */
     public ExchangeExecuteResponse executeUserExchange(
-        Long partyId, ExchangeExecuteRequest request) {
+            Long partyId, ExchangeExecuteRequest request) {
         log.info(
-            "환전 실행 시작. partyId={}, transactionUuid={}, amount={}",
-            partyId,
-            request.transactionUuid(),
-            request.amount());
+                "환전 실행 시작. partyId={}, transactionUuid={}, amount={}",
+                partyId,
+                request.transactionUuid(),
+                request.amount());
 
         // 1. 멱등 체크: 같은 transactionUuid 기존 결과 반환
         Optional<ExchangeExecuteResponse> idempotentHit =
-            checkIdempotency(request.transactionUuid());
+                checkIdempotency(request.transactionUuid());
 
         if (idempotentHit.isPresent()) {
             log.info("멱등 hit. partyId={}, transactionUuid={}", partyId, request.transactionUuid());
@@ -71,14 +63,14 @@ public class ExchangeCommandService {
         ExchangeResponse bankResponse;
         try {
             bankResponse =
-                bankClient.exchange(stateWriter.buildBankRequest(transactionId, request));
+                    bankClient.exchange(stateWriter.buildBankRequest(transactionId, request));
         } catch (RuntimeException ex) {
 
             log.error(
-                "환전 실행 실패. partyId={}, transactionUuid={}",
-                partyId,
-                request.transactionUuid(),
-                ex);
+                    "환전 실행 실패. partyId={}, transactionUuid={}",
+                    partyId,
+                    request.transactionUuid(),
+                    ex);
 
             stateWriter.failExchange(transactionId);
             throw ex;
@@ -86,39 +78,36 @@ public class ExchangeCommandService {
 
         // 5. 완료 마킹 (별도 Tx) + 응답 빌드
         ExchangeExecuteResponse response =
-            stateWriter.completeExchange(
-                transactionId,
-                bankResponse.txHash(),
-                String.valueOf(bankResponse.bankTransactionId()));
+                stateWriter.completeExchange(
+                        transactionId,
+                        bankResponse.txHash(),
+                        String.valueOf(bankResponse.bankTransactionId()));
 
         log.info(
-            "환전 실행 완료. partyId={}, transactionId={}, txHash={}",
-            partyId,
-            transactionId,
-            bankResponse.txHash());
+                "환전 실행 완료. partyId={}, transactionId={}, txHash={}",
+                partyId,
+                transactionId,
+                bankResponse.txHash());
 
         return response;
     }
 
-    /**
-     * 멱등 체크
-     */
+    /** 멱등 체크 */
     private Optional<ExchangeExecuteResponse> checkIdempotency(String transactionUuid) {
         return transactionRepository
-            .findByTransactionUuid(transactionUuid)
-            .map(
-                tx ->
-                    switch (tx.getStatus()) {
-                        case SUCCESS -> ExchangeExecuteResponse.from(tx);
-                        case PENDING -> handlePending(tx);
-                        case FAILED -> throw new BusinessException(
-                            TransactionErrorCode.EXCHANGE_ALREADY_FAILED);
-                    });
+                .findByTransactionUuid(transactionUuid)
+                .map(
+                        tx ->
+                                switch (tx.getStatus()) {
+                                    case SUCCESS -> ExchangeExecuteResponse.from(tx);
+                                    case PENDING -> handlePending(tx);
+                                    case FAILED ->
+                                            throw new BusinessException(
+                                                    TransactionErrorCode.EXCHANGE_ALREADY_FAILED);
+                                });
     }
 
-    /**
-     * PENDING 분기 처리 - 임계 시간을 초과하면 인라인 reconcile, 아니면 in-flight로 거절
-     */
+    /** PENDING 분기 처리 - 임계 시간을 초과하면 인라인 reconcile, 아니면 in-flight로 거절 */
     private ExchangeExecuteResponse handlePending(Transaction tx) {
         LocalDateTime threshold = LocalDateTime.now().minusMinutes(ORPHAN_THRESHOLD_MINUTES);
 
@@ -129,19 +118,22 @@ public class ExchangeCommandService {
 
         // 임계 시간 초과 - orphan 의심, 바로 reconcile
         log.warn(
-            "PENDING 환전이 임계 시간 초과. reconcile 시도. transactionId={}, transactionUuid={}, createdAt={}",
-            tx.getId(),
-            tx.getTransactionUuid(),
-            tx.getCreatedAt());
+                "PENDING 환전이 임계 시간 초과. reconcile 시도. transactionId={}, transactionUuid={}, createdAt={}",
+                tx.getId(),
+                tx.getTransactionUuid(),
+                tx.getCreatedAt());
 
         ReconcileResult result = exchangeReconcileService.reconcile(tx.getId());
 
         // RECONCILED_SUCCESS - 재조회해서 SUCCESS로 마킹된 tx로 응답 생성(처리해서 PENDING -> SUCCESS로 변환완료 했기 때문)
         if (result == ReconcileResult.RECONCILED_SUCCESS) {
-            Transaction updated = transactionRepository
-                .findByTransactionUuid(tx.getTransactionUuid())
-                .orElseThrow(() ->
-                    new BusinessException(TransactionErrorCode.EXCHANGE_NOT_FOUND));
+            Transaction updated =
+                    transactionRepository
+                            .findByTransactionUuid(tx.getTransactionUuid())
+                            .orElseThrow(
+                                    () ->
+                                            new BusinessException(
+                                                    TransactionErrorCode.EXCHANGE_NOT_FOUND));
             return ExchangeExecuteResponse.from(updated);
         }
 
@@ -150,35 +142,34 @@ public class ExchangeCommandService {
             throw new BusinessException(TransactionErrorCode.EXCHANGE_ALREADY_FAILED);
         }
 
-        // SKIPPED, RECONCILE_ERROR - reconcile 결론 못 냄, 다시 in-flight로 응답 (reconcile 했을 때 PENDING이 아니었음 동시에 끝난 경우)
+        // SKIPPED, RECONCILE_ERROR - reconcile 결론 못 냄, 다시 in-flight로 응답 (reconcile 했을 때 PENDING이
+        // 아니었음 동시에 끝난 경우)
         throw new BusinessException(TransactionErrorCode.EXCHANGE_IN_PROGRESS);
     }
 
-    /**
-     * 환전 자격 검증 환전 자격 = (마지막 충전 직후 잔액) × 60% <= (마지막 충전 이후 SUCCESS PAYMENT 합계)
-     */
+    /** 환전 자격 검증 환전 자격 = (마지막 충전 직후 잔액) × 60% <= (마지막 충전 이후 SUCCESS PAYMENT 합계) */
     private void verifyEligibility(Long partyId) {
         // 1. 가장 마지막 충전 성공 거래 가져오기
         Transaction latestCharge =
-            transactionRepository
-                .findLatestSuccessCharge(partyId)
-                .orElseThrow(
-                    () ->
-                        new BusinessException(
-                            TransactionErrorCode.EXCHANGE_NOT_ELIGIBLE));
+                transactionRepository
+                        .findLatestSuccessCharge(partyId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                TransactionErrorCode.EXCHANGE_NOT_ELIGIBLE));
 
         LocalDateTime chargeAt = latestCharge.getCreatedAt();
 
         // 2. 마지막 충전 직전 시점에 잔액 계산
         BigDecimal chargedBefore =
-            transactionRepository.sumSuccessByTypeBefore(
-                partyId, TransactionType.CHARGE, chargeAt);
+                transactionRepository.sumSuccessByTypeBefore(
+                        partyId, TransactionType.CHARGE, chargeAt);
         BigDecimal paidBefore =
-            transactionRepository.sumSuccessByTypeBefore(
-                partyId, TransactionType.PAYMENT, chargeAt);
+                transactionRepository.sumSuccessByTypeBefore(
+                        partyId, TransactionType.PAYMENT, chargeAt);
         BigDecimal exchangedBefore =
-            transactionRepository.sumSuccessByTypeBefore(
-                partyId, TransactionType.EXCHANGE, chargeAt);
+                transactionRepository.sumSuccessByTypeBefore(
+                        partyId, TransactionType.EXCHANGE, chargeAt);
 
         // 3. 충전 직전 잔액 = (그동안 충전한 총액) - (결제로 나간 총액) - (환전으로 나간 총액)
         BigDecimal balanceBefore = chargedBefore.subtract(paidBefore).subtract(exchangedBefore);
@@ -188,21 +179,21 @@ public class ExchangeCommandService {
 
         // 5. 환전 자격 값 = balanceAfter * 60%
         BigDecimal threshold =
-            balanceAfter.multiply(USAGE_THRESHOLD_RATE).setScale(0, RoundingMode.UP);
+                balanceAfter.multiply(USAGE_THRESHOLD_RATE).setScale(0, RoundingMode.UP);
 
         // 6. 마지막 충전 시점 이후 실제 사용액(SUCCESS PAYMENT) 합산.
         BigDecimal usedSinceCharge =
-            transactionRepository.sumSuccessByTypeSince(
-                partyId, TransactionType.PAYMENT, chargeAt);
+                transactionRepository.sumSuccessByTypeSince(
+                        partyId, TransactionType.PAYMENT, chargeAt);
 
         // 7. 사용액이 임계값에 못 미치면 환전 거절
         if (usedSinceCharge.compareTo(threshold) < 0) {
             log.warn(
-                "환전 자격 미달. partyId={}, balanceAfter={}, threshold={}, used={}",
-                partyId,
-                balanceAfter,
-                threshold,
-                usedSinceCharge);
+                    "환전 자격 미달. partyId={}, balanceAfter={}, threshold={}, used={}",
+                    partyId,
+                    balanceAfter,
+                    threshold,
+                    usedSinceCharge);
             throw new BusinessException(TransactionErrorCode.EXCHANGE_NOT_ELIGIBLE);
         }
     }

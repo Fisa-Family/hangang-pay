@@ -91,9 +91,6 @@ public class TransactionRepositoryImpl implements TransactionRepository {
     @Override
     public List<Long> findPendingExchangeIdsForReconcile(LocalDateTime threshold, int maxAttempts) {
         return jpaRepository.findIdsForReconcile(
-            TransactionStatus.PENDING,
-            TransactionType.EXCHANGE,
-            threshold,
-            maxAttempts);
+                TransactionStatus.PENDING, TransactionType.EXCHANGE, threshold, maxAttempts);
     }
 }

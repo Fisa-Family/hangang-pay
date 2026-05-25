@@ -42,23 +42,23 @@ class ExchangeReconcileServiceTest {
     /** 주어진 attempt count로 PENDING transaction 생성 */
     private Transaction pendingTransaction(int attemptCount) {
         return Transaction.builder()
-                          .id(TRANSACTION_ID)
-                          .transactionUuid(UUID)
-                          .transactionType(TransactionType.EXCHANGE)
-                          .status(TransactionStatus.PENDING)
-                          .reconcileAttemptCount(attemptCount)
-                          .build();
+                .id(TRANSACTION_ID)
+                .transactionUuid(UUID)
+                .transactionType(TransactionType.EXCHANGE)
+                .status(TransactionStatus.PENDING)
+                .reconcileAttemptCount(attemptCount)
+                .build();
     }
 
     /** SUCCESS / FAILED 등 종결 상태 transaction */
     private Transaction transactionWithStatus(TransactionStatus status) {
         return Transaction.builder()
-                          .id(TRANSACTION_ID)
-                          .transactionUuid(UUID)
-                          .transactionType(TransactionType.EXCHANGE)
-                          .status(status)
-                          .reconcileAttemptCount(0)
-                          .build();
+                .id(TRANSACTION_ID)
+                .transactionUuid(UUID)
+                .transactionType(TransactionType.EXCHANGE)
+                .status(status)
+                .reconcileAttemptCount(0)
+                .build();
     }
 
     /** bank의 SUCCESS 응답 (두 ledger 모두 있음) */
@@ -71,7 +71,7 @@ class ExchangeReconcileServiceTest {
     void reconcile_bank_success() {
         // given
         when(transactionRepository.findById(TRANSACTION_ID))
-            .thenReturn(Optional.of(pendingTransaction(0)));
+                .thenReturn(Optional.of(pendingTransaction(0)));
         when(stateWriter.incrementReconcileAttempt(TRANSACTION_ID)).thenReturn(1);
         when(bankClient.queryExchangeStatus(UUID)).thenReturn(Optional.of(bankSuccessResponse()));
 
@@ -90,7 +90,7 @@ class ExchangeReconcileServiceTest {
     void reconcile_bank_not_found() {
         // given
         when(transactionRepository.findById(TRANSACTION_ID))
-            .thenReturn(Optional.of(pendingTransaction(0)));
+                .thenReturn(Optional.of(pendingTransaction(0)));
         when(stateWriter.incrementReconcileAttempt(TRANSACTION_ID)).thenReturn(1);
         when(bankClient.queryExchangeStatus(UUID)).thenReturn(Optional.empty());
 
@@ -109,7 +109,7 @@ class ExchangeReconcileServiceTest {
     void reconcile_already_success() {
         // given
         when(transactionRepository.findById(TRANSACTION_ID))
-            .thenReturn(Optional.of(transactionWithStatus(TransactionStatus.SUCCESS)));
+                .thenReturn(Optional.of(transactionWithStatus(TransactionStatus.SUCCESS)));
 
         // when
         ReconcileResult result = exchangeReconcileService.reconcile(TRANSACTION_ID);
@@ -127,7 +127,7 @@ class ExchangeReconcileServiceTest {
     void reconcile_already_failed() {
         // given
         when(transactionRepository.findById(TRANSACTION_ID))
-            .thenReturn(Optional.of(transactionWithStatus(TransactionStatus.FAILED)));
+                .thenReturn(Optional.of(transactionWithStatus(TransactionStatus.FAILED)));
 
         // when
         ReconcileResult result = exchangeReconcileService.reconcile(TRANSACTION_ID);
@@ -143,7 +143,7 @@ class ExchangeReconcileServiceTest {
     void reconcile_attempt_threshold_reached() {
         // given
         when(transactionRepository.findById(TRANSACTION_ID))
-            .thenReturn(Optional.of(pendingTransaction(10)));
+                .thenReturn(Optional.of(pendingTransaction(10)));
 
         // when
         ReconcileResult result = exchangeReconcileService.reconcile(TRANSACTION_ID);
@@ -162,8 +162,8 @@ class ExchangeReconcileServiceTest {
 
         // when, then
         assertThatThrownBy(() -> exchangeReconcileService.reconcile(TRANSACTION_ID))
-            .isInstanceOf(BusinessException.class)
-            .extracting("code")
-            .isEqualTo(TransactionErrorCode.EXCHANGE_NOT_FOUND);
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(TransactionErrorCode.EXCHANGE_NOT_FOUND);
     }
 }

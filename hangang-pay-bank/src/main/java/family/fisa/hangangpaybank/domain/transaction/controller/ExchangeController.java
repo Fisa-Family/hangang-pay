@@ -22,15 +22,17 @@ public class ExchangeController {
     private final ExchangeQueryService exchangeQueryService;
 
     @Operation(
-        summary = "환전 상태 조회",
-        description = "BE가 발행한 transactionUuid로 bank의 환전 결과 두 ledger(account_ledger, blockchain_ledger)를 확인한다. 둘 다 있으면 SUCCESS, 하나라도 없으면 404.")
+            summary = "환전 상태 조회",
+            description =
+                    "BE가 발행한 transactionUuid로 bank의 환전 결과 두 ledger(account_ledger, blockchain_ledger)를 확인한다. 둘 다 있으면 SUCCESS, 하나라도 없으면 404.")
     @GetMapping("/{transactionUuid}/status")
     public ResponseEntity<ApiResponse<ExchangeStatusResponse>> getExchangeStatus(
-        @PathVariable String transactionUuid) {
+            @PathVariable String transactionUuid) {
         // 1. 두 ledger 모두 있는지 확인하고 status 응답 생성
         ExchangeStatusResponse response = exchangeQueryService.getStatus(transactionUuid);
 
         // 2. 성공 응답 반환
-        return ResponseEntity.ok(ApiResponse.onSuccess(TransactionSuccessCode.TRANSACTION_STATUS_OK, response));
+        return ResponseEntity.ok(
+                ApiResponse.onSuccess(TransactionSuccessCode.TRANSACTION_STATUS_OK, response));
     }
 }

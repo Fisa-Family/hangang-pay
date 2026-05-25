@@ -12,9 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/**
- * Orphan PENDING 환전 일괄 reconcile 배치.
- */
+/** Orphan PENDING 환전 일괄 reconcile 배치. */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -31,15 +29,14 @@ public class ReconcileScheduler {
     private final TransactionRepository transactionRepository;
     private final ExchangeReconcileService exchangeReconcileService;
 
-    /**
-     * 주적으로 orphan PENDING을 reconcile 한다.
-     */
+    /** 주적으로 orphan PENDING을 reconcile 한다. */
     @Scheduled(fixedDelay = BATCH_INTERVAL_MS)
     public void reconcileOrphanPendings() {
         // 1. 임계 시간 + 시도 횟수 조건으로 대상 transaction id 조회
         LocalDateTime threshold = LocalDateTime.now().minusMinutes(ORPHAN_THRESHOLD_MINUTES);
-        List<Long> targets = transactionRepository
-            .findPendingExchangeIdsForReconcile(threshold, MAX_RECONCILE_ATTEMPTS);
+        List<Long> targets =
+                transactionRepository.findPendingExchangeIdsForReconcile(
+                        threshold, MAX_RECONCILE_ATTEMPTS);
 
         if (targets.isEmpty()) {
             return;
@@ -55,8 +52,7 @@ public class ReconcileScheduler {
                 stats.merge(result, 1, Integer::sum);
             } catch (RuntimeException ex) {
                 // 한 건 실패가 배치 전체를 중단시키지 않도록 격리
-                log.error(
-                    "reconcile 배치 처리 중 예외. transactionId={}", transactionId, ex);
+                log.error("reconcile 배치 처리 중 예외. transactionId={}", transactionId, ex);
             }
         }
 

@@ -47,9 +47,9 @@ class ExchangeQueryServiceTest {
     void status_두_ledger_모두_존재() {
         // given
         when(accountLedgerRepository.findByIdempotentKey(UUID))
-            .thenReturn(Optional.of(accountLedger()));
+                .thenReturn(Optional.of(accountLedger()));
         when(blockchainLedgerRepository.findByIdempotentKey(UUID))
-            .thenReturn(Optional.of(blockchainLedger()));
+                .thenReturn(Optional.of(blockchainLedger()));
 
         // when
         ExchangeStatusResponse response = exchangeQueryService.getStatus(UUID);
@@ -68,9 +68,9 @@ class ExchangeQueryServiceTest {
 
         // when, then
         assertThatThrownBy(() -> exchangeQueryService.getStatus(UUID))
-            .isInstanceOf(BusinessException.class)
-            .extracting("code")
-            .isEqualTo(TransactionErrorCode.TRANSACTION_NOT_FOUND);
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(TransactionErrorCode.TRANSACTION_NOT_FOUND);
 
         verify(blockchainLedgerRepository, never()).findByIdempotentKey(any());
     }
@@ -80,14 +80,13 @@ class ExchangeQueryServiceTest {
     void status_blockchain_ledger_없음() {
         // given
         when(accountLedgerRepository.findByIdempotentKey(UUID))
-            .thenReturn(Optional.of(accountLedger()));
-        when(blockchainLedgerRepository.findByIdempotentKey(UUID))
-            .thenReturn(Optional.empty());
+                .thenReturn(Optional.of(accountLedger()));
+        when(blockchainLedgerRepository.findByIdempotentKey(UUID)).thenReturn(Optional.empty());
 
         // when, then
         assertThatThrownBy(() -> exchangeQueryService.getStatus(UUID))
-            .isInstanceOf(BusinessException.class)
-            .extracting("code")
-            .isEqualTo(TransactionErrorCode.TRANSACTION_NOT_FOUND);
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(TransactionErrorCode.TRANSACTION_NOT_FOUND);
     }
 }

@@ -104,12 +104,12 @@ class ExchangeCommandServiceTest {
     /** PENDING 상태 + 지정 createdAt 트랜잭션 (5분 임계 분기 시나리오용) */
     private Transaction pendingTransactionAt(LocalDateTime createdAt) {
         Transaction tx =
-            Transaction.builder()
-                       .id(TRANSACTION_ID)
-                       .transactionUuid(UUID)
-                       .transactionType(TransactionType.EXCHANGE)
-                       .status(TransactionStatus.PENDING)
-                       .build();
+                Transaction.builder()
+                        .id(TRANSACTION_ID)
+                        .transactionUuid(UUID)
+                        .transactionType(TransactionType.EXCHANGE)
+                        .status(TransactionStatus.PENDING)
+                        .build();
         ReflectionTestUtils.setField(tx, "createdAt", createdAt);
         return tx;
     }
@@ -292,16 +292,16 @@ class ExchangeCommandServiceTest {
             // given
             Transaction pending = pendingTransactionAt(LocalDateTime.now().minusMinutes(1));
             when(transactionRepository.findByTransactionUuid(UUID))
-                .thenReturn(Optional.of(pending));
+                    .thenReturn(Optional.of(pending));
 
             // when, then
             assertThatThrownBy(
-                () ->
-                    exchangeCommandService.executeUserExchange(
-                        PARTY_ID, request("50000")))
-                .isInstanceOf(BusinessException.class)
-                .extracting("code")
-                .isEqualTo(TransactionErrorCode.EXCHANGE_IN_PROGRESS);
+                            () ->
+                                    exchangeCommandService.executeUserExchange(
+                                            PARTY_ID, request("50000")))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("code")
+                    .isEqualTo(TransactionErrorCode.EXCHANGE_IN_PROGRESS);
 
             verify(exchangeReconcileService, never()).reconcile(any());
             verify(stateWriter, never()).claimExchange(any(), any());
@@ -315,13 +315,13 @@ class ExchangeCommandServiceTest {
             Transaction updated = successTransaction();
             // findByTransactionUuid 1회: PENDING, 2회: SUCCESS (reconcile 후 재조회)
             when(transactionRepository.findByTransactionUuid(UUID))
-                .thenReturn(Optional.of(pending), Optional.of(updated));
+                    .thenReturn(Optional.of(pending), Optional.of(updated));
             when(exchangeReconcileService.reconcile(TRANSACTION_ID))
-                .thenReturn(ReconcileResult.RECONCILED_SUCCESS);
+                    .thenReturn(ReconcileResult.RECONCILED_SUCCESS);
 
             // when
             ExchangeExecuteResponse response =
-                exchangeCommandService.executeUserExchange(PARTY_ID, request("50000"));
+                    exchangeCommandService.executeUserExchange(PARTY_ID, request("50000"));
 
             // then
             assertThat(response.transactionId()).isEqualTo(TRANSACTION_ID);
@@ -337,18 +337,18 @@ class ExchangeCommandServiceTest {
             // given
             Transaction pending = pendingTransactionAt(LocalDateTime.now().minusMinutes(6));
             when(transactionRepository.findByTransactionUuid(UUID))
-                .thenReturn(Optional.of(pending));
+                    .thenReturn(Optional.of(pending));
             when(exchangeReconcileService.reconcile(TRANSACTION_ID))
-                .thenReturn(ReconcileResult.RECONCILED_FAILED);
+                    .thenReturn(ReconcileResult.RECONCILED_FAILED);
 
             // when, then
             assertThatThrownBy(
-                () ->
-                    exchangeCommandService.executeUserExchange(
-                        PARTY_ID, request("50000")))
-                .isInstanceOf(BusinessException.class)
-                .extracting("code")
-                .isEqualTo(TransactionErrorCode.EXCHANGE_ALREADY_FAILED);
+                            () ->
+                                    exchangeCommandService.executeUserExchange(
+                                            PARTY_ID, request("50000")))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("code")
+                    .isEqualTo(TransactionErrorCode.EXCHANGE_ALREADY_FAILED);
 
             verify(exchangeReconcileService).reconcile(TRANSACTION_ID);
             verify(stateWriter, never()).claimExchange(any(), any());
@@ -360,18 +360,18 @@ class ExchangeCommandServiceTest {
             // given
             Transaction pending = pendingTransactionAt(LocalDateTime.now().minusMinutes(6));
             when(transactionRepository.findByTransactionUuid(UUID))
-                .thenReturn(Optional.of(pending));
+                    .thenReturn(Optional.of(pending));
             when(exchangeReconcileService.reconcile(TRANSACTION_ID))
-                .thenReturn(ReconcileResult.SKIPPED);
+                    .thenReturn(ReconcileResult.SKIPPED);
 
             // when, then
             assertThatThrownBy(
-                () ->
-                    exchangeCommandService.executeUserExchange(
-                        PARTY_ID, request("50000")))
-                .isInstanceOf(BusinessException.class)
-                .extracting("code")
-                .isEqualTo(TransactionErrorCode.EXCHANGE_IN_PROGRESS);
+                            () ->
+                                    exchangeCommandService.executeUserExchange(
+                                            PARTY_ID, request("50000")))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("code")
+                    .isEqualTo(TransactionErrorCode.EXCHANGE_IN_PROGRESS);
         }
 
         @Test
@@ -380,18 +380,18 @@ class ExchangeCommandServiceTest {
             // given
             Transaction pending = pendingTransactionAt(LocalDateTime.now().minusMinutes(6));
             when(transactionRepository.findByTransactionUuid(UUID))
-                .thenReturn(Optional.of(pending));
+                    .thenReturn(Optional.of(pending));
             when(exchangeReconcileService.reconcile(TRANSACTION_ID))
-                .thenReturn(ReconcileResult.RECONCILE_ERROR);
+                    .thenReturn(ReconcileResult.RECONCILE_ERROR);
 
             // when, then
             assertThatThrownBy(
-                () ->
-                    exchangeCommandService.executeUserExchange(
-                        PARTY_ID, request("50000")))
-                .isInstanceOf(BusinessException.class)
-                .extracting("code")
-                .isEqualTo(TransactionErrorCode.EXCHANGE_IN_PROGRESS);
+                            () ->
+                                    exchangeCommandService.executeUserExchange(
+                                            PARTY_ID, request("50000")))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("code")
+                    .isEqualTo(TransactionErrorCode.EXCHANGE_IN_PROGRESS);
         }
     }
 

@@ -299,13 +299,13 @@ class ExchangeStateWriterTest {
         void increment_정상() {
             // given
             Transaction tx =
-                Transaction.builder()
-                           .id(TRANSACTION_ID)
-                           .transactionUuid(UUID)
-                           .transactionType(TransactionType.EXCHANGE)
-                           .status(TransactionStatus.PENDING)
-                           .reconcileAttemptCount(3)
-                           .build();
+                    Transaction.builder()
+                            .id(TRANSACTION_ID)
+                            .transactionUuid(UUID)
+                            .transactionType(TransactionType.EXCHANGE)
+                            .status(TransactionStatus.PENDING)
+                            .reconcileAttemptCount(3)
+                            .build();
             when(transactionRepository.findById(TRANSACTION_ID)).thenReturn(Optional.of(tx));
 
             // when
@@ -324,9 +324,9 @@ class ExchangeStateWriterTest {
 
             // when, then
             assertThatThrownBy(() -> stateWriter.incrementReconcileAttempt(TRANSACTION_ID))
-                .isInstanceOf(BusinessException.class)
-                .extracting("code")
-                .isEqualTo(TransactionErrorCode.EXCHANGE_NOT_FOUND);
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("code")
+                    .isEqualTo(TransactionErrorCode.EXCHANGE_NOT_FOUND);
         }
     }
 }

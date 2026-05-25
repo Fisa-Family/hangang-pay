@@ -15,9 +15,7 @@ public enum TransactionSuccessCode implements BaseSuccessCode {
     TRANSACTION_PAYMENT_OK(HttpStatus.OK, "TRANSACTION_PAYMENT_OK", "결제가 완료되었습니다."),
 
     TRANSACTION_CANCEL_OK(HttpStatus.OK, "TRANSACTION_CANCEL_OK", "결제 취소가 완료되었습니다."),
-    TRANSACTION_STATUS_OK(HttpStatus.OK, "TRANSACTION_STATUS_OK", "거래 상태 조회 성공")
-
-    ;
+    TRANSACTION_STATUS_OK(HttpStatus.OK, "TRANSACTION_STATUS_OK", "거래 상태 조회 성공");
 
     private final HttpStatus status;
 

@@ -6,17 +6,16 @@ import lombok.Builder;
 
 @Builder
 public record ExchangeStatusResponse(
-    String transactionUuid,
-    Long bankTransactionId,
-    String txHash
-) {
+        String transactionUuid, Long bankTransactionId, String txHash) {
 
-    public static ExchangeStatusResponse of(String transactionUuid, AccountLedger accountLedger,
-                                            BlockchainLedger blockchainLedger) {
+    public static ExchangeStatusResponse of(
+            String transactionUuid,
+            AccountLedger accountLedger,
+            BlockchainLedger blockchainLedger) {
         return ExchangeStatusResponse.builder()
-                                     .transactionUuid(transactionUuid)
-                                     .bankTransactionId(accountLedger.getId())
-                                     .txHash(blockchainLedger.getTxHash())
-                                     .build();
+                .transactionUuid(transactionUuid)
+                .bankTransactionId(accountLedger.getId())
+                .txHash(blockchainLedger.getTxHash())
+                .build();
     }
 }

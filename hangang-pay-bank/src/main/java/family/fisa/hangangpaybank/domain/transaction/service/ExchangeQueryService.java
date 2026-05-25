@@ -21,35 +21,37 @@ public class ExchangeQueryService {
     private final AccountLedgerRepository accountLedgerRepository;
     private final BlockchainLedgerRepository blockchainLedgerRepository;
 
-    /**
-     * 플랫폼의 transactionUuid로 두 ledger 정합성을 확인하고 응답을 만든다
-     */
+    /** 플랫폼의 transactionUuid로 두 ledger 정합성을 확인하고 응답을 만든다 */
     public ExchangeStatusResponse getStatus(String transactionUuid) {
         log.info("환전 상태 조회 시작. transactionUuid={}", transactionUuid);
 
         // 1. account ledger조회
-        AccountLedger accountLedger = accountLedgerRepository
-            .findByIdempotentKey(transactionUuid)
-            .orElseThrow(() ->
-                new BusinessException(TransactionErrorCode.TRANSACTION_NOT_FOUND));
+        AccountLedger accountLedger =
+                accountLedgerRepository
+                        .findByIdempotentKey(transactionUuid)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                TransactionErrorCode.TRANSACTION_NOT_FOUND));
 
         // 2. blockchain_ledger 조회
-        BlockchainLedger blockchainLedger = blockchainLedgerRepository
-            .findByIdempotentKey(transactionUuid)
-            .orElseThrow(() ->
-                new BusinessException(TransactionErrorCode.TRANSACTION_NOT_FOUND));
+        BlockchainLedger blockchainLedger =
+                blockchainLedgerRepository
+                        .findByIdempotentKey(transactionUuid)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                TransactionErrorCode.TRANSACTION_NOT_FOUND));
 
         // 3. 두 ledger 모두 있음 -> SUCCESS 응답
-        ExchangeStatusResponse response = ExchangeStatusResponse.of(
-            transactionUuid,
-            accountLedger,
-            blockchainLedger);
+        ExchangeStatusResponse response =
+                ExchangeStatusResponse.of(transactionUuid, accountLedger, blockchainLedger);
 
         log.info(
-            "환전 상태 조회 완료. transactionUuid={}, bankTransactionId={}, txHash={}",
-            transactionUuid,
-            response.bankTransactionId(),
-            response.txHash());
+                "환전 상태 조회 완료. transactionUuid={}, bankTransactionId={}, txHash={}",
+                transactionUuid,
+                response.bankTransactionId(),
+                response.txHash());
 
         return response;
     }
