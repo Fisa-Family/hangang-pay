@@ -7,4 +7,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface BlockchainLedgerJpaRepository extends JpaRepository<BlockchainLedger, Long> {
 
     Optional<BlockchainLedger> findByTxHash(String txHash);
+    Optional<BlockchainLedger> findByIdempotentKey(String idempotentKey);
 }

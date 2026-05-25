@@ -87,4 +87,13 @@ public class TransactionRepositoryImpl implements TransactionRepository {
         return jpaRepository.existsByFromParty_IdAndTransactionTypeAndStatus(
                 partyId, TransactionType.EXCHANGE, TransactionStatus.PENDING);
     }
+
+    @Override
+    public List<Long> findPendingExchangeIdsForReconcile(LocalDateTime threshold, int maxAttempts) {
+        return jpaRepository.findIdsForReconcile(
+            TransactionStatus.PENDING,
+            TransactionType.EXCHANGE,
+            threshold,
+            maxAttempts);
+    }
 }

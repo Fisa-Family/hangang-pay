@@ -27,4 +27,9 @@ public class AccountLedgerRepositoryImpl implements AccountLedgerRepository {
     public List<AccountLedger> findByBankAccountId(Long bankAccountId) {
         return jpaRepository.findByBankAccount_Id(bankAccountId);
     }
+
+    @Override
+    public Optional<AccountLedger> findByIdempotentKey(String idempotentKey) {
+        return jpaRepository.findByIdempotentKey(idempotentKey);
+    }
 }

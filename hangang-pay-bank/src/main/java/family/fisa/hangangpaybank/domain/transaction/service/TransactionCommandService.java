@@ -28,6 +28,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
@@ -35,9 +36,12 @@ import org.web3j.protocol.core.methods.response.TransactionReceipt;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class TransactionCommandService {
 
-    /** ERC20 기본 decimals (1e18) - BigDecimal 금액을 컨트랙트 단위로 변환할 때 사용 */
+    /**
+     * ERC20 기본 decimals (1e18) - BigDecimal 금액을 컨트랙트 단위로 변환할 때 사용
+     */
     private static final BigInteger TOKEN_DECIMALS = BigInteger.TEN.pow(18);
 
     private final BankAccountRepository bankAccountRepository;
@@ -47,8 +51,16 @@ public class TransactionCommandService {
     private final AccountLedgerRepository accountLedgerRepository;
     private final ContractCallService contractCallService;
 
-    /** 충전: 계좌 → 토큰 mint */
+    /**
+     * 충전: 계좌 → 토큰 mint
+     */
     public ChargeResponse charge(ChargeRequest request) {
+        log.info(
+            "[bank] charge 시작. transactionUuid={}, institutionId={}, amount={}",
+            request.transactionUuid(),
+            request.institutionId(),
+            request.amount());
+
         // 1. 소속 기관 조회
         Institution institution = findInstitution(request.institutionId());
 
@@ -65,20 +77,20 @@ public class TransactionCommandService {
 
         // 5. account_ledger WITHDRAWAL 기록 (저장 후 채번된 id를 응답에 사용)
         AccountLedger savedAccountLedger =
-                accountLedgerRepository.save(
-                        AccountLedger.builder()
-                                .bankAccount(bankAccount)
-                                .ledgerType(LedgerType.WITHDRAWAL)
-                                .amount(request.amount())
-                                .balanceAfter(newAccountBalance)
-                                .build());
+            accountLedgerRepository.save(
+                AccountLedger.builder()
+                             .bankAccount(bankAccount)
+                             .ledgerType(LedgerType.WITHDRAWAL)
+                             .amount(request.amount())
+                             .balanceAfter(newAccountBalance)
+                             .build());
 
         // 6. 블록체인 mint 호출 (계좌 → 사용자 지갑으로 토큰 발행)
         TransactionReceipt receipt =
-                contractCallService.charge(
-                        request.institutionId(),
-                        bankWallet.getWalletAddress(),
-                        toTokenUnit(request.amount()));
+            contractCallService.charge(
+                request.institutionId(),
+                bankWallet.getWalletAddress(),
+                toTokenUnit(request.amount()));
 
         // 7. blockchain_ledger 기록
         BlockchainLedger ledger = saveBlockchainLedger(institution, receipt);
@@ -89,16 +101,24 @@ public class TransactionCommandService {
 
         // 9. Response 반환
         return new ChargeResponse(
-                request.transactionUuid(),
-                savedAccountLedger.getId(),
-                ledger.getTxHash(),
-                ledger.getBlockNumber(),
-                ledger.getConfirmedAt(),
-                newWalletBalance);
+            request.transactionUuid(),
+            savedAccountLedger.getId(),
+            ledger.getTxHash(),
+            ledger.getBlockNumber(),
+            ledger.getConfirmedAt(),
+            newWalletBalance);
     }
 
-    /** 환전: 토큰 burn → 계좌 입금 */
+    /**
+     * 환전: 토큰 burn → 계좌 입금
+     */
     public ExchangeResponse exchange(ExchangeRequest request) {
+        log.info(
+            "[bank] exchange 시작. transactionUuid={}, institutionId={}, amount={}",
+            request.transactionUuid(),
+            request.institutionId(),
+            request.amount());
+
         // 1. 소속 기관 조회
         Institution institution = findInstitution(request.institutionId());
 
@@ -115,39 +135,49 @@ public class TransactionCommandService {
 
         // 5. 블록체인 burn(refund) 호출 (토큰 소각 → 기관별 reserve 환급)
         TransactionReceipt receipt =
-                contractCallService.refund(
-                        request.institutionId(),
-                        bankWallet.getWalletAddress(),
-                        toTokenUnit(request.amount()));
+            contractCallService.refund(
+                request.institutionId(),
+                bankWallet.getWalletAddress(),
+                toTokenUnit(request.amount()));
 
-        // 6. blockchain_ledger 기록
-        BlockchainLedger ledger = saveBlockchainLedger(institution, receipt);
+        // 6. blockchain_ledger 기록 (idempotent_key = BE의 transactionUuid)
+        BlockchainLedger ledger =
+            saveBlockchainLedger(institution, receipt, request.transactionUuid());
 
         // 7. 계좌 잔액 증가
         BigDecimal newAccountBalance = bankAccount.getBalance().add(request.amount());
         bankAccount.updateBalance(newAccountBalance);
 
-        // 8. account_ledger DEPOSIT 기록 (저장 후 채번된 id를 응답에 사용)
+        // 8. account_ledger DEPOSIT 기록 (idempotent_key = BE의 transactionUuid)
         AccountLedger savedAccountLedger =
-                accountLedgerRepository.save(
-                        AccountLedger.builder()
-                                .bankAccount(bankAccount)
-                                .ledgerType(LedgerType.DEPOSIT)
-                                .amount(request.amount())
-                                .balanceAfter(newAccountBalance)
-                                .build());
+            accountLedgerRepository.save(
+                AccountLedger.builder()
+                             .bankAccount(bankAccount)
+                             .ledgerType(LedgerType.DEPOSIT)
+                             .amount(request.amount())
+                             .balanceAfter(newAccountBalance)
+                             .idempotentKey(request.transactionUuid())
+                             .build());
+
+        log.info(
+            "[bank] exchange 완료. transactionUuid={}, txHash={}, accountLedgerId={}",
+            request.transactionUuid(),
+            ledger.getTxHash(),
+            savedAccountLedger.getId());
 
         // 9. Response 반환
         return new ExchangeResponse(
-                request.transactionUuid(),
-                savedAccountLedger.getId(),
-                ledger.getTxHash(),
-                ledger.getBlockNumber(),
-                ledger.getConfirmedAt(),
-                newAccountBalance);
+            request.transactionUuid(),
+            savedAccountLedger.getId(),
+            ledger.getTxHash(),
+            ledger.getBlockNumber(),
+            ledger.getConfirmedAt(),
+            newAccountBalance);
     }
 
-    /** 결제: 지갑 → 지갑 transfer */
+    /**
+     * 결제: 지갑 → 지갑 transfer
+     */
     public PaymentResponse payment(PaymentRequest request) {
         // 1. 송신/수신 지갑 조회
         BankWallet fromWallet = findBankWallet(request.fromWalletAddress());
@@ -160,10 +190,10 @@ public class TransactionCommandService {
 
         // 3. 블록체인 transfer 호출
         TransactionReceipt receipt =
-                contractCallService.pay(
-                        fromWallet.getWalletAddress(),
-                        toWallet.getWalletAddress(),
-                        toTokenUnit(request.amount()));
+            contractCallService.pay(
+                fromWallet.getWalletAddress(),
+                toWallet.getWalletAddress(),
+                toTokenUnit(request.amount()));
 
         // 4. blockchain_ledger 기록 (송신 지갑 소속 기관 기준)
         BlockchainLedger ledger = saveBlockchainLedger(fromWallet.getInstitution(), receipt);
@@ -174,15 +204,17 @@ public class TransactionCommandService {
 
         // 6. Response 반환
         return new PaymentResponse(
-                request.transactionUuid(),
-                ledger.getTxHash(),
-                ledger.getBlockNumber(),
-                ledger.getConfirmedAt(),
-                newFromBalance,
-                newToBalance);
+            request.transactionUuid(),
+            ledger.getTxHash(),
+            ledger.getBlockNumber(),
+            ledger.getConfirmedAt(),
+            newFromBalance,
+            newToBalance);
     }
 
-    /** 결제 취소: PAYMENT 역방향 transfer */
+    /**
+     * 결제 취소: PAYMENT 역방향 transfer
+     */
     public CancelResponse cancel(CancelRequest request) {
         // 1. 송신/수신 지갑 조회 (BE에서 이미 역방향으로 들어옴)
         BankWallet fromWallet = findBankWallet(request.fromWalletAddress());
@@ -195,10 +227,10 @@ public class TransactionCommandService {
 
         // 3. 블록체인 cancelPayment 호출
         TransactionReceipt receipt =
-                contractCallService.cancelPayment(
-                        fromWallet.getWalletAddress(),
-                        toWallet.getWalletAddress(),
-                        toTokenUnit(request.amount()));
+            contractCallService.cancelPayment(
+                fromWallet.getWalletAddress(),
+                toWallet.getWalletAddress(),
+                toTokenUnit(request.amount()));
 
         // 4. blockchain_ledger 기록 (새 row, 원본과 동일한 transactionUuid는 BE/응답에서만 관리)
         BlockchainLedger ledger = saveBlockchainLedger(fromWallet.getInstitution(), receipt);
@@ -209,34 +241,34 @@ public class TransactionCommandService {
 
         // 6. Response 반환
         return new CancelResponse(
-                request.transactionUuid(),
-                request.originalTransactionUuid(),
-                ledger.getTxHash(),
-                ledger.getBlockNumber(),
-                ledger.getConfirmedAt(),
-                newFromBalance,
-                newToBalance);
+            request.transactionUuid(),
+            request.originalTransactionUuid(),
+            ledger.getTxHash(),
+            ledger.getBlockNumber(),
+            ledger.getConfirmedAt(),
+            newFromBalance,
+            newToBalance);
     }
 
     private Institution findInstitution(Long institutionId) {
         return institutionRepository
-                .findById(institutionId)
-                .orElseThrow(
-                        () -> new BusinessException(InstitutionErrorCode.INSTITUTION_NOT_FOUND));
+            .findById(institutionId)
+            .orElseThrow(
+                () -> new BusinessException(InstitutionErrorCode.INSTITUTION_NOT_FOUND));
     }
 
     private BankAccount findBankAccount(Long institutionId, String accountNumber) {
         return bankAccountRepository
-                .findByInstitution_IdAndAccountNumber(institutionId, accountNumber)
-                .orElseThrow(
-                        () -> new BusinessException(InstitutionErrorCode.BANK_ACCOUNT_NOT_FOUND));
+            .findByInstitution_IdAndAccountNumber(institutionId, accountNumber)
+            .orElseThrow(
+                () -> new BusinessException(InstitutionErrorCode.BANK_ACCOUNT_NOT_FOUND));
     }
 
     private BankWallet findBankWallet(String walletAddress) {
         return bankWalletRepository
-                .findByWalletAddress(normalizeAddress(walletAddress))
-                .orElseThrow(
-                        () -> new BusinessException(InstitutionErrorCode.BANK_WALLET_NOT_FOUND));
+            .findByWalletAddress(normalizeAddress(walletAddress))
+            .orElseThrow(
+                () -> new BusinessException(InstitutionErrorCode.BANK_WALLET_NOT_FOUND));
     }
 
     private static void ensureSufficientBalance(BigDecimal balance, BigDecimal amount) {
@@ -245,7 +277,9 @@ public class TransactionCommandService {
         }
     }
 
-    /** wallet_address 정규화: 0x prefix + 소문자 */
+    /**
+     * wallet_address 정규화: 0x prefix + 소문자
+     */
     private static String normalizeAddress(String address) {
         if (address == null) {
             return null;
@@ -254,23 +288,42 @@ public class TransactionCommandService {
         return lower.startsWith("0x") ? lower : "0x" + lower;
     }
 
-    /** BigDecimal 금액을 컨트랙트 단위(1e18 wei)로 변환 */
+    /**
+     * BigDecimal 금액을 컨트랙트 단위(1e18 wei)로 변환
+     */
     private static BigInteger toTokenUnit(BigDecimal amount) {
         return amount.multiply(new BigDecimal(TOKEN_DECIMALS)).toBigInteger();
     }
 
-    /** TransactionReceipt에서 핵심 정보를 추출해 blockchain_ledger row 저장 */
+    /**
+     * TransactionReceipt에서 핵심 정보를 추출해 blockchain_ledger row 저장
+     */
     private BlockchainLedger saveBlockchainLedger(
-            Institution institution, TransactionReceipt receipt) {
+        Institution institution, TransactionReceipt receipt) {
         Long blockNumber =
-                receipt.getBlockNumber() != null ? receipt.getBlockNumber().longValueExact() : null;
+            receipt.getBlockNumber() != null ? receipt.getBlockNumber().longValueExact() : null;
         return blockchainLedgerRepository.save(
-                BlockchainLedger.builder()
-                        .institution(institution)
-                        .txHash(receipt.getTransactionHash())
-                        .blockNumber(blockNumber)
-                        .status(BlockchainTxStatus.CONFIRMED)
-                        .confirmedAt(LocalDateTime.now())
-                        .build());
+            BlockchainLedger.builder()
+                            .institution(institution)
+                            .txHash(receipt.getTransactionHash())
+                            .blockNumber(blockNumber)
+                            .status(BlockchainTxStatus.CONFIRMED)
+                            .confirmedAt(LocalDateTime.now())
+                            .build());
+    }
+
+    private BlockchainLedger saveBlockchainLedger(
+        Institution institution, TransactionReceipt receipt, String idempotentKey) {
+        Long blockNumber =
+            receipt.getBlockNumber() != null ? receipt.getBlockNumber().longValueExact() : null;
+        return blockchainLedgerRepository.save(
+            BlockchainLedger.builder()
+                            .institution(institution)
+                            .txHash(receipt.getTransactionHash())
+                            .blockNumber(blockNumber)
+                            .status(BlockchainTxStatus.CONFIRMED)
+                            .confirmedAt(LocalDateTime.now())
+                            .idempotentKey(idempotentKey)
+                            .build());
     }
 }

@@ -11,8 +11,10 @@ import family.fisa.hangangpay.client.bank.dto.CreateBankAccountRequest;
 import family.fisa.hangangpay.client.bank.dto.CreateBankWalletRequest;
 import family.fisa.hangangpay.client.bank.dto.ExchangeRequest;
 import family.fisa.hangangpay.client.bank.dto.ExchangeResponse;
+import family.fisa.hangangpay.client.bank.dto.ExchangeStatusResponse;
 import family.fisa.hangangpay.client.bank.dto.PaymentRequest;
 import family.fisa.hangangpay.client.bank.dto.PaymentResponse;
+import java.util.Optional;
 
 public interface BankClient {
 
@@ -34,6 +36,9 @@ public interface BankClient {
     PaymentResponse payment(PaymentRequest request);
 
     CancelResponse cancel(CancelRequest request);
+
+    // 환전 상태 조회
+    Optional<ExchangeStatusResponse> queryExchangeStatus(String transactionUuid);
 
     // blockchain
     BlockchainLedgerResponse getBlockchainLedgerByTxHash(String txHash);

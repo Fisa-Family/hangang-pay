@@ -43,10 +43,10 @@ public class ExchangeStateWriter {
     public Long claimExchange(Long partyId, ExchangeExecuteRequest request) {
         // 1. wallet 행 락 - 동일 사용자의 동시 환전 요청을 직렬화
         Wallet fromWallet =
-                walletRepository
-                        .findByParty_IdForUpdate(partyId)
-                        .orElseThrow(
-                                () -> new BusinessException(TransactionErrorCode.WALLET_NOT_FOUND));
+            walletRepository
+                .findByParty_IdForUpdate(partyId)
+                .orElseThrow(
+                    () -> new BusinessException(TransactionErrorCode.WALLET_NOT_FOUND));
 
         // 2. single-flight 가드: 진행 중인 환전이 있으면 거절
         if (transactionRepository.existsInflightExchange(partyId)) {
@@ -56,64 +56,83 @@ public class ExchangeStateWriter {
 
         // 3. 입금대상: 계좌
         Account toAccount =
-                accountRepository
-                        .findByParty_IdAndAccountType(partyId, AccountType.PRIMARY)
-                        .orElseThrow(
-                                () -> new BusinessException(AccountErrorCode.ACCOUNT_NOT_FOUND));
+            accountRepository
+                .findByParty_IdAndAccountType(partyId, AccountType.PRIMARY)
+                .orElseThrow(
+                    () -> new BusinessException(AccountErrorCode.ACCOUNT_NOT_FOUND));
 
         // 4. PENDING transaction 저장
         Transaction transaction =
-                transactionRepository.save(
-                        Transaction.forExchange(
-                                request.transactionUuid(),
-                                fromWallet.getParty(),
-                                fromWallet,
-                                toAccount,
-                                request.amount(),
-                                BigDecimal.ZERO,
-                                BigDecimal.ZERO));
+            transactionRepository.save(
+                Transaction.forExchange(
+                    request.transactionUuid(),
+                    fromWallet.getParty(),
+                    fromWallet,
+                    toAccount,
+                    request.amount(),
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO));
 
         return transaction.getId();
     }
 
-    /** Bank 호출용 요청 객체 빌드 */
+    /**
+     * Bank 호출용 요청 객체 빌드
+     */
     @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
     public ExchangeRequest buildBankRequest(Long transactionId, ExchangeExecuteRequest request) {
         Transaction tx =
-                transactionRepository
-                        .findById(transactionId)
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                TransactionErrorCode.EXCHANGE_NOT_FOUND));
+            transactionRepository
+                .findById(transactionId)
+                .orElseThrow(
+                    () ->
+                        new BusinessException(
+                            TransactionErrorCode.EXCHANGE_NOT_FOUND));
 
         return new ExchangeRequest(
-                request.transactionUuid(),
-                tx.getToAccount().getInstitution().getId(),
-                tx.getFromWallet().getAddress(),
-                tx.getToAccount().getAccountNumber(),
-                request.amount());
+            request.transactionUuid(),
+            tx.getToAccount().getInstitution().getId(),
+            tx.getFromWallet().getAddress(),
+            tx.getToAccount().getAccountNumber(),
+            request.amount());
     }
 
-    /** 성공 마킹 + 응답 DTO 빌드 */
+    /**
+     * 성공 마킹 + 응답 DTO 빌드
+     */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public ExchangeExecuteResponse completeExchange(
-            Long transactionId, String txHash, String bankTransactionId) {
+        Long transactionId, String txHash, String bankTransactionId) {
         Transaction tx =
-                transactionRepository
-                        .findById(transactionId)
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                TransactionErrorCode.EXCHANGE_NOT_FOUND));
+            transactionRepository
+                .findById(transactionId)
+                .orElseThrow(
+                    () ->
+                        new BusinessException(
+                            TransactionErrorCode.EXCHANGE_NOT_FOUND));
 
         tx.completeWithBankResponse(txHash, bankTransactionId);
         return ExchangeExecuteResponse.from(tx);
     }
 
-    /** 실패 마킹 */
+    /**
+     * 실패 마킹
+     */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void failExchange(Long transactionId) {
         transactionRepository.findById(transactionId).ifPresent(Transaction::markFailed);
+    }
+
+    /**
+     * reconcile 시도 횟수 1 증가 후 새 값 반환
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public int incrementReconcileAttempt(Long transactionId) {
+        Transaction tx = transactionRepository
+            .findById(transactionId)
+            .orElseThrow(() ->
+                new BusinessException(TransactionErrorCode.EXCHANGE_NOT_FOUND));
+        tx.incrementReconcileAttempt();
+        return tx.getReconcileAttemptCount();
     }
 }
