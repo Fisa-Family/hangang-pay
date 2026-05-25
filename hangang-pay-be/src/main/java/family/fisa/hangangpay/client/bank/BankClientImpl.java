@@ -3,19 +3,7 @@ package family.fisa.hangangpay.client.bank;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import family.fisa.hangangpay.client.bank.dto.BankAccountResponse;
-import family.fisa.hangangpay.client.bank.dto.BankWalletResponse;
-import family.fisa.hangangpay.client.bank.dto.BlockchainLedgerResponse;
-import family.fisa.hangangpay.client.bank.dto.CancelRequest;
-import family.fisa.hangangpay.client.bank.dto.CancelResponse;
-import family.fisa.hangangpay.client.bank.dto.ChargeRequest;
-import family.fisa.hangangpay.client.bank.dto.ChargeResponse;
-import family.fisa.hangangpay.client.bank.dto.CreateBankAccountRequest;
-import family.fisa.hangangpay.client.bank.dto.CreateBankWalletRequest;
-import family.fisa.hangangpay.client.bank.dto.ExchangeRequest;
-import family.fisa.hangangpay.client.bank.dto.ExchangeResponse;
-import family.fisa.hangangpay.client.bank.dto.PaymentRequest;
-import family.fisa.hangangpay.client.bank.dto.PaymentResponse;
+import family.fisa.hangangpay.client.bank.dto.*;
 import family.fisa.hangangpay.global.code.error.AccountErrorCode;
 import family.fisa.hangangpay.global.code.error.BaseErrorCode;
 import family.fisa.hangangpay.global.exception.BusinessException;
@@ -120,6 +108,21 @@ public class BankClientImpl implements BankClient {
                                         .body(new ParameterizedTypeReference<>() {}));
 
         // 2. 응답에서 결과 추출
+        return response.getResult();
+    }
+
+    @Override
+    public BankTransactionStatusResponse getTransactionStatus(String transactionUuid) {
+        ApiResponse<BankTransactionStatusResponse> response =
+            callBank(
+                () ->
+                        bankRestClient
+                            .get()
+                            .uri("/api/v1/transactions/{transactionUuid}", transactionUuid)
+                            .retrieve()
+                            .body(new ParameterizedTypeReference<>() {})
+            );
+
         return response.getResult();
     }
 

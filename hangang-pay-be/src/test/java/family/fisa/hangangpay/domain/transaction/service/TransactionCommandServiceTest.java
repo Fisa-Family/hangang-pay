@@ -17,10 +17,7 @@ import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
-import family.fisa.hangangpay.domain.transaction.internal.PaymentIdempotencyStore;
-import family.fisa.hangangpay.domain.transaction.internal.PaymentLockManager;
-import family.fisa.hangangpay.domain.transaction.internal.PaymentRateLimiter;
-import family.fisa.hangangpay.domain.transaction.internal.PaymentRequestHashGenerator;
+import family.fisa.hangangpay.domain.transaction.internal.*;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
 import family.fisa.hangangpay.domain.user.entity.User;
 import family.fisa.hangangpay.domain.user.repository.UserRepository;
@@ -54,7 +51,7 @@ import static org.mockito.Mockito.verify;
 
 
 @ExtendWith(MockitoExtension.class)
-public class TransactionCommandServiceTest {
+class TransactionCommandServiceTest {
 
     private static final Long USER_ID = 1L;
     private static final Long USER_PARTY_ID = 10L;
@@ -168,7 +165,7 @@ public class TransactionCommandServiceTest {
         given(paymentRequestHashGenerator.generatePaymentExecuteHash(transaction))
             .willReturn(REQUEST_HASH);
         given(paymentIdempotencyStore.beginExecution(TRANSACTION_UUID, REQUEST_HASH, TRANSACTION_ID))
-            .willReturn(PaymentIdempotencyStore.Decision.newRequest());
+            .willReturn(PaymentIdempotencyDecision.newRequest());
 
         /** PROCESSING */
         given(bankClient.payment(any()))
@@ -213,7 +210,7 @@ public class TransactionCommandServiceTest {
         given(paymentRequestHashGenerator.generatePaymentExecuteHash(transaction))
             .willReturn(REQUEST_HASH);
         given(paymentIdempotencyStore.beginExecution(TRANSACTION_UUID, REQUEST_HASH, TRANSACTION_ID))
-            .willReturn(PaymentIdempotencyStore.Decision.newRequest());
+            .willReturn(PaymentIdempotencyDecision.newRequest());
 
         /** PROCESSING */
         given(bankClient.payment(any()))
@@ -261,7 +258,7 @@ public class TransactionCommandServiceTest {
         given(paymentRequestHashGenerator.generatePaymentExecuteHash(transaction))
             .willReturn(REQUEST_HASH);
         given(paymentIdempotencyStore.beginExecution(TRANSACTION_UUID, REQUEST_HASH, TRANSACTION_ID))
-            .willReturn(PaymentIdempotencyStore.Decision.returnSnapshot(snapshot));
+            .willReturn(PaymentIdempotencyDecision.returnSnapshot(snapshot));
 
         //when
         PaymentExecutionResponse response =
@@ -290,7 +287,7 @@ public class TransactionCommandServiceTest {
         given(paymentRequestHashGenerator.generatePaymentExecuteHash(transaction))
             .willReturn(REQUEST_HASH);
         given(paymentIdempotencyStore.beginExecution(TRANSACTION_UUID, REQUEST_HASH, TRANSACTION_ID))
-            .willReturn(PaymentIdempotencyStore.Decision.conflict());
+            .willReturn(PaymentIdempotencyDecision.conflict());
 
         // when & then
         assertThatThrownBy(() ->
@@ -417,4 +414,4 @@ public class TransactionCommandServiceTest {
             .build();
     }
 }
-}
+

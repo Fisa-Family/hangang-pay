@@ -1,12 +1,120 @@
 package family.fisa.hangangpay.domain.transaction.service;
 
+import family.fisa.hangangpay.client.bank.BankClient;
+import family.fisa.hangangpay.domain.merchant.code.error.MerchantErrorCode;
+import family.fisa.hangangpay.domain.merchant.entity.Merchant;
+import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
+import family.fisa.hangangpay.domain.party.entity.Party;
+import family.fisa.hangangpay.domain.party.repository.PartyRepository;
+import family.fisa.hangangpay.domain.transaction.dto.request.PaymentExecuteRequest;
+import family.fisa.hangangpay.domain.transaction.dto.request.PaymentIntentCreateRequest;
+import family.fisa.hangangpay.domain.transaction.dto.response.PaymentExecutionResponse;
+import family.fisa.hangangpay.domain.transaction.dto.response.PaymentIntentResponse;
+import family.fisa.hangangpay.domain.transaction.entity.Transaction;
+import family.fisa.hangangpay.domain.transaction.internal.PaymentIdempotencyStore;
+import family.fisa.hangangpay.domain.transaction.internal.PaymentLockManager;
+import family.fisa.hangangpay.domain.transaction.internal.PaymentRateLimiter;
+import family.fisa.hangangpay.domain.transaction.internal.PaymentRequestHashGenerator;
+import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
+import family.fisa.hangangpay.domain.user.code.error.UserErrorCode;
+import family.fisa.hangangpay.domain.user.entity.User;
+import family.fisa.hangangpay.domain.user.repository.UserRepository;
+import family.fisa.hangangpay.domain.wallet.code.error.WalletErrorCode;
+import family.fisa.hangangpay.domain.wallet.entity.Wallet;
+import family.fisa.hangangpay.domain.wallet.repository.WalletRepository;
+import family.fisa.hangangpay.global.code.error.GeneralErrorCode;
+import family.fisa.hangangpay.global.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class TransactionCommandService {}
+public class TransactionCommandService {
+    private static final long PAYMENT_INTENT_TTL_MINUTES = 10L;
+
+    private final TransactionRepository transactionRepository;
+    private final MerchantRepository merchantRepository;
+    private final WalletRepository walletRepository;
+    private final UserRepository userRepository;
+    private final PartyRepository partyRepository;
+    private final BankClient bankClient;
+    private final PasswordEncoder passwordEncoder;
+    private final PaymentIdempotencyStore paymentIdempotencyStore;
+    private final PaymentLockManager paymentLockManager;
+    private final PaymentRateLimiter paymentRateLimiter;
+    private final PaymentRequestHashGenerator paymentRequestHashGenerator;
+
+    public PaymentIntentResponse createPaymentIntent(
+            Long partyId, PaymentIntentCreateRequest request) {
+
+        /** 요청을 처리하기 전, TokenBucket 방식을 이용하여 Quota 확인 */
+        paymentRateLimiter.checkIntentRateLimit(partyId, request.merchantPartyId());
+
+        /** DB 조회 */
+        Party userParty = getUserParty(partyId);
+        Merchant merchant = getMerchant(request.merchantPartyId());
+        Wallet userWallet = getWallet(partyId);
+        Wallet merchantWallet = getWallet(request.merchantPartyId());
+
+        /** 결제 실행 전에 서버 발급 transactionUuid로 PENDING 결제 의도를 생성한다 */
+        String transactionUuid = UUID.randomUUID().toString();
+
+        Transaction transaction =
+            Transaction.forPayment(
+                transactionUuid,
+                userParty,
+                merchant.getParty(),
+                userWallet,
+                merchantWallet,
+                request.amount(),
+                null,
+                request.itemName());
+
+        Transaction saved = transactionRepository.save(transaction);
+
+        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(PAYMENT_INTENT_TTL_MINUTES);
+
+
+        return PaymentIntentResponse.from(saved, merchant, expiresAt);
+    }
+
+    public PaymentExecutionResponse executePayment(
+        Long userId,
+        Long partyId,
+        String transactionUuid,
+        PaymentExecuteRequest request) {
+        throw new UnsupportedOperationException("Phase 3에서 구현");
+    }
+
+    public PaymentExecutionResponse recoverPayment(Long partyId, String transactionUuid) {
+        throw new UnsupportedOperationException("Phase 5에서 구현");
+    }
+
+
+
+    private Party getUserParty(Long partyId) {
+        return partyRepository
+            .findById(partyId)
+            .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+    }
+
+    private Merchant getMerchant(Long merchantPartyId) {
+        return merchantRepository
+            .findByParty_Id(merchantPartyId)
+            .orElseThrow(() -> new BusinessException(MerchantErrorCode.MERCHANT_NOT_FOUND));
+    }
+
+    private Wallet getWallet(Long partyId) {
+        return walletRepository
+            .findByParty_Id(partyId)
+            .orElseThrow(() -> new BusinessException(WalletErrorCode.WALLET_NOT_FOUND));
+    }
+}

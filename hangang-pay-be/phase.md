@@ -17,8 +17,55 @@
 ## Phase 1: RED Tests
 
 - Add `TransactionCommandServiceTest` cases for intent, execute, and recover behavior first.
-- Add `PaymentControllerTest` cases for session-based controller contracts.
+- `PaymentControllerTest` is intentionally excluded for now. The current learning pass focuses only on `TransactionCommandServiceTest`.
 - Verify targeted tests fail for the expected missing implementation before writing GREEN code.
+
+### Current Phase 1 Handoff State
+
+- A `TransactionCommandServiceTest` has been written for these scenarios:
+  - Payment intent creation stores a `PENDING` `PAYMENT` transaction.
+  - Successful payment execution generates a server-side request hash and transitions through `PENDING -> PROCESSING -> SUCCESS`.
+  - Bank timeout transitions through `PENDING -> PROCESSING -> UNKNOWN`.
+  - Same `transactionUuid` + same `requestHash` retry returns the stored response snapshot and does not call Bank again.
+  - Same `transactionUuid` + different `requestHash` fails with `IDEMPOTENCY_CONFLICT`.
+  - `UNKNOWN` recovery updates local status from Bank lookup result.
+- The redundant standalone test named like `executePayment_generatesRequestHashOnServer` should stay removed; the success test already verifies hash generation and idempotency-store handoff.
+- The latest targeted RED command was:
+  - `./gradlew test --tests family.fisa.hangangpay.domain.transaction.service.TransactionCommandServiceTest`
+- The latest RED is good and expected. It fails in `compileTestJava` because the production implementation is intentionally incomplete:
+  - `TransactionCommandService` has no constructor for the new dependencies.
+  - `createPaymentIntent(...)` does not exist.
+  - `executePayment(...)` does not exist.
+  - `recoverPayment(...)` does not exist.
+  - `BankClient.getTransactionStatus(String)` does not exist.
+  - `TransactionErrorCode.IDEMPOTENCY_CONFLICT` does not exist.
+- Do not treat this RED as a broken setup. It is the intended handoff point into Phase 2.
+
+### Current Helper Component Structure
+
+- Use these package roles:
+  - `domain/transaction/service`: use-case entry points, especially `TransactionCommandService` and `TransactionQueryService`.
+  - `domain/transaction/internal`: transaction-domain internal contracts and pure helpers used by `TransactionCommandService`.
+  - `domain/transaction/infra/redis`: Redis implementations of the internal contracts.
+- Current internal contracts/helpers:
+  - `PaymentIdempotencyStore`
+  - `PaymentIdempotencyDecision`
+  - `PaymentIdempotencyDecisionType`
+  - `PaymentLockManager`
+  - `PaymentRateLimiter`
+  - `PaymentRequestHashGenerator`
+- Current Redis implementation shells:
+  - `RedisPaymentIdempotencyStore`
+  - `RedisPaymentLockManager`
+  - `RedisPaymentRateLimiter`
+- `PaymentRequestHashGenerator` is a normal class, not an interface. It is a pure helper and can be mocked in tests or used directly later.
+- `PaymentIdempotencyStore`, `PaymentLockManager`, and `PaymentRateLimiter` should stay interfaces because their implementation is Redis-backed and easier to mock behind contracts.
+
+### Learning Mode Rule
+
+- Do not auto-generate code in the repository unless the user explicitly asks for file edits.
+- When continuing, show code snippets and let the user type them manually.
+- Prefer one phase at a time; do not jump ahead to full payment execution while Phase 2 intent is still RED/GREEN.
 
 ## Phase 2: Payment Intent
 
@@ -38,6 +85,28 @@
   - `amount`
   - `itemName`
   - `expiresAt`
+
+### Phase 2 Next Step
+
+- Make only the first service test GREEN first:
+  - `createPaymentIntent_savesPendingPaymentTransaction`
+- Minimal production changes for Phase 2:
+  - Add final dependency fields to `TransactionCommandService` so Lombok `@RequiredArgsConstructor` creates the constructor expected by the test.
+  - Add `TransactionErrorCode.IDEMPOTENCY_CONFLICT` only if needed to keep the test class compiling before execution tests are implemented.
+  - Add `BankClient.getTransactionStatus(String)` declaration only if needed to keep the test class compiling before recovery is implemented.
+  - Implement `createPaymentIntent(Long partyId, PaymentIntentCreateRequest request)`.
+  - Add temporary compile-only stubs for `executePayment(...)` and `recoverPayment(...)` if the test class cannot compile without them. Do not implement their logic in Phase 2.
+- `createPaymentIntent(...)` expected flow:
+  - `paymentRateLimiter.checkIntentRateLimit(partyId, request.merchantPartyId())`
+  - Load user `Party` by `partyRepository.findById(partyId)`.
+  - Load merchant by `merchantRepository.findByParty_Id(request.merchantPartyId())`.
+  - Load consumer wallet by `walletRepository.findByParty_Id(partyId)`.
+  - Load merchant wallet by `walletRepository.findByParty_Id(request.merchantPartyId())`.
+  - Generate `UUID.randomUUID().toString()` on the server.
+  - Create `Transaction.forPayment(...)` with `status=PENDING`.
+  - Save via `transactionRepository.save(...)`.
+  - Return `PaymentIntentResponse`.
+- Keep execute/recover RED after Phase 2. Phase 2 is done when the intent test passes and remaining failures are only execute/recover-related.
 
 ## Phase 3: Payment Execute
 
