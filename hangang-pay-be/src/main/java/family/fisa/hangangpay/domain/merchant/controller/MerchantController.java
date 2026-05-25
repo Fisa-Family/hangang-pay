@@ -6,9 +6,13 @@ import family.fisa.hangangpay.domain.account.service.AccountCommandService;
 import family.fisa.hangangpay.domain.merchant.dto.MerchantInfoResponse;
 import family.fisa.hangangpay.domain.merchant.dto.MerchantMyPageResponse;
 import family.fisa.hangangpay.domain.merchant.dto.MerchantQrResponse;
+import family.fisa.hangangpay.domain.merchant.dto.MerchantSettlementHistoryItem;
 import family.fisa.hangangpay.domain.merchant.service.MerchantQrService;
 import family.fisa.hangangpay.domain.merchant.service.MerchantQueryService;
+import family.fisa.hangangpay.domain.transaction.service.TransactionQueryService;
 import family.fisa.hangangpay.global.code.success.GeneralSuccessCode;
+import family.fisa.hangangpay.global.pagination.CursorPageRequest;
+import family.fisa.hangangpay.global.pagination.CursorPageResponse;
 import family.fisa.hangangpay.global.response.ApiResponse;
 import family.fisa.hangangpay.global.session.SessionAttributeNames;
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,6 +25,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.SessionAttribute;
 
@@ -33,6 +38,7 @@ public class MerchantController {
     private final MerchantQrService qrService;
     private final MerchantQueryService merchantQueryService;
     private final AccountCommandService accountCommandService;
+    private final TransactionQueryService transactionQueryService;
 
     /** QR에서 추출한 merchantId로 결제 진입에 필요한 가맹점 정보를 조회한다. */
     @Operation(
@@ -43,6 +49,20 @@ public class MerchantController {
             @PathVariable Long merchantId) {
         MerchantInfoResponse response = merchantQueryService.getMerchantInfo(merchantId);
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
+    }
+
+    /** 가맹점의 정산 내역을 조회한다. */
+    @Operation(summary = "가맹점 정산 내역 조회 (MERCHANT-005)")
+    @GetMapping("/settlements")
+    public ResponseEntity<ApiResponse<CursorPageResponse<MerchantSettlementHistoryItem>>>
+            getMerchantSettlements(
+                    @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId,
+                    CursorPageRequest cursor,
+                    @RequestParam(defaultValue = "20") int size) {
+
+        CursorPageResponse<MerchantSettlementHistoryItem> page =
+                transactionQueryService.getMerchantSettlementHistory(partyId, cursor, size);
+        return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, page));
     }
 
     /** 현재 세션 가맹점의 결제용 QR을 조회한다. */
