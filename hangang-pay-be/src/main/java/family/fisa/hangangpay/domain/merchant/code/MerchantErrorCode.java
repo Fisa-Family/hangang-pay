@@ -11,7 +11,11 @@ public enum MerchantErrorCode implements BaseErrorCode {
     FORBIDDEN_MERCHANT(HttpStatus.FORBIDDEN, "FORBIDDEN_MERCHANT", "가맹점 권한이 필요합니다."),
     MERCHANT_NOT_FOUND(HttpStatus.NOT_FOUND, "MERCHANT_NOT_FOUND", "가맹점 정보를 찾을 수 없습니다."),
     QR_IMAGE_GENERATION_FAILED(
-            HttpStatus.INTERNAL_SERVER_ERROR, "QR_IMAGE_GENERATION_FAILED", "QR 이미지 생성에 실패했습니다.");
+            HttpStatus.INTERNAL_SERVER_ERROR, "QR_IMAGE_GENERATION_FAILED", "QR 이미지 생성에 실패했습니다."),
+    BUSINESS_INFO_NOT_FOUND(HttpStatus.NOT_FOUND, "BUSINESS_INFO_NOT_FOUND", "사업자 정보를 찾을 수 없습니다"),
+    MERCHANT_SETTLEMENT_ACCOUNT_NOT_FOUND(
+            HttpStatus.NOT_FOUND, "MERCHANT_SETTLEMENT_ACCOUNT_NOT_FOUND", "정산 계좌를 찾을 수 없습니다.");
+    ;
 
     private final HttpStatus status;
     private final String code;

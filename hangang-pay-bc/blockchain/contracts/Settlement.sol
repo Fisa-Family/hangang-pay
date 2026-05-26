@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+
 // CBDC 인터페이스
 // Settlement 내부 reserve 검증용
 interface ICBDC {
@@ -12,7 +15,7 @@ interface ICBDC {
     ) external view returns (uint256);
 }
 
-contract Settlement {
+contract Settlement is Initializable, UUPSUpgradeable {
 
     // 컨트랙트 관리자
     address public owner;
@@ -75,12 +78,26 @@ contract Settlement {
         _;
     }
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     // 배포 시 CBDC 주소 저장
-    constructor(address _cbdc) {
-        if (_cbdc == address(0)) revert InvalidAddress();
-        owner = msg.sender;
+    function initialize(
+        address _cbdc,
+        address initialOwner
+    ) public initializer {
+        if (
+            _cbdc == address(0) ||
+            initialOwner == address(0)
+        ) {
+            revert InvalidAddress();
+        }
+
+        owner = initialOwner;
         cbdc = _cbdc;
-        operators[msg.sender] = true;
+        operators[initialOwner] = true;
     }
 
     function setOperator(
@@ -184,4 +201,11 @@ contract Settlement {
 
         return true;
     }
+
+    // UUPS 업그레이드는 owner만 허용
+    function _authorizeUpgrade(
+        address
+    ) internal override onlyOwner {}
+
+    uint256[50] private __gap;
 }

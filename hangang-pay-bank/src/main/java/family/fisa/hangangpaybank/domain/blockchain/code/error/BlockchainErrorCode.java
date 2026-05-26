@@ -18,7 +18,13 @@ public enum BlockchainErrorCode implements BaseErrorCode {
     BLOCKCHAIN_RECEIPT_TIMEOUT(
             HttpStatus.GATEWAY_TIMEOUT, "BLOCKCHAIN_RECEIPT_TIMEOUT", "블록체인 트랜잭션 확인 시간이 초과되었습니다."),
     BLOCKCHAIN_LEDGER_NOT_FOUND(
-            HttpStatus.NOT_FOUND, "BLOCKCHAIN_LEDGER_NOT_FOUND", "블록체인 거래를 찾을 수 없습니다.");
+            HttpStatus.NOT_FOUND, "BLOCKCHAIN_LEDGER_NOT_FOUND", "블록체인 거래를 찾을 수 없습니다."),
+    BLOCKCHAIN_CONTRACT_NOT_FOUND(
+            HttpStatus.BAD_REQUEST, "BLOCKCHAIN_CONTRACT_NOT_FOUND", "컨트랙트를 찾을 수 없습니다."),
+    BLOCKCHAIN_CONTRACT_DEPLOYMENT_RESULT_INVALID(
+            HttpStatus.BAD_REQUEST,
+            "BLOCKCHAIN_CONTRACT_DEPLOYMENT_RESULT_INVALID",
+            "컨트랙트 배포 결과가 올바르지 않습니다.");
 
     private final HttpStatus status;
     private final String code;

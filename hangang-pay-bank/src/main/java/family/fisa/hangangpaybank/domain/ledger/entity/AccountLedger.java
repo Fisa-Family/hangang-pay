@@ -22,6 +22,14 @@ public class AccountLedger extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // 플랫폼이 발행한 거래 식별자
+    @Column(
+            name = "idempotent_key",
+            nullable = true,
+            unique = true,
+            length = 36) // 일시적 nullable = true 추후 수정예정
+    private String idempotentKey;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "bank_account_id", nullable = false)
     private BankAccount bankAccount;

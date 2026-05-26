@@ -129,6 +129,11 @@ public class Transaction extends BaseEntity {
     @Column(name = "bank_transaction_id", length = 100)
     private String bankTransactionId;
 
+    /** reconcile 시도 횟수 - 임계값 도달 시 배치 대상에서 제외 */
+    @Column(name = "reconcile_attempt_count", nullable = false)
+    @Builder.Default
+    private Integer reconcileAttemptCount = 0;
+
     /** CHARGE: 계좌 → 토큰 mint */
     public static Transaction forCharge(
             String transactionUuid,
@@ -281,5 +286,10 @@ public class Transaction extends BaseEntity {
     /** Bank 조회 결과가 FAILED면 로컬 거래도 실패로 확정한다. */
     public void recoverFailed() {
         this.status = TransactionStatus.FAILED;
+    }
+    
+    /** reconcile 시도 횟수 1 증가 (JPA 변경감지) */
+    public void incrementReconcileAttempt() {
+        this.reconcileAttemptCount = this.reconcileAttemptCount + 1;
     }
 }

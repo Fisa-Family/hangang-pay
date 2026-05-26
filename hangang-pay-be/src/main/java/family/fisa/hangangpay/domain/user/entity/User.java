@@ -37,7 +37,7 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private String passwordHash;
 
-    /** 결제 PIN 해시 */
+    /** PIN 해시 */
     @Column(nullable = false)
     private String paymentPinHash;
 

@@ -26,6 +26,9 @@ public interface BankClient {
 
     CancelResponse cancel(CancelRequest request);
 
+    // 환전 상태 조회
+    Optional<ExchangeStatusResponse> queryExchangeStatus(String transactionUuid);
+
     // blockchain
     BlockchainLedgerResponse getBlockchainLedgerByTxHash(String txHash);
 }

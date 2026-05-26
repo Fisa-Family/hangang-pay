@@ -10,4 +10,6 @@ public interface AccountLedgerRepository {
     Optional<AccountLedger> findById(Long id);
 
     List<AccountLedger> findByBankAccountId(Long bankAccountId);
+
+    Optional<AccountLedger> findByIdempotentKey(String idempotentKey);
 }

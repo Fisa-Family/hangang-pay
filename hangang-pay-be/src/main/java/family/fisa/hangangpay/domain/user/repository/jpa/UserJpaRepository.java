@@ -15,4 +15,6 @@ public interface UserJpaRepository extends JpaRepository<User, Long> {
 
     @Query("select u from User u join fetch u.party where u.phoneNumber = :phoneNumber")
     Optional<User> findByPhoneNumberWithParty(@Param("phoneNumber") String phoneNumber);
+
+    Optional<User> findByParty_Id(Long partyId);
 }

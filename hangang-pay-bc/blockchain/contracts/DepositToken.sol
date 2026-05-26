@@ -6,10 +6,16 @@ import "./BaseToken.sol";
 
 contract DepositToken is BaseToken {
 
-    constructor()
-        BaseToken(
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address initialOwner) public initializer {
+        __BaseToken_init(
             "Woori Bank Deposit Token",
-            "WDT"
-        )
-    {}
+            "WDT",
+            initialOwner
+        );
+    }
 }

@@ -17,8 +17,17 @@ import org.springframework.data.repository.query.Param;
 
 public interface TransactionJpaRepository extends JpaRepository<Transaction, Long> {
 
-    /** 비즈니스 식별자(transaction_uuid)로 단건 조회 - CANCEL 시 원본 PAYMENT 조회용 */
-    @EntityGraph(attributePaths = {"fromParty", "toParty", "fromWallet", "toWallet"})
+    /** 비즈니스 식별자(transaction_uuid)로 단건 조회 */
+    @EntityGraph(
+            attributePaths = {
+                "fromParty",
+                "toParty",
+                "fromAccount",
+                "toAccount",
+                "toAccount.institution",
+                "fromWallet",
+                "toWallet"
+            })
     Optional<Transaction> findByTransactionUuid(String transactionUuid);
 
     /** 거래 이력 페이징 - 수취자(toParty) fetch join */
@@ -69,4 +78,52 @@ public interface TransactionJpaRepository extends JpaRepository<Transaction, Lon
             @Param("status") TransactionStatus status,
             @Param("startOfMonth") LocalDateTime startOfMonth,
             @Param("startOfNextMonth") LocalDateTime startOfNextMonth);
+
+    /** 가장 최근 SUCCESS CHARGE 1건 */
+    Optional<Transaction>
+            findFirstByFromParty_IdAndTransactionTypeAndStatusOrderByCreatedAtDescIdDesc(
+                    Long fromPartyId, TransactionType transactionType, TransactionStatus status);
+
+    /** 특정 시점 이전(exclusive)의 SUCCESS 거래 타입별 누적 금액 */
+    @Query(
+            "SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t "
+                    + "WHERE t.fromParty.id = :partyId "
+                    + "AND t.transactionType = :type "
+                    + "AND t.status = "
+                    + "  family.fisa.hangangpay.domain.transaction.entity.TransactionStatus.SUCCESS "
+                    + "AND t.createdAt < :before")
+    BigDecimal sumSuccessByTypeBefore(
+            @Param("partyId") Long partyId,
+            @Param("type") TransactionType type,
+            @Param("before") LocalDateTime before);
+
+    /** 특정 시점 이후(inclusive)의 SUCCESS 거래 타입별 누적 금액 */
+    @Query(
+            "SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t "
+                    + "WHERE t.fromParty.id = :partyId "
+                    + "AND t.transactionType = :type "
+                    + "AND t.status = "
+                    + "  family.fisa.hangangpay.domain.transaction.entity.TransactionStatus.SUCCESS "
+                    + "AND t.createdAt >= :since")
+    BigDecimal sumSuccessByTypeSince(
+            @Param("partyId") Long partyId,
+            @Param("type") TransactionType type,
+            @Param("since") LocalDateTime since);
+
+    /** 진행 중인 EXCHANGE 존재 여부 */
+    boolean existsByFromParty_IdAndTransactionTypeAndStatus(
+            Long fromPartyId, TransactionType transactionType, TransactionStatus status);
+
+    /** 배치 reconcile 대상 id 조회 */
+    @Query(
+            "SELECT t.id FROM Transaction t "
+                    + "WHERE t.status = :status "
+                    + "AND t.transactionType = :type "
+                    + "AND t.createdAt < :threshold "
+                    + "AND t.reconcileAttemptCount < :maxAttempts")
+    List<Long> findIdsForReconcile(
+            @Param("status") TransactionStatus status,
+            @Param("type") TransactionType type,
+            @Param("threshold") LocalDateTime threshold,
+            @Param("maxAttempts") int maxAttempts);
 }

@@ -33,7 +33,16 @@ public enum TransactionErrorCode implements BaseErrorCode {
     PAYMENT_RATE_LIMIT_EXCEEDED(
             HttpStatus.TOO_MANY_REQUESTS,
             "PAYMENT_RATE_LIMIT_EXCEEDED",
-            "요청이 너무 많습니다. 잠시 후 다시 시도해주세요.");
+            "요청이 너무 많습니다. 잠시 후 다시 시도해주세요."),
+    EXCHANGE_NOT_ELIGIBLE(
+            HttpStatus.BAD_REQUEST,
+            "EXCHANGE_NOT_ELIGIBLE",
+            "마지막 충전 직후 잔액의 60% 이상을 사용한 후 환전할 수 있습니다."),
+    EXCHANGE_IN_PROGRESS(HttpStatus.CONFLICT, "EXCHANGE_IN_PROGRESS", "이미 진행 중인 환전이 있습니다."),
+    EXCHANGE_ALREADY_FAILED(
+            HttpStatus.CONFLICT, "EXCHANGE_ALREADY_FAILED", "이미 실패한 환전입니다. 새로 시도해 주세요."),
+    INVALID_PAYMENT_PIN(HttpStatus.UNAUTHORIZED, "INVALID_PAYMENT_PIN", "결제 비밀번호가 일치하지 않습니다."),
+    WALLET_NOT_FOUND(HttpStatus.NOT_FOUND, "WALLET_NOT_FOUND", "지갑을 찾을 수 없습니다.");
 
     private final HttpStatus status;
     private final String code;
