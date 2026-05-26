@@ -53,6 +53,12 @@ public class TransactionRepositoryImpl implements TransactionRepository {
     }
 
     @Override
+    public List<Transaction> findAllUnknownPayments() {
+        return jpaRepository.findByStatusAndTransactionType(
+                TransactionStatus.UNKNOWN, TransactionType.PAYMENT);
+    }
+
+    @Override
     public BigDecimal sumMonthlyAmount(
             Long partyId,
             TransactionType type,
