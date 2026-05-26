@@ -29,6 +29,11 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
+    public Optional<User> findByParty_Id(Long partyId) {
+        return userJpaRepository.findByParty_Id(partyId);
+    }
+
+    @Override
     public User save(User user) {
         return userJpaRepository.save(user);
     }

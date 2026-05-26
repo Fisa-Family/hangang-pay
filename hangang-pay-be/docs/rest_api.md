@@ -12,8 +12,8 @@
 - 모든 엔드포인트에는 SpringDoc 어노테이션을 작성한다.
 - request/response JSON은 아직 확정하지 않는다. DTO 설계 시 사람이 직접 검토한다.
 - 결제 승인번호 형식은 `APV-YYYY-NNNNNNNN`이다.
-- 승인번호는 `payment.id`를 8자리 zero padding해서 생성한다. 예: `payment.id=25` -> `APV-2026-00000025`
-- 승인번호 생성은 `payment` 저장으로 id를 확보한 뒤 수행한다.
+- 승인번호는 `transaction.id`를 8자리 zero padding해서 생성한다. 예: `transaction.id=25` -> `APV-2026-00000025`
+- 승인번호 생성은 `transaction` 저장으로 id를 확보한 뒤 수행한다.
 
 ```json
 {
@@ -44,13 +44,13 @@ QR에는 가맹점 id가 들어있다. 소비자가 QR을 스캔하면 가맹점
 sequenceDiagram
   participant U as User App
   participant API as Backend API
-  participant BC as Blockchain
+  participant Bank as Bank API
 
   U->>U: QR scan
-  U->>API: GET /api/v1/merchants/{merchantPartyId}
+  U->>API: GET /api/v1/merchant/{merchantId}
   API-->>U: merchant payment target
   U->>API: POST /api/v1/payment
-  API->>BC: transfer
+  API->>Bank: payment/transfer
   API-->>U: payment result
 ```
 
@@ -68,21 +68,21 @@ sequenceDiagram
 
 | API ID | Status | Reason |
 | --- | --- | --- |
-| `AUTH-001` | 구현 예정 | SMS 인증번호 발송. Octomo 사용 |
-| `AUTH-002` | 구현 예정 | SMS 인증번호 검증. Octomo 사용 |
-| `AUTH-003` | 구현 예정 | 계좌 1원 인증 발송. 인증 트랜잭션 테이블은 추후 추가 |
-| `AUTH-004` | 구현 예정 | 계좌 1원 인증 검증. 인증 트랜잭션 테이블은 추후 추가 |
-| `AUTH-005` | 구현 예정 | 비밀번호 재설정 |
+| `AUTH-005` | 보류 | 비밀번호 재설정 |
 | `WALLET-002` | 장기 보류 | 근처 가맹점 조회. 구현 복잡도 |
 
-SMS 인증은 Octomo를 사용한다. SMS 발송 API도 백엔드에 둔다.
+SMS 인증과 계좌 1원 인증은 mock으로 처리한다. 백엔드는 인증 코드를 생성해 세션에 저장하고 로그로 출력한다.
 
 ## API Catalog
 
 | ID | Name | Method | Path | Auth | Role | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `LOGIN-001` | 로그인 (소비자) | `POST` | `/auth/login/users` | `X` | `PUBLIC` | 세션 생성 |
-| `LOGIN-002` | 로그인 (가맹점) | `POST` | `/auth/login/merchant` | `X` | `PUBLIC` | 세션 생성 |
+| `AUTH-001` | SMS 인증번호 발송 | `POST` | `/auth/sms/send` | `X` | `PUBLIC` | mock 인증 코드를 로그로 출력 |
+| `AUTH-002` | SMS 인증번호 검증 | `POST` | `/auth/sms/verify` | `X` | `PUBLIC` | 회원가입 인증 상태를 세션에 저장 |
+| `AUTH-003` | 계좌 1원 인증 발송 | `POST` | `/auth/account/send` | `X` | `PUBLIC` | mock 인증 코드를 로그로 출력 |
+| `AUTH-004` | 계좌 1원 인증 검증 | `POST` | `/auth/account/verify` | `X` | `PUBLIC` | 회원가입 인증 상태를 세션에 저장 |
+| `LOGIN-001` | 로그인 (소비자) | `POST` | `/auth/users/login` | `X` | `PUBLIC` | 세션 생성 |
+| `LOGIN-002` | 로그인 (가맹점) | `POST` | `/auth/merchants/login` | `X` | `PUBLIC` | 세션 생성 |
 | `LOGOUT-001` | 로그아웃 | `POST` | `/auth/logout` | `O` | `USER \| MERCHANT` | 현재 세션 삭제 |
 | `REG-001` | 소비자 회원가입 | `POST` | `/auth/users/register` | `X` | `PUBLIC` | 휴대폰·계좌 인증 세션 확인 후 회원/주계좌/지갑 생성 |
 | `REG-002` | 사업자 정보 조회 | `GET` | `/merchant/business-info` | `X` | `PUBLIC` | 쿼리 파라미터: `businessNumber` |
@@ -91,12 +91,12 @@ SMS 인증은 Octomo를 사용한다. SMS 발송 API도 백엔드에 둔다.
 | `ACCOUNT-002` | 계좌 추가 | `POST` | `/accounts` | `O` | `USER \| MERCHANT` | 현재 세션의 `partyId` 기준 |
 | `ACCOUNT-003` | 계좌 삭제 | `DELETE` | `/accounts/{accountId}` | `O` | `USER \| MERCHANT` | 본인 계좌만 삭제 |
 | `ACCOUNT-004` | 주거래 계좌 변경 | `PATCH` | `/accounts/{accountId}/primary` | `O` | `USER \| MERCHANT` | 본인 계좌만 변경 |
-| `PAY-001` | QR 가맹점 정보 조회 | `GET` | `/merchants/{merchantPartyId}` | `O` | `USER` | QR 스캔 후 결제 플로우 진입 |
+| `PAY-001` | QR 가맹점 정보 조회 | `GET` | `/merchant/{merchantId}` | `O` | `USER` | QR 스캔 후 결제 플로우 진입 |
 | `PAY-002` | 결제 실행 | `POST` | `/payment` | `O` | `USER` | 소비자 전용 |
-| `CHARGE-001` | 충전 정보 조회 | `GET` | `/charges/{partyId}/init` | `O` | `USER` | 충전 한도·할인 계산 포함 |
-| `CHARGE-002` | 충전 실행 | `POST` | `/charges` | `O` | `USER` | 소비자 전용 |
+| `CHARGE-001` | 충전 정보 조회 | `GET` | `/charge/{partyId}/init` | `O` | `USER` | 충전 한도·할인 계산 포함 |
+| `CHARGE-002` | 충전 실행 | `POST` | `/charge` | `O` | `USER` | 소비자 전용 |
 | `EXCHANGE-001` | 환전 정보 조회 | `GET` | `/exchange/{partyId}/init` | `O` | `USER \| MERCHANT` | 환전 가능 여부·예정 금액 포함 |
-| `EXCHANGE-002` | 환전 실행 | `POST` | `/exchange` | `O` | `USER \| MERCHANT` | 서비스 용어는 환전 |
+| `EXCHANGE-002` | 환전 실행 | `POST` | `/exchange/execute` | `O` | `USER \| MERCHANT` | 현재 컨트롤러는 소비자 환전 실행만 노출 |
 | `MERCHANT-001` | 가맹점 매출 요약 조회 | `GET` | `/merchant/dashboard` | `O` | `MERCHANT` | 가맹점 전용 |
 | `MERCHANT-002` | 가맹점 결제 내역 조회 | `GET` | `/merchant/payments` | `O` | `MERCHANT` | 가맹점 전용 |
 | `MERCHANT-003` | 가맹점 결제 상세 조회 | `GET` | `/merchant/payments/{paymentId}` | `O` | `MERCHANT` | |
@@ -104,10 +104,10 @@ SMS 인증은 Octomo를 사용한다. SMS 발송 API도 백엔드에 둔다.
 | `MERCHANT-005` | 가맹점 정산 내역 조회 | `GET` | `/merchant/settlements` | `O` | `MERCHANT` | 현재 가맹점의 `EXCHANGE` 거래 조회 (`transaction.from_party_id = partyId`) |
 | `MERCHANT-006` | 가맹점 정산 신청 조회 | `GET` | `/merchant/redeem` | `O` | `MERCHANT` | 토큰→현금 |
 | `MERCHANT-007` | 가맹점 정산 신청 실행 | `POST` | `/merchant/redeem` | `O` | `MERCHANT` | 토큰→현금 |
-| `MERCHANT-008` | 가맹점 QR 생성/조회 | `GET` | `/merchants/qr` | `O` | `MERCHANT` | 결제용 QR 코드 (merchantId 포함) |
+| `MERCHANT-008` | 가맹점 QR 생성/조회 | `GET` | `/merchant/qr` | `O` | `MERCHANT` | 결제용 QR 코드 (merchantId 포함) |
 | `MERCHANT-009` | 가맹점 마이페이지 조회 | `GET` | `/merchant/mypage` | `O` | `MERCHANT` | |
 | `MERCHANT-010` | 가맹점 계좌 변경 | `PATCH` | `/merchant/accounts` | `O` | `MERCHANT` | SETTLEMENT 계좌 upsert |
 | `MY-001` | 사용자 마이페이지 조회 | `GET` | `/users/profile` | `O` | `USER` | 소비자 전용 |
 | `MY-002` | 사용자 내역 조회 | `GET` | `/users/histories` | `O` | `USER` | 소비자 전용 |
-| `MY-003` | 내역 상세 조회 | `GET` | `/users/histories/{partyId}` | `O` | `USER` | 소비자 전용 |
+| `MY-003` | 내역 상세 조회 | `GET` | `/users/histories/{historyId}` | `O` | `USER` | 소비자 전용 |
 | `WALLET-001` | 잔액 조회 | `GET` | `/wallet/balance` | `O` | `USER \| MERCHANT` | 역할별 서비스/응답 분리 가능 |

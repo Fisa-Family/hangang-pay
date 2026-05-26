@@ -12,6 +12,12 @@ springdoc:
   api-docs:
     path: /api-docs
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+
 wallet:
   key-cipher:
     secret: ${WALLET_KEY_CIPHER_SECRET:dev-secret-please-change-in-production}

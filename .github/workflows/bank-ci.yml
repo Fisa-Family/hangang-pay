@@ -1,0 +1,180 @@
+name: Bank CI
+
+on:
+  push:
+    branches: [dev, test]
+    paths:
+      - "hangang-pay-bank/**"
+      - ".github/workflows/bank-ci.yml"
+  pull_request:
+    branches: [dev, test]
+    paths:
+      - "hangang-pay-bank/**"
+      - ".github/workflows/bank-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hangang-pay-bank
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: "17"
+          distribution: temurin
+          cache: gradle
+
+      - name: Grant Gradle permission
+        run: chmod +x ./gradlew
+
+      - name: Spotless check
+        run: ./gradlew spotlessCheck --no-daemon
+
+      - name: Test
+        run: ./gradlew test --no-daemon
+
+      - name: Build jar
+        run: ./gradlew bootJar --no-daemon
+
+  docker:
+    name: Docker Hub
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/test'
+    environment: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/hangang-pay-bank
+          tags: |
+            type=raw,value=test-latest
+            type=sha,prefix=test-
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v7
+        with:
+          context: hangang-pay-bank
+          file: hangang-pay-bank/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  deploy:
+    name: Deploy to on-prem Bank
+    runs-on: ubuntu-latest
+    needs: docker
+    if: github.event_name == 'push' && github.ref == 'refs/heads/test'
+    environment: test
+
+    steps:
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s\n' "${{ secrets.ONPREM_BASTION_SSH_KEY }}" > ~/.ssh/bastion_key
+          printf '%s\n' "${{ secrets.ONPREM_INSTANCE_SSH_KEY }}" > ~/.ssh/team01.pem
+          chmod 600 ~/.ssh/bastion_key ~/.ssh/team01.pem
+
+          cat > ~/.ssh/config <<EOF
+          Host onprem-bastion
+            HostName ${{ secrets.ONPREM_BASTION_HOST }}
+            User ${{ secrets.ONPREM_BASTION_USER }}
+            Port ${{ secrets.ONPREM_BASTION_PORT }}
+            IdentityFile ~/.ssh/bastion_key
+            StrictHostKeyChecking no
+
+          Host onprem-bank
+            HostName ${{ secrets.ONPREM_BANK_HOST }}
+            User ubuntu
+            IdentityFile ~/.ssh/team01.pem
+            ProxyJump onprem-bastion
+            StrictHostKeyChecking no
+          EOF
+
+      - name: Pull image and restart container
+        run: |
+          ssh onprem-bank 'bash -s' <<'EOF'
+          set -Eeuo pipefail
+
+          echo '${{ secrets.DOCKERHUB_TOKEN }}' | sudo docker login \
+            --username '${{ secrets.DOCKERHUB_USERNAME }}' \
+            --password-stdin
+
+          sudo docker pull '${{ secrets.DOCKERHUB_USERNAME }}/hangang-pay-bank:test-latest'
+
+          sudo docker stop hangang-pay-bank || true
+          sudo docker rm hangang-pay-bank || true
+
+          sudo docker run -d \
+            --name hangang-pay-bank \
+            --restart unless-stopped \
+            -p 8081:8081 \
+            -e SPRING_PROFILES_ACTIVE=onprem-test \
+            -e DB_URL='${{ secrets.ONPREM_BANK_DB_URL }}' \
+            -e DB_USERNAME='${{ secrets.ONPREM_BANK_DB_USERNAME }}' \
+            -e DB_PASSWORD='${{ secrets.ONPREM_BANK_DB_PASSWORD }}' \
+            -e WALLET_KEY_CIPHER_SECRET='${{ secrets.ONPREM_BANK_WALLET_KEY_CIPHER_SECRET }}' \
+            '${{ secrets.DOCKERHUB_USERNAME }}/hangang-pay-bank:test-latest'
+
+          HEALTH_MAX_ATTEMPTS=30
+          HEALTH_RETRY_SECONDS=5
+          healthy=false
+
+          echo "Waiting for actuator health check..."
+          for attempt in $(seq 1 "$HEALTH_MAX_ATTEMPTS"); do
+            if curl -fsS http://127.0.0.1:8081/actuator/health > /tmp/hangang-pay-bank-health.json; then
+              cat /tmp/hangang-pay-bank-health.json
+              echo
+              echo "hangang-pay-bank is healthy."
+              healthy=true
+              break
+            fi
+
+            if ! sudo docker inspect -f '{{.State.Running}}' hangang-pay-bank | grep -q true; then
+              echo "hangang-pay-bank container stopped during startup."
+              sudo docker logs --tail 200 hangang-pay-bank
+              exit 1
+            fi
+
+            echo "Health check attempt ${attempt}/${HEALTH_MAX_ATTEMPTS} failed. Retrying..."
+            sleep "$HEALTH_RETRY_SECONDS"
+          done
+
+          if [ "$healthy" = "true" ]; then
+            sudo docker ps --filter "name=hangang-pay-bank"
+            exit 0
+          fi
+
+          echo "hangang-pay-bank health check timed out."
+          sudo docker ps --filter "name=hangang-pay-bank"
+          sudo docker logs --tail 200 hangang-pay-bank
+          exit 1
+          EOF

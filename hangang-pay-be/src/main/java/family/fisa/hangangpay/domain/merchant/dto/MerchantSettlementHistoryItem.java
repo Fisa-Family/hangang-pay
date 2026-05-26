@@ -29,7 +29,10 @@ public record MerchantSettlementHistoryItem(
         return switch (status) {
             case SUCCESS -> "정산 완료";
             case PENDING -> "정산 대기";
+            case PROCESSING -> "정산 처리 중";
             case FAILED -> "정산 실패";
+            case UNKNOWN -> "정산 확인 중";
+            case EXPIRED -> "정산 만료";
         };
     }
 

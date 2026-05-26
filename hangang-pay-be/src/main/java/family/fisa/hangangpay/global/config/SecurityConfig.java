@@ -44,6 +44,9 @@ public class SecurityConfig {
                                         "/v3/api-docs/**",
                                         "/api-docs/**")
                                 .permitAll()
+                                // Actuator health check
+                                .requestMatchers("/actuator/health")
+                                .permitAll()
                                 // 인증 도메인
                                 .requestMatchers("/api/v1/auth/**")
                                 .permitAll()
@@ -51,7 +54,7 @@ public class SecurityConfig {
                                 .requestMatchers("/api/v1/users/**", "/api/v1/payment/**")
                                 .hasRole("USER")
                                 // 가맹점 도메인
-                                .requestMatchers("/api/v1/merchants/**")
+                                .requestMatchers("/api/v1/merchant/**")
                                 .hasRole("MERCHANT")
                                 // 계좌 도메인, 임시 인증 비활성화 상태
                                 .requestMatchers("/api/v1/accounts/**")

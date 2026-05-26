@@ -2,20 +2,24 @@ name: FE Format Check
 
 on:
   pull_request:
-    branches: [main, dev]
+    branches: [main, dev, test]
     paths:
-      - 'hangang-pay-fe/**'
+      - "hangang-pay-fe/**"
+      - ".github/workflows/fe-format.yml"
+
+permissions:
+  contents: read
 
 jobs:
   fe-format:
     name: FE Prettier + ESLint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: '22'
+          node-version: "24"
           cache: npm
           cache-dependency-path: hangang-pay-fe/package-lock.json
 

@@ -5,7 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import family.fisa.hangangpay.domain.merchant.code.error.MerchantErrorCode;
+import family.fisa.hangangpay.domain.merchant.code.MerchantErrorCode;
 import family.fisa.hangangpay.domain.merchant.dto.BusinessInfoResponse;
 import family.fisa.hangangpay.domain.merchant.service.BusinessInfoQueryService;
 import family.fisa.hangangpay.global.exception.BusinessException;
