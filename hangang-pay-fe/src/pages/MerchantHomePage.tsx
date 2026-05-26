@@ -74,6 +74,7 @@ function QrCodeIcon({ className }: { className?: string }) {
   )
 }
 
+// 오른쪽 화살표 아이콘
 function ChevronRightIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -92,6 +93,7 @@ function ChevronRightIcon({ className }: { className?: string }) {
   )
 }
 
+// 문서 아이콘
 function DocumentIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -114,6 +116,7 @@ function DocumentIcon({ className }: { className?: string }) {
   )
 }
 
+// 파이 차트 아이콘
 function PieChartIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -133,6 +136,7 @@ function PieChartIcon({ className }: { className?: string }) {
   )
 }
 
+// 막대 차트 아이콘
 function BarChartIcon({ className }: { className?: string }) {
   return (
     <svg
