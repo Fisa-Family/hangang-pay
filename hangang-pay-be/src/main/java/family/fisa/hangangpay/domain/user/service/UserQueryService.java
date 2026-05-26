@@ -16,10 +16,10 @@ public class UserQueryService {
 
     private final UserRepository userRepository;
 
-    public UserProfileResponse getProfile(Long userId) {
+    public UserProfileResponse getProfile(Long partyId) {
         User user =
                 userRepository
-                        .findByIdWithParty(userId)
+                        .findByParty_Id(partyId)
                         .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
 
         return UserProfileResponse.from(user);
