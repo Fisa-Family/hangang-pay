@@ -287,7 +287,7 @@ public class Transaction extends BaseEntity {
     public void recoverFailed() {
         this.status = TransactionStatus.FAILED;
     }
-    
+
     /** reconcile 시도 횟수 1 증가 (JPA 변경감지) */
     public void incrementReconcileAttempt() {
         this.reconcileAttemptCount = this.reconcileAttemptCount + 1;
