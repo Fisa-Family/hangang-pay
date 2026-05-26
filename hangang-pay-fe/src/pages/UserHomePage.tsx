@@ -14,20 +14,26 @@ import { cn } from '@/lib/utils'
 // rest_api.md 기준 API 명세
 const API_SPEC = {
   WALLET_001: { id: 'WALLET-001', path: 'GET /wallet/balance', role: 'USER 또는 MERCHANT' },
-  MY_002:     { id: 'MY-002',     path: 'GET /users/histories', role: 'USER' },
+  MY_002: { id: 'MY-002', path: 'GET /users/histories', role: 'USER' },
 } as const
 
 // errorCodes.ts 기반 오류 메시지 반환
 function buildErrorMessage(spec: (typeof API_SPEC)[keyof typeof API_SPEC], error: unknown): string {
   if (!(error instanceof ApiError)) {
-    return apiUserErrorMessages[spec.id]?.[0] ?? '서비스에 연결할 수 없습니다. 네트워크 연결을 확인해 주세요.'
+    return (
+      apiUserErrorMessages[spec.id]?.[0] ??
+      '서비스에 연결할 수 없습니다. 네트워크 연결을 확인해 주세요.'
+    )
   }
 
   const { status, code } = error as ApiErrorType
 
   if (code && isApiErrorCode(code)) return apiErrorMessages[code]
 
-  return apiUserErrorMessages[spec.id]?.[status] ?? '일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
+  return (
+    apiUserErrorMessages[spec.id]?.[status] ??
+    '일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
+  )
 }
 
 // 최대 조회 수
@@ -193,9 +199,7 @@ export function UserHomePage() {
     <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-5 pb-4">
       {/* 인사 */}
       <header className="pt-1">
-        <h1 className="text-xl font-bold text-foreground">
-          {currentUser?.name ?? '사용자'}님
-        </h1>
+        <h1 className="text-xl font-bold text-foreground">{currentUser?.name ?? '사용자'}님</h1>
       </header>
 
       {/* API 오류 안내 */}
@@ -215,21 +219,13 @@ export function UserHomePage() {
       {/* 빠른 실행 */}
       <section aria-label="빠른 실행">
         <div className="grid grid-cols-3 gap-3">
-          <QuickAction
-            label="QR 결제"
-            icon={<QrIcon />}
-            onClick={() => navigate('/pay/scan')}
-          />
+          <QuickAction label="QR 결제" icon={<QrIcon />} onClick={() => navigate('/pay/scan')} />
           <QuickAction
             label="충전"
             icon={<PlusIcon />}
             onClick={() => navigate('/charge/amount')}
           />
-          <QuickAction
-            label="환불"
-            icon={<UndoIcon />}
-            onClick={() => navigate('/refund/check')}
-          />
+          <QuickAction label="환불" icon={<UndoIcon />} onClick={() => navigate('/refund/check')} />
         </div>
       </section>
 
