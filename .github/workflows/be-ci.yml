@@ -121,8 +121,8 @@ jobs:
 
       - name: Pull image and restart container
         run: |
-          ssh onprem-be <<'EOF'
-          set -e
+          ssh onprem-be 'bash -s' <<'EOF'
+          set -Eeuo pipefail
 
           echo '${{ secrets.DOCKERHUB_TOKEN }}' | sudo docker login \
             --username '${{ secrets.DOCKERHUB_USERNAME }}' \
@@ -144,13 +144,18 @@ jobs:
             -e BANK_BASE_URL='${{ secrets.ONPREM_BANK_BASE_URL }}' \
             '${{ secrets.DOCKERHUB_USERNAME }}/hangang-pay-be:test-latest'
 
+          HEALTH_MAX_ATTEMPTS=30
+          HEALTH_RETRY_SECONDS=5
+          healthy=false
+
           echo "Waiting for actuator health check..."
-          for attempt in $(seq 1 30); do
+          for attempt in $(seq 1 "$HEALTH_MAX_ATTEMPTS"); do
             if curl -fsS http://127.0.0.1:8080/actuator/health > /tmp/hangang-pay-be-health.json; then
               cat /tmp/hangang-pay-be-health.json
               echo
               echo "hangang-pay-be is healthy."
-              exit 0
+              healthy=true
+              break
             fi
 
             if ! sudo docker inspect -f '{{.State.Running}}' hangang-pay-be | grep -q true; then
@@ -159,9 +164,14 @@ jobs:
               exit 1
             fi
 
-            echo "Health check attempt ${attempt}/30 failed. Retrying..."
-            sleep 5
+            echo "Health check attempt ${attempt}/${HEALTH_MAX_ATTEMPTS} failed. Retrying..."
+            sleep "$HEALTH_RETRY_SECONDS"
           done
+
+          if [ "$healthy" = "true" ]; then
+            sudo docker ps --filter "name=hangang-pay-be"
+            exit 0
+          fi
 
           echo "hangang-pay-be health check timed out."
           sudo docker ps --filter "name=hangang-pay-be"
