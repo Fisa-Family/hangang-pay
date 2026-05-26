@@ -85,11 +85,84 @@ Commercial bank balances are represented internally as reserve balances within S
 
 Actual user-facing balances are DepositToken balances issued by commercial banks.
 
+## Upgradeability
+
+Contracts use OpenZeppelin UUPS proxies.
+
+- Spring stores proxy addresses, not implementation addresses
+- Upgrades replace implementation only
+- Proxy addresses remain stable
+- Existing storage/state remains preserved
+
+### Deployment
+
+`deploy-uups.ts`:
+
+- Deploys implementation contracts
+- Deploys proxy contracts
+- Calls initialize(...)
+- Configures initial reserve/operator settings
+- Saves deployment result JSON
+- Syncs proxy addresses to Spring
+
+Running it again performs a full redeployment and creates new proxy addresses.
+
+### Upgrade
+
+`upgrade-uups.ts`:
+
+- Keeps existing proxy addresses
+- Replaces implementation contracts only
+- Preserves balances, reserves, and storage state
+
+Supported contract types:
+
+```text
+CBDC
+DEPOSIT_TOKEN
+SETTLEMENT
+LOCAL_CURRENCY
+```
+
+### Upgradeable Contract Base Classes
+
+Contracts use:
+
+- `Initializable`
+- `OwnableUpgradeable`
+- `UUPSUpgradeable`
+- `ERC20Upgradeable` (where applicable)
+
+Constructors were replaced with `initialize(...)`.
+
+### Upgrade Authorization
+
+Only the current owner can upgrade.
+
+| Contract | Upgrade Signer |
+|---|---|
+| CBDCToken | BoK |
+| Settlement | BoK |
+| LocalCurrencyPolicy | BoK |
+| DepositToken | Woori Bank |
+
+### Storage Layout Rules
+
+Do not:
+
+- reorder existing state variables
+- remove existing state variables
+- change variable types
+
+Always append new state variables at the end.
+
 ## Tech Stack
 
 - Solidity 0.8.28
 - Hardhat 2.28.6 (TypeScript)
 - OpenZeppelin Contracts 5.x
+- OpenZeppelin Hardhat Upgrades Plugin
+- UUPS Proxy Pattern (ERC1967Proxy)
 - EVM target: `london`
 - Optimizer: enabled, 200 runs
 
@@ -104,8 +177,12 @@ npm install
 # Compile contracts
 npx hardhat compile
 
-# Deploy to local Besu network
-npx hardhat run scripts/<deploy-script>.ts --network besu
+# Initial deployment
+npx hardhat run scripts/deploy-uups.ts --network besu
+
+# Upgrade
+CONTRACT_TYPE=LOCAL_CURRENCY \
+npx hardhat run scripts/upgrade-uups.ts --network besu
 
 # Copy compiled artifacts to BE resources (run from blockchain/)
 ./scripts/copy-artifacts.sh
