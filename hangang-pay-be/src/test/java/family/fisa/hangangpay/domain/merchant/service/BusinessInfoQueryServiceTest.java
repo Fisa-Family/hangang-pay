@@ -3,7 +3,7 @@ package family.fisa.hangangpay.domain.merchant.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import family.fisa.hangangpay.domain.merchant.code.error.MerchantErrorCode;
+import family.fisa.hangangpay.domain.merchant.code.MerchantErrorCode;
 import family.fisa.hangangpay.domain.merchant.dto.BusinessInfoResponse;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import org.junit.jupiter.api.DisplayName;

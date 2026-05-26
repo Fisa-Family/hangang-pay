@@ -5,14 +5,17 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.*;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import family.fisa.hangangpay.client.bank.BankClient;
+import family.fisa.hangangpay.client.bank.dto.BankWalletResponse;
+import family.fisa.hangangpay.client.bank.dto.MerchantRedeemInitResponse;
 import family.fisa.hangangpay.domain.account.entity.Account;
 import family.fisa.hangangpay.domain.account.entity.AccountType;
 import family.fisa.hangangpay.domain.account.repository.AccountRepository;
 import family.fisa.hangangpay.domain.institution.entity.Institution;
-import family.fisa.hangangpay.domain.merchant.code.error.MerchantErrorCode;
+import family.fisa.hangangpay.domain.merchant.code.MerchantErrorCode;
 import family.fisa.hangangpay.domain.merchant.dto.MerchantInfoResponse;
 import family.fisa.hangangpay.domain.merchant.dto.MerchantMyPageResponse;
 import family.fisa.hangangpay.domain.merchant.entity.Merchant;
@@ -22,6 +25,7 @@ import family.fisa.hangangpay.domain.party.entity.PartyType;
 import family.fisa.hangangpay.domain.wallet.entity.Wallet;
 import family.fisa.hangangpay.domain.wallet.repository.WalletRepository;
 import family.fisa.hangangpay.global.exception.BusinessException;
+import java.math.BigDecimal;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -37,6 +41,7 @@ public class MerchantQueryServiceTest {
     @Mock MerchantRepository merchantRepository;
     @Mock AccountRepository accountRepository;
     @Mock private WalletRepository walletRepository;
+    @Mock private BankClient bankClient;
 
     @Mock Institution institution;
 
@@ -206,6 +211,59 @@ public class MerchantQueryServiceTest {
             assertThatThrownBy(() -> merchantQueryService.getMerchantInfo(MERCHANT_ID))
                     .isInstanceOf(BusinessException.class)
                     .hasFieldOrPropertyWithValue("code", MerchantErrorCode.MERCHANT_NOT_FOUND);
+        }
+    }
+
+    @Nested
+    @DisplayName("정산 신청 정보 조회 (getRedeemInit)")
+    class GetRedeemInit {
+
+        @Test
+        @DisplayName("정상: 보유 토큰 잔액(availableAmount)과 SETTLEMENT 계좌를 반환")
+        void success() {
+            Party party = party(PARTY_ID);
+            Wallet wallet = wallet(party, WALLET_ADDRESS);
+            Account account = settlementAccount(party);
+            BankWalletResponse bankWallet =
+                    new BankWalletResponse(1L, 100L, WALLET_ADDRESS, new BigDecimal("280000"));
+
+            when(walletRepository.findByParty_Id(PARTY_ID)).thenReturn(Optional.of(wallet));
+            when(accountRepository.findByParty_IdAndAccountType(PARTY_ID, AccountType.SETTLEMENT))
+                    .thenReturn(Optional.of(account));
+            when(bankClient.getBankWalletByAddress(WALLET_ADDRESS)).thenReturn(bankWallet);
+
+            MerchantRedeemInitResponse result = merchantQueryService.getRedeemInit(PARTY_ID);
+
+            assertThat(result.availableAmount()).isEqualByComparingTo(new BigDecimal("280000"));
+            assertThat(result.settlementAccount().institutionName()).isEqualTo(INSTITUTION_NAME);
+            assertThat(result.settlementAccount().accountNumber()).isEqualTo(ACCOUNT_NUMBER);
+            assertThat(result.settlementAccount().accountType()).isEqualTo(AccountType.SETTLEMENT);
+        }
+
+        @Test
+        @DisplayName("Wallet 없음 -> MERCHANT_NOT_FOUND")
+        void throws_whenWalletMissing() {
+            when(walletRepository.findByParty_Id(PARTY_ID)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> merchantQueryService.getRedeemInit(PARTY_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("code", MerchantErrorCode.MERCHANT_NOT_FOUND);
+        }
+
+        @Test
+        @DisplayName("SETTLEMENT 계좌 없음 -> MERCHANT_SETTLEMENT_ACCOUNT_NOT_FOUND")
+        void throws_whenSettlementAccountMissing() {
+            Party party = party(PARTY_ID);
+            Wallet wallet = wallet(party, WALLET_ADDRESS);
+
+            when(walletRepository.findByParty_Id(PARTY_ID)).thenReturn(Optional.of(wallet));
+            when(accountRepository.findByParty_IdAndAccountType(PARTY_ID, AccountType.SETTLEMENT))
+                    .thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> merchantQueryService.getRedeemInit(PARTY_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue(
+                            "code", MerchantErrorCode.MERCHANT_SETTLEMENT_ACCOUNT_NOT_FOUND);
         }
     }
 }
