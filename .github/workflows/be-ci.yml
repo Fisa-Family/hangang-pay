@@ -142,6 +142,7 @@ jobs:
             -e DB_USERNAME='${{ secrets.ONPREM_BE_DB_USERNAME }}' \
             -e DB_PASSWORD='${{ secrets.ONPREM_BE_DB_PASSWORD }}' \
             -e BANK_BASE_URL='${{ secrets.ONPREM_BANK_BASE_URL }}' \
+            -e VERCEL_PRODUCTION_URL='${{ vars.VERCEL_PRODUCTION_URL }}' \
             '${{ secrets.DOCKERHUB_USERNAME }}/hangang-pay-be:test-latest'
 
           HEALTH_MAX_ATTEMPTS=30
