@@ -114,17 +114,19 @@ public class BankClientImpl implements BankClient {
 
     @Override
     public BankTransactionStatusResponse getTransactionStatus(String transactionUuid) {
+        // 1. Bank 결제 상태 조회 (GET /api/v1/transactions/{uuid}/status)
         ApiResponse<BankTransactionStatusResponse> response =
                 callBank(
                         () ->
                                 bankRestClient
                                         .get()
                                         .uri(
-                                                "/api/v1/transactions/{transactionUuid}",
+                                                "/api/v1/transactions/{transactionUuid}/payment/status",
                                                 transactionUuid)
                                         .retrieve()
                                         .body(new ParameterizedTypeReference<>() {}));
 
+        // 2. 응답에서 결과 추출
         return response.getResult();
     }
 

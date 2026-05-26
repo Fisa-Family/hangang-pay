@@ -173,7 +173,7 @@ class TransactionCommandServiceTest {
                         paymentExecutionStateWriter.completeSuccess(
                                 TRANSACTION_UUID,
                                 bankResponse.txHash(),
-                                String.valueOf(bankResponse.blockNumber()),
+                                String.valueOf(bankResponse.bankTransactionId()),
                                 bankResponse.confirmedAt()))
                 .willReturn(expected);
 
@@ -205,7 +205,7 @@ class TransactionCommandServiceTest {
                 .completeSuccess(
                         TRANSACTION_UUID,
                         bankResponse.txHash(),
-                        String.valueOf(bankResponse.blockNumber()),
+                        String.valueOf(bankResponse.bankTransactionId()),
                         bankResponse.confirmedAt());
 
         verify(paymentIdempotencyStore).completeExecution(TRANSACTION_UUID, expected);
@@ -285,9 +285,9 @@ class TransactionCommandServiceTest {
                 .willReturn(
                         new BankTransactionStatusResponse(
                                 TRANSACTION_UUID,
+                                101L,
                                 TransactionStatus.SUCCESS,
                                 "0x-recovered",
-                                101L,
                                 LocalDateTime.of(2026, 5, 25, 10, 5)));
 
         PaymentExecutionResponse response =
@@ -314,8 +314,8 @@ class TransactionCommandServiceTest {
                 .willReturn(
                         new BankTransactionStatusResponse(
                                 TRANSACTION_UUID,
-                                TransactionStatus.FAILED,
                                 null,
+                                TransactionStatus.FAILED,
                                 null,
                                 LocalDateTime.of(2026, 5, 25, 10, 5)));
 
@@ -342,8 +342,8 @@ class TransactionCommandServiceTest {
                 .willReturn(
                         new BankTransactionStatusResponse(
                                 TRANSACTION_UUID,
-                                TransactionStatus.PROCESSING,
                                 null,
+                                TransactionStatus.PROCESSING,
                                 null,
                                 LocalDateTime.of(2026, 5, 25, 10, 5)));
 
@@ -369,9 +369,9 @@ class TransactionCommandServiceTest {
                 .willReturn(
                         new BankTransactionStatusResponse(
                                 TRANSACTION_UUID,
+                                101L,
                                 TransactionStatus.SUCCESS,
                                 null,
-                                101L,
                                 LocalDateTime.of(2026, 5, 25, 10, 5)));
 
         assertThatThrownBy(
@@ -386,8 +386,8 @@ class TransactionCommandServiceTest {
     }
 
     @Test
-    @DisplayName("Bank SUCCESS 조회 결과에 blockNumber가 없으면 복구 결과 오류가 발생한다")
-    void recoverPayment_bankSuccessWithoutBlockNumberThrowsInvalidRecoveryResult() {
+    @DisplayName("Bank SUCCESS 조회 결과에 bankTransactionId가 없으면 복구 결과 오류가 발생한다")
+    void recoverPayment_bankSuccessWithoutBankTransactionIdThrowsInvalidRecoveryResult() {
         Transaction transaction = paymentTransaction(TransactionStatus.UNKNOWN);
 
         givenRecoveryBase(transaction);
@@ -395,9 +395,9 @@ class TransactionCommandServiceTest {
                 .willReturn(
                         new BankTransactionStatusResponse(
                                 TRANSACTION_UUID,
+                                null,
                                 TransactionStatus.SUCCESS,
                                 "0x-recovered",
-                                null,
                                 LocalDateTime.of(2026, 5, 25, 10, 5)));
 
         assertThatThrownBy(
@@ -456,9 +456,9 @@ class TransactionCommandServiceTest {
                 .willReturn(
                         new BankTransactionStatusResponse(
                                 TRANSACTION_UUID,
+                                101L,
                                 TransactionStatus.SUCCESS,
                                 "0x-recovered",
-                                101L,
                                 LocalDateTime.of(2026, 5, 25, 10, 5)));
 
         transactionCommandService.recoverPayment(USER_PARTY_ID, TRANSACTION_UUID);
@@ -485,6 +485,7 @@ class TransactionCommandServiceTest {
     private PaymentResponse successBankPaymentResponse(String txHash) {
         return new PaymentResponse(
                 TRANSACTION_UUID,
+                999L,
                 txHash,
                 100L,
                 LocalDateTime.of(2026, 5, 25, 10, 0),
