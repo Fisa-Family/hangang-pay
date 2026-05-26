@@ -164,22 +164,26 @@ Checkpoints: 설계 확인 -> RED 실패 확인 -> GREEN 통과 확인
 - 도메인 서비스는 읽기/쓰기를 분리한다.
   - `XxxQueryService` — 조회 전용. `@Transactional(readOnly = true)` 적용.
   - `XxxCommandService` — 쓰기 전용. `@Transactional` 적용.
-- 단일 서비스(`XxxService`)는 사용하지 않는다.
+- 신규 서비스는 단일 서비스(`XxxService`)로 만들지 않는다.
+- 기존 `AccountService`, `WalletService`처럼 남아 있는 과도기 단일 서비스는 관련 기능을 수정할 때 Query/Command 분리를 우선 검토한다.
 
 ## DTO Naming Convention
 
-- 커서 페이지네이션 목록의 원소 DTO는 `Item` suffix를 사용한다. 예: `UserPaymentHistoryItem`, `ExchangeHistoryItem`
+- 커서 페이지네이션 목록의 원소 DTO는 `Item` suffix를 사용한다. 예: `PaymentHistoryItem`, `ChargeHistoryItem`, `ExchangeHistoryItem`
 - `CursorPageResponse<XxxItem>` 형태로 감싸서 반환한다.
 - `Response` suffix는 단일 객체 응답 DTO에만 사용한다. 예: `UserProfileResponse`
 - `Item`은 `CursorItem` 인터페이스를 구현하고 `getCursorCreatedAt()` / `getCursorId()`를 제공한다.
+- `Item` DTO는 Java `record`를 기본으로 한다.
+- `Item` DTO에는 Lombok `@Builder`를 붙이지 않는다. record canonical constructor 또는 정적 팩토리로 생성한다.
 
 ## Session Attribute Convention
 
-- 로그인 시 세션에 `userId`와 `partyId`를 모두 저장한다.
+- 로그인 시 세션에 소비자는 `userId`, 가맹점은 `merchantId`, 공통으로 `partyId`와 `role`을 저장한다.
 - 컨트롤러에서 세션 값은 `@SessionAttribute`로 꺼낸다. `HttpSession`을 직접 파라미터로 받지 않는다.
 - 컨트롤러 생성 시 세션 attribute 이름은 문자열 리터럴 대신 `SessionAttributeNames` 상수를 사용한다.
 - 예: `@SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId`, `@SessionAttribute(SessionAttributeNames.USER_ID) Long userId`
 - `@RequestParam`으로 인증 정보를 받지 않는다. 인증된 사용자 식별자는 반드시 세션에서 추출한다.
+- 예외: 현재 `AccountController`는 아직 임시 구현으로 `@RequestParam Long partyId`를 사용한다. 계좌 API를 수정할 때는 세션 기반으로 정렬한다.
 
 ## Root-Level Architecture Rules
 
@@ -232,6 +236,7 @@ Checkpoints: 설계 확인 -> RED 실패 확인 -> GREEN 통과 확인
 - Spring Data JPA + MySQL
 - SpringDoc OpenAPI 2.8.16 -> `/swagger-ui/index.html`
 - Actuator + Micrometer Prometheus -> `/actuator/prometheus`
+- RestClient 기반 `hangang-pay-bank` 연동
 - Lombok: `@RequiredArgsConstructor` 사용, `@Autowired` 금지
 
 ## Commands
@@ -422,4 +427,5 @@ Repository 테스트 작성 기준:
 - 엔티티를 응답으로 직접 반환 금지
 - `application-local.yaml` 커밋 금지
 - 세션 인증을 JWT로 변경하지 말 것
-- `bank_account`, `bank_wallet`, 컨트랙트 주소와 배포 책임은 `hangang-pay-bank`에 위치
+- `Item` suffix record DTO에 Lombok `@Builder` 붙이지 말 것
+- `bank_account`, `bank_wallet`, `blockchain_ledger`, contract 실행 책임을 BE 도메인으로 가져오지 말 것
