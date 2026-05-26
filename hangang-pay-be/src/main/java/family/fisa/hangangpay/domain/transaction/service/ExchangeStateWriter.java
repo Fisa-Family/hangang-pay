@@ -34,13 +34,21 @@ public class ExchangeStateWriter {
     private final WalletRepository walletRepository;
     private final AccountRepository accountRepository;
 
-    /**
-     * 환전 슬록 선점
-     *
-     * <p>wallet 비관적 락 -> inflight EXCHANGE 존재 체크 -> PENDING 저장 락 보유 시간 = INSERT + COMMIT 시점
-     */
+    /** 사용자 환전 슬롯 선점 — PRIMARY 계좌로 입금 */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Long claimExchange(Long partyId, ExchangeExecuteRequest request) {
+        return claim(partyId, request, AccountType.PRIMARY);
+    }
+
+    /** 가맹점 환전 슬롯 선점 - SETTLEMENT 계좌로 입금 */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Long claimSettlementExchange(Long partyId, ExchangeExecuteRequest request) {
+        return claim(partyId, request, AccountType.SETTLEMENT);
+    }
+
+    /** 환전 슬롯 선점 */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Long claim(Long partyId, ExchangeExecuteRequest request, AccountType depositType) {
         // 1. wallet 행 락 - 동일 사용자의 동시 환전 요청을 직렬화
         Wallet fromWallet =
                 walletRepository
@@ -54,10 +62,10 @@ public class ExchangeStateWriter {
             throw new BusinessException(TransactionErrorCode.EXCHANGE_IN_PROGRESS);
         }
 
-        // 3. 입금대상: 계좌
+        // 3. 입금대상: 계좌 찾아오기
         Account toAccount =
                 accountRepository
-                        .findByParty_IdAndAccountType(partyId, AccountType.PRIMARY)
+                        .findByParty_IdAndAccountType(partyId, depositType)
                         .orElseThrow(
                                 () -> new BusinessException(AccountErrorCode.ACCOUNT_NOT_FOUND));
 
@@ -99,6 +107,7 @@ public class ExchangeStateWriter {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public ExchangeExecuteResponse completeExchange(
             Long transactionId, String txHash, String bankTransactionId) {
+
         Transaction tx =
                 transactionRepository
                         .findById(transactionId)
@@ -127,6 +136,7 @@ public class ExchangeStateWriter {
                                 () ->
                                         new BusinessException(
                                                 TransactionErrorCode.EXCHANGE_NOT_FOUND));
+
         tx.incrementReconcileAttempt();
         return tx.getReconcileAttemptCount();
     }

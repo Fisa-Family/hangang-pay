@@ -11,5 +11,7 @@ public interface UserRepository {
 
     Optional<User> findByPhoneNumberWithParty(String phoneNumber);
 
+    Optional<User> findByParty_Id(Long partyId);
+
     User save(User user);
 }

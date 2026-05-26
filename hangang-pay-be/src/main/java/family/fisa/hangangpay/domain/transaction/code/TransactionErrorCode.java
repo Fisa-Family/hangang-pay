@@ -20,6 +20,7 @@ public enum TransactionErrorCode implements BaseErrorCode {
     EXCHANGE_IN_PROGRESS(HttpStatus.CONFLICT, "EXCHANGE_IN_PROGRESS", "이미 진행 중인 환전이 있습니다."),
     EXCHANGE_ALREADY_FAILED(
             HttpStatus.CONFLICT, "EXCHANGE_ALREADY_FAILED", "이미 실패한 환전입니다. 새로 시도해 주세요."),
+    INVALID_PAYMENT_PIN(HttpStatus.UNAUTHORIZED, "INVALID_PAYMENT_PIN", "결제 비밀번호가 일치하지 않습니다."),
     WALLET_NOT_FOUND(HttpStatus.NOT_FOUND, "WALLET_NOT_FOUND", "지갑을 찾을 수 없습니다.");
 
     private final HttpStatus status;
