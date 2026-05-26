@@ -4,13 +4,13 @@ on:
   push:
     branches: [test]
     paths:
-      - 'hangang-pay-be/**'
-      - '.github/workflows/be-ci.yml'
+      - "hangang-pay-be/**"
+      - ".github/workflows/be-ci.yml"
   pull_request:
     branches: [test]
     paths:
-      - 'hangang-pay-be/**'
-      - '.github/workflows/be-ci.yml'
+      - "hangang-pay-be/**"
+      - ".github/workflows/be-ci.yml"
 
 permissions:
   contents: read
@@ -32,7 +32,7 @@ jobs:
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
-          java-version: '17'
+          java-version: "17"
           distribution: temurin
           cache: gradle
 
@@ -143,4 +143,28 @@ jobs:
             -e DB_PASSWORD='${{ secrets.ONPREM_BE_DB_PASSWORD }}' \
             -e BANK_BASE_URL='${{ secrets.ONPREM_BANK_BASE_URL }}' \
             '${{ secrets.DOCKERHUB_USERNAME }}/hangang-pay-be:test-latest'
+
+          echo "Waiting for actuator health check..."
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8080/actuator/health > /tmp/hangang-pay-be-health.json; then
+              cat /tmp/hangang-pay-be-health.json
+              echo
+              echo "hangang-pay-be is healthy."
+              exit 0
+            fi
+
+            if ! sudo docker inspect -f '{{.State.Running}}' hangang-pay-be | grep -q true; then
+              echo "hangang-pay-be container stopped during startup."
+              sudo docker logs --tail 200 hangang-pay-be
+              exit 1
+            fi
+
+            echo "Health check attempt ${attempt}/30 failed. Retrying..."
+            sleep 5
+          done
+
+          echo "hangang-pay-be health check timed out."
+          sudo docker ps --filter "name=hangang-pay-be"
+          sudo docker logs --tail 200 hangang-pay-be
+          exit 1
           EOF
