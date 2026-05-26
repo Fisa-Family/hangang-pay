@@ -9,6 +9,7 @@ import family.fisa.hangangpaybank.domain.transaction.dto.response.CancelResponse
 import family.fisa.hangangpaybank.domain.transaction.dto.response.ChargeResponse;
 import family.fisa.hangangpaybank.domain.transaction.dto.response.ExchangeResponse;
 import family.fisa.hangangpaybank.domain.transaction.dto.response.PaymentResponse;
+import family.fisa.hangangpaybank.domain.transaction.service.ExchangeOrchestrator;
 import family.fisa.hangangpaybank.domain.transaction.service.TransactionCommandService;
 import family.fisa.hangangpaybank.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class TransactionController {
 
     private final TransactionCommandService transactionCommandService;
+    private final ExchangeOrchestrator exchangeOrchestrator;
 
     @Operation(summary = "충전", description = "은행 계좌 잔액을 차감하고 한강페이 토큰을 mint한다.")
     @PostMapping("/charge")
@@ -46,7 +48,7 @@ public class TransactionController {
     public ResponseEntity<ApiResponse<ExchangeResponse>> exchange(
             @RequestBody ExchangeRequest request) {
         // 1. 환전 처리
-        ExchangeResponse response = transactionCommandService.exchange(request);
+        ExchangeResponse response = exchangeOrchestrator.exchange(request);
 
         // 2. 성공 응답 반환
         return ResponseEntity.status(TransactionSuccessCode.TRANSACTION_EXCHANGE_OK.getStatus())

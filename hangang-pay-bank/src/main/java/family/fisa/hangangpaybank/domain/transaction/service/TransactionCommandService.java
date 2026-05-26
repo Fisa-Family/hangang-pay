@@ -17,11 +17,9 @@ import family.fisa.hangangpaybank.domain.ledger.repository.AccountLedgerReposito
 import family.fisa.hangangpaybank.domain.transaction.code.error.TransactionErrorCode;
 import family.fisa.hangangpaybank.domain.transaction.dto.request.CancelRequest;
 import family.fisa.hangangpaybank.domain.transaction.dto.request.ChargeRequest;
-import family.fisa.hangangpaybank.domain.transaction.dto.request.ExchangeRequest;
 import family.fisa.hangangpaybank.domain.transaction.dto.request.PaymentRequest;
 import family.fisa.hangangpaybank.domain.transaction.dto.response.CancelResponse;
 import family.fisa.hangangpaybank.domain.transaction.dto.response.ChargeResponse;
-import family.fisa.hangangpaybank.domain.transaction.dto.response.ExchangeResponse;
 import family.fisa.hangangpaybank.domain.transaction.dto.response.PaymentResponse;
 import family.fisa.hangangpaybank.global.exception.BusinessException;
 import java.math.BigDecimal;
@@ -103,70 +101,6 @@ public class TransactionCommandService {
                 ledger.getBlockNumber(),
                 ledger.getConfirmedAt(),
                 newWalletBalance);
-    }
-
-    /** 환전: 토큰 burn → 계좌 입금 */
-    public ExchangeResponse exchange(ExchangeRequest request) {
-        log.info(
-                "[bank] exchange 시작. transactionUuid={}, institutionId={}, amount={}",
-                request.transactionUuid(),
-                request.institutionId(),
-                request.amount());
-
-        // 1. 소속 기관 조회
-        Institution institution = findInstitution(request.institutionId());
-
-        // 2. 출금 지갑 조회 + 잔액 검증
-        BankWallet bankWallet = findBankWallet(request.walletAddress());
-        ensureSufficientBalance(bankWallet.getBalance(), request.amount());
-
-        // 3. 입금 계좌 조회
-        BankAccount bankAccount = findBankAccount(request.institutionId(), request.accountNumber());
-
-        // 4. 지갑 잔액 차감
-        BigDecimal newWalletBalance = bankWallet.getBalance().subtract(request.amount());
-        bankWallet.updateBalance(newWalletBalance);
-
-        // 5. 블록체인 burn(refund) 호출 (토큰 소각 → 기관별 reserve 환급)
-        TransactionReceipt receipt =
-                contractCallService.refund(
-                        request.institutionId(),
-                        bankWallet.getWalletAddress(),
-                        toTokenUnit(request.amount()));
-
-        // 6. blockchain_ledger 기록 (idempotent_key = BE의 transactionUuid)
-        BlockchainLedger ledger =
-                saveBlockchainLedger(institution, receipt, request.transactionUuid());
-
-        // 7. 계좌 잔액 증가
-        BigDecimal newAccountBalance = bankAccount.getBalance().add(request.amount());
-        bankAccount.updateBalance(newAccountBalance);
-
-        // 8. account_ledger DEPOSIT 기록 (idempotent_key = BE의 transactionUuid)
-        AccountLedger savedAccountLedger =
-                accountLedgerRepository.save(
-                        AccountLedger.builder()
-                                .bankAccount(bankAccount)
-                                .ledgerType(LedgerType.DEPOSIT)
-                                .amount(request.amount())
-                                .balanceAfter(newAccountBalance)
-                                .idempotentKey(request.transactionUuid())
-                                .build());
-
-        log.info(
-                "[bank] exchange 완료. transactionUuid={}, txHash={}, accountLedgerId={}",
-                request.transactionUuid(),
-                ledger.getTxHash(),
-                savedAccountLedger.getId());
-
-        // 9. Response 반환
-        return new ExchangeResponse(
-                request.transactionUuid(),
-                savedAccountLedger.getId(),
-                ledger.getTxHash(),
-                ledger.getBlockNumber(),
-                ledger.getConfirmedAt(),
-                newAccountBalance);
     }
 
     /** 결제: 지갑 → 지갑 transfer */
@@ -291,7 +225,7 @@ public class TransactionCommandService {
                         .institution(institution)
                         .txHash(receipt.getTransactionHash())
                         .blockNumber(blockNumber)
-                        .status(BlockchainTxStatus.CONFIRMED)
+                        .status(BlockchainTxStatus.SUCCESS)
                         .confirmedAt(LocalDateTime.now())
                         .build());
     }
@@ -305,7 +239,7 @@ public class TransactionCommandService {
                         .institution(institution)
                         .txHash(receipt.getTransactionHash())
                         .blockNumber(blockNumber)
-                        .status(BlockchainTxStatus.CONFIRMED)
+                        .status(BlockchainTxStatus.SUCCESS)
                         .confirmedAt(LocalDateTime.now())
                         .idempotentKey(idempotentKey)
                         .build());

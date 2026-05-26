@@ -9,6 +9,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.web3j.protocol.core.methods.response.TransactionReceipt;
 
 @Entity
 @Table(name = "blockchain_ledger")
@@ -46,4 +47,25 @@ public class BlockchainLedger extends BaseEntity {
 
     @Column(name = "confirmed_at")
     private LocalDateTime confirmedAt;
+
+    public static BlockchainLedger of(
+            Institution institution, BlockchainTxStatus status, String idempotentKey) {
+        return BlockchainLedger.builder()
+                .institution(institution)
+                .status(status)
+                .idempotentKey(idempotentKey)
+                .build();
+    }
+
+    public void markSuccess(TransactionReceipt receipt) {
+        this.status = BlockchainTxStatus.SUCCESS;
+        this.txHash = receipt.getTransactionHash();
+        this.blockNumber =
+                receipt.getBlockNumber() != null ? receipt.getBlockNumber().longValueExact() : null;
+        this.confirmedAt = LocalDateTime.now();
+    }
+
+    public void markFailed() {
+        this.status = BlockchainTxStatus.FAILED;
+    }
 }
