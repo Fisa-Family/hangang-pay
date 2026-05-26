@@ -1,6 +1,6 @@
 # Backend: hangang-pay-be
 
-Spring Boot 3.5 REST API. 세션 기반 인증. 블록체인(Besu)과 Web3j로 연동.
+Spring Boot 3.5 REST API. 세션 기반 인증. 은행/블록체인 처리는 `hangang-pay-bank` API로 연동.
 
 ## Behavioral Guidelines
 
@@ -242,7 +242,7 @@ Checkpoints: 설계 확인 -> RED 실패 확인 -> GREEN 통과 확인
 ## Commands
 
 ```bash
-./gradlew bootRun --args='--spring.profiles.active=dev'
+./gradlew bootRun --args='--spring.profiles.active=local'
 ./gradlew test
 ./gradlew build -x test
 ```
@@ -258,34 +258,44 @@ flowchart TD
   root["family.fisa.hangangpay"]
   root --> domain["domain"]
   root --> global["global"]
-  root --> auth["auth<br/>로그인/로그아웃, 회원가입, 인증"]
-  root --> client["client<br/>외부 bank 서버 연동"]
+  root --> auth["auth<br/>세션 인증, 로그인/로그아웃, 회원가입, SMS/계좌 인증"]
+  root --> client["client<br/>외부 시스템 연동"]
 
-  client --> bank["bank<br/>RestClient"]
-
-  domain --> party["party<br/>USER | MERCHANT 상위 엔티티"]
-  domain --> user["user<br/>개인 사용자"]
-  domain --> merchant["merchant<br/>가맹점"]
+  domain --> party["party<br/>USER | MERCHANT 공통 상위 식별자"]
+  domain --> user["user<br/>소비자 회원, 프로필, 이용 내역"]
+  domain --> merchant["merchant<br/>가맹점 회원, 사업자 정보, QR, 대시보드, 정산 조회"]
   domain --> account["account<br/>소비자·가맹점 연결 은행 계좌"]
-  domain --> wallet["wallet<br/>소비자·가맹점 서비스 지갑 주소"]
-  domain --> institution["institution<br/>기관 목록·참조용 캐시"]
-  domain --> transaction["transaction<br/>CHARGE | EXCHANGE | PAYMENT | CANCEL"]
+  domain --> wallet["wallet<br/>소비자·가맹점 서비스 월렛"]
+  domain --> institution["institution<br/>참조 기관 목록과 기관 코드"]
+  domain --> transaction["transaction<br/>충전, 환전, 결제, 결제 취소, 은행/블록체인 거래 식별자"]
+
+  client --> bank["bank<br/>hangang-pay-bank API 호출 및 요청/응답 DTO"]
+
+  auth --> authCode["code<br/>인증 성공/오류 코드"]
+  auth --> authController["controller"]
+  auth --> authDto["dto"]
+  auth --> authService["service"]
 
   global --> config["config<br/>Security, JPA, OpenAPI, CORS"]
-  global --> exception["exception<br/>BusinessException, ErrorCode, GlobalExceptionHandler"]
+  global --> code["code<br/>공통 성공/오류 코드"]
+  global --> entity["entity<br/>BaseEntity"]
+  global --> exception["exception<br/>BusinessException, GlobalExceptionHandler"]
+  global --> pagination["pagination<br/>커서 페이지네이션"]
   global --> response["response<br/>공통 API 응답 래퍼"]
-  global --> pagination["pagination<br/>cursor pagination"]
-  global --> security["security<br/>SessionAuthenticationFilter"]
+  global --> security["security<br/>세션 인증 필터"]
+  global --> session["session<br/>세션 attribute 상수"]
 ```
 
-각 도메인 내부 기본 구조: `entity/ service/ repository/ dto/ controller/`
+각 도메인은 필요한 하위 패키지만 둔다. 현재 사용 중인 기본 하위 패키지는 `code/`, `controller/`, `dto/`, `entity/`, `repository/`, `repository/jpa/`, `service/`, `scheduler/`다.
+
+Repository는 Port & Adapter 패턴을 따른다. 도메인별 포트 인터페이스는 `domain/{domain}/repository`에, Spring Data JPA 인터페이스는 필요 시 `domain/{domain}/repository/jpa`에 둔다.
 
 ## API Rules
 
 - 모든 엔드포인트 prefix: `/api/v1`
 - 응답 포맷: `{ isSuccess, status, code, message, result }`
 - 엔티티 직접 반환 금지. DTO 변환 필수.
-- 모든 엔드포인트 SpringDoc 어노테이션 필수: `@Operation`
+- 모든 엔드포인트 SpringDoc 어노테이션 필수: `@Operation`, `@ApiResponse`
 - 승인번호 형식: `APV-YYYY-NNNNNNNN`
 - 승인번호는 `transaction.id`를 8자리 zero padding해서 생성한다. 예: `transaction.id=25` -> `APV-2026-00000025`
 - 승인번호 생성은 `transaction` 저장으로 id를 확보한 뒤 수행한다.
@@ -305,7 +315,7 @@ flowchart TD
   coinFlow["코인 기반 처리"] --> immediateTransfer["소비자 결제 시<br/>가맹점 월렛으로 즉시 코인 이체"]
   immediateTransfer --> merchantExchange["가맹점은 쌓인 코인을<br/>1:1 비율로 계좌 환전 가능"]
   immediateTransfer --> noSettlement["별도 정산 배치·적재 없음"]
-  noSettlement --> settlementHistory["정산 내역<br/>transaction EXCHANGE 기반<br/>기록 조회 용도"]
+  noSettlement --> settlementHistory["정산 내역<br/>transaction의 EXCHANGE 거래<br/>기록 조회 용도"]
 
   accountRegistration["계좌 등록"] --> accountLimit["최대 3개"]
   accountRegistration --> ownerCheck["본인 명의"]
@@ -313,20 +323,24 @@ flowchart TD
   oneWon --> oneWonTx["1원 인증 트랜잭션 테이블<br/>추후 추가 예정"]
 ```
 
-## Bank Integration
+## Blockchain Integration
 
 ```mermaid
 flowchart LR
-  app["Spring Boot API"] --> bankClient["client.bank<br/>RestClient"]
-  bankClient --> bank["hangang-pay-bank"]
-  bank --> bankAccount["bank_account"]
-  bank --> bankWallet["bank_wallet<br/>custodial keypair"]
-  bank --> bankTx["transactions<br/>charge/exchange/payment/cancel"]
-  bank --> blockchainLedger["blockchain_ledger"]
+  app["Spring Boot API"] --> bankClient["client/bank<br/>BankClient"]
+  bankClient --> bank["hangang-pay-bank API"]
+  bank --> web3j["Web3j"]
+  web3j --> besu["Besu<br/>QBFT"]
+  besu --> contract["Smart Contract"]
 
-  app --> account["account<br/>연결 계좌"]
-  app --> wallet["wallet<br/>address only"]
-  app --> transaction["transaction<br/>tx_hash / bank_transaction_id 저장"]
+  contract --> mint["mint<br/>충전"]
+  contract --> burn["burn<br/>환전"]
+  contract --> transfer["transfer<br/>결제/취소"]
+  contract --> whitelist["whitelist 등록"]
+
+  app --> tx["transaction"]
+  tx --> txHash["tx_hash<br/>블록체인 증거"]
+  tx --> bankTx["bank_transaction_id<br/>은행 거래 식별자"]
 ```
 
 ## Error Handling
@@ -348,7 +362,7 @@ flowchart LR
 규칙:
 
 - enum 이름 = `code` 문자열. 예: `USER_NOT_FOUND` → `"USER_NOT_FOUND"`.
-- 도메인 접두어로 그룹핑한다. 예: `USER_`, `ACCOUNT_`, `PAYMENT_`, `MERCHANT_`, `WALLET_`, `TRANSFER_`.
+- 도메인 접두어로 그룹핑한다. 예: `USER_`, `ACCOUNT_`, `PAYMENT_`, `MERCHANT_`, `WALLET_`, `EXCHANGE_`.
 - 공통 영역은 `COMMON_` 접두어를 쓴다. 예: `COMMON_BAD_REQUEST`, `COMMON_OK`.
 - 같은 status 의 코드가 여러 개여도 시퀀스 번호(`_0`, `_1`)를 붙이지 않는다. 의미가 다르면 enum 이름 자체를 구체적으로 짓는다.
 - HTTP 상태나 숫자만으로 만든 opaque 코드(`USER404_0`, `COMMON200`)는 신규로 만들지 않는다.
@@ -377,21 +391,19 @@ OK(HttpStatus.OK, "COMMON200", "..."),
 ## Configuration
 
 - `application.yaml`: 공통 설정. 커밋 대상.
-- `application-dev.yml`: 개발 DB 설정. `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` 환경변수 필요.
-- `application-prod.yml`: 운영 DB 설정. `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `WALLET_KEY_CIPHER_SECRET` 환경변수 필요.
-- `application-test.yml`: 테스트 설정. H2와 `bank.base-url` 기본값 사용.
-- `bank.base-url`: `client.bank` RestClient 대상 서버 URL.
+- `application-local.yaml`: DB 연결 정보 등 secrets. 커밋 금지.
 
 ```yaml
-# dev/prod 실행 시 필요한 환경변수 예시
+# application-local.yaml 로컬 개발 전용 예시
 spring:
   datasource:
-    url: ${DB_URL}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
-
-bank:
-  base-url: ${BANK_BASE_URL}
+    url: jdbc:mysql://localhost:3306/hangang_pay
+    username: <username>
+    password: <password>
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
 ```
 
 ## Testing
@@ -405,7 +417,7 @@ Repository 테스트 작성 기준:
 
 - 생략 가능: `findById`, `save`, `delete`, 단순 `findByUsername` 같은 Spring Data JPA 기본/단순 derived query.
 - 작성 필요: 커스텀 `@Query`, fetch join, 집계, 페이징/정렬, 기간/상태/권한 조건, 소유권 검증 쿼리.
-- 작성 필요: 결제/환전/정산 내역, `transaction` 소유권 검증, 주계좌 유일성처럼 돈 흐름이나 정합성에 직접 영향을 주는 조회.
+- 작성 필요: 결제/환전/정산 내역, `transaction.tx_hash`/`bank_transaction_id`, 주계좌 유일성처럼 돈 흐름이나 정합성에 직접 영향을 주는 조회.
 - 서비스 테스트에서 같은 조건을 충분히 검증한다면 중복 repository 테스트는 추가하지 않는다.
 
 ## What NOT to Do
@@ -413,6 +425,7 @@ Repository 테스트 작성 기준:
 - 컨트롤러에 비즈니스 로직 작성 금지
 - `@Autowired` 필드 주입 금지
 - 엔티티를 응답으로 직접 반환 금지
+- `application-local.yaml` 커밋 금지
 - 세션 인증을 JWT로 변경하지 말 것
 - `Item` suffix record DTO에 Lombok `@Builder` 붙이지 말 것
 - `bank_account`, `bank_wallet`, `blockchain_ledger`, contract 실행 책임을 BE 도메인으로 가져오지 말 것

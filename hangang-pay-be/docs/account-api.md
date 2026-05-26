@@ -1,81 +1,67 @@
 # 계좌 API 구현 설명
 
-이 문서는 현재 `AccountController`와 계좌 서비스 구현 기준이다.
+---
 
 ## 서버 실행
 
-```bash
-./gradlew bootRun --args='--spring.profiles.active=dev'
+```
+./gradlew bootRun --args='--spring.profiles.active=local'
 ```
 
-프로필별 DB 접속 정보는 환경변수로 주입한다.
+`--spring.profiles.active=local`이 필요한 이유는 설정 파일이 두 개로 분리되어 있기 때문입니다.
 
-| 파일 | 용도 | 비고 |
+| 파일 | 용도 | git 커밋 |
 | --- | --- | --- |
-| `application.yaml` | 공통 설정 | SpringDoc, Actuator, CORS fallback, blockchain/wallet 기본값 |
-| `application-dev.yml` | 개발 DB 설정 | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` 필요 |
-| `application-prod.yml` | 운영 DB 설정 | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `WALLET_KEY_CIPHER_SECRET` 필요 |
-| `application-test.yml` | 테스트 설정 | H2, `bank.base-url=http://localhost:8081` |
+| application.yaml | 공통 설정 | O |
+| application-local.yaml | DB 접속 정보, 비밀번호 등 | X (gitignored) |
 
-`BankClient`는 `bank.base-url` 설정을 사용한다. 테스트 프로필에는 값이 있고, dev/prod 실행 시에도 같은 키를 제공해야 한다.
+`local` 프로파일을 지정해야 `application-local.yaml`을 함께 로드해 DB에 연결됩니다.
+지정하지 않으면 DB 접속 정보가 없어 서버가 시작되지 않습니다.
 
-## 현재 인증 상태
+---
 
-계좌 API는 아직 임시로 `partyId`를 query parameter로 받는다.
+## 임시 인증 처리 안내
 
-```text
-GET    /api/v1/accounts?partyId=1
-POST   /api/v1/accounts?partyId=1
-DELETE /api/v1/accounts/{accountId}?partyId=1
-PATCH  /api/v1/accounts/{accountId}/primary?partyId=1
-```
+로그인 API는 구현되어 있으나 `AccountController`는 아직 세션 인증 전환 전입니다.
+현재는 `partyId`를 쿼리 파라미터로 직접 전달하는 방식으로 임시 동작 중입니다.
 
-현재 코드 기준:
+계좌 API를 세션 인증으로 전환할 때 `AccountController`의 각 메서드에서 아래 두 가지를 처리합니다.
 
-- `AccountController`는 `@RequestParam Long partyId`를 사용한다.
-- `SecurityConfig`는 `/api/v1/accounts/**`를 `permitAll()`로 열어 둔다.
-- 로그인 세션 기반으로 전환할 때는 `@SessionAttribute(SessionAttributeNames.PARTY_ID)`를 사용한다.
-- 세션 전환 후에는 `SecurityConfig`의 `/api/v1/accounts/** permitAll()`도 제거하고 `USER | MERCHANT` 권한으로 정렬한다.
+1. `@RequestParam Long partyId` → `@SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId`로 교체
+2. 임시 쿼리 파라미터와 주석 처리된 세션 인증 블록 제거
+
+세션 키는 `SessionAttributeNames.PARTY_ID`이며, 로그인 시 `AuthService`가 `partyId`를 저장합니다.
+
+---
 
 ## ACCOUNT-001: 등록 계좌 목록 조회
 
-현재 party의 모든 계좌를 조회한다. 계좌번호는 뒤 4자리만 노출하고 나머지는 `*`로 마스킹한다.
+세션의 partyId 기준으로 본인 계좌 목록을 반환합니다.
+현재 구현은 임시로 쿼리 파라미터의 `partyId`를 사용합니다.
+계좌번호는 뒤 4자리만 노출하고 나머지는 마스킹 처리합니다.
 
-```http
-GET /api/v1/accounts?partyId=1
+**임시 테스트 URL**
+
+```
+GET http://localhost:8080/api/v1/accounts?partyId=1
 ```
 
-응답 result:
+| 파라미터 | 설명 |
+| --- | --- |
+| partyId=1 | 테스트용 party.id, 로그인 구현 후 제거 |
 
-```json
-{
-  "accounts": [
-    {
-      "accountId": 1,
-      "institutionCode": "088",
-      "bankName": "신한은행",
-      "maskedAccountNumber": "******3210",
-      "accountType": "PRIMARY"
-    }
-  ],
-  "totalCount": 1
-}
-```
+---
 
 ## ACCOUNT-002: 계좌 추가
 
-BE `institution` 캐시에서 기관을 조회하고, bank 서버의 은행 원장 계좌 존재 여부를 확인한 뒤 계좌를 등록한다.
+BE institution 캐시에서 기관을 조회하고, bank 서버의 은행 원장(bank_account 테이블)을 확인한 뒤 계좌를 등록합니다.
+최대 3개까지 등록 가능하며, 첫 번째 계좌는 자동으로 PRIMARY로 설정됩니다.
+1원 인증 API(AUTH-003, AUTH-004)는 존재하지만, 계좌 추가 플로우와의 강제 연동은 아직 예정 상태입니다.
 
-현재 구현 기준:
+**임시 테스트 URL**
 
-- 요청의 `institutionCode`로 BE `institution`을 조회한다.
-- `BankClient.getBankAccount(institution.id, accountNumber)`로 bank 서버 계좌 존재 여부를 확인한다.
-- 같은 party의 동일 계좌번호 중복 등록을 막는다.
-- party당 계좌는 최대 3개까지 등록 가능하다.
-- 회원가입 시 주계좌가 생성된다는 전제라서 추가 계좌는 `SECONDARY`로 저장한다.
-
-```http
-POST /api/v1/accounts?partyId=1
+```
+POST http://localhost:8080/api/v1/accounts?partyId=1
 Content-Type: application/json
 
 {
@@ -84,64 +70,63 @@ Content-Type: application/json
 }
 ```
 
-응답 result:
+| 파라미터 | 설명 |
+| --- | --- |
+| partyId=1 | 테스트용 party.id, 로그인 구현 후 제거 |
 
-```json
-{
-  "accountId": 2,
-  "institutionCode": "088",
-  "bankName": "신한은행",
-  "maskedAccountNumber": "******3210",
-  "accountType": "SECONDARY"
-}
+**테스트 데이터 삽입 SQL**
+
+BE institution 테이블에 기관이 없으면 INSTITUTION_NOT_FOUND, bank 서버 bank_account 테이블에 계좌가 없으면 BANK_ACCOUNT_NOT_FOUND가 발생합니다.
+BE DB에는 institution 데이터를, bank DB에는 bank_account 데이터를 넣은 뒤 테스트합니다.
+
+```sql
+INSERT INTO institution (institution_code, institution_name, created_at, updated_at)
+VALUES ('004', '국민은행', NOW(), NOW()),
+       ('088', '신한은행', NOW(), NOW());
+
+-- institution_id는 위 INSERT 후 SELECT id FROM institution WHERE institution_code = '088' 로 확인
+INSERT INTO bank_account (institution_id, account_number, balance, created_at, updated_at)
+VALUES (1, '1234567891234', 0, NOW(), NOW()),
+       (2, '9876543210', 0, NOW(), NOW());
+
+-- party가 없으면 삽입
+INSERT INTO party (party_type, created_at, updated_at)
+VALUES ('USER', NOW(), NOW());
 ```
+
+---
 
 ## ACCOUNT-003: 계좌 삭제
 
-`accountId`와 `partyId`를 함께 조회해 본인 계좌인지 검증한 뒤 삭제한다.
+accountId와 partyId를 함께 조회해 본인 계좌인지 검증 후 삭제합니다.
+주거래 계좌(PRIMARY)와 마지막 계좌는 삭제할 수 없습니다.
+PRIMARY 계좌를 삭제하려면 먼저 ACCOUNT-004로 주거래 계좌를 변경해야 합니다.
 
-삭제 제한:
+**임시 테스트 URL**
 
-- 마지막 계좌는 삭제할 수 없다.
-- `PRIMARY` 계좌는 삭제할 수 없다.
-- `PRIMARY`를 삭제하려면 먼저 `ACCOUNT-004`로 주거래 계좌를 변경한다.
-
-```http
-DELETE /api/v1/accounts/3?partyId=1
 ```
+DELETE http://localhost:8080/api/v1/accounts/3?partyId=1
+```
+
+| 파라미터 | 설명 |
+| --- | --- |
+| 3 | ACCOUNT-002 응답에서 받은 accountId |
+| partyId=1 | 테스트용 party.id, 로그인 구현 후 제거 |
+
+---
 
 ## ACCOUNT-004: 주거래 계좌 변경
 
-지정한 계좌를 `PRIMARY`로 변경한다. 기존 `PRIMARY` 계좌가 있으면 `SECONDARY`로 전환한다.
+지정한 계좌를 PRIMARY로 변경합니다. 기존 PRIMARY 계좌는 자동으로 SECONDARY로 전환됩니다.
+대상이 이미 PRIMARY인 경우 previousPrimaryAccountId는 null로 반환됩니다.
 
-```http
-PATCH /api/v1/accounts/2/primary?partyId=1
+**임시 테스트 URL**
+
+```
+PATCH http://localhost:8080/api/v1/accounts/2/primary?partyId=1
 ```
 
-응답 result:
-
-```json
-{
-  "accountId": 2,
-  "accountType": "PRIMARY",
-  "previousPrimaryAccountId": 1
-}
-```
-
-대상이 이미 `PRIMARY`인 경우 `previousPrimaryAccountId`는 `null`이다.
-
-## 가맹점 정산 계좌 변경
-
-가맹점 정산 계좌 변경은 `AccountCommandService`에 구현되어 있지만, API는 가맹점 도메인에 노출된다.
-
-```http
-PATCH /api/v1/merchant/accounts
-Content-Type: application/json
-
-{
-  "institutionCode": "088",
-  "accountNumber": "9876543210"
-}
-```
-
-현재 세션의 `partyId` 기준으로 `SETTLEMENT` 계좌를 upsert한다.
+| 파라미터 | 설명 |
+| --- | --- |
+| 2 | 주거래로 변경할 accountId |
+| partyId=1 | 테스트용 party.id, 로그인 구현 후 제거 |

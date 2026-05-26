@@ -39,8 +39,8 @@ public class UserController {
     @Operation(summary = "프로필 조회 (MY-001)", description = "로그인한 소비자의 닉네임, 지역, 가입일을 반환한다.")
     @GetMapping("/profile")
     public ResponseEntity<ApiResponse<UserProfileResponse>> getProfile(
-            @SessionAttribute(SessionAttributeNames.USER_ID) Long userId) {
-        UserProfileResponse response = userQueryService.getProfile(userId);
+            @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId) {
+        UserProfileResponse response = userQueryService.getProfile(partyId);
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
     }
 
