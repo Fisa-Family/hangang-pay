@@ -26,4 +26,9 @@ public class BlockchainLedgerRepositoryImpl implements BlockchainLedgerRepositor
     public Optional<BlockchainLedger> findByTxHash(String txHash) {
         return jpaRepository.findByTxHash(txHash);
     }
+
+    @Override
+    public Optional<BlockchainLedger> findByIdempotentKey(String idempotentKey) {
+        return jpaRepository.findByIdempotentKey(idempotentKey);
+    }
 }

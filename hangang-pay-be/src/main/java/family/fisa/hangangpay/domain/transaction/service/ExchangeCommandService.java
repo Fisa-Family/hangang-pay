@@ -3,6 +3,7 @@ package family.fisa.hangangpay.domain.transaction.service;
 import family.fisa.hangangpay.client.bank.BankClient;
 import family.fisa.hangangpay.client.bank.dto.ExchangeResponse;
 import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
+import family.fisa.hangangpay.domain.transaction.dto.ReconcileResult;
 import family.fisa.hangangpay.domain.transaction.dto.request.ExchangeExecuteRequest;
 import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeExecuteResponse;
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
@@ -26,9 +27,13 @@ public class ExchangeCommandService {
     /** 환전 자격 : 마지막 충전 직후 잔액의 60% 이상을 결제로 사용해야 함 */
     private static final BigDecimal USAGE_THRESHOLD_RATE = new BigDecimal("0.60");
 
+    /** PENDING 거래 임계 시간 - 초과 시 orphan으로 간주하고 reconcile 시도 */
+    private static final int ORPHAN_THRESHOLD_MINUTES = 5;
+
     private final TransactionRepository transactionRepository;
     private final ExchangeStateWriter stateWriter;
     private final BankClient bankClient;
+    private final ExchangeReconcileService exchangeReconcileService;
 
     /** 사용자 환전 실행 */
     public ExchangeExecuteResponse executeUserExchange(
@@ -95,13 +100,51 @@ public class ExchangeCommandService {
                         tx ->
                                 switch (tx.getStatus()) {
                                     case SUCCESS -> ExchangeExecuteResponse.from(tx);
-                                    case PENDING ->
-                                            throw new BusinessException(
-                                                    TransactionErrorCode.EXCHANGE_IN_PROGRESS);
+                                    case PENDING -> handlePending(tx);
                                     case FAILED ->
                                             throw new BusinessException(
                                                     TransactionErrorCode.EXCHANGE_ALREADY_FAILED);
                                 });
+    }
+
+    /** PENDING 분기 처리 - 임계 시간을 초과하면 인라인 reconcile, 아니면 in-flight로 거절 */
+    private ExchangeExecuteResponse handlePending(Transaction tx) {
+        LocalDateTime threshold = LocalDateTime.now().minusMinutes(ORPHAN_THRESHOLD_MINUTES);
+
+        // 임계 시간 이내(만들어진지 5분이 안됨) - 정상 in-flight
+        if (tx.getCreatedAt().isAfter(threshold)) {
+            throw new BusinessException(TransactionErrorCode.EXCHANGE_IN_PROGRESS);
+        }
+
+        // 임계 시간 초과 - orphan 의심, 바로 reconcile
+        log.warn(
+                "PENDING 환전이 임계 시간 초과. reconcile 시도. transactionId={}, transactionUuid={}, createdAt={}",
+                tx.getId(),
+                tx.getTransactionUuid(),
+                tx.getCreatedAt());
+
+        ReconcileResult result = exchangeReconcileService.reconcile(tx.getId());
+
+        // RECONCILED_SUCCESS - 재조회해서 SUCCESS로 마킹된 tx로 응답 생성(처리해서 PENDING -> SUCCESS로 변환완료 했기 때문)
+        if (result == ReconcileResult.RECONCILED_SUCCESS) {
+            Transaction updated =
+                    transactionRepository
+                            .findByTransactionUuid(tx.getTransactionUuid())
+                            .orElseThrow(
+                                    () ->
+                                            new BusinessException(
+                                                    TransactionErrorCode.EXCHANGE_NOT_FOUND));
+            return ExchangeExecuteResponse.from(updated);
+        }
+
+        // RECONCILED_FAILED - bank에 거래 없음 확인됨(PENDING -> FAILED 마킹됨)
+        if (result == ReconcileResult.RECONCILED_FAILED) {
+            throw new BusinessException(TransactionErrorCode.EXCHANGE_ALREADY_FAILED);
+        }
+
+        // SKIPPED, RECONCILE_ERROR - reconcile 결론 못 냄, 다시 in-flight로 응답 (reconcile 했을 때 PENDING이
+        // 아니었음 동시에 끝난 경우)
+        throw new BusinessException(TransactionErrorCode.EXCHANGE_IN_PROGRESS);
     }
 
     /** 환전 자격 검증 환전 자격 = (마지막 충전 직후 잔액) × 60% <= (마지막 충전 이후 SUCCESS PAYMENT 합계) */

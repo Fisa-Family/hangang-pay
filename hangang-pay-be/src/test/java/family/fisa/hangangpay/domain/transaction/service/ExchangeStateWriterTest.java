@@ -289,4 +289,44 @@ class ExchangeStateWriterTest {
             // then - 별도 검증 없음. 예외 안 던지면 통과
         }
     }
+
+    @Nested
+    @DisplayName("incrementReconcileAttempt")
+    class IncrementReconcileAttempt {
+
+        @Test
+        @DisplayName("정상이면 count 1 증가 후 새 값 반환")
+        void increment_정상() {
+            // given
+            Transaction tx =
+                    Transaction.builder()
+                            .id(TRANSACTION_ID)
+                            .transactionUuid(UUID)
+                            .transactionType(TransactionType.EXCHANGE)
+                            .status(TransactionStatus.PENDING)
+                            .reconcileAttemptCount(3)
+                            .build();
+            when(transactionRepository.findById(TRANSACTION_ID)).thenReturn(Optional.of(tx));
+
+            // when
+            int newCount = stateWriter.incrementReconcileAttempt(TRANSACTION_ID);
+
+            // then
+            assertThat(newCount).isEqualTo(4);
+            assertThat(tx.getReconcileAttemptCount()).isEqualTo(4);
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 transactionId면 EXCHANGE_NOT_FOUND")
+        void increment_없는_트랜잭션() {
+            // given
+            when(transactionRepository.findById(TRANSACTION_ID)).thenReturn(Optional.empty());
+
+            // when, then
+            assertThatThrownBy(() -> stateWriter.incrementReconcileAttempt(TRANSACTION_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("code")
+                    .isEqualTo(TransactionErrorCode.EXCHANGE_NOT_FOUND);
+        }
+    }
 }

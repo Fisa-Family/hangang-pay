@@ -17,6 +17,7 @@ import family.fisa.hangangpay.domain.institution.entity.Institution;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.entity.PartyType;
 import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
+import family.fisa.hangangpay.domain.transaction.dto.ReconcileResult;
 import family.fisa.hangangpay.domain.transaction.dto.request.ExchangeExecuteRequest;
 import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeExecuteResponse;
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
@@ -42,6 +43,7 @@ class ExchangeCommandServiceTest {
     @Mock TransactionRepository transactionRepository;
     @Mock ExchangeStateWriter stateWriter;
     @Mock BankClient bankClient;
+    @Mock ExchangeReconcileService exchangeReconcileService;
 
     @InjectMocks ExchangeCommandService exchangeCommandService;
 
@@ -97,6 +99,19 @@ class ExchangeCommandServiceTest {
                 .transactionUuid(UUID)
                 .status(status)
                 .build();
+    }
+
+    /** PENDING 상태 + 지정 createdAt 트랜잭션 (5분 임계 분기 시나리오용) */
+    private Transaction pendingTransactionAt(LocalDateTime createdAt) {
+        Transaction tx =
+                Transaction.builder()
+                        .id(TRANSACTION_ID)
+                        .transactionUuid(UUID)
+                        .transactionType(TransactionType.EXCHANGE)
+                        .status(TransactionStatus.PENDING)
+                        .build();
+        ReflectionTestUtils.setField(tx, "createdAt", createdAt);
+        return tx;
     }
 
     private Transaction latestCharge(String amount) {
@@ -174,25 +189,6 @@ class ExchangeCommandServiceTest {
             assertThat(response.status()).isEqualTo(TransactionStatus.SUCCESS);
             verify(stateWriter, never()).claimExchange(any(), any());
             verify(bankClient, never()).exchange(any());
-        }
-
-        @Test
-        @DisplayName("같은 UUID로 PENDING 존재 -> EXCHANGE_IN_PROGRESS")
-        void 멱등_PENDING_충돌() {
-            // given
-            when(transactionRepository.findByTransactionUuid(UUID))
-                    .thenReturn(Optional.of(transactionWithStatus(TransactionStatus.PENDING)));
-
-            // when, then
-            assertThatThrownBy(
-                            () ->
-                                    exchangeCommandService.executeUserExchange(
-                                            PARTY_ID, request("50000")))
-                    .isInstanceOf(BusinessException.class)
-                    .extracting("code")
-                    .isEqualTo(TransactionErrorCode.EXCHANGE_IN_PROGRESS);
-
-            verify(stateWriter, never()).claimExchange(any(), any());
         }
 
         @Test
@@ -283,6 +279,119 @@ class ExchangeCommandServiceTest {
 
             // then
             assertThat(response).isSameAs(expected);
+        }
+    }
+
+    @Nested
+    @DisplayName("PENDING reconcile 분기")
+    class PendingReconcile {
+
+        @Test
+        @DisplayName("PENDING 5분 이내 -> EXCHANGE_IN_PROGRESS (reconcile 호출 안 됨)")
+        void pending_in_flight() {
+            // given
+            Transaction pending = pendingTransactionAt(LocalDateTime.now().minusMinutes(1));
+            when(transactionRepository.findByTransactionUuid(UUID))
+                    .thenReturn(Optional.of(pending));
+
+            // when, then
+            assertThatThrownBy(
+                            () ->
+                                    exchangeCommandService.executeUserExchange(
+                                            PARTY_ID, request("50000")))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("code")
+                    .isEqualTo(TransactionErrorCode.EXCHANGE_IN_PROGRESS);
+
+            verify(exchangeReconcileService, never()).reconcile(any());
+            verify(stateWriter, never()).claimExchange(any(), any());
+        }
+
+        @Test
+        @DisplayName("PENDING 5분 초과 + reconcile SUCCESS -> 재조회한 tx로 응답 반환")
+        void pending_orphan_reconcile_success() {
+            // given
+            Transaction pending = pendingTransactionAt(LocalDateTime.now().minusMinutes(6));
+            Transaction updated = successTransaction();
+            // findByTransactionUuid 1회: PENDING, 2회: SUCCESS (reconcile 후 재조회)
+            when(transactionRepository.findByTransactionUuid(UUID))
+                    .thenReturn(Optional.of(pending), Optional.of(updated));
+            when(exchangeReconcileService.reconcile(TRANSACTION_ID))
+                    .thenReturn(ReconcileResult.RECONCILED_SUCCESS);
+
+            // when
+            ExchangeExecuteResponse response =
+                    exchangeCommandService.executeUserExchange(PARTY_ID, request("50000"));
+
+            // then
+            assertThat(response.transactionId()).isEqualTo(TRANSACTION_ID);
+            assertThat(response.status()).isEqualTo(TransactionStatus.SUCCESS);
+            verify(exchangeReconcileService).reconcile(TRANSACTION_ID);
+            verify(stateWriter, never()).claimExchange(any(), any());
+            verify(bankClient, never()).exchange(any());
+        }
+
+        @Test
+        @DisplayName("PENDING 5분 초과 + reconcile FAILED -> EXCHANGE_ALREADY_FAILED")
+        void pending_orphan_reconcile_failed() {
+            // given
+            Transaction pending = pendingTransactionAt(LocalDateTime.now().minusMinutes(6));
+            when(transactionRepository.findByTransactionUuid(UUID))
+                    .thenReturn(Optional.of(pending));
+            when(exchangeReconcileService.reconcile(TRANSACTION_ID))
+                    .thenReturn(ReconcileResult.RECONCILED_FAILED);
+
+            // when, then
+            assertThatThrownBy(
+                            () ->
+                                    exchangeCommandService.executeUserExchange(
+                                            PARTY_ID, request("50000")))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("code")
+                    .isEqualTo(TransactionErrorCode.EXCHANGE_ALREADY_FAILED);
+
+            verify(exchangeReconcileService).reconcile(TRANSACTION_ID);
+            verify(stateWriter, never()).claimExchange(any(), any());
+        }
+
+        @Test
+        @DisplayName("PENDING 5분 초과 + reconcile SKIPPED -> EXCHANGE_IN_PROGRESS")
+        void pending_orphan_reconcile_skipped() {
+            // given
+            Transaction pending = pendingTransactionAt(LocalDateTime.now().minusMinutes(6));
+            when(transactionRepository.findByTransactionUuid(UUID))
+                    .thenReturn(Optional.of(pending));
+            when(exchangeReconcileService.reconcile(TRANSACTION_ID))
+                    .thenReturn(ReconcileResult.SKIPPED);
+
+            // when, then
+            assertThatThrownBy(
+                            () ->
+                                    exchangeCommandService.executeUserExchange(
+                                            PARTY_ID, request("50000")))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("code")
+                    .isEqualTo(TransactionErrorCode.EXCHANGE_IN_PROGRESS);
+        }
+
+        @Test
+        @DisplayName("PENDING 5분 초과 + reconcile ERROR -> EXCHANGE_IN_PROGRESS")
+        void pending_orphan_reconcile_error() {
+            // given
+            Transaction pending = pendingTransactionAt(LocalDateTime.now().minusMinutes(6));
+            when(transactionRepository.findByTransactionUuid(UUID))
+                    .thenReturn(Optional.of(pending));
+            when(exchangeReconcileService.reconcile(TRANSACTION_ID))
+                    .thenReturn(ReconcileResult.RECONCILE_ERROR);
+
+            // when, then
+            assertThatThrownBy(
+                            () ->
+                                    exchangeCommandService.executeUserExchange(
+                                            PARTY_ID, request("50000")))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("code")
+                    .isEqualTo(TransactionErrorCode.EXCHANGE_IN_PROGRESS);
         }
     }
 

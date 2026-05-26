@@ -9,7 +9,8 @@ import org.springframework.http.HttpStatus;
 @RequiredArgsConstructor
 public enum TransactionErrorCode implements BaseErrorCode {
     TRANSACTION_INSUFFICIENT_BALANCE(
-            HttpStatus.BAD_REQUEST, "TRANSACTION_INSUFFICIENT_BALANCE", "잔액이 부족합니다.");
+            HttpStatus.BAD_REQUEST, "TRANSACTION_INSUFFICIENT_BALANCE", "잔액이 부족합니다."),
+    TRANSACTION_NOT_FOUND(HttpStatus.NOT_FOUND, "TRANSACTION_NOT_FOUND", "해당 거래를 찾을 수 없습니다.");
 
     private final HttpStatus status;
     private final String code;

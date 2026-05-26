@@ -116,4 +116,18 @@ public class ExchangeStateWriter {
     public void failExchange(Long transactionId) {
         transactionRepository.findById(transactionId).ifPresent(Transaction::markFailed);
     }
+
+    /** reconcile 시도 횟수 1 증가 후 새 값 반환 */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public int incrementReconcileAttempt(Long transactionId) {
+        Transaction tx =
+                transactionRepository
+                        .findById(transactionId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                TransactionErrorCode.EXCHANGE_NOT_FOUND));
+        tx.incrementReconcileAttempt();
+        return tx.getReconcileAttemptCount();
+    }
 }

@@ -14,6 +14,7 @@ import family.fisa.hangangpay.client.bank.dto.CreateBankAccountRequest;
 import family.fisa.hangangpay.client.bank.dto.CreateBankWalletRequest;
 import family.fisa.hangangpay.client.bank.dto.ExchangeRequest;
 import family.fisa.hangangpay.client.bank.dto.ExchangeResponse;
+import family.fisa.hangangpay.client.bank.dto.ExchangeStatusResponse;
 import family.fisa.hangangpay.client.bank.dto.PaymentRequest;
 import family.fisa.hangangpay.client.bank.dto.PaymentResponse;
 import family.fisa.hangangpay.global.code.error.AccountErrorCode;
@@ -26,6 +27,7 @@ import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -193,6 +195,41 @@ public class BankClientImpl implements BankClient {
 
         // 2. 응답에서 결과 추출
         return response.getResult();
+    }
+
+    @Override
+    public Optional<ExchangeStatusResponse> queryExchangeStatus(String transactionUuid) {
+        log.info("bank 환전 상태 조회 호출. transactionUuid={}", transactionUuid);
+
+        // 1. bank /api/v1/transactions/{uuid}/status 호출. 404는 Optional.empty()
+        try {
+            ApiResponse<ExchangeStatusResponse> response =
+                    callBank(
+                            () ->
+                                    bankRestClient
+                                            .get()
+                                            .uri(
+                                                    "/api/v1/transactions/{transactionUuid}/status",
+                                                    transactionUuid)
+                                            .retrieve()
+                                            .body(new ParameterizedTypeReference<>() {}));
+
+            // 2. 응답이 있으면 두 ledger 모두 있다는 의미
+            ExchangeStatusResponse result = response.getResult();
+            log.info(
+                    "bank 환전 상태 조회 완료(존재). transactionUuid={}, bankTransactionId={}, txHash={}",
+                    transactionUuid,
+                    result.bankTransactionId(),
+                    result.txHash());
+            return Optional.of(result);
+        } catch (RestClientResponseException ex) {
+            // 3. 404만 빈 응답으로 흡수. 그 외 5xx 등은 그대로 전파 (reconcile에서 재시도 대상)
+            if (ex.getStatusCode() == HttpStatus.NOT_FOUND) {
+                log.info("bank 환전 상태 조회: 거래 없음(NOT_FOUND). transactionUuid={}", transactionUuid);
+                return Optional.empty();
+            }
+            throw ex;
+        }
     }
 
     @Override
