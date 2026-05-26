@@ -1,9 +1,12 @@
 package family.fisa.hangangpay.domain.merchant.service;
 
+import family.fisa.hangangpay.client.bank.BankClient;
+import family.fisa.hangangpay.client.bank.dto.BankWalletResponse;
+import family.fisa.hangangpay.client.bank.dto.MerchantRedeemInitResponse;
 import family.fisa.hangangpay.domain.account.entity.Account;
 import family.fisa.hangangpay.domain.account.entity.AccountType;
 import family.fisa.hangangpay.domain.account.repository.AccountRepository;
-import family.fisa.hangangpay.domain.merchant.code.error.MerchantErrorCode;
+import family.fisa.hangangpay.domain.merchant.code.MerchantErrorCode;
 import family.fisa.hangangpay.domain.merchant.dto.MerchantInfoResponse;
 import family.fisa.hangangpay.domain.merchant.dto.MerchantMyPageResponse;
 import family.fisa.hangangpay.domain.merchant.entity.Merchant;
@@ -24,6 +27,7 @@ public class MerchantQueryService {
     private final MerchantRepository merchantRepository;
     private final AccountRepository accountRepository;
     private final WalletRepository walletRepository;
+    private final BankClient bankClient;
 
     public MerchantMyPageResponse getMyPage(Long partyId) {
         Merchant merchant =
@@ -53,6 +57,35 @@ public class MerchantQueryService {
         log.info("가맹점 정보 조회 완료. merchantId={}", merchantId);
 
         return MerchantInfoResponse.from(merchant, wallet);
+    }
+
+    /** 가맹점 정산 신텅 화면 진입용 정보 조회 */
+    public MerchantRedeemInitResponse getRedeemInit(Long partyId) {
+        log.info("가맹점 정산 신청 정보 조회 시작. partyId={}", partyId);
+
+        // 1. 지갑 조회
+        Wallet wallet = findWalletByPartyId(partyId);
+
+        // 2. SETTLEMENT 계좌 조회
+        Account settlementAccount =
+                accountRepository
+                        .findByParty_IdAndAccountType(partyId, AccountType.SETTLEMENT)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                MerchantErrorCode
+                                                        .MERCHANT_SETTLEMENT_ACCOUNT_NOT_FOUND));
+
+        // 3. bank애서 보유 토큰 잔액 조회 (환전 가능 금액)
+        BankWalletResponse bankWalletResponse =
+                bankClient.getBankWalletByAddress(wallet.getAddress());
+
+        log.info(
+                "가맹점 정산 신청 정보 조회 완료. partyId={}, availableAmount={}",
+                partyId,
+                bankWalletResponse.balance());
+
+        return MerchantRedeemInitResponse.from(bankWalletResponse.balance(), settlementAccount);
     }
 
     private Merchant findMerchantById(Long merchantId) {

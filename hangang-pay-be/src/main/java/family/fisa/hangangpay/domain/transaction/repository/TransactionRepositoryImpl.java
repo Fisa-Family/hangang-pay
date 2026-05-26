@@ -121,6 +121,12 @@ public class TransactionRepositoryImpl implements TransactionRepository {
     }
 
     @Override
+    public List<Transaction> findAllUnknownPayments() {
+        return jpaRepository.findByStatusAndTransactionType(
+                TransactionStatus.UNKNOWN, TransactionType.PAYMENT);
+    }
+
+    @Override
     public BigDecimal sumMonthlyAmount(
             Long partyId,
             TransactionType type,
@@ -154,5 +160,11 @@ public class TransactionRepositoryImpl implements TransactionRepository {
     public boolean existsInflightExchange(Long partyId) {
         return jpaRepository.existsByFromParty_IdAndTransactionTypeAndStatus(
                 partyId, TransactionType.EXCHANGE, TransactionStatus.PENDING);
+    }
+
+    @Override
+    public List<Long> findPendingExchangeIdsForReconcile(LocalDateTime threshold, int maxAttempts) {
+        return jpaRepository.findIdsForReconcile(
+                TransactionStatus.PENDING, TransactionType.EXCHANGE, threshold, maxAttempts);
     }
 }

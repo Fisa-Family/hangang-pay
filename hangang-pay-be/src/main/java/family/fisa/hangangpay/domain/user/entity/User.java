@@ -37,7 +37,7 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private String passwordHash;
 
-    /** 결제 PIN 해시 */
+    /** PIN 해시 */
     @Column(nullable = false)
     private String paymentPinHash;
 
@@ -53,5 +53,9 @@ public class User extends BaseEntity {
 
     public boolean matchesPassword(String rawPassword, PasswordEncoder passwordEncoder) {
         return passwordEncoder.matches(rawPassword, passwordHash);
+    }
+
+    public boolean matchesPaymentPin(String rawPaymentPin, PasswordEncoder passwordEncoder) {
+        return passwordEncoder.matches(rawPaymentPin, paymentPinHash);
     }
 }

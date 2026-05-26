@@ -14,5 +14,7 @@ public interface UserRepository {
 
     List<User> findByParty_IdIn(List<Long> partyIds);
 
+    Optional<User> findByParty_Id(Long partyId);
+
     User save(User user);
 }

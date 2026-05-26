@@ -19,4 +19,6 @@ public interface UserJpaRepository extends JpaRepository<User, Long> {
 
     @Query("SELECT u FROM User u JOIN FETCH u.party WHERE u.party.id IN :partyIds")
     List<User> findByParty_IdIn(@Param("partyIds") List<Long> partyIds);
+
+    Optional<User> findByParty_Id(Long partyId);
 }

@@ -6,4 +6,6 @@ import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
 
 public record ExchangeExecuteRequest(
-        @NotBlank String transactionUuid, @NotNull @Positive BigDecimal amount) {}
+        @NotBlank String transactionUuid,
+        @NotNull @Positive BigDecimal amount,
+        @NotBlank String paymentPin) {}

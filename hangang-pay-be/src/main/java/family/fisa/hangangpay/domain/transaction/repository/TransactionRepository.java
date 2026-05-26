@@ -35,6 +35,9 @@ public interface TransactionRepository {
     /** 거래 상세 - id + type IN, fromParty/fromAccount/toAccount/fromWallet/toWallet fetch join */
     Optional<Transaction> findDetailByIdAndTypes(Long id, List<TransactionType> types);
 
+    /** 스케줄러용 - UNKNOWN 상태 PAYMENT 트랜잭션 전체 조회 */
+    List<Transaction> findAllUnknownPayments();
+
     /** 파티 식별자 기준 특정 월의 거래 유형별 누적 금액 조회 */
     BigDecimal sumMonthlyAmount(
             Long partyId,
@@ -54,4 +57,9 @@ public interface TransactionRepository {
 
     /** 진행 중인 EXCHANGE 존재 여부 - single-flight 가드용 */
     boolean existsInflightExchange(Long partyId);
+
+    /**
+     * 배치 reconcile 대상 id 조회 - PENDING + EXCHANGE + createdAt < threshold && attempt < maxAttempts
+     */
+    List<Long> findPendingExchangeIdsForReconcile(LocalDateTime threshold, int maxAttempts);
 }

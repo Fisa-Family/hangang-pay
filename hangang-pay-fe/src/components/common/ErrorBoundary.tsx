@@ -17,8 +17,7 @@ export class ErrorBoundary extends Component<Props, State> {
   state: State = { hasError: false, message: '' }
 
   static getDerivedStateFromError(error: unknown): State {
-    const message =
-      error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.'
+    const message = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.'
     return { hasError: true, message }
   }
 

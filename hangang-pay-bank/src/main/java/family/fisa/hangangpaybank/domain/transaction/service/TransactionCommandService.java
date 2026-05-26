@@ -28,6 +28,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
@@ -35,6 +36,7 @@ import org.web3j.protocol.core.methods.response.TransactionReceipt;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class TransactionCommandService {
 
     /** ERC20 기본 decimals (1e18) - BigDecimal 금액을 컨트랙트 단위로 변환할 때 사용 */
@@ -49,6 +51,12 @@ public class TransactionCommandService {
 
     /** 충전: 계좌 → 토큰 mint */
     public ChargeResponse charge(ChargeRequest request) {
+        log.info(
+                "[bank] charge 시작. transactionUuid={}, institutionId={}, amount={}",
+                request.transactionUuid(),
+                request.institutionId(),
+                request.amount());
+
         // 1. 소속 기관 조회
         Institution institution = findInstitution(request.institutionId());
 
@@ -99,6 +107,12 @@ public class TransactionCommandService {
 
     /** 환전: 토큰 burn → 계좌 입금 */
     public ExchangeResponse exchange(ExchangeRequest request) {
+        log.info(
+                "[bank] exchange 시작. transactionUuid={}, institutionId={}, amount={}",
+                request.transactionUuid(),
+                request.institutionId(),
+                request.amount());
+
         // 1. 소속 기관 조회
         Institution institution = findInstitution(request.institutionId());
 
@@ -120,14 +134,15 @@ public class TransactionCommandService {
                         bankWallet.getWalletAddress(),
                         toTokenUnit(request.amount()));
 
-        // 6. blockchain_ledger 기록
-        BlockchainLedger ledger = saveBlockchainLedger(institution, receipt);
+        // 6. blockchain_ledger 기록 (idempotent_key = BE의 transactionUuid)
+        BlockchainLedger ledger =
+                saveBlockchainLedger(institution, receipt, request.transactionUuid());
 
         // 7. 계좌 잔액 증가
         BigDecimal newAccountBalance = bankAccount.getBalance().add(request.amount());
         bankAccount.updateBalance(newAccountBalance);
 
-        // 8. account_ledger DEPOSIT 기록 (저장 후 채번된 id를 응답에 사용)
+        // 8. account_ledger DEPOSIT 기록 (idempotent_key = BE의 transactionUuid)
         AccountLedger savedAccountLedger =
                 accountLedgerRepository.save(
                         AccountLedger.builder()
@@ -135,7 +150,14 @@ public class TransactionCommandService {
                                 .ledgerType(LedgerType.DEPOSIT)
                                 .amount(request.amount())
                                 .balanceAfter(newAccountBalance)
+                                .idempotentKey(request.transactionUuid())
                                 .build());
+
+        log.info(
+                "[bank] exchange 완료. transactionUuid={}, txHash={}, accountLedgerId={}",
+                request.transactionUuid(),
+                ledger.getTxHash(),
+                savedAccountLedger.getId());
 
         // 9. Response 반환
         return new ExchangeResponse(
@@ -271,6 +293,21 @@ public class TransactionCommandService {
                         .blockNumber(blockNumber)
                         .status(BlockchainTxStatus.CONFIRMED)
                         .confirmedAt(LocalDateTime.now())
+                        .build());
+    }
+
+    private BlockchainLedger saveBlockchainLedger(
+            Institution institution, TransactionReceipt receipt, String idempotentKey) {
+        Long blockNumber =
+                receipt.getBlockNumber() != null ? receipt.getBlockNumber().longValueExact() : null;
+        return blockchainLedgerRepository.save(
+                BlockchainLedger.builder()
+                        .institution(institution)
+                        .txHash(receipt.getTransactionHash())
+                        .blockNumber(blockNumber)
+                        .status(BlockchainTxStatus.CONFIRMED)
+                        .confirmedAt(LocalDateTime.now())
+                        .idempotentKey(idempotentKey)
                         .build());
     }
 }

@@ -1,18 +1,7 @@
 package family.fisa.hangangpay.client.bank;
 
-import family.fisa.hangangpay.client.bank.dto.BankAccountResponse;
-import family.fisa.hangangpay.client.bank.dto.BankWalletResponse;
-import family.fisa.hangangpay.client.bank.dto.BlockchainLedgerResponse;
-import family.fisa.hangangpay.client.bank.dto.CancelRequest;
-import family.fisa.hangangpay.client.bank.dto.CancelResponse;
-import family.fisa.hangangpay.client.bank.dto.ChargeRequest;
-import family.fisa.hangangpay.client.bank.dto.ChargeResponse;
-import family.fisa.hangangpay.client.bank.dto.CreateBankAccountRequest;
-import family.fisa.hangangpay.client.bank.dto.CreateBankWalletRequest;
-import family.fisa.hangangpay.client.bank.dto.ExchangeRequest;
-import family.fisa.hangangpay.client.bank.dto.ExchangeResponse;
-import family.fisa.hangangpay.client.bank.dto.PaymentRequest;
-import family.fisa.hangangpay.client.bank.dto.PaymentResponse;
+import family.fisa.hangangpay.client.bank.dto.*;
+import java.util.Optional;
 
 public interface BankClient {
 
@@ -26,6 +15,9 @@ public interface BankClient {
 
     BankWalletResponse getBankWalletByAddress(String address);
 
+    // 거래 시, Bank 관련
+    BankTransactionStatusResponse getTransactionStatus(String transactionUuid);
+
     // 거래
     ChargeResponse charge(ChargeRequest request);
 
@@ -34,6 +26,9 @@ public interface BankClient {
     PaymentResponse payment(PaymentRequest request);
 
     CancelResponse cancel(CancelRequest request);
+
+    // 환전 상태 조회
+    Optional<ExchangeStatusResponse> queryExchangeStatus(String transactionUuid);
 
     // blockchain
     BlockchainLedgerResponse getBlockchainLedgerByTxHash(String txHash);

@@ -37,6 +37,10 @@ public class Merchant extends BaseEntity {
     @Column(nullable = false)
     private String passwordHash;
 
+    /** PIN 해시 */
+    @Column(nullable = false)
+    private String paymentPinHash;
+
     /** 사업자번호 */
     @Column(nullable = false, unique = true)
     private String businessNumber;
@@ -65,5 +69,9 @@ public class Merchant extends BaseEntity {
 
     public boolean matchesPassword(String rawPassword, PasswordEncoder passwordEncoder) {
         return passwordEncoder.matches(rawPassword, passwordHash);
+    }
+
+    public boolean matchesPaymentPin(String rawPin, PasswordEncoder passwordEncoder) {
+        return passwordEncoder.matches(rawPin, paymentPinHash);
     }
 }

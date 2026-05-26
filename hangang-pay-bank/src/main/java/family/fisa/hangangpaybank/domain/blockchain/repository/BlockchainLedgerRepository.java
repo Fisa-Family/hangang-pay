@@ -10,4 +10,6 @@ public interface BlockchainLedgerRepository {
     Optional<BlockchainLedger> findById(Long id);
 
     Optional<BlockchainLedger> findByTxHash(String txHash);
+
+    Optional<BlockchainLedger> findByIdempotentKey(String idempotentKey);
 }

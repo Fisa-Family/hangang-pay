@@ -1,10 +1,38 @@
-import { createBrowserRouter, Navigate, useRouteError } from 'react-router-dom'
+/* eslint-disable react-refresh/only-export-components */
+import {
+  createBrowserRouter,
+  Navigate,
+  useLocation,
+  useNavigate,
+  useRouteError,
+} from 'react-router-dom'
+import { useEffect } from 'react'
+import { useCurrentUser } from '@/auth/useCurrentUser'
 import { MainLayout } from '@/routes/layouts'
 import { RequireAuth, RequireRole } from '@/routes/guards'
 import { LoginPage } from '@/pages/LoginPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 import { UserHomePage } from '@/pages/UserHomePage'
+import { MerchantHomePage } from '@/pages/MerchantHomePage'
 import { AppShell } from '@/components/common'
+
+// 미등록 경로 접근 시 경로 기반으로 해당 영역 홈으로 교체
+function GoBack() {
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  useEffect(() => {
+    const home = pathname.startsWith('/merchant/') ? '/merchant/home' : '/home'
+    navigate(home, { replace: true })
+  }, [pathname, navigate])
+  return null
+}
+
+// 진입점(/) 에서 역할에 맞는 홈으로 리다이렉트
+function RoleRedirect() {
+  const { role, isLoading } = useCurrentUser()
+  if (isLoading) return null
+  return <Navigate to={role === 'MERCHANT' ? '/merchant/home' : '/home'} replace />
+}
 
 // 라우트 레벨 에러 fallback (예상치 못한 에러 전체 포착)
 function RootErrorElement() {
@@ -29,12 +57,17 @@ function RootErrorElement() {
 export const router = createBrowserRouter([
   {
     path: '/',
-    element: <Navigate to="/home" replace />,
+    element: <RoleRedirect />,
     errorElement: <RootErrorElement />,
   },
   {
     path: '/login',
     element: <LoginPage />,
+  },
+  // /merchant 단축 진입점 (홈으로 리다이렉트)
+  {
+    path: '/merchant',
+    element: <Navigate to="/merchant/home" replace />,
   },
   {
     element: <RequireAuth />,
@@ -67,10 +100,7 @@ export const router = createBrowserRouter([
           {
             element: <MainLayout navType="merchant" />,
             children: [
-              {
-                path: '/merchant/home',
-                element: <PlaceholderPage title="가맹점 홈" screenId="M-HOME" />,
-              },
+              { path: '/merchant/home', element: <MerchantHomePage /> },
               {
                 path: '/merchant/payments',
                 element: <PlaceholderPage title="결제 내역" screenId="M-PAY" />,
@@ -85,9 +115,9 @@ export const router = createBrowserRouter([
       },
     ],
   },
-  // 미매칭 경로 홈으로 리다이렉트
+  // 미매칭 경로 → 이전 페이지 유지
   {
     path: '*',
-    element: <Navigate to="/home" replace />,
+    element: <GoBack />,
   },
 ])

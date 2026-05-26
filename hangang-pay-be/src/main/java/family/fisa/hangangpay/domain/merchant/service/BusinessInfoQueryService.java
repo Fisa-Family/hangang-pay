@@ -1,6 +1,6 @@
 package family.fisa.hangangpay.domain.merchant.service;
 
-import family.fisa.hangangpay.domain.merchant.code.error.MerchantErrorCode;
+import family.fisa.hangangpay.domain.merchant.code.MerchantErrorCode;
 import family.fisa.hangangpay.domain.merchant.dto.BusinessInfoResponse;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import java.util.Map;

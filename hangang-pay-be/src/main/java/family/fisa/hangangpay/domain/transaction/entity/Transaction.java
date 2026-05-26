@@ -2,8 +2,11 @@ package family.fisa.hangangpay.domain.transaction.entity;
 
 import family.fisa.hangangpay.domain.account.entity.Account;
 import family.fisa.hangangpay.domain.party.entity.Party;
+import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
+import family.fisa.hangangpay.domain.user.code.error.UserErrorCode;
 import family.fisa.hangangpay.domain.wallet.entity.Wallet;
 import family.fisa.hangangpay.global.entity.BaseEntity;
+import family.fisa.hangangpay.global.exception.BusinessException;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import lombok.AccessLevel;
@@ -126,6 +129,11 @@ public class Transaction extends BaseEntity {
     @Column(name = "bank_transaction_id", length = 100)
     private String bankTransactionId;
 
+    /** reconcile 시도 횟수 - 임계값 도달 시 배치 대상에서 제외 */
+    @Column(name = "reconcile_attempt_count", nullable = false)
+    @Builder.Default
+    private Integer reconcileAttemptCount = 0;
+
     /** CHARGE: 계좌 → 토큰 mint */
     public static Transaction forCharge(
             String transactionUuid,
@@ -228,5 +236,60 @@ public class Transaction extends BaseEntity {
     /** 거래 실패 마킹 (JPA 변경감지) */
     public void markFailed() {
         this.status = TransactionStatus.FAILED;
+    }
+
+    /** 트랜잭션 상태 전이 메서드 */
+    public void markProcessing() {
+        this.status = TransactionStatus.PROCESSING;
+    }
+
+    /** 결제 가능한 상태인지 검증 */
+    public void validateExecutableBy(Long partyId) {
+        validateOwner(partyId);
+        validateExecutableStatus();
+    }
+
+    /** 결제 요청자가 거래 소유자인지 검증 */
+    public void validateOwner(Long partyId) {
+        if (!this.fromParty.getId().equals(partyId)) {
+            throw new BusinessException(UserErrorCode.NOT_OWNER);
+        }
+    }
+
+    /** 결제 실행 가능한 상태인지 검증 */
+    public void validateExecutableStatus() {
+        if (this.status != TransactionStatus.PENDING) {
+            throw new BusinessException(TransactionErrorCode.INVALID_PAYMENT_STATUS);
+        }
+    }
+
+    /** 네트워크 오류로 인한 확인 불가 상태 */
+    public void markUnknown() {
+        this.status = TransactionStatus.UNKNOWN;
+    }
+
+    /** UNKNOWN/PROCESSING 결제만 Bank 상태 조회로 복구할 수 있다. */
+    public void validateRecoverableStatus() {
+        if (this.status != TransactionStatus.UNKNOWN
+                && this.status != TransactionStatus.PROCESSING) {
+            throw new BusinessException(TransactionErrorCode.PAYMENT_NOT_RECOVERABLE);
+        }
+    }
+
+    /** Bank 조회 결과가 SUCCESS면 로컬 거래도 성공으로 확정한다. */
+    public void recoverSuccess(String txHash, String bankTransactionId) {
+        this.txHash = txHash;
+        this.bankTransactionId = bankTransactionId;
+        this.status = TransactionStatus.SUCCESS;
+    }
+
+    /** Bank 조회 결과가 FAILED면 로컬 거래도 실패로 확정한다. */
+    public void recoverFailed() {
+        this.status = TransactionStatus.FAILED;
+    }
+
+    /** reconcile 시도 횟수 1 증가 (JPA 변경감지) */
+    public void incrementReconcileAttempt() {
+        this.reconcileAttemptCount = this.reconcileAttemptCount + 1;
     }
 }

@@ -1,0 +1,32 @@
+name: BC Format Check
+
+on:
+  pull_request:
+    branches: [main, dev, test]
+    paths:
+      - "hangang-pay-bc/**"
+      - ".github/workflows/bc-format.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  bc-format:
+    name: BC Prettier
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: hangang-pay-bc/blockchain/package-lock.json
+
+      - name: Install dependencies
+        working-directory: hangang-pay-bc/blockchain
+        run: npm ci
+
+      - name: Prettier check
+        working-directory: hangang-pay-bc/blockchain
+        run: npm run format:check

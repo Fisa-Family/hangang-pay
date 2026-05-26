@@ -8,7 +8,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 
-import family.fisa.hangangpaybank.domain.institution.code.error.InstitutionErrorCode;
+import family.fisa.hangangpaybank.domain.blockchain.code.error.BlockchainErrorCode;
 import family.fisa.hangangpaybank.domain.institution.entity.Contract;
 import family.fisa.hangangpaybank.domain.institution.entity.ContractType;
 import family.fisa.hangangpaybank.domain.institution.entity.Institution;
@@ -102,7 +102,7 @@ class ContractCallServiceTest {
                                         BigInteger.valueOf(10_000)))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
-                .isEqualTo(InstitutionErrorCode.INSTITUTION_CONTRACT_NOT_DEPLOYED);
+                .isEqualTo(BlockchainErrorCode.BLOCKCHAIN_CONTRACT_NOT_FOUND);
     }
 
     private static Institution ownerInstitution() {

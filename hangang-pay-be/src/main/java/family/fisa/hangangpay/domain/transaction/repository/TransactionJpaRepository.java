@@ -59,6 +59,11 @@ public interface TransactionJpaRepository extends JpaRepository<Transaction, Lon
     @EntityGraph(attributePaths = {"fromParty"})
     Optional<Transaction> findByIdWithFromParty(@Param("id") Long id);
 
+    /** 스케줄러용 - UNKNOWN 상태 PAYMENT 목록 조회 (fromParty fetch join) */
+    @EntityGraph(attributePaths = {"fromParty"})
+    List<Transaction> findByStatusAndTransactionType(
+            TransactionStatus status, TransactionType type);
+
     /** 파티 식별자 기준 특정 월의 거래 유형별 누적 금액 조회 */
     @Query(
             "SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t "
@@ -108,4 +113,17 @@ public interface TransactionJpaRepository extends JpaRepository<Transaction, Lon
     /** 진행 중인 EXCHANGE 존재 여부 */
     boolean existsByFromParty_IdAndTransactionTypeAndStatus(
             Long fromPartyId, TransactionType transactionType, TransactionStatus status);
+
+    /** 배치 reconcile 대상 id 조회 */
+    @Query(
+            "SELECT t.id FROM Transaction t "
+                    + "WHERE t.status = :status "
+                    + "AND t.transactionType = :type "
+                    + "AND t.createdAt < :threshold "
+                    + "AND t.reconcileAttemptCount < :maxAttempts")
+    List<Long> findIdsForReconcile(
+            @Param("status") TransactionStatus status,
+            @Param("type") TransactionType type,
+            @Param("threshold") LocalDateTime threshold,
+            @Param("maxAttempts") int maxAttempts);
 }
