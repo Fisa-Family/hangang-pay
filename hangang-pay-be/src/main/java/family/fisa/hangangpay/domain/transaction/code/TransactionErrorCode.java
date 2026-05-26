@@ -29,7 +29,11 @@ public enum TransactionErrorCode implements BaseErrorCode {
     PAYMENT_RECOVERY_RESULT_INVALID(
             HttpStatus.BAD_GATEWAY, "PAYMENT_RECOVERY_RESULT_INVALID", "은행 결제 조회 결과가 올바르지 않습니다."),
     PAYMENT_NOT_RECOVERABLE(
-            HttpStatus.BAD_REQUEST, "PAYMENT_NOT_RECOVERABLE", "복구할 수 없는 결제 상태입니다.");
+            HttpStatus.BAD_REQUEST, "PAYMENT_NOT_RECOVERABLE", "복구할 수 없는 결제 상태입니다."),
+    PAYMENT_RATE_LIMIT_EXCEEDED(
+            HttpStatus.TOO_MANY_REQUESTS,
+            "PAYMENT_RATE_LIMIT_EXCEEDED",
+            "요청이 너무 많습니다. 잠시 후 다시 시도해주세요.");
 
     private final HttpStatus status;
     private final String code;
