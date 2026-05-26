@@ -1,6 +1,7 @@
 package family.fisa.hangangpay.domain.transaction.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -15,6 +16,7 @@ import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.entity.PartyType;
 import family.fisa.hangangpay.domain.party.repository.PartyRepository;
+import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
 import family.fisa.hangangpay.domain.transaction.dto.request.PaymentExecuteRequest;
 import family.fisa.hangangpay.domain.transaction.dto.request.PaymentIntentCreateRequest;
 import family.fisa.hangangpay.domain.transaction.dto.response.PaymentExecutionResponse;
@@ -27,12 +29,12 @@ import family.fisa.hangangpay.domain.transaction.repository.TransactionRepositor
 import family.fisa.hangangpay.domain.user.repository.UserRepository;
 import family.fisa.hangangpay.domain.wallet.entity.Wallet;
 import family.fisa.hangangpay.domain.wallet.repository.WalletRepository;
+import family.fisa.hangangpay.global.exception.BusinessException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -273,19 +275,12 @@ class TransactionCommandServiceTest {
     }
 
     @Test
-    @Disabled("Phase 5에서 recoverPayment 구현 시 활성화")
-    @DisplayName("UNKNOWN 복구 시 Bank 조회 결과로 상태를 갱신한다")
-    void recoverPayment_updatesStatusFromBankResult() {
+    @DisplayName("UNKNOWN 복구 시 Bank SUCCESS 결과로 상태를 SUCCESS로 갱신한다")
+    void recoverPayment_updatesStatusFromBankSuccess() {
         Transaction transaction = paymentTransaction(TransactionStatus.UNKNOWN);
 
-        given(transactionRepository.findByTransactionUuid(TRANSACTION_UUID))
-                .willReturn(Optional.of(transaction));
-        given(paymentLockManager.withTransactionLock(eq(TRANSACTION_UUID), any()))
-                .willAnswer(
-                        invocation -> {
-                            Supplier<?> supplier = invocation.getArgument(1);
-                            return supplier.get();
-                        });
+        givenRecoveryBase(transaction);
+        givenRecoveryMerchant(transaction);
         given(bankClient.getTransactionStatus(TRANSACTION_UUID))
                 .willReturn(
                         new BankTransactionStatusResponse(
@@ -300,11 +295,191 @@ class TransactionCommandServiceTest {
 
         assertThat(response.status()).isEqualTo(TransactionStatus.SUCCESS);
         assertThat(response.txHash()).isEqualTo("0x-recovered");
+        assertThat(response.merchantName()).isEqualTo("성수 한강카페");
         assertThat(transaction.getStatus()).isEqualTo(TransactionStatus.SUCCESS);
         assertThat(transaction.getTxHash()).isEqualTo("0x-recovered");
 
         verify(paymentRateLimiter).checkRecoveryRateLimit(USER_PARTY_ID, TRANSACTION_UUID);
         verify(paymentRateLimiter).checkBankOutboundRateLimit();
+    }
+
+    @Test
+    @DisplayName("UNKNOWN 복구 시 Bank FAILED 결과로 상태를 FAILED로 갱신한다")
+    void recoverPayment_updatesStatusFromBankFailed() {
+        Transaction transaction = paymentTransaction(TransactionStatus.UNKNOWN);
+
+        givenRecoveryBase(transaction);
+        givenRecoveryMerchant(transaction);
+        given(bankClient.getTransactionStatus(TRANSACTION_UUID))
+                .willReturn(
+                        new BankTransactionStatusResponse(
+                                TRANSACTION_UUID,
+                                TransactionStatus.FAILED,
+                                null,
+                                null,
+                                LocalDateTime.of(2026, 5, 25, 10, 5)));
+
+        PaymentExecutionResponse response =
+                transactionCommandService.recoverPayment(USER_PARTY_ID, TRANSACTION_UUID);
+
+        assertThat(response.status()).isEqualTo(TransactionStatus.FAILED);
+        assertThat(response.merchantName()).isEqualTo("성수 한강카페");
+        assertThat(transaction.getStatus()).isEqualTo(TransactionStatus.FAILED);
+        assertThat(transaction.getTxHash()).isNull();
+
+        verify(paymentRateLimiter).checkRecoveryRateLimit(USER_PARTY_ID, TRANSACTION_UUID);
+        verify(paymentRateLimiter).checkBankOutboundRateLimit();
+    }
+
+    @Test
+    @DisplayName("Bank가 아직 PROCESSING이면 복구 가능한 상태로 남긴다")
+    void recoverPayment_keepsRecoverableWhenBankStillProcessing() {
+        Transaction transaction = paymentTransaction(TransactionStatus.UNKNOWN);
+
+        givenRecoveryBase(transaction);
+        givenRecoveryMerchant(transaction);
+        given(bankClient.getTransactionStatus(TRANSACTION_UUID))
+                .willReturn(
+                        new BankTransactionStatusResponse(
+                                TRANSACTION_UUID,
+                                TransactionStatus.PROCESSING,
+                                null,
+                                null,
+                                LocalDateTime.of(2026, 5, 25, 10, 5)));
+
+        PaymentExecutionResponse response =
+                transactionCommandService.recoverPayment(USER_PARTY_ID, TRANSACTION_UUID);
+
+        assertThat(response.status()).isEqualTo(TransactionStatus.UNKNOWN);
+        assertThat(response.merchantName()).isEqualTo("성수 한강카페");
+        assertThat(transaction.getStatus()).isEqualTo(TransactionStatus.UNKNOWN);
+        assertThat(transaction.getTxHash()).isNull();
+
+        verify(paymentRateLimiter).checkRecoveryRateLimit(USER_PARTY_ID, TRANSACTION_UUID);
+        verify(paymentRateLimiter).checkBankOutboundRateLimit();
+    }
+
+    @Test
+    @DisplayName("Bank SUCCESS 조회 결과에 txHash가 없으면 복구 결과 오류가 발생한다")
+    void recoverPayment_bankSuccessWithoutTxHashThrowsInvalidRecoveryResult() {
+        Transaction transaction = paymentTransaction(TransactionStatus.UNKNOWN);
+
+        givenRecoveryBase(transaction);
+        given(bankClient.getTransactionStatus(TRANSACTION_UUID))
+                .willReturn(
+                        new BankTransactionStatusResponse(
+                                TRANSACTION_UUID,
+                                TransactionStatus.SUCCESS,
+                                null,
+                                101L,
+                                LocalDateTime.of(2026, 5, 25, 10, 5)));
+
+        assertThatThrownBy(
+                        () ->
+                                transactionCommandService.recoverPayment(
+                                        USER_PARTY_ID, TRANSACTION_UUID))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue(
+                        "code", TransactionErrorCode.PAYMENT_RECOVERY_RESULT_INVALID);
+
+        verify(merchantRepository, never()).findByParty_Id(any());
+    }
+
+    @Test
+    @DisplayName("Bank SUCCESS 조회 결과에 blockNumber가 없으면 복구 결과 오류가 발생한다")
+    void recoverPayment_bankSuccessWithoutBlockNumberThrowsInvalidRecoveryResult() {
+        Transaction transaction = paymentTransaction(TransactionStatus.UNKNOWN);
+
+        givenRecoveryBase(transaction);
+        given(bankClient.getTransactionStatus(TRANSACTION_UUID))
+                .willReturn(
+                        new BankTransactionStatusResponse(
+                                TRANSACTION_UUID,
+                                TransactionStatus.SUCCESS,
+                                "0x-recovered",
+                                null,
+                                LocalDateTime.of(2026, 5, 25, 10, 5)));
+
+        assertThatThrownBy(
+                        () ->
+                                transactionCommandService.recoverPayment(
+                                        USER_PARTY_ID, TRANSACTION_UUID))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue(
+                        "code", TransactionErrorCode.PAYMENT_RECOVERY_RESULT_INVALID);
+
+        verify(merchantRepository, never()).findByParty_Id(any());
+    }
+
+    @Test
+    @DisplayName("SUCCESS 같은 최종 상태는 복구 대상이 아니다")
+    void recoverPayment_rejectsNonRecoverableStatus() {
+        Transaction transaction = paymentTransaction(TransactionStatus.SUCCESS);
+
+        givenRecoveryBase(transaction);
+
+        assertThatThrownBy(
+                        () ->
+                                transactionCommandService.recoverPayment(
+                                        USER_PARTY_ID, TRANSACTION_UUID))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("code", TransactionErrorCode.PAYMENT_NOT_RECOVERABLE);
+
+        verify(bankClient, never()).getTransactionStatus(any());
+    }
+
+    @Test
+    @DisplayName("로컬 PENDING 결제는 아직 Bank 실행 전이므로 복구 대상이 아니다")
+    void recoverPayment_rejectsPendingStatus() {
+        Transaction transaction = paymentTransaction(TransactionStatus.PENDING);
+
+        givenRecoveryBase(transaction);
+
+        assertThatThrownBy(
+                        () ->
+                                transactionCommandService.recoverPayment(
+                                        USER_PARTY_ID, TRANSACTION_UUID))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("code", TransactionErrorCode.PAYMENT_NOT_RECOVERABLE);
+
+        verify(bankClient, never()).getTransactionStatus(any());
+    }
+
+    @Test
+    @DisplayName("복구도 transactionUuid Redis lock 안에서 실행한다")
+    void recoverPayment_usesTransactionLock() {
+        Transaction transaction = paymentTransaction(TransactionStatus.UNKNOWN);
+
+        givenRecoveryBase(transaction);
+        givenRecoveryMerchant(transaction);
+        given(bankClient.getTransactionStatus(TRANSACTION_UUID))
+                .willReturn(
+                        new BankTransactionStatusResponse(
+                                TRANSACTION_UUID,
+                                TransactionStatus.SUCCESS,
+                                "0x-recovered",
+                                101L,
+                                LocalDateTime.of(2026, 5, 25, 10, 5)));
+
+        transactionCommandService.recoverPayment(USER_PARTY_ID, TRANSACTION_UUID);
+
+        verify(paymentLockManager).withTransactionLock(eq(TRANSACTION_UUID), any());
+    }
+
+    private void givenRecoveryBase(Transaction transaction) {
+        given(transactionRepository.findByTransactionUuid(TRANSACTION_UUID))
+                .willReturn(Optional.of(transaction));
+        given(paymentLockManager.withTransactionLock(eq(TRANSACTION_UUID), any()))
+                .willAnswer(
+                        invocation -> {
+                            Supplier<?> supplier = invocation.getArgument(1);
+                            return supplier.get();
+                        });
+    }
+
+    private void givenRecoveryMerchant(Transaction transaction) {
+        given(merchantRepository.findByParty_Id(MERCHANT_PARTY_ID))
+                .willReturn(Optional.of(merchant(transaction.getToParty())));
     }
 
     private PaymentResponse successBankPaymentResponse(String txHash) {

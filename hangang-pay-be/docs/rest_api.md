@@ -74,7 +74,9 @@
 | `ACCOUNT-003` | 계좌 삭제 | `DELETE` | `/accounts/{accountId}` | `O` | `USER | MERCHANT` | 부분 구현 | 현재 임시 `partyId` query parameter 사용 |
 | `ACCOUNT-004` | 주거래 계좌 변경 | `PATCH` | `/accounts/{accountId}/primary` | `O` | `USER | MERCHANT` | 부분 구현 | 현재 임시 `partyId` query parameter 사용 |
 | `PAY-001` | QR 가맹점 정보 조회 | `GET` | `/merchant/{merchantId}` | `O` | `USER` | 구현 | QR payload의 merchant 자체 id 기준 |
-| `PAY-002` | 결제 실행 | - | `/payment` | `O` | `USER` | 스텁 | `PaymentController` 엔드포인트 없음 |
+| `PAY-002` | 결제 의도 생성 | `POST` | `/payment/intents` | `O` | `USER` | 구현 | 세션 `partyId` 기준. 서버가 `transactionUuid` 발급 |
+| `PAY-003` | 결제 실행 | `POST` | `/payment/{transactionUuid}/execute` | `O` | `USER` | 구현 | 세션 `userId`, `partyId` 기준. Bank 호출 전 Redis lock/idempotency 적용 |
+| `PAY-004` | 결제 상태 복구 | `POST` | `/payment/{transactionUuid}/recover` | `O` | `USER` | 구현 | `UNKNOWN`/`PROCESSING` 결제를 Bank 조회로 재동기화 |
 | `CHARGE-001` | 충전 정보 조회 | - | `/charge` | `O` | `USER` | 스텁 | `ChargeController` 엔드포인트 없음 |
 | `CHARGE-002` | 충전 실행 | - | `/charge` | `O` | `USER` | 스텁 | `ChargeController` 엔드포인트 없음 |
 | `EXCHANGE-001` | 환전 정보 조회 | - | `/exchange` | `O` | `USER | MERCHANT` | 스텁 | `ExchangeController` 엔드포인트 없음 |
@@ -146,7 +148,7 @@
 
 ## Payment Flow
 
-QR에는 `merchantId`가 들어 있다. 소비자가 QR을 스캔하면 서버에서 신뢰 가능한 가맹점 정보를 조회하고, 금액 입력 화면으로 전환한 뒤 결제를 실행한다.
+QR에는 `merchantId`가 들어 있다. 소비자가 QR을 스캔하면 서버에서 신뢰 가능한 가맹점 정보를 조회하고, 금액 입력 화면으로 전환한다. 결제는 서버가 발급한 `transactionUuid` 기반의 2단계 흐름으로 처리한다.
 
 ```mermaid
 sequenceDiagram
@@ -157,13 +159,13 @@ sequenceDiagram
   U->>U: QR scan
   U->>API: GET /api/v1/merchant/{merchantId}
   API-->>U: merchant payment target
-  U->>API: POST /api/v1/payment
+  U->>API: POST /api/v1/payment/intents
+  API-->>U: transactionUuid
+  U->>API: POST /api/v1/payment/{transactionUuid}/execute
   API->>Bank: POST /api/v1/transactions/payment
   Bank-->>API: txHash
   API-->>U: payment result
 ```
-
-결제 실행/취소 엔드포인트는 아직 BE에 구현되지 않았다.
 
 ## Settlement and Exchange
 

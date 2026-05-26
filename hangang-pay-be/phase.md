@@ -172,9 +172,29 @@
 - Bank contract: `GET /api/v1/transactions/{transactionUuid}`
 - Behavior:
   - Only `UNKNOWN` or `PROCESSING` transactions are recoverable.
+  - Local `PENDING` is not recoverable because the Bank payment request has not been sent yet.
   - Bank `SUCCESS` updates local transaction to `SUCCESS`.
   - Bank `FAILED` updates local transaction to `FAILED`.
-  - Bank `PROCESSING`, `PENDING`, or unresolved status keeps the local transaction recoverable.
+  - Bank `PROCESSING`, `PENDING`, or unresolved status keeps the local transaction in a recoverable state.
+  - Bank `SUCCESS` without `txHash` or `blockNumber` fails with `PAYMENT_RECOVERY_RESULT_INVALID`.
+  - Non-recoverable local states fail with `PAYMENT_NOT_RECOVERABLE`.
+  - Recovery runs under the same `payment:lock:{transactionUuid}` Redis lock used by execute.
+
+### Phase 5 Completion State
+
+- `TransactionCommandService.recoverPayment(...)` is implemented.
+- `PaymentController` exposes `POST /api/v1/payment/{transactionUuid}/recover`.
+- `PaymentController` also exposes the payment intent and execute endpoints:
+  - `POST /api/v1/payment/intents`
+  - `POST /api/v1/payment/{transactionUuid}/execute`
+- Recovery service tests cover:
+  - Bank `SUCCESS` -> local `SUCCESS`
+  - Bank `FAILED` -> local `FAILED`
+  - Bank still `PROCESSING` -> local recoverable state is preserved
+  - local `PENDING` and final states are rejected as not recoverable
+  - Bank `SUCCESS` with missing `txHash` or `blockNumber` fails as invalid recovery result
+  - recovery uses the transaction Redis lock
+- `PaymentControllerTest` is intentionally not added in this learning pass per current scope.
 
 ## Phase 6: Docs and Verification
 
@@ -187,9 +207,9 @@
   - Recovery must acquire the Redis lock again by `transactionUuid` before calling the Bank status lookup.
   - Bank `SUCCESS` finalizes the local transaction as `SUCCESS`; Bank `FAILED` finalizes it as `FAILED`.
   - Bank `PENDING`, `PROCESSING`, or unresolved results should leave the local transaction recoverable.
+  - Local `PENDING` means the payment intent exists but Bank execution has not started, so it is not a recovery target.
 - Verification commands:
   - `./gradlew test --tests family.fisa.hangangpay.domain.transaction.service.TransactionCommandServiceTest`
-  - `./gradlew test --tests family.fisa.hangangpay.domain.transaction.controller.PaymentControllerTest`
   - `./gradlew test`
 
 ## Assumptions

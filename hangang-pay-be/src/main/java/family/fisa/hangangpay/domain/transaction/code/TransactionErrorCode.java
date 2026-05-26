@@ -25,7 +25,12 @@ public enum TransactionErrorCode implements BaseErrorCode {
     PAYMENT_IDEMPOTENCY_RECORD_INVALID(
             HttpStatus.INTERNAL_SERVER_ERROR,
             "PAYMENT_IDEMPOTENCY_RECORD_INVALID",
-            "결제 멱등성 기록이 올바르지 않습니다.");
+            "결제 멱등성 기록이 올바르지 않습니다."),
+    PAYMENT_RECOVERY_RESULT_INVALID(
+            HttpStatus.BAD_GATEWAY, "PAYMENT_RECOVERY_RESULT_INVALID", "은행 결제 조회 결과가 올바르지 않습니다."),
+    PAYMENT_NOT_RECOVERABLE(
+            HttpStatus.BAD_REQUEST, "PAYMENT_NOT_RECOVERABLE", "복구할 수 없는 결제 상태입니다.");
+
     private final HttpStatus status;
     private final String code;
     private final String message;
