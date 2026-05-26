@@ -23,11 +23,7 @@ import hre from "hardhat";
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
-type ContractType =
-  | "CBDC"
-  | "DEPOSIT_TOKEN"
-  | "SETTLEMENT"
-  | "LOCAL_CURRENCY";
+type ContractType = "CBDC" | "DEPOSIT_TOKEN" | "SETTLEMENT" | "LOCAL_CURRENCY";
 
 type DeployedContract = {
   institutionCode: string;
@@ -44,8 +40,7 @@ type DeploymentResult = {
   contracts: DeployedContract[];
 };
 
-const DEPLOYMENT_RESULT_PATH =
-  process.env.DEPLOYMENT_RESULT_PATH ?? "deployments/uups-latest.json";
+const DEPLOYMENT_RESULT_PATH = process.env.DEPLOYMENT_RESULT_PATH ?? "deployments/uups-latest.json";
 
 const UPGRADE_RESULT_PATH =
   process.env.UPGRADE_RESULT_PATH ?? "deployments/uups-upgrade-latest.json";
@@ -61,15 +56,11 @@ async function main() {
   const target = process.env.CONTRACT_TYPE as ContractType | undefined;
 
   if (!target || !(target in CONTRACT_FACTORIES)) {
-    throw new Error(
-      "CONTRACT_TYPE must be one of CBDC, DEPOSIT_TOKEN, SETTLEMENT, LOCAL_CURRENCY",
-    );
+    throw new Error("CONTRACT_TYPE must be one of CBDC, DEPOSIT_TOKEN, SETTLEMENT, LOCAL_CURRENCY");
   }
 
   const deployment = await readDeploymentResult();
-  const targetContract = deployment.contracts.find(
-    (contract) => contract.contractType === target,
-  );
+  const targetContract = deployment.contracts.find((contract) => contract.contractType === target);
 
   if (!targetContract) {
     throw new Error(`Proxy address not found for ${target}`);
@@ -79,35 +70,29 @@ async function main() {
   const factoryName = CONTRACT_FACTORIES[target];
   const factory = await hre.ethers.getContractFactory(factoryName, signer);
 
-  const oldImplementation =
-    await hre.upgrades.erc1967.getImplementationAddress(
-      targetContract.proxyAddress,
-    );
+  const oldImplementation = await hre.upgrades.erc1967.getImplementationAddress(
+    targetContract.proxyAddress,
+  );
 
   console.log(`Upgrading ${target}`);
   console.log("Proxy:", targetContract.proxyAddress);
   console.log("Old implementation:", oldImplementation);
   console.log("Signer:", await signer.getAddress());
 
-const preparedImplementation = await hre.upgrades.prepareUpgrade(
-  targetContract.proxyAddress,
-  factory,
-  { kind: "uups" },
-);
+  const preparedImplementation = await hre.upgrades.prepareUpgrade(
+    targetContract.proxyAddress,
+    factory,
+    { kind: "uups" },
+  );
 
-console.log("Prepared implementation:", preparedImplementation);
+  console.log("Prepared implementation:", preparedImplementation);
 
-const proxy = await hre.ethers.getContractAt(
-  factoryName,
-  targetContract.proxyAddress,
-  signer,
-);
+  const proxy = await hre.ethers.getContractAt(factoryName, targetContract.proxyAddress, signer);
 
-const upgradeTx = await proxy.upgradeToAndCall(preparedImplementation, "0x");
-await upgradeTx.wait();
+  const upgradeTx = await proxy.upgradeToAndCall(preparedImplementation, "0x");
+  await upgradeTx.wait();
 
-const newImplementation =
-  await hre.upgrades.erc1967.getImplementationAddress(
+  const newImplementation = await hre.upgrades.erc1967.getImplementationAddress(
     targetContract.proxyAddress,
   );
 
@@ -144,10 +129,7 @@ async function resolveSigner(ownerAddress: string) {
       address: await candidate.getAddress(),
     })),
   ).then((candidates) =>
-    candidates.find(
-      (candidate) =>
-        candidate.address.toLowerCase() === ownerAddress.toLowerCase(),
-    ),
+    candidates.find((candidate) => candidate.address.toLowerCase() === ownerAddress.toLowerCase()),
   );
 
   if (!signer) {
