@@ -152,7 +152,13 @@ public class ExchangeCommandService {
                                             throw new BusinessException(
                                                     TransactionErrorCode
                                                             .EXCHANGE_ALREADY_FAILED); // FAILED  ->
-                                        // 이미 실패 에러
+                                    // 이미 실패 에러
+                                    case PROCESSING, UNKNOWN ->
+                                            throw new BusinessException(
+                                                    TransactionErrorCode.EXCHANGE_IN_PROGRESS);
+                                    case EXPIRED ->
+                                            throw new BusinessException(
+                                                    TransactionErrorCode.EXCHANGE_ALREADY_FAILED);
                                 });
     }
 

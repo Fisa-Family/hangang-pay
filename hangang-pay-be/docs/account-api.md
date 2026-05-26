@@ -22,21 +22,22 @@
 
 ## 임시 인증 처리 안내
 
-LOGIN-001, LOGIN-002 미구현으로 세션 인증 블록을 주석 처리하고,
-`partyId`를 쿼리 파라미터로 직접 전달하는 방식으로 임시 동작 중입니다.
+로그인 API는 구현되어 있으나 `AccountController`는 아직 세션 인증 전환 전입니다.
+현재는 `partyId`를 쿼리 파라미터로 직접 전달하는 방식으로 임시 동작 중입니다.
 
-로그인 구현 후 `AccountController`의 각 메서드에서 아래 두 가지를 처리합니다.
+계좌 API를 세션 인증으로 전환할 때 `AccountController`의 각 메서드에서 아래 두 가지를 처리합니다.
 
-1. `@RequestParam Long partyId` → `HttpSession session` 파라미터로 교체
-2. 주석 처리된 세션 인증 블록 주석 해제
+1. `@RequestParam Long partyId` → `@SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId`로 교체
+2. 임시 쿼리 파라미터와 주석 처리된 세션 인증 블록 제거
 
-세션 키는 `partyId`이며, 로그인 시 `session.setAttribute("partyId", party.getId())`로 저장합니다.
+세션 키는 `SessionAttributeNames.PARTY_ID`이며, 로그인 시 `AuthService`가 `partyId`를 저장합니다.
 
 ---
 
 ## ACCOUNT-001: 등록 계좌 목록 조회
 
 세션의 partyId 기준으로 본인 계좌 목록을 반환합니다.
+현재 구현은 임시로 쿼리 파라미터의 `partyId`를 사용합니다.
 계좌번호는 뒤 4자리만 노출하고 나머지는 마스킹 처리합니다.
 
 **임시 테스트 URL**
@@ -55,7 +56,7 @@ GET http://localhost:8080/api/v1/accounts?partyId=1
 
 BE institution 캐시에서 기관을 조회하고, bank 서버의 은행 원장(bank_account 테이블)을 확인한 뒤 계좌를 등록합니다.
 최대 3개까지 등록 가능하며, 첫 번째 계좌는 자동으로 PRIMARY로 설정됩니다.
-1원 인증은 AUTH-003, AUTH-004 구현 이후 연동 예정입니다.
+1원 인증 API(AUTH-003, AUTH-004)는 존재하지만, 계좌 추가 플로우와의 강제 연동은 아직 예정 상태입니다.
 
 **임시 테스트 URL**
 
