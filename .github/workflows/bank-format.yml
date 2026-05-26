@@ -1,18 +1,18 @@
-name: BE Format Check
+name: Bank Format Check
 
 on:
   pull_request:
     branches: [main, dev, test]
     paths:
-      - "hangang-pay-be/**"
-      - ".github/workflows/be-format.yml"
+      - "hangang-pay-bank/**"
+      - ".github/workflows/bank-format.yml"
 
 permissions:
   contents: read
 
 jobs:
-  be-format:
-    name: BE Spotless
+  bank-format:
+    name: Bank Spotless
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -24,9 +24,9 @@ jobs:
           cache: gradle
 
       - name: Grant Gradle permission
-        working-directory: hangang-pay-be
+        working-directory: hangang-pay-bank
         run: chmod +x ./gradlew
 
       - name: Spotless check
-        working-directory: hangang-pay-be
+        working-directory: hangang-pay-bank
         run: ./gradlew spotlessCheck --no-daemon

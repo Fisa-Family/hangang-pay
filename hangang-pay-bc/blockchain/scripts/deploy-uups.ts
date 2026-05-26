@@ -32,11 +32,7 @@ type Institution = {
   name: string;
 };
 
-type ContractType =
-  | "CBDC"
-  | "DEPOSIT_TOKEN"
-  | "SETTLEMENT"
-  | "LOCAL_CURRENCY";
+type ContractType = "CBDC" | "DEPOSIT_TOKEN" | "SETTLEMENT" | "LOCAL_CURRENCY";
 
 type DeployedContract = {
   institutionCode: string;
@@ -83,20 +79,18 @@ async function main() {
   console.log("Woori owner:", wooriAddress);
 
   const cbdcFactory = await hre.ethers.getContractFactory("CBDCToken", bok);
-  const cbdc = await hre.upgrades.deployProxy(
-    cbdcFactory,
-    [bokAddress],
-    { kind: "uups", initializer: "initialize" },
-  );
+  const cbdc = await hre.upgrades.deployProxy(cbdcFactory, [bokAddress], {
+    kind: "uups",
+    initializer: "initialize",
+  });
   await cbdc.waitForDeployment();
   const cbdcDeployment = await logDeployment("CBDCToken", cbdc);
 
   const depositFactory = await hre.ethers.getContractFactory("DepositToken", woori);
-  const depositToken = await hre.upgrades.deployProxy(
-    depositFactory,
-    [wooriAddress],
-    { kind: "uups", initializer: "initialize" },
-  );
+  const depositToken = await hre.upgrades.deployProxy(depositFactory, [wooriAddress], {
+    kind: "uups",
+    initializer: "initialize",
+  });
   await depositToken.waitForDeployment();
   const depositTokenDeployment = await logDeployment("DepositToken", depositToken);
 
@@ -109,38 +103,22 @@ async function main() {
   await settlement.waitForDeployment();
   const settlementDeployment = await logDeployment("Settlement", settlement);
 
-  const localCurrencyFactory = await hre.ethers.getContractFactory(
-    "LocalCurrencyPolicy",
-    bok,
-  );
+  const localCurrencyFactory = await hre.ethers.getContractFactory("LocalCurrencyPolicy", bok);
   const localCurrency = await hre.upgrades.deployProxy(
     localCurrencyFactory,
-    [
-      depositTokenDeployment.proxyAddress,
-      settlementDeployment.proxyAddress,
-      bokAddress,
-    ],
+    [depositTokenDeployment.proxyAddress, settlementDeployment.proxyAddress, bokAddress],
     { kind: "uups", initializer: "initialize" },
   );
   await localCurrency.waitForDeployment();
-  const localCurrencyDeployment = await logDeployment(
-    "LocalCurrencyPolicy",
-    localCurrency,
-  );
+  const localCurrencyDeployment = await logDeployment("LocalCurrencyPolicy", localCurrency);
 
   await waitForTx(
-    await cbdc.mint(
-      settlementDeployment.proxyAddress,
-      INITIAL_LOCKED_CBDC_AMOUNT,
-    ),
+    await cbdc.mint(settlementDeployment.proxyAddress, INITIAL_LOCKED_CBDC_AMOUNT),
     "Mint CBDC to Settlement",
   );
 
   for (const institution of institutions) {
-    await waitForTx(
-      await settlement.registerBank(institution.id),
-      `Register ${institution.name}`,
-    );
+    await waitForTx(await settlement.registerBank(institution.id), `Register ${institution.name}`);
     await waitForTx(
       await settlement.setReserve(institution.id, INITIAL_BANK_RESERVE_AMOUNT),
       `Set reserve for ${institution.name}`,
@@ -148,9 +126,7 @@ async function main() {
   }
 
   await waitForTx(
-    await depositToken
-      .connect(woori)
-      .setOperator(localCurrencyDeployment.proxyAddress, true),
+    await depositToken.connect(woori).setOperator(localCurrencyDeployment.proxyAddress, true),
     "Grant LocalCurrencyPolicy operator on DepositToken",
   );
   await waitForTx(
@@ -164,19 +140,9 @@ async function main() {
     deployedAt: new Date().toISOString(),
     contracts: [
       deploymentContract("BoK", "CBDC", cbdcDeployment, bokAddress),
-      deploymentContract(
-        "WR",
-        "DEPOSIT_TOKEN",
-        depositTokenDeployment,
-        wooriAddress,
-      ),
+      deploymentContract("WR", "DEPOSIT_TOKEN", depositTokenDeployment, wooriAddress),
       deploymentContract("BoK", "SETTLEMENT", settlementDeployment, bokAddress),
-      deploymentContract(
-        "BoK",
-        "LOCAL_CURRENCY",
-        localCurrencyDeployment,
-        bokAddress,
-      ),
+      deploymentContract("BoK", "LOCAL_CURRENCY", localCurrencyDeployment, bokAddress),
     ],
   };
 
@@ -192,13 +158,9 @@ async function main() {
   });
 }
 
-async function logDeployment(
-  name: string,
-  contract: BaseContract,
-): Promise<DeployedAddresses> {
+async function logDeployment(name: string, contract: BaseContract): Promise<DeployedAddresses> {
   const proxyAddress = await contract.getAddress();
-  const implementationAddress =
-    await hre.upgrades.erc1967.getImplementationAddress(proxyAddress);
+  const implementationAddress = await hre.upgrades.erc1967.getImplementationAddress(proxyAddress);
 
   console.log(`${name} proxy:`, proxyAddress);
   console.log(`${name} implementation:`, implementationAddress);
@@ -249,8 +211,7 @@ async function syncDeploymentResult(deploymentResult: DeploymentResult) {
     return;
   }
 
-  const apiUrl =
-    process.env.SPRING_DEPLOYMENT_API_URL ?? DEFAULT_SPRING_DEPLOYMENT_API_URL;
+  const apiUrl = process.env.SPRING_DEPLOYMENT_API_URL ?? DEFAULT_SPRING_DEPLOYMENT_API_URL;
   const responseBody = await postJson(apiUrl, deploymentResult);
 
   console.log("Spring deployment sync complete:", responseBody);
@@ -283,9 +244,7 @@ function postJson(urlString: string, body: unknown): Promise<string> {
 
           if (statusCode < 200 || statusCode >= 300) {
             rejectPromise(
-              new Error(
-                `Spring deployment sync failed: ${statusCode} ${responseBody}`,
-              ),
+              new Error(`Spring deployment sync failed: ${statusCode} ${responseBody}`),
             );
             return;
           }
