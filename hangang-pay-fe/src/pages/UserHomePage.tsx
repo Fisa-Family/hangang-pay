@@ -5,48 +5,34 @@ import type { ReactNode } from 'react'
 import { useCurrentUser } from '@/auth/useCurrentUser'
 import { BalanceCard, EmptyState, ErrorBoundary, ListItem } from '@/components/common'
 import { fetchWalletBalance } from '@/api/wallet'
-import { fetchUserHistories, type UserHistoryItem, type HistoryType } from '@/api/user'
-import { ApiError, type ApiError as ApiErrorType } from '@/api/client'
-import { apiErrorMessages, isApiErrorCode, apiUserErrorMessages } from '@/api/errorCodes'
+import { fetchUserHistories, type HistoryType, type UserHistoryItem } from '@/api/user'
+import { ApiError } from '@/api/client'
+import { apiErrorMessages, isApiErrorCode } from '@/api/errorCodes'
 import { formatWon } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
-// rest_api.md 기준 API 명세
 const API_SPEC = {
-  WALLET_001: { id: 'WALLET-001', path: 'GET /wallet/balance', role: 'USER 또는 MERCHANT' },
-  MY_002: { id: 'MY-002', path: 'GET /users/histories', role: 'USER' },
+  WALLET_001: { id: 'WALLET-001' },
+  MY_002: { id: 'MY-002' },
 } as const
 
-// errorCodes.ts 기반 오류 메시지 반환
 function buildErrorMessage(spec: (typeof API_SPEC)[keyof typeof API_SPEC], error: unknown): string {
-  if (!(error instanceof ApiError)) {
-    return (
-      apiUserErrorMessages[spec.id]?.[0] ??
-      '서비스에 연결할 수 없습니다. 네트워크 연결을 확인해 주세요.'
-    )
+  if (error instanceof ApiError) {
+    if (error.code && isApiErrorCode(error.code)) return apiErrorMessages[error.code]
+    return error.message
   }
 
-  const { status, code } = error as ApiErrorType
-
-  if (code && isApiErrorCode(code)) return apiErrorMessages[code]
-
-  return (
-    apiUserErrorMessages[spec.id]?.[status] ??
-    '일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
-  )
+  return `${spec.id} 요청에 실패했습니다. 네트워크 연결을 확인해 주세요.`
 }
 
-// 최대 조회 수
 const HISTORY_LIMIT = 5
 
-// 거래 유형 라벨
 const TYPE_LABEL: Record<string, string> = {
   PAYMENT: '결제',
   CHARGE: '충전',
-  EXCHANGE: '환불',
+  EXCHANGE: '환전',
 }
 
-// 날짜 포맷 MM.DD HH:mm
 function formatHistoryDate(isoString: string): string {
   const d = new Date(isoString)
   const mm = String(d.getMonth() + 1).padStart(2, '0')
@@ -56,17 +42,14 @@ function formatHistoryDate(isoString: string): string {
   return `${mm}.${dd} ${hh}:${min}`
 }
 
-// 입금 여부 판별
 function isCredit(type: HistoryType): boolean {
   return type === 'CHARGE' || type === 'EXCHANGE'
 }
 
-// 상대방 이름, 없으면 거래 유형으로 대체
 function resolveTitle(tx: UserHistoryItem): string {
   return tx.counterpartName || TYPE_LABEL[tx.type] || tx.type
 }
 
-// 빠른 실행 버튼
 interface QuickActionProps {
   label: string
   icon: ReactNode
@@ -88,7 +71,6 @@ function QuickAction({ label, icon, onClick }: QuickActionProps) {
   )
 }
 
-// 아이콘 (BottomNav.tsx 동일 스타일)
 function QrIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -133,7 +115,6 @@ function UndoIcon() {
   )
 }
 
-// 금액 표시 (입금 초록, 지출 빨강)
 function HistoryAmount({ type, amount }: { type: HistoryType; amount: number }) {
   const credit = isCredit(type)
   return (
@@ -149,7 +130,6 @@ function HistoryAmount({ type, amount }: { type: HistoryType; amount: number }) 
   )
 }
 
-// 최근 거래 목록 (Suspense 전용, 오류는 상위 ErrorBoundary 위임)
 function RecentTransactionList() {
   const { data } = useSuspenseQuery({
     queryKey: ['users', 'histories', 'PAYMENT'],
@@ -157,7 +137,7 @@ function RecentTransactionList() {
     retry: false,
   })
 
-  const histories = data.page.content
+  const histories = data.response.content
 
   if (histories.length === 0) {
     return <EmptyState message="최근 거래 내역이 없습니다." />
@@ -181,7 +161,6 @@ export function UserHomePage() {
   const navigate = useNavigate()
   const { currentUser } = useCurrentUser()
 
-  // 잔액 조회 (WALLET-001, 현재 미구현)
   const balanceQuery = useQuery({
     queryKey: ['wallet', 'balance'],
     queryFn: fetchWalletBalance,
@@ -189,34 +168,28 @@ export function UserHomePage() {
   })
 
   const balance = balanceQuery.data?.balance ?? 0
-
-  // 내역 오류는 ErrorBoundary로 위임하므로 잔액 오류만 처리
   const activeErrorMessage = balanceQuery.error
     ? buildErrorMessage(API_SPEC.WALLET_001, balanceQuery.error)
     : null
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-5 pb-4">
-      {/* 인사 */}
+    <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto pb-4">
       <header className="pt-1">
         <h1 className="text-xl font-bold text-foreground">{currentUser?.name ?? '사용자'}님</h1>
       </header>
 
-      {/* API 오류 안내 */}
       {activeErrorMessage && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm font-medium text-destructive">
           {activeErrorMessage}
         </div>
       )}
 
-      {/* 잔액 카드 */}
       <BalanceCard
         balance={balance}
         refreshing={balanceQuery.isFetching}
         onRefresh={() => void balanceQuery.refetch()}
       />
 
-      {/* 빠른 실행 */}
       <section aria-label="빠른 실행">
         <div className="grid grid-cols-3 gap-3">
           <QuickAction label="QR 결제" icon={<QrIcon />} onClick={() => navigate('/pay/scan')} />
@@ -225,11 +198,10 @@ export function UserHomePage() {
             icon={<PlusIcon />}
             onClick={() => navigate('/charge/amount')}
           />
-          <QuickAction label="환불" icon={<UndoIcon />} onClick={() => navigate('/refund/check')} />
+          <QuickAction label="환전" icon={<UndoIcon />} onClick={() => navigate('/refund/check')} />
         </div>
       </section>
 
-      {/* 최근 거래 */}
       <section aria-label="최근 거래" className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-bold text-foreground">최근 거래</h2>
@@ -242,12 +214,11 @@ export function UserHomePage() {
           </button>
         </div>
 
-        {/* TODO: 로딩용 컴포넌트: 추후 교체 예정 */}
-        <ErrorBoundary fallback={<EmptyState message="최근 거래 내역이 없습니다." />}>
+        <ErrorBoundary fallback={<EmptyState message="최근 거래 내역을 불러올 수 없습니다." />}>
           <Suspense
             fallback={
               <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
-                불러오는 중…
+                불러오는 중...
               </div>
             }
           >
