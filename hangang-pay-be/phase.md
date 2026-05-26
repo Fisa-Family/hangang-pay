@@ -128,6 +128,27 @@
 
 ## Phase 4: Redis Safety
 
+### Phase 4 Handoff State
+
+- Phase 3 payment execute success path is implemented and committed before this handoff.
+- Current execute architecture:
+  - `TransactionCommandService.executePayment(...)` is the non-transactional orchestrator.
+  - `executePayment(...)` should stay outside a DB transaction while Bank `payment(...)` is called.
+  - `PaymentLockManager.withTransactionLock(...)` wraps the full execute flow with `payment:lock:{transactionUuid}`.
+  - `PaymentExecutionStateWriter` owns short `REQUIRES_NEW` DB state transitions.
+  - `PaymentExecutionPrepared` is the detached snapshot used for the Bank request outside the DB transaction.
+- Phase 3 state boundary:
+  - `prepareExecution(...)`: validates owner/status/PIN, creates server-side `requestHash`, begins idempotency, rate-limits, and commits `PROCESSING`.
+  - Bank `payment(...)`: runs outside DB transaction while Redis lock is held.
+  - `completeSuccess(...)`: commits Bank result and `SUCCESS`.
+  - `markUnknown(...)`: commits `UNKNOWN` after Bank timeout/uncertain failure.
+- Start Phase 4 by moving idempotency-specific execute tests to the component that owns the decision:
+  - `same transactionUuid + same requestHash` returning a stored snapshot.
+  - `same transactionUuid + different requestHash` throwing `IDEMPOTENCY_CONFLICT`.
+  - duplicate in-flight execution throwing `PAYMENT_ALREADY_PROCESSING`.
+- Keep `paymentPin` out of `requestHash`, Redis idempotency values, response snapshots, and logs.
+- Do not broaden into recovery polling/scheduler behavior here; that belongs to Phase 5/6.
+
 - Lock key: `payment:lock:{transactionUuid}`
 - Idempotency key: `payment:idempotency:{transactionUuid}`
 - Idempotency value:

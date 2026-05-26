@@ -6,26 +6,23 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public record PaymentExecutionResponse(
-    String transactionUuid,
-    TransactionStatus status,
-    String approvalNumber,
-    String txHash,
-    BigDecimal amount,
-    String merchantName,
-    LocalDateTime confirmedAt) {
-
-    public static PaymentExecutionResponse from(
-        Transaction t,
+        String transactionUuid,
+        TransactionStatus status,
+        String approvalNumber,
+        String txHash,
+        BigDecimal amount,
         String merchantName,
         LocalDateTime confirmedAt) {
-        return new PaymentExecutionResponse(
-            t.getTransactionUuid(),
-            t.getStatus(),
-            t.getApprovalNumber(),
-            t.getTxHash(),
-            t.getAmount(),
-            merchantName,
-            confirmedAt);
-    }
 
+    public static PaymentExecutionResponse from(
+            Transaction t, String merchantName, LocalDateTime confirmedAt) {
+        return new PaymentExecutionResponse(
+                t.getTransactionUuid(),
+                t.getStatus(),
+                t.getApprovalNumber(),
+                t.getTxHash(),
+                t.getAmount(),
+                merchantName,
+                confirmedAt);
+    }
 }

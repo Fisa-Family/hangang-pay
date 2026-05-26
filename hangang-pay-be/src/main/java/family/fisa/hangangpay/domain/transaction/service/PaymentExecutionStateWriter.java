@@ -12,13 +12,12 @@ import family.fisa.hangangpay.domain.user.code.error.UserErrorCode;
 import family.fisa.hangangpay.domain.user.entity.User;
 import family.fisa.hangangpay.domain.user.repository.UserRepository;
 import family.fisa.hangangpay.global.exception.BusinessException;
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -33,12 +32,12 @@ public class PaymentExecutionStateWriter {
     private final PaymentRateLimiter paymentRateLimiter;
     private final PaymentRequestHashGenerator paymentRequestHashGenerator;
 
-
-    public PaymentExecutionPrepared prepareExecution(Long userId, Long partyId, String transactionUuid, String paymentPin) {
+    public PaymentExecutionPreparationResult prepareExecution(
+            Long userId, Long partyId, String transactionUuid, String paymentPin) {
         Transaction transaction = getPaymentTransaction(transactionUuid);
         User user = getUser(userId);
 
-        transaction.validateExecutableBy(partyId);
+        transaction.validateOwner(partyId);
 
         if (!user.matchesPaymentPin(paymentPin, passwordEncoder)) {
             throw new BusinessException(UserErrorCode.INVALID_PIN_NUMBER);
@@ -47,31 +46,32 @@ public class PaymentExecutionStateWriter {
         String requestHash = paymentRequestHashGenerator.generatePaymentExecuteHash(transaction);
 
         PaymentIdempotencyDecision decision =
-            paymentIdempotencyStore.beginExecution(
-                transactionUuid,
-                requestHash,
-                transaction.getId()
-            );
+                paymentIdempotencyStore.beginExecution(
+                        transactionUuid, requestHash, transaction.getId());
 
         if (decision.type() == PaymentIdempotencyDecisionType.RETURN_SNAPSHOT) {
-            throw new UnsupportedOperationException("Phase 4에서 snapshot 반환 처리");
+            return PaymentExecutionPreparationResult.snapshot(decision.responseSnapshot());
         }
 
         if (decision.type() == PaymentIdempotencyDecisionType.CONFLICT) {
             throw new BusinessException(TransactionErrorCode.IDEMPOTENCY_CONFLICT);
         }
 
+        if (decision.type() == PaymentIdempotencyDecisionType.PROCESSING) {
+            throw new BusinessException(TransactionErrorCode.PAYMENT_ALREADY_PROCESSING);
+        }
+
+        transaction.validateExecutableStatus();
+
         paymentRateLimiter.checkExecutionRateLimit(
-            partyId,
-            transaction.getToParty().getId(),
-            transactionUuid
-        );
+                partyId, transaction.getToParty().getId(), transactionUuid);
 
         paymentRateLimiter.checkBankOutboundRateLimit();
 
         transaction.markProcessing();
 
-        return PaymentExecutionPrepared.from(transaction, requestHash);
+        return PaymentExecutionPreparationResult.prepared(
+                PaymentExecutionPrepared.from(transaction, requestHash));
     }
 
     public PaymentExecutionResponse markUnknown(String transactionUuid) {
@@ -81,8 +81,11 @@ public class PaymentExecutionStateWriter {
         return PaymentExecutionResponse.from(transaction, null, LocalDateTime.now());
     }
 
-
-    public PaymentExecutionResponse completeSuccess(String transactionUuid, String txHash, String bankTransactionId, LocalDateTime confirmedAt) {
+    public PaymentExecutionResponse completeSuccess(
+            String transactionUuid,
+            String txHash,
+            String bankTransactionId,
+            LocalDateTime confirmedAt) {
         Transaction transaction = getPaymentTransaction(transactionUuid);
         Merchant merchant = getMerchant(transaction.getToParty().getId());
 
@@ -91,22 +94,17 @@ public class PaymentExecutionStateWriter {
         return PaymentExecutionResponse.from(transaction, merchant.getMerchantName(), confirmedAt);
     }
 
-
-
-    /**
-     * 내부 메소드
-     */
-
+    /** 내부 메소드 */
     private User getUser(Long userId) {
         return userRepository
-            .findByIdWithParty(userId)
-            .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                .findByIdWithParty(userId)
+                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
     }
 
     private Transaction getPaymentTransaction(String transactionUuid) {
         return transactionRepository
-            .findByTransactionUuid(transactionUuid)
-            .orElseThrow(() -> new BusinessException(TransactionErrorCode.PAYMENT_NOT_FOUND));
+                .findByTransactionUuid(transactionUuid)
+                .orElseThrow(() -> new BusinessException(TransactionErrorCode.PAYMENT_NOT_FOUND));
     }
 
     private Merchant getMerchant(Long partyId) {
@@ -114,5 +112,4 @@ public class PaymentExecutionStateWriter {
                 .findByParty_Id(partyId)
                 .orElseThrow(() -> new BusinessException(MerchantErrorCode.MERCHANT_NOT_FOUND));
     }
-
 }

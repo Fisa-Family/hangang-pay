@@ -6,22 +6,15 @@ import org.springframework.stereotype.Component;
 @Component
 public class RedisPaymentRateLimiter implements PaymentRateLimiter {
     @Override
-    public void checkIntentRateLimit(Long partyId, Long merchantPartyId) {
-
-    }
+    public void checkIntentRateLimit(Long partyId, Long merchantPartyId) {}
 
     @Override
-    public void checkExecutionRateLimit(Long partyId, Long merchantPartyId, String transactionUuid) {
-
-    }
-
-    @Override
-    public void checkRecoveryRateLimit(Long partyId, String transactionUuid) {
-
-    }
+    public void checkExecutionRateLimit(
+            Long partyId, Long merchantPartyId, String transactionUuid) {}
 
     @Override
-    public void checkBankOutboundRateLimit() {
+    public void checkRecoveryRateLimit(Long partyId, String transactionUuid) {}
 
-    }
+    @Override
+    public void checkBankOutboundRateLimit() {}
 }

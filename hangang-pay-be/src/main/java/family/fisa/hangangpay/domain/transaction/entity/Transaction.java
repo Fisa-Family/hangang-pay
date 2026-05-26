@@ -234,20 +234,32 @@ public class Transaction extends BaseEntity {
     }
 
     /** 트랜잭션 상태 전이 메서드 */
-    public void markProcessing() { this.status = TransactionStatus.PROCESSING; }
+    public void markProcessing() {
+        this.status = TransactionStatus.PROCESSING;
+    }
 
     /** 결제 가능한 상태인지 검증 */
     public void validateExecutableBy(Long partyId) {
+        validateOwner(partyId);
+        validateExecutableStatus();
+    }
+
+    /** 결제 요청자가 거래 소유자인지 검증 */
+    public void validateOwner(Long partyId) {
         if (!this.fromParty.getId().equals(partyId)) {
             throw new BusinessException(UserErrorCode.NOT_OWNER);
         }
+    }
 
+    /** 결제 실행 가능한 상태인지 검증 */
+    public void validateExecutableStatus() {
         if (this.status != TransactionStatus.PENDING) {
             throw new BusinessException(TransactionErrorCode.INVALID_PAYMENT_STATUS);
-
         }
     }
 
     /** 네트워크 오류로 인한 확인 불가 상태 */
-    public void markUnknown() { this.status = TransactionStatus.UNKNOWN; }
+    public void markUnknown() {
+        this.status = TransactionStatus.UNKNOWN;
+    }
 }

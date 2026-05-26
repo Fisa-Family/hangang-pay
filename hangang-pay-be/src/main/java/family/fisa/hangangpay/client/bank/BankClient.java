@@ -17,8 +17,6 @@ public interface BankClient {
     // 거래 시, Bank 관련
     BankTransactionStatusResponse getTransactionStatus(String transactionUuid);
 
-
-
     // 거래
     ChargeResponse charge(ChargeRequest request);
 
@@ -27,8 +25,6 @@ public interface BankClient {
     PaymentResponse payment(PaymentRequest request);
 
     CancelResponse cancel(CancelRequest request);
-
-
 
     // blockchain
     BlockchainLedgerResponse getBlockchainLedgerByTxHash(String txHash);

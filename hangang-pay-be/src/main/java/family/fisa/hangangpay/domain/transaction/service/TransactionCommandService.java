@@ -24,15 +24,14 @@ import family.fisa.hangangpay.domain.wallet.entity.Wallet;
 import family.fisa.hangangpay.domain.wallet.repository.WalletRepository;
 import family.fisa.hangangpay.global.code.error.GeneralErrorCode;
 import family.fisa.hangangpay.global.exception.BusinessException;
+import java.time.LocalDateTime;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.ResourceAccessException;
-
-import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Slf4j
 @Service
@@ -68,20 +67,19 @@ public class TransactionCommandService {
         String transactionUuid = UUID.randomUUID().toString();
 
         Transaction transaction =
-            Transaction.forPayment(
-                transactionUuid,
-                userParty,
-                merchant.getParty(),
-                userWallet,
-                merchantWallet,
-                request.amount(),
-                null,
-                request.itemName());
+                Transaction.forPayment(
+                        transactionUuid,
+                        userParty,
+                        merchant.getParty(),
+                        userWallet,
+                        merchantWallet,
+                        request.amount(),
+                        null,
+                        request.itemName());
 
         Transaction saved = transactionRepository.save(transaction);
 
         LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(PAYMENT_INTENT_TTL_MINUTES);
-
 
         return PaymentIntentResponse.from(saved, merchant, expiresAt);
     }
@@ -89,30 +87,28 @@ public class TransactionCommandService {
     /** Propagation.NOT_SUPPORTED: 트랜잭션 없이 실행 */
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public PaymentExecutionResponse executePayment(
-        Long userId,
-        Long partyId,
-        String transactionUuid,
-        PaymentExecuteRequest request) {
+            Long userId, Long partyId, String transactionUuid, PaymentExecuteRequest request) {
 
         return paymentLockManager.withTransactionLock(
-            transactionUuid,
-            () -> executePaymentWithLock(userId, partyId, transactionUuid, request)); // 콜백으로 락 걸고 이어서 수행
+                transactionUuid,
+                () ->
+                        executePaymentWithLock(
+                                userId, partyId, transactionUuid, request)); // 콜백으로 락 걸고 이어서 수행
     }
 
     private PaymentExecutionResponse executePaymentWithLock(
-            Long userId,
-            Long partyId,
-            String transactionUuid,
-            PaymentExecuteRequest request) {
+            Long userId, Long partyId, String transactionUuid, PaymentExecuteRequest request) {
 
         /** 1. 거래 조회/검증, PROCESSING 저장 */
-        PaymentExecutionPrepared prepared =
-            paymentExecutionStateWriter.prepareExecution(
-                userId,
-                partyId,
-                transactionUuid,
-                request.paymentPin()
-            );
+        PaymentExecutionPreparationResult result =
+                paymentExecutionStateWriter.prepareExecution(
+                        userId, partyId, transactionUuid, request.paymentPin());
+
+        if (result.hasSnapshot()) {
+            return result.responseSnapshot();
+        }
+
+        PaymentExecutionPrepared prepared = result.prepared();
 
         /** 2. Bank 외부 호출 */
         PaymentResponse bankResponse;
@@ -120,31 +116,26 @@ public class TransactionCommandService {
             bankResponse = bankClient.payment(prepared.toBankPaymentRequest());
         } catch (ResourceAccessException ex) {
             /** 3-1. 연결 실패된 기존 트랜잭션 수정 - UNKNOWN */
-            PaymentExecutionResponse response = paymentExecutionStateWriter.markUnknown(transactionUuid);
+            PaymentExecutionResponse response =
+                    paymentExecutionStateWriter.markUnknown(transactionUuid);
 
-            paymentIdempotencyStore.markExecutionStatus(
-                transactionUuid,
-                TransactionStatus.UNKNOWN
-            );
+            paymentIdempotencyStore.markExecutionStatus(transactionUuid, TransactionStatus.UNKNOWN);
             return response;
         }
 
-        /** 3-2. 거래 완료된 기존 트랜잭션 수정 - SUCCESS*/
+        /** 3-2. 거래 완료된 기존 트랜잭션 수정 - SUCCESS */
         PaymentExecutionResponse response =
-            paymentExecutionStateWriter.completeSuccess(
-                transactionUuid,
-                bankResponse.txHash(),
-                String.valueOf(bankResponse.blockNumber()),
-                bankResponse.confirmedAt()
-            );
+                paymentExecutionStateWriter.completeSuccess(
+                        transactionUuid,
+                        bankResponse.txHash(),
+                        String.valueOf(bankResponse.blockNumber()),
+                        bankResponse.confirmedAt());
 
         /** 4. Redis용 idempotency snapshot 저장 */
         paymentIdempotencyStore.completeExecution(transactionUuid, response);
 
         return response;
     }
-
-
 
     private Transaction getTransaction(String transactionUuid) {
         return transactionRepository
@@ -156,29 +147,27 @@ public class TransactionCommandService {
         throw new UnsupportedOperationException("Phase 5에서 구현");
     }
 
-
-
     private Party getParty(Long partyId) {
         return partyRepository
-            .findById(partyId)
-            .orElseThrow(() -> new BusinessException(GeneralErrorCode.COMMON_NOT_FOUND));
+                .findById(partyId)
+                .orElseThrow(() -> new BusinessException(GeneralErrorCode.COMMON_NOT_FOUND));
     }
 
     private User getUser(Long userId) {
         return userRepository
-            .findByIdWithParty(userId)
-            .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                .findByIdWithParty(userId)
+                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
     }
 
     private Merchant getMerchant(Long merchantPartyId) {
         return merchantRepository
-            .findByParty_Id(merchantPartyId)
-            .orElseThrow(() -> new BusinessException(MerchantErrorCode.MERCHANT_NOT_FOUND));
+                .findByParty_Id(merchantPartyId)
+                .orElseThrow(() -> new BusinessException(MerchantErrorCode.MERCHANT_NOT_FOUND));
     }
 
     private Wallet getWallet(Long partyId) {
         return walletRepository
-            .findByParty_Id(partyId)
-            .orElseThrow(() -> new BusinessException(WalletErrorCode.WALLET_NOT_FOUND));
+                .findByParty_Id(partyId)
+                .orElseThrow(() -> new BusinessException(WalletErrorCode.WALLET_NOT_FOUND));
     }
 }
