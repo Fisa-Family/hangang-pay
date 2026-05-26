@@ -3,13 +3,14 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api
 
 // HTTP 상태 코드와 BE 에러 코드를 담는 커스텀 에러
 export class ApiError extends Error {
-  constructor(
-    message: string,
-    public readonly status: number,
-    public readonly code?: string
-  ) {
+  public readonly status: number
+  public readonly code?: string
+
+  constructor(message: string, status: number, code?: string) {
     super(message)
     this.name = 'ApiError'
+    this.status = status
+    this.code = code
   }
 }
 
