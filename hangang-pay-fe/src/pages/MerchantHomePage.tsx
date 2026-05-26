@@ -11,14 +11,11 @@ import { formatWon } from '@/lib/format'
 // rest_api.md 기준 API 명세
 const API_SPEC = {
   MERCHANT_001: { id: 'MERCHANT-001', path: 'GET /merchant/dashboard', role: 'MERCHANT' },
-  MERCHANT_002: { id: 'MERCHANT-002', path: 'GET /merchant/payments',  role: 'MERCHANT' },
+  MERCHANT_002: { id: 'MERCHANT-002', path: 'GET /merchant/payments', role: 'MERCHANT' },
 } as const
 
 // errorCodes.ts 기반 오류 메시지 반환
-function buildErrorMessage(
-  spec: (typeof API_SPEC)[keyof typeof API_SPEC],
-  error: unknown
-): string {
+function buildErrorMessage(spec: (typeof API_SPEC)[keyof typeof API_SPEC], error: unknown): string {
   if (!(error instanceof ApiError)) {
     return (
       apiUserErrorMessages[spec.id]?.[0] ??
@@ -39,7 +36,7 @@ function buildErrorMessage(
 // 결제 시각 포맷 HH:mm
 function formatPaymentTime(isoString: string): string {
   const d = new Date(isoString)
-  const hh  = String(d.getHours()).padStart(2, '0')
+  const hh = String(d.getHours()).padStart(2, '0')
   const min = String(d.getMinutes()).padStart(2, '0')
   return `${hh}:${min}`
 }
@@ -226,7 +223,7 @@ export function MerchantHomePage() {
     retry: false,
   })
 
-  const todaySales        = dashboardQuery.data?.todaySales        ?? 0
+  const todaySales = dashboardQuery.data?.todaySales ?? 0
   const todayPaymentCount = dashboardQuery.data?.todayPaymentCount ?? 0
 
   // 대시보드 오류는 배너로만 표시 (결제 내역 오류는 ErrorBoundary 위임)
@@ -237,12 +234,9 @@ export function MerchantHomePage() {
   // CSS: 페이지 전체 — 세로 스크롤 flex 컨테이너
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pb-4">
-
       {/* 헤더: 가맹점명 — 좌측 정렬, 상단 여백 */}
       <header className="flex items-center justify-between pt-1">
-        <h1 className="text-2xl font-bold text-[#111827]">
-          {currentUser?.name ?? '가맹점'}
-        </h1>
+        <h1 className="text-2xl font-bold text-[#111827]">{currentUser?.name ?? '가맹점'}</h1>
       </header>
 
       {/* API 오류 안내 */}
@@ -325,8 +319,7 @@ export function MerchantHomePage() {
           >
             <Icon className="h-6 w-6 text-[#2563EB]" />
             <span className="text-[13px] font-bold text-[#111827]">
-              {label}{' '}
-              <span className="font-normal text-[#9CA3AF]">&gt;</span>
+              {label} <span className="font-normal text-[#9CA3AF]">&gt;</span>
             </span>
           </button>
         ))}
@@ -349,9 +342,7 @@ export function MerchantHomePage() {
         <ErrorBoundary fallback={<EmptyState message="결제 내역을 불러올 수 없습니다." />}>
           <Suspense
             fallback={
-              <div className="py-4 text-center text-sm text-muted-foreground">
-                불러오는 중…
-              </div>
+              <div className="py-4 text-center text-sm text-muted-foreground">불러오는 중…</div>
             }
           >
             <RecentPaymentList />

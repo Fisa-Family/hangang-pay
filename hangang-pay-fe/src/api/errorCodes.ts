@@ -48,7 +48,7 @@ export function isApiErrorCode(code: string): code is ApiErrorCode {
 // HTTP 상태 코드 기반 화면별 오류 메시지
 export const apiUserErrorMessages: Record<string, Record<number, string>> = {
   'WALLET-001': {
-    0:   '잔액 정보를 불러올 수 없습니다. 네트워크 연결을 확인해 주세요.',
+    0: '잔액 정보를 불러올 수 없습니다. 네트워크 연결을 확인해 주세요.',
     400: '잔액 조회 요청에 문제가 있습니다.',
     401: '잔액을 조회하려면 로그인이 필요합니다.',
     403: '잔액 조회 권한이 없습니다.',
@@ -56,7 +56,7 @@ export const apiUserErrorMessages: Record<string, Record<number, string>> = {
     500: '잠시 후 다시 시도해 주세요.',
   },
   'MY-002': {
-    0:   '거래 내역을 불러올 수 없습니다. 네트워크 연결을 확인해 주세요.',
+    0: '거래 내역을 불러올 수 없습니다. 네트워크 연결을 확인해 주세요.',
     400: '거래 내역 조회 요청에 문제가 있습니다.',
     401: '거래 내역을 조회하려면 로그인이 필요합니다.',
     403: '거래 내역 조회 권한이 없습니다.',
@@ -64,7 +64,7 @@ export const apiUserErrorMessages: Record<string, Record<number, string>> = {
     500: '잠시 후 다시 시도해 주세요.',
   },
   'MERCHANT-001': {
-    0:   '매출 정보를 불러올 수 없습니다. 네트워크 연결을 확인해 주세요.',
+    0: '매출 정보를 불러올 수 없습니다. 네트워크 연결을 확인해 주세요.',
     400: '매출 조회 요청에 문제가 있습니다.',
     401: '매출을 조회하려면 로그인이 필요합니다.',
     403: '매출 조회 권한이 없습니다.',
@@ -72,7 +72,7 @@ export const apiUserErrorMessages: Record<string, Record<number, string>> = {
     500: '잠시 후 다시 시도해 주세요.',
   },
   'MERCHANT-002': {
-    0:   '결제 내역을 불러올 수 없습니다. 네트워크 연결을 확인해 주세요.',
+    0: '결제 내역을 불러올 수 없습니다. 네트워크 연결을 확인해 주세요.',
     400: '결제 내역 조회 요청에 문제가 있습니다.',
     401: '결제 내역을 조회하려면 로그인이 필요합니다.',
     403: '결제 내역 조회 권한이 없습니다.',

@@ -1,4 +1,11 @@
-import { createBrowserRouter, Navigate, useLocation, useNavigate, useRouteError } from 'react-router-dom'
+/* eslint-disable react-refresh/only-export-components */
+import {
+  createBrowserRouter,
+  Navigate,
+  useLocation,
+  useNavigate,
+  useRouteError,
+} from 'react-router-dom'
 import { useEffect } from 'react'
 import { useCurrentUser } from '@/auth/useCurrentUser'
 import { MainLayout } from '@/routes/layouts'
@@ -77,7 +84,7 @@ export const router = createBrowserRouter([
                 path: '/pay/scan',
                 element: <PlaceholderPage title="QR 스캔" screenId="U-PAY-SCAN" />,
               },
-{
+              {
                 path: '/mypage/payments',
                 element: <PlaceholderPage title="결제내역" screenId="U-MY-PAYMENTS" />,
               },
@@ -94,7 +101,7 @@ export const router = createBrowserRouter([
             element: <MainLayout navType="merchant" />,
             children: [
               { path: '/merchant/home', element: <MerchantHomePage /> },
-{
+              {
                 path: '/merchant/payments',
                 element: <PlaceholderPage title="결제 내역" screenId="M-PAY" />,
               },
