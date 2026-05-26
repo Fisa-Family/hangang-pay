@@ -175,9 +175,7 @@ export function UserHomePage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto pb-4">
       <header className="pt-1">
-        <h1 className="text-xl font-bold text-foreground">
-          {currentUser?.name ?? '사용자'}님
-        </h1>
+        <h1 className="text-xl font-bold text-foreground">{currentUser?.name ?? '사용자'}님</h1>
       </header>
 
       {activeErrorMessage && (
@@ -195,7 +193,11 @@ export function UserHomePage() {
       <section aria-label="빠른 실행">
         <div className="grid grid-cols-3 gap-3">
           <QuickAction label="QR 결제" icon={<QrIcon />} onClick={() => navigate('/pay/scan')} />
-          <QuickAction label="충전" icon={<PlusIcon />} onClick={() => navigate('/charge/amount')} />
+          <QuickAction
+            label="충전"
+            icon={<PlusIcon />}
+            onClick={() => navigate('/charge/amount')}
+          />
           <QuickAction label="환전" icon={<UndoIcon />} onClick={() => navigate('/refund/check')} />
         </div>
       </section>

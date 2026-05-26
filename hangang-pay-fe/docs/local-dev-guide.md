@@ -22,13 +22,13 @@ npm run dev
 
 현재 `hangang_pay` DB 기준 주요 데이터는 다음과 같다.
 
-| 구분 | 값 |
-| --- | --- |
-| 사용자 party | `party.id = 1001`, `party_type = USER` |
-| 가맹점 party | `party.id = 1002`, `party_type = MERCHANT` |
-| 가맹점 | `merchant.id = 1001`, `party_id = 1002`, `phone_number = 01087654321`, `merchant_name = 한강상점` |
-| 사용자 지갑 | `wallet.id = 1001`, `party_id = 1001`, `institution_id = 2`, `address = 0x1111111111111111111111111111111111111111` |
-| 가맹점 지갑 | `wallet.id = 1002`, `party_id = 1002`, `institution_id = 2`, `address = 0x2222222222222222222222222222222222222222` |
+| 구분         | 값                                                                                                                  |
+| ------------ | ------------------------------------------------------------------------------------------------------------------- |
+| 사용자 party | `party.id = 1001`, `party_type = USER`                                                                              |
+| 가맹점 party | `party.id = 1002`, `party_type = MERCHANT`                                                                          |
+| 가맹점       | `merchant.id = 1001`, `party_id = 1002`, `phone_number = 01087654321`, `merchant_name = 한강상점`                   |
+| 사용자 지갑  | `wallet.id = 1001`, `party_id = 1001`, `institution_id = 2`, `address = 0x1111111111111111111111111111111111111111` |
+| 가맹점 지갑  | `wallet.id = 1002`, `party_id = 1002`, `institution_id = 2`, `address = 0x2222222222222222222222222222222222222222` |
 
 가맹점 홈의 최근 정산 내역은 다음 조건의 `transaction` 데이터를 사용한다.
 
@@ -43,9 +43,9 @@ ORDER BY created_at DESC, id DESC;
 
 현재 조회 결과는 다음 1건이다.
 
-| id | from_party_id | transaction_type | status | amount | created_at |
-| --- | --- | --- | --- | --- | --- |
-| `10007` | `1002` | `EXCHANGE` | `SUCCESS` | `50000.00` | `2026-05-26 08:57:57.849422` |
+| id      | from_party_id | transaction_type | status    | amount     | created_at                   |
+| ------- | ------------- | ---------------- | --------- | ---------- | ---------------------------- |
+| `10007` | `1002`        | `EXCHANGE`       | `SUCCESS` | `50000.00` | `2026-05-26 08:57:57.849422` |
 
 따라서 가맹점 세션의 `partyId`가 `1002`이면 `/api/v1/merchant/settlements?size=4`는 이 정산 내역을 반환해야 한다.
 

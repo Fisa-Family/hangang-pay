@@ -165,9 +165,7 @@ function RecentSettlementList() {
           <span className="flex-1 text-[14px] font-bold text-[#111827]">
             {item.settlementStatusText || '정산'}
           </span>
-          <span className="text-[14px] font-bold text-[#111827]">
-            {formatWon(item.amount)}
-          </span>
+          <span className="text-[14px] font-bold text-[#111827]">{formatWon(item.amount)}</span>
         </div>
       ))}
     </div>
@@ -208,9 +206,7 @@ export function MerchantHomePage() {
           {/* 오늘 결제 건수 */}
           <div className="flex-1 pl-5">
             <p className="text-sm text-[#9CA3AF]">오늘 결제</p>
-            <p className="mt-1 text-[22px] font-bold leading-tight text-[#111827]">
-              0건
-            </p>
+            <p className="mt-1 text-[22px] font-bold leading-tight text-[#111827]">0건</p>
           </div>
         </div>
       </div>
