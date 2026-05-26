@@ -11,6 +11,7 @@ import family.fisa.hangangpaybank.domain.blockchain.dto.request.ContractDeployme
 import family.fisa.hangangpaybank.domain.blockchain.dto.request.SaveContractDeploymentsRequest;
 import family.fisa.hangangpaybank.domain.blockchain.dto.response.SaveContractDeploymentsResponse;
 import family.fisa.hangangpaybank.domain.blockchain.dto.response.SavedContractDeploymentResponse;
+import family.fisa.hangangpaybank.domain.institution.code.error.InstitutionErrorCode;
 import family.fisa.hangangpaybank.domain.institution.entity.Contract;
 import family.fisa.hangangpaybank.domain.institution.entity.Institution;
 import family.fisa.hangangpaybank.domain.institution.repository.ContractRepository;
@@ -56,7 +57,7 @@ public class ContractDeploymentCommandService {
                         .orElseThrow(
                                 () ->
                                         new BusinessException(
-                                                BlockchainErrorCode.BLOCKCHAIN_CONTRACT_NOT_FOUND));
+                                                InstitutionErrorCode.INSTITUTION_NOT_FOUND));
 
         Contract contract =
                 contractRepository
