@@ -4,15 +4,15 @@ import family.fisa.hangangpay.domain.wallet.code.WalletSuccessCode;
 import family.fisa.hangangpay.domain.wallet.dto.WalletBalanceResponse;
 import family.fisa.hangangpay.domain.wallet.service.WalletQueryService;
 import family.fisa.hangangpay.global.response.ApiResponse;
+import family.fisa.hangangpay.global.session.SessionAttributeNames;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.SessionAttribute;
 
 /** 지갑 관련 HTTP 요청 처리 컨트롤러 */
 @Tag(name = "지갑", description = "지갑 API")
@@ -26,16 +26,9 @@ public class WalletController {
 
     /** WALLET-001 잔액 조회 엔드포인트 */
     @Operation(summary = "잔액 조회 (WALLET-001)", description = "partyId 기준으로 지갑 잔액을 조회한다.")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "200",
-            description = "잔액 조회 성공")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "400",
-            description = "잘못된 partyId")
     @GetMapping("/balance")
     public ResponseEntity<ApiResponse<WalletBalanceResponse>> getBalance(
-            @Parameter(description = "조회할 partyId", required = true, example = "1001") @RequestParam
-                    Long partyId) {
+            @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId) {
         // 잔액 조회 후 응답 반환
         WalletBalanceResponse response = walletQueryService.getBalance(partyId);
         return ResponseEntity.ok(
