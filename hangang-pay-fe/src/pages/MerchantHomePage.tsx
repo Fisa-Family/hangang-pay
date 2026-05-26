@@ -1,37 +1,10 @@
-import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
-import { Suspense } from 'react'
+import { useSuspenseQuery } from '@tanstack/react-query'
+import { Suspense, type SVGProps } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCurrentUser } from '@/auth/useCurrentUser'
 import { EmptyState, ErrorBoundary } from '@/components/common'
-import { fetchMerchantDashboard, fetchMerchantPayments } from '@/api/merchant'
-import { ApiError, type ApiError as ApiErrorType } from '@/api/client'
-import { apiErrorMessages, isApiErrorCode, apiUserErrorMessages } from '@/api/errorCodes'
+import { fetchMerchantSettlements } from '@/api/merchant'
 import { formatWon } from '@/lib/format'
-
-// rest_api.md 기준 API 명세
-const API_SPEC = {
-  MERCHANT_001: { id: 'MERCHANT-001', path: 'GET /merchant/dashboard', role: 'MERCHANT' },
-  MERCHANT_002: { id: 'MERCHANT-002', path: 'GET /merchant/payments', role: 'MERCHANT' },
-} as const
-
-// errorCodes.ts 기반 오류 메시지 반환
-function buildErrorMessage(spec: (typeof API_SPEC)[keyof typeof API_SPEC], error: unknown): string {
-  if (!(error instanceof ApiError)) {
-    return (
-      apiUserErrorMessages[spec.id]?.[0] ??
-      '서비스에 연결할 수 없습니다. 네트워크 연결을 확인해 주세요.'
-    )
-  }
-
-  const { status, code } = error as ApiErrorType
-
-  if (code && isApiErrorCode(code)) return apiErrorMessages[code]
-
-  return (
-    apiUserErrorMessages[spec.id]?.[status] ??
-    '일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
-  )
-}
 
 // 결제 시각 포맷 HH:mm
 function formatPaymentTime(isoString: string): string {
@@ -41,8 +14,8 @@ function formatPaymentTime(isoString: string): string {
   return `${hh}:${min}`
 }
 
-// 최근 결제 표시 건수
-const PAYMENT_LIMIT = 4
+// 최근 정산 표시 건수
+const SETTLEMENT_LIMIT = 4
 
 // 라인 아트 SVG 아이콘
 function QrCodeIcon({ className }: { className?: string }) {
@@ -72,7 +45,7 @@ function QrCodeIcon({ className }: { className?: string }) {
 }
 
 // 오른쪽 화살표 아이콘
-function ChevronRightIcon({ className }: { className?: string }) {
+function ChevronRightIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -84,6 +57,7 @@ function ChevronRightIcon({ className }: { className?: string }) {
       strokeLinejoin="round"
       className={className}
       aria-hidden
+      {...props}
     >
       <path d="m9 18 6-6-6-6" />
     </svg>
@@ -161,51 +135,39 @@ const secondaryMenuItems = [
   { label: '매출 분석', icon: BarChartIcon, path: '/merchant/analytics' },
 ] as const
 
-// 최근 결제 목록 (Suspense 전용, 오류는 상위 ErrorBoundary 위임)
-function RecentPaymentList() {
-  const navigate = useNavigate()
-
+// 최근 정산 목록 (Suspense 전용, 오류는 상위 ErrorBoundary 위임)
+function RecentSettlementList() {
   const { data } = useSuspenseQuery({
-    queryKey: ['merchant', 'payments', PAYMENT_LIMIT],
-    queryFn: () => fetchMerchantPayments(PAYMENT_LIMIT),
+    queryKey: ['merchant', 'settlements', SETTLEMENT_LIMIT],
+    queryFn: () => fetchMerchantSettlements(SETTLEMENT_LIMIT),
     retry: false,
   })
 
-  const payments = data.content
+  const items = data.content
 
-  if (payments.length === 0) {
-    return <EmptyState message="최근 결제 내역이 없습니다." />
+  if (items.length === 0) {
+    return <EmptyState message="최근 정산 내역이 없습니다." />
   }
 
-  // CSS: 결제 행 세로 나열 / 행마다 시각·상품명·금액 가로 정렬 / 마지막 행 제외 하단 구분선
   return (
     <div className="flex flex-col">
-      {payments.map((payment, idx) => (
+      {items.map((item, idx) => (
         <div
-          key={payment.paymentId}
+          key={item.settlementId}
           className="flex items-center gap-3 py-3"
           style={{
-            borderBottom: idx < payments.length - 1 ? '1px solid #F9FAFB' : 'none',
+            borderBottom: idx < items.length - 1 ? '1px solid #F9FAFB' : 'none',
           }}
         >
-          {/* 시각: 고정 너비로 세로 정렬 맞춤 */}
           <span className="w-10 shrink-0 text-[13px] text-[#9CA3AF]">
-            {formatPaymentTime(payment.paidAt)}
+            {formatPaymentTime(item.requestedAt)}
           </span>
-          {/* 상품명: 남은 공간 차지 */}
           <span className="flex-1 text-[14px] font-bold text-[#111827]">
-            {payment.itemName || '결제'}
+            {item.settlementStatusText || '정산'}
           </span>
-          {/* 금액 + 상세 이동 화살표 */}
-          <div className="flex items-center gap-1">
-            <span className="text-[14px] font-bold text-[#111827]">
-              {formatWon(payment.amount)}
-            </span>
-            <ChevronRightIcon
-              className="h-3.5 w-3.5 cursor-pointer text-[#9CA3AF]"
-              onClick={() => navigate(`/merchant/payments/${payment.paymentId}`)}
-            />
-          </div>
+          <span className="text-[14px] font-bold text-[#111827]">
+            {formatWon(item.amount)}
+          </span>
         </div>
       ))}
     </div>
@@ -214,22 +176,7 @@ function RecentPaymentList() {
 
 export function MerchantHomePage() {
   const navigate = useNavigate()
-  const { currentUser } = useCurrentUser()
-
-  // 오늘 매출 요약 조회
-  const dashboardQuery = useQuery({
-    queryKey: ['merchant', 'dashboard'],
-    queryFn: fetchMerchantDashboard,
-    retry: false,
-  })
-
-  const todaySales = dashboardQuery.data?.todaySales ?? 0
-  const todayPaymentCount = dashboardQuery.data?.todayPaymentCount ?? 0
-
-  // 대시보드 오류는 배너로만 표시 (결제 내역 오류는 ErrorBoundary 위임)
-  const dashboardError = dashboardQuery.error
-    ? buildErrorMessage(API_SPEC.MERCHANT_001, dashboardQuery.error)
-    : null
+  const { currentUser, isLoading } = useCurrentUser()
 
   // CSS: 페이지 전체 — 세로 스크롤 flex 컨테이너
   return (
@@ -238,13 +185,6 @@ export function MerchantHomePage() {
       <header className="flex items-center justify-between pt-1">
         <h1 className="text-2xl font-bold text-[#111827]">{currentUser?.name ?? '가맹점'}</h1>
       </header>
-
-      {/* API 오류 안내 */}
-      {dashboardError && (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm font-medium text-destructive">
-          {dashboardError}
-        </div>
-      )}
 
       {/* 대시보드 카드: 흰 카드 + 우하단 블루 그라데이션 장식 / 매출·결제 건수 좌우 분할 */}
       <div className="relative overflow-hidden rounded-2xl bg-white shadow-sm">
@@ -260,7 +200,7 @@ export function MerchantHomePage() {
           <div className="flex-1 pr-5">
             <p className="text-sm text-[#9CA3AF]">오늘 매출</p>
             <p className="mt-1 text-[22px] font-bold leading-tight text-[#2563EB]">
-              {formatWon(todaySales)}
+              {formatWon(0)}
             </p>
           </div>
           {/* 수직 구분선 */}
@@ -269,7 +209,7 @@ export function MerchantHomePage() {
           <div className="flex-1 pl-5">
             <p className="text-sm text-[#9CA3AF]">오늘 결제</p>
             <p className="mt-1 text-[22px] font-bold leading-tight text-[#111827]">
-              {todayPaymentCount}건
+              0건
             </p>
           </div>
         </div>
@@ -325,29 +265,32 @@ export function MerchantHomePage() {
         ))}
       </div>
 
-      {/* 최근 결제 내역: 흰 카드 / 헤더(제목+전체보기) + 목록 */}
+      {/* 최근 정산 내역: 흰 카드 / 헤더(제목+전체보기) + 목록 */}
       <div className="rounded-2xl bg-white p-5 shadow-sm">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-bold text-[#111827]">최근 결제 내역</h2>
+          <h2 className="text-base font-bold text-[#111827]">최근 정산 내역</h2>
           <button
             type="button"
-            onClick={() => navigate('/merchant/payments')}
+            onClick={() => navigate('/merchant/settlement/history')}
             className="text-xs font-medium text-[#9CA3AF]"
           >
             전체보기 &gt;
           </button>
         </div>
 
-        {/* TODO: 로딩 중 텍스트 → 실제 레이아웃 모양의 회색 박스(스켈레톤 UI)로 교체 */}
-        <ErrorBoundary fallback={<EmptyState message="결제 내역을 불러올 수 없습니다." />}>
-          <Suspense
-            fallback={
-              <div className="py-4 text-center text-sm text-muted-foreground">불러오는 중…</div>
-            }
-          >
-            <RecentPaymentList />
-          </Suspense>
-        </ErrorBoundary>
+        {isLoading ? (
+          <div className="py-4 text-center text-sm text-muted-foreground">불러오는 중…</div>
+        ) : (
+          <ErrorBoundary fallback={<EmptyState message="정산 내역을 불러올 수 없습니다." />}>
+            <Suspense
+              fallback={
+                <div className="py-4 text-center text-sm text-muted-foreground">불러오는 중…</div>
+              }
+            >
+              <RecentSettlementList />
+            </Suspense>
+          </ErrorBoundary>
+        )}
       </div>
     </div>
   )

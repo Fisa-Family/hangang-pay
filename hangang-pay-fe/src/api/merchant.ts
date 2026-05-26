@@ -1,35 +1,24 @@
 import { apiFetch } from './client'
 
-// 오늘 매출 요약 응답
-export interface MerchantDashboardResult {
-  todaySales: number
-  todayPaymentCount: number
-}
-
-// 결제 내역 단건
-export type MerchantPaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | (string & {})
-
-export interface MerchantPaymentItem {
-  paymentId: string
-  itemName: string
+// 정산 내역 단건 (BE: MerchantSettlementHistoryItem)
+export interface MerchantSettlementItem {
+  settlementId: number
   amount: number
-  paidAt: string
-  status: MerchantPaymentStatus
+  settlementStatus: string
+  settlementStatusText: string
+  requestedAt: string
+  completedAt: string | null
 }
 
-// 결제 내역 목록 응답 (커서 페이지네이션)
-export interface MerchantPaymentPage {
-  content: MerchantPaymentItem[]
-  nextCursor: string | null
+// 정산 내역 목록 응답 (BE: CursorPageResponse<MerchantSettlementHistoryItem>)
+export interface MerchantSettlementPage {
+  content: MerchantSettlementItem[]
+  nextCursorCreatedAt: string | null
+  nextCursorId: number | null
   hasNext: boolean
 }
 
-// 오늘 매출 요약 조회
-export function fetchMerchantDashboard(): Promise<MerchantDashboardResult> {
-  return apiFetch<MerchantDashboardResult>('/merchant/dashboard')
-}
-
-// 결제 내역 조회
-export function fetchMerchantPayments(size = 4): Promise<MerchantPaymentPage> {
-  return apiFetch<MerchantPaymentPage>(`/merchant/payments?size=${size}`)
+// 정산 내역 조회 → GET /api/v1/merchant/settlements
+export function fetchMerchantSettlements(size = 4): Promise<MerchantSettlementPage> {
+  return apiFetch<MerchantSettlementPage>(`/merchant/settlements?size=${size}`)
 }
