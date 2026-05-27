@@ -48,7 +48,19 @@ public enum TransactionErrorCode implements BaseErrorCode {
     EXCHANGE_ALREADY_FAILED(
             HttpStatus.CONFLICT, "EXCHANGE_ALREADY_FAILED", "이미 실패한 환전입니다. 새로 시도해 주세요."),
     INVALID_PAYMENT_PIN(HttpStatus.UNAUTHORIZED, "INVALID_PAYMENT_PIN", "결제 비밀번호가 일치하지 않습니다."),
-    WALLET_NOT_FOUND(HttpStatus.NOT_FOUND, "WALLET_NOT_FOUND", "지갑을 찾을 수 없습니다.");
+    WALLET_NOT_FOUND(HttpStatus.NOT_FOUND, "WALLET_NOT_FOUND", "지갑을 찾을 수 없습니다."),
+    CANCEL_ALREADY_PROCESSING(
+            HttpStatus.CONFLICT, "CANCEL_ALREADY_PROCESSING", "이미 처리 중인 취소 요청입니다."),
+    CANCEL_IDEMPOTENCY_RECORD_NOT_FOUND(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "CANCEL_IDEMPOTENCY_RECORD_NOT_FOUND",
+            "취소 멱등성 기록을 찾을 수 없습니다."),
+    CANCEL_IDEMPOTENCY_RECORD_INVALID(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "CANCEL_IDEMPOTENCY_RECORD_INVALID",
+            "취소 멱등성 기록이 올바르지 않습니다."),
+    CANCEL_NOT_RECOVERABLE(
+            HttpStatus.BAD_REQUEST, "CANCEL_NOT_RECOVERABLE", "복구할 수 없는 취소 상태입니다.");
 
     private final HttpStatus status;
     private final String code;

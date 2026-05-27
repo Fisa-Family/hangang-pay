@@ -152,4 +152,17 @@ public class MerchantController {
         return ResponseEntity.ok(
                 ApiResponse.onSuccess(TransactionSuccessCode.PAYMENT_CANCELLED, response));
     }
+
+    @Operation(
+            summary = "결제 취소 복구 (MERCHANT-004-R)",
+            description = "UNKNOWN 상태의 취소 건을 Bank 상태 조회로 복구한다.")
+    @PostMapping("/payments/{transactionId}/cancel/recover")
+    public ResponseEntity<ApiResponse<PaymentCancelResponse>> recoverCancel(
+            @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId,
+            @PathVariable Long transactionId) {
+        PaymentCancelResponse response =
+                transactionCommandService.recoverCancel(partyId, transactionId);
+        return ResponseEntity.ok(
+                ApiResponse.onSuccess(TransactionSuccessCode.CANCEL_RECOVERED, response));
+    }
 }

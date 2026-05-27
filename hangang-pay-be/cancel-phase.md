@@ -454,25 +454,34 @@ BE 문서와 은행팀 전달 문서를 최종 정리한다.
 - [x] Phase 0 Intake complete
 - [x] Phase 1 RED tests added and RED confirmed
 - [x] Phase 2 Basic cancel API GREEN
-- [ ] Phase 3 UNKNOWN handling GREEN
-- [ ] Phase 4 Cancel recovery API GREEN
-- [ ] Phase 5 Cancel recovery scheduler GREEN
-- [ ] Phase 6 Redis lock/idempotency GREEN
+- [x] Phase 3 UNKNOWN handling GREEN
+- [x] Phase 4 Cancel recovery API GREEN
+- [x] Phase 5 Cancel recovery scheduler GREEN
+- [x] Phase 6 Redis lock/idempotency GREEN
 - [ ] Phase 7 docs and `cancel.md` complete
 
 ## Current Next Action
 
-Start at Phase 0/1:
+Start at Phase 7: Docs and Bank Handoff.
 
-1. Confirm `CancelResponse.bankTransactionId` exists.
-2. Add RED tests to `TransactionCommandServiceTest`.
-3. Run:
+- `docs/rest_api.md` — MERCHANT-004 취소 API, MERCHANT-004-R 복구 API 요청/응답 상세 갱신
+- `docs/erd.md` — CANCEL type, originalTransactionUuid, approvalNumber, UNKNOWN 상태 반영 확인
+- `cancel.md` (루트) — 은행팀 전달 완료
 
-```bash
-./gradlew test --tests family.fisa.hangangpay.domain.transaction.service.TransactionCommandServiceTest
-```
+## Phase 6 Handoff Notes
 
-Stop after RED evidence before implementing Phase 2.
+- `internal/cancel/` 하위에 `CancelLockManager`, `CancelIdempotencyStore`, `CancelIdempotencyDecision`, `CancelIdempotencyDecisionType` 인터페이스/타입 구현 완료.
+- `infra/redis/cancel/` 하위에 `RedisCancelLockManager`, `RedisCancelIdempotencyStore`, `CancelIdempotencyRecord` 구현 완료.
+- lock key: `cancel:lock:{originalPaymentUuid}`, idempotency key: `cancel:idempotency:{originalPaymentUuid}`.
+- `TransactionErrorCode`에 `CANCEL_ALREADY_PROCESSING`, `CANCEL_IDEMPOTENCY_RECORD_NOT_FOUND`, `CANCEL_IDEMPOTENCY_RECORD_INVALID` 추가 완료.
+- `TransactionCommandService.cancelPayment()`에 lock + idempotency 흐름 통합 필요 (아직 미연결).
+- `CancelIdempotencyRecord`는 `status` 필드를 포함한다. `beginCancel`의 판단 로직은 `responseSnapshot` 유무만 본다. `status`는 Redis 직접 조회 시 현재 상태 파악용(observability)이다.
+
+## Phase 3 Handoff Notes
+
+- `markUnknown`은 `findByTransactionUuid(cancelUuid)`로 재조회한다. 단순히 `CancelExecutionPrepared`에 `id`가 없어서가 아니라, UUID가 은행과 공유하는 식별자이기 때문이다. Phase 4 복구에서 `bankClient.getTransactionStatus(cancelUuid)`를 호출할 때도 동일한 UUID를 쓴다.
+- `PaymentCancelResponse`에 `status` 필드가 추가됐다. Phase 4 복구 응답도 동일 DTO를 재사용하면 된다.
+- `TransactionCommandService`에서 `UserRepository` 의존성이 제거됐다. 테스트 생성자와 실제 생성자를 맞출 것.
 
 ## Assumptions
 

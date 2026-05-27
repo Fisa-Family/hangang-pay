@@ -1,4 +1,4 @@
-package family.fisa.hangangpay.domain.transaction.internal;
+package family.fisa.hangangpay.domain.transaction.internal.cancel;
 
 import family.fisa.hangangpay.client.bank.dto.CancelRequest;
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;

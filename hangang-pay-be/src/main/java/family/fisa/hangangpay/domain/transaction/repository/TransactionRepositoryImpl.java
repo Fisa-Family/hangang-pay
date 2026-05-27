@@ -53,9 +53,8 @@ public class TransactionRepositoryImpl implements TransactionRepository {
     }
 
     @Override
-    public List<Transaction> findAllUnknownPayments() {
-        return jpaRepository.findByStatusAndTransactionType(
-                TransactionStatus.UNKNOWN, TransactionType.PAYMENT);
+    public List<Transaction> findAllUnknownByType(TransactionType type) {
+        return jpaRepository.findByStatusAndTransactionType(TransactionStatus.UNKNOWN, type);
     }
 
     @Override
@@ -104,5 +103,12 @@ public class TransactionRepositoryImpl implements TransactionRepository {
     public boolean existsSuccessCancelFor(String originalTransactionUuid) {
         return jpaRepository.existsByOriginalTransactionUuidAndTransactionTypeAndStatus(
                 originalTransactionUuid, TransactionType.CANCEL, TransactionStatus.SUCCESS);
+    }
+
+    @Override
+    public Optional<Transaction> findRecoverableCancelByOriginalTransactionUuid(
+            String originalTransactionUuid) {
+        return jpaRepository.findByOriginalTransactionUuidAndTransactionTypeAndStatus(
+                originalTransactionUuid, TransactionType.CANCEL, TransactionStatus.UNKNOWN);
     }
 }

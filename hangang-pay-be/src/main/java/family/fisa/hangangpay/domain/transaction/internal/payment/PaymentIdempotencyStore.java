@@ -1,4 +1,4 @@
-package family.fisa.hangangpay.domain.transaction.internal;
+package family.fisa.hangangpay.domain.transaction.internal.payment;
 
 import family.fisa.hangangpay.domain.transaction.dto.response.PaymentExecutionResponse;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;

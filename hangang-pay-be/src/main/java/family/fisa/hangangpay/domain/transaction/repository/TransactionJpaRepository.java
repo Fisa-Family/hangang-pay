@@ -132,4 +132,10 @@ public interface TransactionJpaRepository extends JpaRepository<Transaction, Lon
             String originalTransactionUuid,
             TransactionType transactionType,
             TransactionStatus status);
+
+    /** 복구 가능한 CANCEL 조회 - UNKNOWN 상태만 */
+    Optional<Transaction> findByOriginalTransactionUuidAndTransactionTypeAndStatus(
+            String originalTransactionUuid,
+            TransactionType transactionType,
+            TransactionStatus status);
 }

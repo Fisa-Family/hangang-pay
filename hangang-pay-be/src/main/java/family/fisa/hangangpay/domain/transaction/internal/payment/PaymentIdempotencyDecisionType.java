@@ -1,4 +1,4 @@
-package family.fisa.hangangpay.domain.transaction.internal;
+package family.fisa.hangangpay.domain.transaction.internal.payment;
 
 public enum PaymentIdempotencyDecisionType {
     NEW_REQUEST,

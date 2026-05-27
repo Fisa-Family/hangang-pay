@@ -8,7 +8,7 @@ import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
 import family.fisa.hangangpay.domain.transaction.dto.response.PaymentCancelResponse;
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
-import family.fisa.hangangpay.domain.transaction.internal.CancelExecutionPrepared;
+import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelExecutionPrepared;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
@@ -80,6 +80,25 @@ public class CancelExecutionStateWriter {
         return CancelExecutionPrepared.from(original, saved);
     }
 
+    /**
+     * bankClient를 이용해서 은행 API를 호출 할 때, 네트워크 / 인프라 문제로 인해 서버가 끊킬 경우,
+     * 해당 Transaction.status를 Unknown으로 바꾼다.
+     */
+    public PaymentCancelResponse markUnknown(String cancelTransactionUuid) {
+        // 1. CANCEL 거래 재조회 - prepareCancel는 REQUIRES_NEW로, 이미 커밋되서 해당 엔티티는 detached임.
+        // 새 트랜잭션으로 가져와서 markUnknown로 반영한다.
+        Transaction cancelTx = getTransactionByUuid(cancelTransactionUuid);
+
+        // 2. Unknown으로 전환 - 은행에서의 처리가 확정되어있지 않으니, FAILED로 확정 X - 나중에 복구API + 스케줄러로 재조회
+        cancelTx.markUnknown();
+
+        // 3. WARN 수준의 로그 - 관리자가 인지해야된다.
+        log.warn("결제 취소 - UNKNOWN 저장. cancelUuid={}", cancelTransactionUuid);
+
+        // 4. confirmedAt=null - 은행 확정 시각이 없음
+        return PaymentCancelResponse.from(cancelTx, null);
+    }
+
     /** Bank cancel 성공 후 CANCEL 거래를 SUCCESS로 확정한다. */
     public PaymentCancelResponse completeSuccess(
             String cancelTransactionUuid,
@@ -87,9 +106,7 @@ public class CancelExecutionStateWriter {
             String bankTransactionId,
             LocalDateTime confirmedAt ){
         // 1. CANCEL 거래 조회
-        Transaction cancelTx = transactionRepository
-                .findByTransactionUuid(cancelTransactionUuid)
-                .orElseThrow(() -> new BusinessException(TransactionErrorCode.PAYMENT_NOT_FOUND));
+        Transaction cancelTx = getTransactionByUuid(cancelTransactionUuid);
 
         // 2. txHash, bankTransactionId 기록 후 SUCCESS 전환
         cancelTx.completeWithBankResponse(txHash, bankTransactionId);
@@ -113,6 +130,12 @@ public class CancelExecutionStateWriter {
                         .findDetailByIdAndTypes(transactionId, List.of(TransactionType.PAYMENT))
                         .orElseThrow(
                                 () -> new BusinessException(TransactionErrorCode.PAYMENT_NOT_FOUND));
+    }
+
+    private Transaction getTransactionByUuid(String cancelTransactionUuid) {
+        return transactionRepository
+                .findByTransactionUuid(cancelTransactionUuid)
+                .orElseThrow(() -> new BusinessException(TransactionErrorCode.PAYMENT_NOT_FOUND));
     }
 
     private Merchant getMerchant(Long merchantPartyId) {

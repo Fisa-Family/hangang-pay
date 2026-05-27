@@ -6,7 +6,7 @@ import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
 import family.fisa.hangangpay.domain.transaction.dto.response.PaymentExecutionResponse;
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
-import family.fisa.hangangpay.domain.transaction.internal.*;
+import family.fisa.hangangpay.domain.transaction.internal.payment.*;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
 import family.fisa.hangangpay.domain.user.code.error.UserErrorCode;
 import family.fisa.hangangpay.domain.user.entity.User;
