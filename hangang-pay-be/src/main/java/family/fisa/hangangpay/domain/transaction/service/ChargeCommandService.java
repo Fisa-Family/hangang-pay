@@ -5,8 +5,8 @@ import family.fisa.hangangpay.client.bank.dto.ChargeResponse;
 import family.fisa.hangangpay.domain.transaction.dto.request.ChargeExecuteRequest;
 import family.fisa.hangangpay.domain.transaction.dto.response.ChargeExecuteResponse;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
-import family.fisa.hangangpay.domain.transaction.internal.ChargeExecutionPrepared;
 import family.fisa.hangangpay.domain.transaction.internal.ChargeExecutionPreparationResult;
+import family.fisa.hangangpay.domain.transaction.internal.ChargeExecutionPrepared;
 import family.fisa.hangangpay.domain.transaction.internal.ChargeIdempotencyStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,8 +49,7 @@ public class ChargeCommandService {
             bankResponse = bankClient.charge(prepared.toBankChargeRequest());
             log.info("충전 은행 요청 완료. transactionUuid={}", prepared.transactionUuid());
         } catch (ResourceAccessException ex) {
-            log.error(
-                    "충전 은행 연동 실패. transactionUuid={}", prepared.transactionUuid(), ex);
+            log.error("충전 은행 연동 실패. transactionUuid={}", prepared.transactionUuid(), ex);
             ChargeExecuteResponse response =
                     chargeExecutionWriter.markUnknown(prepared.transactionUuid());
             chargeIdempotencyStore.markExecutionStatus(

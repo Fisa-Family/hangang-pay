@@ -6,8 +6,8 @@ import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
 import family.fisa.hangangpay.domain.transaction.dto.response.ChargeExecuteResponse;
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
-import family.fisa.hangangpay.domain.transaction.internal.ChargeExecutionPrepared;
 import family.fisa.hangangpay.domain.transaction.internal.ChargeExecutionPreparationResult;
+import family.fisa.hangangpay.domain.transaction.internal.ChargeExecutionPrepared;
 import family.fisa.hangangpay.domain.transaction.internal.ChargeIdempotencyDecision;
 import family.fisa.hangangpay.domain.transaction.internal.ChargeIdempotencyStore;
 import family.fisa.hangangpay.domain.transaction.internal.ChargeRequestHashGenerator;
@@ -100,17 +100,13 @@ public class ChargeExecutionWriter {
 
         // 금액 계산
         BigDecimal discountRate = transaction.getDiscountRate();
-        BigDecimal discountAmount =
-                amount.multiply(discountRate).setScale(0, RoundingMode.DOWN);
+        BigDecimal discountAmount = amount.multiply(discountRate).setScale(0, RoundingMode.DOWN);
         BigDecimal finalAmount = amount.subtract(discountAmount);
 
         // 충전 거래 실행 준비
         transaction.prepareChargeExecution(account, amount, discountAmount);
 
-        log.info(
-                "충전 실행 준비 완료. transactionUuid={}, partyId={}",
-                transactionUuid,
-                sessionPartyId);
+        log.info("충전 실행 준비 완료. transactionUuid={}, partyId={}", transactionUuid, sessionPartyId);
 
         return ChargeExecutionPreparationResult.prepared(
                 new ChargeExecutionPrepared(

@@ -14,13 +14,7 @@ public class ChargeRequestHashGenerator {
     public String generate(
             String transactionUuid, Long partyId, Long accountId, BigDecimal amount) {
         String raw =
-                transactionUuid
-                        + ":"
-                        + partyId
-                        + ":"
-                        + accountId
-                        + ":"
-                        + amount.toPlainString();
+                transactionUuid + ":" + partyId + ":" + accountId + ":" + amount.toPlainString();
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(raw.getBytes(StandardCharsets.UTF_8));
