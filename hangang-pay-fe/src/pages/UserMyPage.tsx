@@ -176,7 +176,7 @@ export function UserMyPage() {
     : null
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto pb-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pb-4">
       {profileErrorMessage && (
         <div
           role="alert"
@@ -195,7 +195,7 @@ export function UserMyPage() {
         <UserProfileCard profile={profileQuery.data ?? EMPTY_PROFILE} />
       )}
 
-      <section className="flex flex-col gap-2">
+      <section className="mt-3 flex flex-col gap-2">
         <HistoryEntryCard onClick={() => navigate('/mypage/payments')} />
       </section>
 
