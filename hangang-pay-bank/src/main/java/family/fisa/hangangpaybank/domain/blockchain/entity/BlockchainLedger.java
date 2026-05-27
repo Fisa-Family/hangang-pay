@@ -9,6 +9,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.web3j.protocol.core.methods.response.TransactionReceipt;
 
 @Entity
 @Table(name = "blockchain_ledger")
@@ -23,11 +24,7 @@ public class BlockchainLedger extends BaseEntity {
     private Long id;
 
     // 플랫폼이 발행한 거래 식별자
-    @Column(
-            name = "idempotent_key",
-            nullable = true,
-            unique = true,
-            length = 36) // 일시적 nullable = true 추후 수정예정
+    @Column(name = "idempotent_key", nullable = false, unique = true, length = 36)
     private String idempotentKey;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -46,4 +43,18 @@ public class BlockchainLedger extends BaseEntity {
 
     @Column(name = "confirmed_at")
     private LocalDateTime confirmedAt;
+
+    /** 컨트랙트 성공 후 CONFIRMED 상태로 전환 */
+    public void confirm(TransactionReceipt receipt) {
+        this.status = BlockchainTxStatus.CONFIRMED;
+        this.txHash = receipt.getTransactionHash();
+        this.blockNumber =
+                receipt.getBlockNumber() != null ? receipt.getBlockNumber().longValueExact() : null;
+        this.confirmedAt = LocalDateTime.now();
+    }
+
+    /** 컨트랙트 실패 후 FAILED 상태로 전환 */
+    public void fail() {
+        this.status = BlockchainTxStatus.FAILED;
+    }
 }

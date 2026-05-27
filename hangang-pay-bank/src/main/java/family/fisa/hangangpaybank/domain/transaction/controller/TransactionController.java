@@ -9,12 +9,16 @@ import family.fisa.hangangpaybank.domain.transaction.dto.response.CancelResponse
 import family.fisa.hangangpaybank.domain.transaction.dto.response.ChargeResponse;
 import family.fisa.hangangpaybank.domain.transaction.dto.response.ExchangeResponse;
 import family.fisa.hangangpaybank.domain.transaction.dto.response.PaymentResponse;
+import family.fisa.hangangpaybank.domain.transaction.dto.response.PaymentStatusResponse;
+import family.fisa.hangangpaybank.domain.transaction.service.PaymentQueryService;
 import family.fisa.hangangpaybank.domain.transaction.service.TransactionCommandService;
 import family.fisa.hangangpaybank.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -27,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class TransactionController {
 
     private final TransactionCommandService transactionCommandService;
+    private final PaymentQueryService paymentQueryService;
 
     @Operation(summary = "충전", description = "은행 계좌 잔액을 차감하고 한강페이 토큰을 mint한다.")
     @PostMapping("/charge")
@@ -80,5 +85,21 @@ public class TransactionController {
                 .body(
                         ApiResponse.onSuccess(
                                 TransactionSuccessCode.TRANSACTION_CANCEL_OK, response));
+    }
+
+    @Operation(
+            summary = "결제 상태 조회",
+            description =
+                    "BE가 발행한 transactionUuid로 결제 blockchain_ledger 상태를 조회한다."
+                            + " CONFIRMED→SUCCESS, FAILED→FAILED, PENDING→PROCESSING.")
+    @GetMapping("/{transactionUuid}/payment/status")
+    public ResponseEntity<ApiResponse<PaymentStatusResponse>> getPaymentStatus(
+            @PathVariable String transactionUuid) {
+        // 1. 결제 상태 조회
+        PaymentStatusResponse response = paymentQueryService.getStatus(transactionUuid);
+
+        // 2. 성공 응답 반환
+        return ResponseEntity.ok(
+                ApiResponse.onSuccess(TransactionSuccessCode.TRANSACTION_STATUS_OK, response));
     }
 }
