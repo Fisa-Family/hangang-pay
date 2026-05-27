@@ -1,11 +1,14 @@
 package family.fisa.hangangpay.domain.transaction.service;
 
+import family.fisa.hangangpay.domain.merchant.code.MerchantErrorCode;
+import family.fisa.hangangpay.domain.merchant.dto.MerchantPaymentDetailResponse;
 import family.fisa.hangangpay.domain.merchant.dto.MerchantSettlementHistoryItem;
 import family.fisa.hangangpay.domain.merchant.entity.Merchant;
 import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
 import family.fisa.hangangpay.domain.transaction.dto.response.ChargeHistoryItem;
 import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeHistoryItem;
+import family.fisa.hangangpay.domain.transaction.dto.response.MerchantPaymentDetail;
 import family.fisa.hangangpay.domain.transaction.dto.response.MerchantPaymentHistoryItem;
 import family.fisa.hangangpay.domain.transaction.dto.response.PaymentHistoryItem;
 import family.fisa.hangangpay.domain.transaction.dto.response.UserChargeHistoryDetail;
@@ -156,7 +159,7 @@ public class TransactionQueryService {
                         .collect(
                                 Collectors.toMap(
                                         user -> user.getParty().getId(),
-                                        user -> maskUsername(user.getUsername())));
+                                        user -> user.getUsername()));
 
         Window<MerchantPaymentHistoryItem> window =
                 transactions.map(
@@ -188,6 +191,34 @@ public class TransactionQueryService {
         verifyOwner(partyId, transaction);
 
         return UserPaymentHistoryDetail.from(transaction);
+    }
+
+    /** 가맹점 결제 상세 내역 조회 */
+    public MerchantPaymentDetailResponse<MerchantPaymentDetail> getMerchantPaymentDetail(
+            Long partyId, Long transactionId) {
+        Transaction transaction =
+                transactionRepository
+                        .findDetailByIdAndTypes(
+                                transactionId,
+                                List.of(TransactionType.PAYMENT, TransactionType.CANCEL))
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                TransactionErrorCode.PAYMENT_NOT_FOUND));
+
+        verifyMerchantOwner(partyId, transaction);
+
+        Long payerPartyId = resolvePayerPartyId(transaction);
+        String payerName =
+                userRepository
+                        .findByParty_Id(payerPartyId)
+                        .map(user -> user.getUsername())
+                        .orElse("알 수 없는 사용자");
+
+        return MerchantPaymentDetailResponse.of(
+                transaction.getTransactionType(),
+                MerchantPaymentDetail.from(
+                        transaction, payerName, isMerchantPaymentCancelAvailable(transaction)));
     }
 
     /** 사용자 충전 상세 내역 조회 */
@@ -230,6 +261,17 @@ public class TransactionQueryService {
         }
     }
 
+    private void verifyMerchantOwner(Long partyId, Transaction transaction) {
+        Long merchantPartyId =
+                transaction.getTransactionType() == TransactionType.CANCEL
+                        ? transaction.getFromParty().getId()
+                        : transaction.getToParty().getId();
+
+        if (!merchantPartyId.equals(partyId)) {
+            throw new BusinessException(MerchantErrorCode.NOT_OWNER);
+        }
+    }
+
     private Long resolvePayerPartyId(Transaction transaction) {
         if (transaction.getTransactionType() == TransactionType.CANCEL) {
             return transaction.getToParty().getId();
@@ -237,17 +279,12 @@ public class TransactionQueryService {
         return transaction.getFromParty().getId();
     }
 
-    private String maskUsername(String username) {
-        if (username == null || username.isBlank()) {
-            return "알 수 없는 사용자";
-        }
-        if (username.length() == 1) {
-            return "*";
-        }
-        if (username.length() == 2) {
-            return username.charAt(0) + "*";
-        }
-        return username.charAt(0) + "*" + username.charAt(username.length() - 1);
+    /** 가맹점이 해당 결제에 대해 취소 가능 여부 확인 */
+    private boolean isMerchantPaymentCancelAvailable(Transaction transaction) {
+        return transaction.getTransactionType() == TransactionType.PAYMENT
+                && transaction.getStatus() == TransactionStatus.SUCCESS
+                && !transactionRepository.existsSuccessCancelByOriginalTransactionUuid(
+                        transaction.getTransactionUuid());
     }
 
     /** 가맹점 정산 내역 조회 */

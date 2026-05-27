@@ -172,7 +172,6 @@ class TransactionRepositoryImplTest {
                 new BigDecimal("150000"),
                 "APV-2026-00000002",
                 LocalDateTime.of(2026, 5, 27, 23, 59));
-
         persistTransaction(
                 "before-period",
                 TransactionType.PAYMENT,
@@ -233,6 +232,42 @@ class TransactionRepositoryImplTest {
         assertThat(count).isEqualTo(2L);
     }
 
+    @Test
+    @DisplayName("성공한 취소 거래가 원거래 UUID를 참조하면 true를 반환")
+    void existsSuccessCancelByOriginalTransactionUuid_returnsTrueOnlyForSuccessCancel() {
+        Party user = persistParty(PartyType.USER);
+        Party merchant = persistParty(PartyType.MERCHANT);
+
+        Transaction payment =
+                persistTransaction(
+                        "payment-original",
+                        TransactionType.PAYMENT,
+                        user,
+                        merchant,
+                        "APV-2026-00000001",
+                        LocalDateTime.of(2026, 5, 1, 10, 0));
+        persistCancelTransaction(
+                "cancel-success",
+                payment.getTransactionUuid(),
+                merchant,
+                user,
+                TransactionStatus.SUCCESS);
+        persistCancelTransaction(
+                "cancel-failed-other", "payment-other", merchant, user, TransactionStatus.FAILED);
+
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(
+                        transactionRepository.existsSuccessCancelByOriginalTransactionUuid(
+                                payment.getTransactionUuid()))
+                .isTrue();
+        assertThat(
+                        transactionRepository.existsSuccessCancelByOriginalTransactionUuid(
+                                "payment-other"))
+                .isFalse();
+    }
+
     private Party persistParty(PartyType partyType) {
         Party party = Party.builder().partyType(partyType).build();
         entityManager.persist(party);
@@ -289,5 +324,27 @@ class TransactionRepositoryImplTest {
                 new BigDecimal("10000"),
                 approvalNumber,
                 createdAt);
+    }
+
+    private Transaction persistCancelTransaction(
+            String transactionUuid,
+            String originalTransactionUuid,
+            Party fromParty,
+            Party toParty,
+            TransactionStatus status) {
+        Transaction transaction =
+                Transaction.builder()
+                        .transactionUuid(transactionUuid)
+                        .originalTransactionUuid(originalTransactionUuid)
+                        .transactionType(TransactionType.CANCEL)
+                        .status(status)
+                        .fromParty(fromParty)
+                        .toParty(toParty)
+                        .amount(new BigDecimal("10000"))
+                        .approvalNumber("APV-2026-" + transactionUuid)
+                        .build();
+
+        entityManager.persist(transaction);
+        return transaction;
     }
 }

@@ -1,5 +1,15 @@
 import { apiFetch } from './client'
 
+// 사용자 프로필 응답
+export interface UserProfileResponse {
+  userId: number
+  partyId: number
+  username: string
+  phoneNumber: string
+  birthDate: string | null
+  region: string | null
+}
+
 // 거래 유형 (BE UserHistoryType enum 동일)
 export type HistoryType = 'PAYMENT' | 'CHARGE' | 'EXCHANGE' | (string & {})
 
@@ -46,4 +56,9 @@ export function fetchUserHistories(
     ...(params.cursorId != null ? { cursorId: String(params.cursorId) } : {}),
   })
   return apiFetch<UserHistoryPage<UserHistoryItem>>(`/users/histories?${query}`)
+}
+
+// 사용자 프로필 조회
+export function fetchUserProfile(): Promise<UserProfileResponse> {
+  return apiFetch<UserProfileResponse>('/users/profile')
 }

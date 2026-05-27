@@ -128,6 +128,12 @@ public class TransactionRepositoryImpl implements TransactionRepository {
                 TransactionStatus.PENDING, TransactionType.EXCHANGE, threshold, maxAttempts);
     }
 
+    @Override
+    public boolean existsSuccessCancelByOriginalTransactionUuid(String originalTransactionUuid) {
+        return jpaRepository.existsByOriginalTransactionUuidAndTransactionTypeAndStatus(
+                originalTransactionUuid, TransactionType.CANCEL, TransactionStatus.SUCCESS);
+    }
+
     /** 가장 최근 PENDING CHARGE 1건 조회 - 중복 init 방지용 */
     @Override
     public Optional<Transaction> findLatestPendingCharge(Long partyId) {

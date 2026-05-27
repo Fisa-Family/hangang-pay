@@ -9,11 +9,14 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import family.fisa.hangangpay.domain.merchant.code.MerchantErrorCode;
+import family.fisa.hangangpay.domain.merchant.dto.MerchantPaymentDetailResponse;
 import family.fisa.hangangpay.domain.merchant.entity.Merchant;
 import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.entity.PartyType;
 import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
+import family.fisa.hangangpay.domain.transaction.dto.response.MerchantPaymentDetail;
 import family.fisa.hangangpay.domain.transaction.dto.response.MerchantPaymentHistoryItem;
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
@@ -80,6 +83,7 @@ class TransactionQueryServiceTest {
     private Transaction mockTx(Long id, Party fromParty, Party toParty, TransactionType type) {
         Transaction tx = mock(Transaction.class);
         lenient().when(tx.getId()).thenReturn(id);
+        lenient().when(tx.getTransactionUuid()).thenReturn("transaction-uuid-%d".formatted(id));
         lenient().when(tx.getApprovalNumber()).thenReturn("APV-2026-%08d".formatted(id));
         lenient().when(tx.getFromParty()).thenReturn(fromParty);
         lenient().when(tx.getToParty()).thenReturn(toParty);
@@ -296,12 +300,14 @@ class TransactionQueryServiceTest {
                                         responseWindow.getContent();
 
                                 assertThat(content).hasSize(2);
-                                assertThat(content.get(0).paymentId())
+                                assertThat(content.get(0).transactionId()).isEqualTo(1L);
+                                assertThat(content.get(0).approvalNumber())
                                         .isEqualTo("APV-2026-00000001");
                                 assertThat(content.get(0).payerName()).isEqualTo("김*강");
                                 assertThat(content.get(0).transactionType())
                                         .isEqualTo(TransactionType.PAYMENT);
-                                assertThat(content.get(1).paymentId())
+                                assertThat(content.get(1).transactionId()).isEqualTo(2L);
+                                assertThat(content.get(1).approvalNumber())
                                         .isEqualTo("APV-2026-00000002");
                                 assertThat(content.get(1).payerName()).isEqualTo("이*");
                                 assertThat(content.get(1).transactionType())
@@ -316,6 +322,130 @@ class TransactionQueryServiceTest {
 
             assertThat(result).isSameAs(sentinel);
             verify(userRepository).findByParty_IdIn(List.of(PARTY_ID, OTHER_PARTY_ID));
+        }
+    }
+
+    @Nested
+    @DisplayName("가맹점 결제 상세 조회 (getMerchantPaymentDetail)")
+    class GetMerchantPaymentDetail {
+
+        @Test
+        @DisplayName("정상: PAYMENT는 fromParty를 결제자로 매핑하고 상세 정보를 반환")
+        void success_payment() {
+            Transaction tx =
+                    mockTx(
+                            TRANSACTION_ID,
+                            party(PARTY_ID),
+                            merchantParty(MERCHANT_PARTY_ID),
+                            TransactionType.PAYMENT);
+            when(transactionRepository.findDetailByIdAndTypes(
+                            eq(TRANSACTION_ID),
+                            eq(List.of(TransactionType.PAYMENT, TransactionType.CANCEL))))
+                    .thenReturn(Optional.of(tx));
+            when(userRepository.findByParty_Id(PARTY_ID))
+                    .thenReturn(Optional.of(user(PARTY_ID, "김한강")));
+
+            MerchantPaymentDetailResponse<MerchantPaymentDetail> result =
+                    transactionQueryService.getMerchantPaymentDetail(
+                            MERCHANT_PARTY_ID, TRANSACTION_ID);
+
+            assertThat(result.transactionType()).isEqualTo(TransactionType.PAYMENT);
+            assertThat(result.detail().transactionId()).isEqualTo(TRANSACTION_ID);
+            assertThat(result.detail().transactionType()).isEqualTo(TransactionType.PAYMENT);
+            assertThat(result.detail().payerName()).isEqualTo("김*강");
+            assertThat(result.detail().approvalNumber()).isEqualTo("APV-2026-00000001");
+            assertThat(result.detail().paymentStatus()).isEqualTo("SUCCESS");
+            assertThat(result.detail().cancelAvailable()).isTrue();
+        }
+
+        @Test
+        @DisplayName("정상: 이미 취소된 PAYMENT는 취소 불가로 반환")
+        void success_paymentAlreadyCanceled() {
+            Transaction tx =
+                    mockTx(
+                            TRANSACTION_ID,
+                            party(PARTY_ID),
+                            merchantParty(MERCHANT_PARTY_ID),
+                            TransactionType.PAYMENT);
+            when(transactionRepository.findDetailByIdAndTypes(
+                            eq(TRANSACTION_ID),
+                            eq(List.of(TransactionType.PAYMENT, TransactionType.CANCEL))))
+                    .thenReturn(Optional.of(tx));
+            when(transactionRepository.existsSuccessCancelByOriginalTransactionUuid(
+                            "transaction-uuid-1"))
+                    .thenReturn(true);
+            when(userRepository.findByParty_Id(PARTY_ID))
+                    .thenReturn(Optional.of(user(PARTY_ID, "김한강")));
+
+            MerchantPaymentDetailResponse<MerchantPaymentDetail> result =
+                    transactionQueryService.getMerchantPaymentDetail(
+                            MERCHANT_PARTY_ID, TRANSACTION_ID);
+
+            assertThat(result.transactionType()).isEqualTo(TransactionType.PAYMENT);
+            assertThat(result.detail().transactionType()).isEqualTo(TransactionType.PAYMENT);
+            assertThat(result.detail().cancelAvailable()).isFalse();
+        }
+
+        @Test
+        @DisplayName("정상: CANCEL은 toParty를 결제자로 매핑하고 취소 불가로 반환")
+        void success_cancel() {
+            Transaction tx =
+                    mockTx(
+                            TRANSACTION_ID,
+                            merchantParty(MERCHANT_PARTY_ID),
+                            party(PARTY_ID),
+                            TransactionType.CANCEL);
+            when(transactionRepository.findDetailByIdAndTypes(
+                            eq(TRANSACTION_ID),
+                            eq(List.of(TransactionType.PAYMENT, TransactionType.CANCEL))))
+                    .thenReturn(Optional.of(tx));
+            when(userRepository.findByParty_Id(PARTY_ID))
+                    .thenReturn(Optional.of(user(PARTY_ID, "이수")));
+
+            MerchantPaymentDetailResponse<MerchantPaymentDetail> result =
+                    transactionQueryService.getMerchantPaymentDetail(
+                            MERCHANT_PARTY_ID, TRANSACTION_ID);
+
+            assertThat(result.transactionType()).isEqualTo(TransactionType.CANCEL);
+            assertThat(result.detail().transactionType()).isEqualTo(TransactionType.CANCEL);
+            assertThat(result.detail().payerName()).isEqualTo("이*");
+            assertThat(result.detail().cancelAvailable()).isFalse();
+        }
+
+        @Test
+        @DisplayName("Transaction 없음 -> PAYMENT_NOT_FOUND")
+        void throws_whenNotFound() {
+            when(transactionRepository.findDetailByIdAndTypes(
+                            eq(TRANSACTION_ID),
+                            eq(List.of(TransactionType.PAYMENT, TransactionType.CANCEL))))
+                    .thenReturn(Optional.empty());
+
+            assertThatThrownBy(
+                            () ->
+                                    transactionQueryService.getMerchantPaymentDetail(
+                                            MERCHANT_PARTY_ID, TRANSACTION_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("code", TransactionErrorCode.PAYMENT_NOT_FOUND);
+        }
+
+        @Test
+        @DisplayName("소유 가맹점 불일치 -> NOT_OWNER")
+        void throws_whenNotOwner() {
+            Transaction tx =
+                    mockTx(
+                            TRANSACTION_ID,
+                            party(PARTY_ID),
+                            merchantParty(OTHER_PARTY_ID),
+                            TransactionType.PAYMENT);
+            when(transactionRepository.findDetailByIdAndTypes(eq(TRANSACTION_ID), any()))
+                    .thenReturn(Optional.of(tx));
+
+            assertThatThrownBy(
+                            () ->
+                                    transactionQueryService.getMerchantPaymentDetail(
+                                            MERCHANT_PARTY_ID, TRANSACTION_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("code", MerchantErrorCode.NOT_OWNER);
         }
     }
 

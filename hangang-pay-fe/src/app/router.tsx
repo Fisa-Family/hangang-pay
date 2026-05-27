@@ -13,6 +13,7 @@ import { RequireAuth, RequireRole } from '@/routes/guards'
 import { LoginPage } from '@/pages/LoginPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 import { UserHomePage } from '@/pages/UserHomePage'
+import { UserMyPage } from '@/pages/UserMyPage'
 import { MerchantHomePage } from '@/pages/MerchantHomePage'
 import { AppShell } from '@/components/common'
 
@@ -88,7 +89,11 @@ export const router = createBrowserRouter([
                 path: '/mypage/payments',
                 element: <PlaceholderPage title="결제내역" screenId="U-MY-PAYMENTS" />,
               },
-              { path: '/mypage', element: <PlaceholderPage title="마이페이지" screenId="U-MY" /> },
+              {
+                path: '/mypage/accounts',
+                element: <PlaceholderPage title="계좌 관리" screenId="U-MY-ACCOUNTS" />,
+              },
+              { path: '/mypage', element: <UserMyPage /> },
             ],
           },
         ],

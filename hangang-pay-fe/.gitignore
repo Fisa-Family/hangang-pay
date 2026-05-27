@@ -51,6 +51,8 @@ lerna-debug.log*
 *.njsproj
 *.sln
 *.sw?
+.kiro
+.claude
 
 # ─── macOS ─────────────────────────────────────────────────
 .DS_Store
