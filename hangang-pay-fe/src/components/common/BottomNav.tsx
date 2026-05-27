@@ -144,11 +144,11 @@ function UserIcon({ className }: { className?: string }) {
 
 // 탭 아이디별 아이콘 매핑
 const tabIcons: Record<string, (className?: string) => React.ReactNode> = {
-  home:     (cls) => <HomeIcon className={cls} />,
+  home: (cls) => <HomeIcon className={cls} />,
   payments: (cls) => <FileTextIcon className={cls} />,
-  scan:     (cls) => <QrCodeIcon className={cls} />,
+  scan: (cls) => <QrCodeIcon className={cls} />,
   merchant: (cls) => <StoreIcon className={cls} />,
-  mypage:   (cls) => <UserIcon className={cls} />,
+  mypage: (cls) => <UserIcon className={cls} />,
 }
 
 export function BottomNav({ type, active, onNavigate, className }: BottomNavProps) {

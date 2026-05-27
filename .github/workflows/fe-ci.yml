@@ -1,0 +1,47 @@
+name: FE CI
+
+on:
+  push:
+    branches: [dev, test]
+    paths:
+      - "hangang-pay-fe/**"
+      - ".github/workflows/fe-ci.yml"
+  pull_request:
+    branches: [dev, test]
+    paths:
+      - "hangang-pay-fe/**"
+      - ".github/workflows/fe-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Check, Test, and Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hangang-pay-fe
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: hangang-pay-fe/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check format and lint
+        run: npm run check
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        run: npm run build

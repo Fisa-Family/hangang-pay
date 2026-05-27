@@ -16,12 +16,13 @@ export interface UserHistoryItem {
   createdAt: string
 }
 
-// 커서 페이지네이션 응답 (MY-002)
+// 커서 페이지네이션 응답
 export interface UserHistoryPage<T> {
   historyType: HistoryType
-  page: {
+  response: {
     content: T[]
-    nextCursor: string | null
+    nextCursorCreatedAt: string | null
+    nextCursorId: number | null
     hasNext: boolean
   }
 }
@@ -30,17 +31,19 @@ export interface UserHistoryPage<T> {
 export interface UserHistoryParams {
   historyType: HistoryType
   size?: number
-  cursor?: string
+  cursorCreatedAt?: string
+  cursorId?: number
 }
 
-// MY-002 내역 조회
+// 내역 조회
 export function fetchUserHistories(
   params: UserHistoryParams
 ): Promise<UserHistoryPage<UserHistoryItem>> {
   const query = new URLSearchParams({
     historyType: params.historyType,
     size: String(params.size ?? 20),
-    ...(params.cursor ? { cursor: params.cursor } : {}),
+    ...(params.cursorCreatedAt ? { cursorCreatedAt: params.cursorCreatedAt } : {}),
+    ...(params.cursorId != null ? { cursorId: String(params.cursorId) } : {}),
   })
   return apiFetch<UserHistoryPage<UserHistoryItem>>(`/users/histories?${query}`)
 }

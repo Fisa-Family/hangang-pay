@@ -44,9 +44,9 @@ class UserQueryServiceTest {
                         .build();
         ReflectionTestUtils.setField(user, "id", 1L);
 
-        given(userRepository.findByIdWithParty(1L)).willReturn(Optional.of(user));
+        given(userRepository.findByParty_Id(10L)).willReturn(Optional.of(user));
 
-        UserProfileResponse response = userQueryService.getProfile(1L);
+        UserProfileResponse response = userQueryService.getProfile(10L);
 
         assertThat(response.userId()).isEqualTo(1L);
         assertThat(response.partyId()).isEqualTo(10L);
@@ -59,7 +59,7 @@ class UserQueryServiceTest {
     @Test
     @DisplayName("사용자를 찾을 수 없으면 USER_NOT_FOUND 예외를 던진다")
     void getProfileUserNotFound() {
-        given(userRepository.findByIdWithParty(999L)).willReturn(Optional.empty());
+        given(userRepository.findByParty_Id(999L)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> userQueryService.getProfile(999L))
                 .isInstanceOf(BusinessException.class)

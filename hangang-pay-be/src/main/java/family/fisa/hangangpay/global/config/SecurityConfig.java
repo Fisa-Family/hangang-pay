@@ -44,6 +44,9 @@ public class SecurityConfig {
                                         "/v3/api-docs/**",
                                         "/api-docs/**")
                                 .permitAll()
+                                // Actuator health check
+                                .requestMatchers("/actuator/health")
+                                .permitAll()
                                 // 인증 도메인
                                 .requestMatchers("/api/v1/auth/**")
                                 .permitAll()
