@@ -142,4 +142,14 @@ public interface TransactionJpaRepository extends JpaRepository<Transaction, Lon
             @Param("type") TransactionType type,
             @Param("threshold") LocalDateTime threshold,
             @Param("maxAttempts") int maxAttempts);
+
+    /** 거래 유형 SUCCESS 전체 기간 누적 금액 */
+    @Query(
+            "SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t "
+                    + "WHERE t.fromParty.id = :partyId "
+                    + "AND t.transactionType = :type "
+                    + "AND t.status = "
+                    + "  family.fisa.hangangpay.domain.transaction.entity.TransactionStatus.SUCCESS")
+    BigDecimal sumAllSuccessByType(
+            @Param("partyId") Long partyId, @Param("type") TransactionType type);
 }
