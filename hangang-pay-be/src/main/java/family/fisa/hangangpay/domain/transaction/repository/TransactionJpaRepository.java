@@ -60,6 +60,7 @@ public interface TransactionJpaRepository extends JpaRepository<Transaction, Lon
     @EntityGraph(
             attributePaths = {
                 "fromParty",
+                "toParty",
                 "fromAccount",
                 "fromAccount.institution",
                 "toAccount",

@@ -98,8 +98,8 @@ SMS 인증과 계좌 1원 인증은 mock으로 처리한다. 백엔드는 인증
 | `EXCHANGE-001` | 환전 정보 조회 | `GET` | `/exchange/{partyId}/init` | `O` | `USER \| MERCHANT` | 환전 가능 여부·예정 금액 포함 |
 | `EXCHANGE-002` | 환전 실행 | `POST` | `/exchange/execute` | `O` | `USER \| MERCHANT` | 현재 컨트롤러는 소비자 환전 실행만 노출 |
 | `MERCHANT-001` | 가맹점 매출 요약 조회 | `GET` | `/merchant/dashboard` | `O` | `MERCHANT` | 가맹점 전용 |
-| `MERCHANT-002` | 가맹점 결제 내역 조회 | `GET` | `/merchant/payments` | `O` | `MERCHANT` | 가맹점 전용 |
-| `MERCHANT-003` | 가맹점 결제 상세 조회 | `GET` | `/merchant/payments/{paymentId}` | `O` | `MERCHANT` | |
+| `MERCHANT-002` | 가맹점 결제 내역 조회 | `GET` | `/merchant/payments` | `O` | `MERCHANT` | 가맹점 전용; item의 `transactionId`를 상세조회 path에 사용 |
+| `MERCHANT-003` | 가맹점 결제 상세 조회 | `GET` | `/merchant/payments/{transactionId}` | `O` | `MERCHANT` | `transactionId`는 `transaction.id`; 응답에 `PAYMENT`/`CANCEL` 타입 포함 |
 | `MERCHANT-004` | 결제 취소 | `POST` | `/merchant/payments/{paymentId}/cancel` | `O` | `MERCHANT` | 시간 제한 없음 |
 | `MERCHANT-005` | 가맹점 정산 내역 조회 | `GET` | `/merchant/settlements` | `O` | `MERCHANT` | 현재 가맹점의 `EXCHANGE` 거래 조회 (`transaction.from_party_id = partyId`) |
 | `MERCHANT-006` | 가맹점 정산 신청 조회 | `GET` | `/merchant/redeem` | `O` | `MERCHANT` | 토큰→현금 |
@@ -111,3 +111,56 @@ SMS 인증과 계좌 1원 인증은 mock으로 처리한다. 백엔드는 인증
 | `MY-002` | 사용자 내역 조회 | `GET` | `/users/histories` | `O` | `USER` | 소비자 전용 |
 | `MY-003` | 내역 상세 조회 | `GET` | `/users/histories/{historyId}` | `O` | `USER` | 소비자 전용 |
 | `WALLET-001` | 잔액 조회 | `GET` | `/wallet/balance` | `O` | `USER \| MERCHANT` | 역할별 서비스/응답 분리 가능 |
+
+## MERCHANT-002
+
+가맹점 결제 내역 조회 item의 `transactionId`는 `transaction.id`이며, 상세조회 `GET /api/v1/merchant/payments/{transactionId}`에 그대로 전달한다. `approvalNumber`는 화면 표시용 승인번호다.
+
+```json
+{
+  "isSuccess": true,
+  "status": "OK",
+  "code": "COMMON_OK",
+  "message": "요청에 성공했습니다.",
+  "result": {
+    "content": [
+      {
+        "transactionId": 25,
+        "approvalNumber": "APV-2026-00000025",
+        "payerName": "김*영",
+        "amount": 12000,
+        "transactionType": "PAYMENT",
+        "createdAt": "2026-05-14T14:23:00"
+      }
+    ],
+    "nextCursorCreatedAt": "2026-05-14T14:23:00",
+    "nextCursorId": 25,
+    "hasNext": true
+  }
+}
+```
+
+## MERCHANT-003
+
+가맹점 결제 상세 조회는 `transaction.id`로 PAYMENT/CANCEL 거래를 조회한다. 거래 소유 검증 기준은 PAYMENT이면 `transaction.to_party_id = session.partyId`, CANCEL이면 `transaction.from_party_id = session.partyId`다.
+
+```json
+{
+  "isSuccess": true,
+  "status": "OK",
+  "code": "COMMON_OK",
+  "message": "요청에 성공했습니다.",
+  "result": {
+    "transactionType": "CANCEL",
+    "detail": {
+      "historyId": 25,
+      "amount": 12000,
+      "payerName": "김*영",
+      "approvalNumber": "APV-2026-00000025",
+      "paymentStatus": "SUCCESS",
+      "createdAt": "2026-05-14T14:23:00",
+      "cancelAvailable": false
+    }
+  }
+}
+```
