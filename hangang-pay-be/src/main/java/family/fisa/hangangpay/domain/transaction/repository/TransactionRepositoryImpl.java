@@ -99,4 +99,10 @@ public class TransactionRepositoryImpl implements TransactionRepository {
         return jpaRepository.findIdsForReconcile(
                 TransactionStatus.PENDING, TransactionType.EXCHANGE, threshold, maxAttempts);
     }
+
+    @Override
+    public boolean existsSuccessCancelFor(String originalTransactionUuid) {
+        return jpaRepository.existsByOriginalTransactionUuidAndTransactionTypeAndStatus(
+                originalTransactionUuid, TransactionType.CANCEL, TransactionStatus.SUCCESS);
+    }
 }

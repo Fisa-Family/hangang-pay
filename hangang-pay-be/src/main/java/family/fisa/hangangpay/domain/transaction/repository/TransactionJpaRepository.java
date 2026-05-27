@@ -126,4 +126,10 @@ public interface TransactionJpaRepository extends JpaRepository<Transaction, Lon
             @Param("type") TransactionType type,
             @Param("threshold") LocalDateTime threshold,
             @Param("maxAttempts") int maxAttempts);
+
+    /**  원본 PAYMENT의 SUCCESS + CANCEL 존재 여부 확인 - 재취소 방지용  */
+    boolean existsByOriginalTransactionUuidAndTransactionTypeAndStatus(
+            String originalTransactionUuid,
+            TransactionType transactionType,
+            TransactionStatus status);
 }

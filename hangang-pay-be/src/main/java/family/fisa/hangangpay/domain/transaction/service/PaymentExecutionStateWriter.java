@@ -86,13 +86,20 @@ public class PaymentExecutionStateWriter {
             String txHash,
             String bankTransactionId,
             LocalDateTime confirmedAt) {
+        // 1. PROCESSING 상태 거래 조회
         Transaction transaction = getPaymentTransaction(transactionUuid);
         Merchant merchant = getMerchant(transaction.getToParty().getId());
 
+        // 2. txHash, bankTransactionId 기록 후 SUCCESS 전환
         transaction.completeWithBankResponse(txHash, bankTransactionId);
+
+        // 3. 승인번호 생성 — id는 createPaymentIntent 시점에 이미 채번됨
+        transaction.assignApprovalNumber(makeApvNumber(transaction.getId()));
 
         return PaymentExecutionResponse.from(transaction, merchant.getMerchantName(), confirmedAt);
     }
+
+
 
     /** 내부 메소드 */
     private User getUser(Long userId) {
@@ -111,5 +118,9 @@ public class PaymentExecutionStateWriter {
         return merchantRepository
                 .findByParty_Id(partyId)
                 .orElseThrow(() -> new BusinessException(MerchantErrorCode.MERCHANT_NOT_FOUND));
+    }
+
+    private String makeApvNumber(Long id) {
+        return "APV-" + LocalDateTime.now().getYear() + "-" + String.format("%08d", id);
     }
 }

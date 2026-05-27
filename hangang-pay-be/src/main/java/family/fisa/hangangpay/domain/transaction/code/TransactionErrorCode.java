@@ -34,6 +34,12 @@ public enum TransactionErrorCode implements BaseErrorCode {
             HttpStatus.TOO_MANY_REQUESTS,
             "PAYMENT_RATE_LIMIT_EXCEEDED",
             "요청이 너무 많습니다. 잠시 후 다시 시도해주세요."),
+    PAYMENT_CANCEL_FORBIDDEN(
+            HttpStatus.FORBIDDEN, "PAYMENT_CANCEL_FORBIDDEN", "취소 권한이 없는 결제입니다."),
+    PAYMENT_NOT_CANCELLABLE(
+            HttpStatus.BAD_REQUEST, "PAYMENT_NOT_CANCELLABLE", "취소할 수 없는 결제 상태입니다."),
+    PAYMENT_ALREADY_CANCELLED(
+            HttpStatus.CONFLICT, "PAYMENT_ALREADY_CANCELLED", "이미 취소된 결제입니다."),
     EXCHANGE_NOT_ELIGIBLE(
             HttpStatus.BAD_REQUEST,
             "EXCHANGE_NOT_ELIGIBLE",

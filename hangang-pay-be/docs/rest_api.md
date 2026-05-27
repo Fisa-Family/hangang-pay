@@ -99,8 +99,8 @@ SMS 인증과 계좌 1원 인증은 mock으로 처리한다. 백엔드는 인증
 | `EXCHANGE-002` | 환전 실행 | `POST` | `/exchange/execute` | `O` | `USER \| MERCHANT` | 현재 컨트롤러는 소비자 환전 실행만 노출 |
 | `MERCHANT-001` | 가맹점 매출 요약 조회 | `GET` | `/merchant/dashboard` | `O` | `MERCHANT` | 가맹점 전용 |
 | `MERCHANT-002` | 가맹점 결제 내역 조회 | `GET` | `/merchant/payments` | `O` | `MERCHANT` | 가맹점 전용 |
-| `MERCHANT-003` | 가맹점 결제 상세 조회 | `GET` | `/merchant/payments/{paymentId}` | `O` | `MERCHANT` | |
-| `MERCHANT-004` | 결제 취소 | `POST` | `/merchant/payments/{paymentId}/cancel` | `O` | `MERCHANT` | 시간 제한 없음 |
+| `MERCHANT-003` | 가맹점 결제 상세 조회 | `GET` | `/merchant/payments/{transactionId}` | `O` | `MERCHANT` | |
+| `MERCHANT-004` | 결제 취소 | `POST` | `/merchant/payments/{transactionId}/cancel` | `O` | `MERCHANT` | 시간 제한 없음 |
 | `MERCHANT-005` | 가맹점 정산 내역 조회 | `GET` | `/merchant/settlements` | `O` | `MERCHANT` | 현재 가맹점의 `EXCHANGE` 거래 조회 (`transaction.from_party_id = partyId`) |
 | `MERCHANT-006` | 가맹점 정산 신청 조회 | `GET` | `/merchant/redeem` | `O` | `MERCHANT` | 토큰→현금 |
 | `MERCHANT-007` | 가맹점 정산 신청 실행 | `POST` | `/merchant/redeem` | `O` | `MERCHANT` | 토큰→현금 |

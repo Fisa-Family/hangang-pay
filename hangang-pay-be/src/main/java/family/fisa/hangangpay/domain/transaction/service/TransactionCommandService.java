@@ -2,6 +2,7 @@ package family.fisa.hangangpay.domain.transaction.service;
 
 import family.fisa.hangangpay.client.bank.BankClient;
 import family.fisa.hangangpay.client.bank.dto.BankTransactionStatusResponse;
+import family.fisa.hangangpay.client.bank.dto.CancelResponse;
 import family.fisa.hangangpay.client.bank.dto.PaymentResponse;
 import family.fisa.hangangpay.domain.merchant.code.MerchantErrorCode;
 import family.fisa.hangangpay.domain.merchant.entity.Merchant;
@@ -9,8 +10,10 @@ import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.repository.PartyRepository;
 import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
+import family.fisa.hangangpay.domain.transaction.dto.request.PaymentCancelRequest;
 import family.fisa.hangangpay.domain.transaction.dto.request.PaymentExecuteRequest;
 import family.fisa.hangangpay.domain.transaction.dto.request.PaymentIntentCreateRequest;
+import family.fisa.hangangpay.domain.transaction.dto.response.PaymentCancelResponse;
 import family.fisa.hangangpay.domain.transaction.dto.response.PaymentExecutionResponse;
 import family.fisa.hangangpay.domain.transaction.dto.response.PaymentIntentResponse;
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
@@ -51,6 +54,7 @@ public class TransactionCommandService {
     private final PaymentLockManager paymentLockManager;
     private final PaymentRateLimiter paymentRateLimiter;
     private final PaymentExecutionStateWriter paymentExecutionStateWriter;
+    private final CancelExecutionStateWriter cancelExecutionStateWriter;
 
     public PaymentIntentResponse createPaymentIntent(
             Long partyId, PaymentIntentCreateRequest request) {
@@ -101,6 +105,28 @@ public class TransactionCommandService {
         return paymentLockManager.withTransactionLock(
                 transactionUuid, () -> recoverPaymentWithLock(partyId, transactionUuid));
     }
+
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public PaymentCancelResponse cancelPayment(
+            Long merchantPartyId, Long transactionId, PaymentCancelRequest request) {
+
+        // 1. 검증 + CANCEL 저장 + Processing - REQUIRES_NEW 트랜잭션으로 커밋
+        CancelExecutionPrepared prepared =
+                cancelExecutionStateWriter.prepareCancel(
+                        merchantPartyId, transactionId, request.paymentPin());
+
+        // 2. BANK 취소 호출 - DB 트랜잭션 밖에서 실행
+        CancelResponse bankResponse = bankClient.cancel(prepared.toBankCancelRequest());
+
+        // 3. SUCCESS 확정 - REQUIRES_NEW 트랜잭션으로 커밋
+        return cancelExecutionStateWriter.completeSuccess(
+                prepared.cancelTransactionUuid(),
+                bankResponse.txHash(),
+                String.valueOf(bankResponse.bankTransactionId()),
+                bankResponse.confirmedAt());
+
+    }
+
 
     /** 내부 메소드 */
     private PaymentExecutionResponse executePaymentWithLock(
@@ -192,12 +218,6 @@ public class TransactionCommandService {
         return partyRepository
                 .findById(partyId)
                 .orElseThrow(() -> new BusinessException(GeneralErrorCode.COMMON_NOT_FOUND));
-    }
-
-    private User getUser(Long userId) {
-        return userRepository
-                .findByIdWithParty(userId)
-                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
     }
 
     private Merchant getMerchant(Long merchantPartyId) {

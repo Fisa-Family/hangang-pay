@@ -10,7 +10,11 @@ import static org.mockito.Mockito.verify;
 
 import family.fisa.hangangpay.client.bank.BankClient;
 import family.fisa.hangangpay.client.bank.dto.BankTransactionStatusResponse;
+import family.fisa.hangangpay.client.bank.dto.CancelResponse;
 import family.fisa.hangangpay.client.bank.dto.PaymentResponse;
+import family.fisa.hangangpay.domain.transaction.dto.request.PaymentCancelRequest;
+import family.fisa.hangangpay.domain.transaction.dto.response.PaymentCancelResponse;
+import family.fisa.hangangpay.domain.transaction.internal.CancelExecutionPrepared;
 import family.fisa.hangangpay.domain.merchant.entity.Merchant;
 import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.party.entity.Party;
@@ -49,8 +53,12 @@ class TransactionCommandServiceTest {
     private static final Long USER_ID = 1L;
     private static final Long USER_PARTY_ID = 10L;
     private static final Long MERCHANT_PARTY_ID = 20L;
+    private static final Long OTHER_PARTY_ID = 30L;
+    private static final Long TRANSACTION_ID = 123L;
+    private static final Long CANCEL_TRANSACTION_ID = 456L;
 
     private static final String TRANSACTION_UUID = "11111111-1111-1111-1111-111111111111";
+    private static final String CANCEL_UUID = "22222222-2222-2222-2222-222222222222";
     private static final String REQUEST_HASH = "server-generated-request-hash";
 
     @Mock private TransactionRepository transactionRepository;
@@ -64,6 +72,7 @@ class TransactionCommandServiceTest {
     @Mock private PaymentLockManager paymentLockManager;
     @Mock private PaymentRateLimiter paymentRateLimiter;
     @Mock private PaymentExecutionStateWriter paymentExecutionStateWriter;
+    @Mock private CancelExecutionStateWriter cancelExecutionStateWriter;
 
     private TransactionCommandService transactionCommandService;
 
@@ -80,7 +89,8 @@ class TransactionCommandServiceTest {
                         paymentIdempotencyStore,
                         paymentLockManager,
                         paymentRateLimiter,
-                        paymentExecutionStateWriter);
+                        paymentExecutionStateWriter,
+                        cancelExecutionStateWriter);
     }
 
     @Test
@@ -480,6 +490,121 @@ class TransactionCommandServiceTest {
     private void givenRecoveryMerchant(Transaction transaction) {
         given(merchantRepository.findByParty_Id(MERCHANT_PARTY_ID))
                 .willReturn(Optional.of(merchant(transaction.getToParty())));
+    }
+
+    // ===== 결제 취소 =====
+
+    @Test
+    @DisplayName("정상 취소 시 Bank를 호출하고 SUCCESS로 확정된다")
+    void cancelPayment_success() {
+        // 1. prepareCancel 반환값 (CancelExecutionPrepared — 미구현, RED 의도)
+        CancelExecutionPrepared prepared =
+                new CancelExecutionPrepared(
+                        CANCEL_UUID, TRANSACTION_UUID, "0x-merchant", "0x-user", new BigDecimal("10000"));
+
+        CancelResponse bankResponse = successBankCancelResponse();
+
+        PaymentCancelResponse expected =
+                new PaymentCancelResponse(
+                        CANCEL_UUID,
+                        "APV-2026-00000456",
+                        bankResponse.txHash(),
+                        new BigDecimal("10000"),
+                        bankResponse.confirmedAt());
+
+        given(cancelExecutionStateWriter.prepareCancel(MERCHANT_PARTY_ID, TRANSACTION_ID, "123456"))
+                .willReturn(prepared);
+        given(bankClient.cancel(prepared.toBankCancelRequest())).willReturn(bankResponse);
+        given(
+                        cancelExecutionStateWriter.completeSuccess(
+                                CANCEL_UUID,
+                                bankResponse.txHash(),
+                                String.valueOf(bankResponse.bankTransactionId()),
+                                bankResponse.confirmedAt()))
+                .willReturn(expected);
+
+        PaymentCancelResponse response =
+                transactionCommandService.cancelPayment(
+                        MERCHANT_PARTY_ID, TRANSACTION_ID, new PaymentCancelRequest("123456"));
+
+        assertThat(response).isSameAs(expected);
+        verify(cancelExecutionStateWriter).prepareCancel(MERCHANT_PARTY_ID, TRANSACTION_ID, "123456");
+        verify(bankClient).cancel(prepared.toBankCancelRequest());
+        verify(cancelExecutionStateWriter)
+                .completeSuccess(
+                        CANCEL_UUID,
+                        bankResponse.txHash(),
+                        String.valueOf(bankResponse.bankTransactionId()),
+                        bankResponse.confirmedAt());
+    }
+
+    @Test
+    @DisplayName("세션 가맹점이 결제 수신자(toParty)가 아니면 취소가 거부된다")
+    void cancelPayment_failsWhenMerchantIsNotReceiver() {
+        given(cancelExecutionStateWriter.prepareCancel(OTHER_PARTY_ID, TRANSACTION_ID, "123456"))
+                .willThrow(new BusinessException(TransactionErrorCode.PAYMENT_CANCEL_FORBIDDEN));
+
+        assertThatThrownBy(
+                        () ->
+                                transactionCommandService.cancelPayment(
+                                        OTHER_PARTY_ID,
+                                        TRANSACTION_ID,
+                                        new PaymentCancelRequest("123456")))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue(
+                        "code", TransactionErrorCode.PAYMENT_CANCEL_FORBIDDEN);
+
+        verify(bankClient, never()).cancel(any());
+    }
+
+    @Test
+    @DisplayName("원본 결제가 SUCCESS 상태가 아니면 취소가 거부된다")
+    void cancelPayment_failsWhenPaymentNotSuccess() {
+        given(cancelExecutionStateWriter.prepareCancel(MERCHANT_PARTY_ID, TRANSACTION_ID, "123456"))
+                .willThrow(new BusinessException(TransactionErrorCode.PAYMENT_NOT_CANCELLABLE));
+
+        assertThatThrownBy(
+                        () ->
+                                transactionCommandService.cancelPayment(
+                                        MERCHANT_PARTY_ID,
+                                        TRANSACTION_ID,
+                                        new PaymentCancelRequest("123456")))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue(
+                        "code", TransactionErrorCode.PAYMENT_NOT_CANCELLABLE);
+
+        verify(bankClient, never()).cancel(any());
+    }
+
+    @Test
+    @DisplayName("동일 원본에 SUCCESS CANCEL이 이미 존재하면 재취소가 거부된다")
+    void cancelPayment_failsWhenAlreadyCancelled() {
+        given(cancelExecutionStateWriter.prepareCancel(MERCHANT_PARTY_ID, TRANSACTION_ID, "123456"))
+                .willThrow(new BusinessException(TransactionErrorCode.PAYMENT_ALREADY_CANCELLED));
+
+        assertThatThrownBy(
+                        () ->
+                                transactionCommandService.cancelPayment(
+                                        MERCHANT_PARTY_ID,
+                                        TRANSACTION_ID,
+                                        new PaymentCancelRequest("123456")))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue(
+                        "code", TransactionErrorCode.PAYMENT_ALREADY_CANCELLED);
+
+        verify(bankClient, never()).cancel(any());
+    }
+
+    private CancelResponse successBankCancelResponse() {
+        return new CancelResponse(
+                CANCEL_UUID,
+                TRANSACTION_UUID,
+                888L,
+                "0x-cancel-tx",
+                200L,
+                LocalDateTime.of(2026, 5, 27, 14, 0),
+                new BigDecimal("110000"),
+                new BigDecimal("90000"));
     }
 
     private PaymentResponse successBankPaymentResponse(String txHash) {
