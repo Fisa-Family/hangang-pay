@@ -23,11 +23,7 @@ public class AccountLedger extends BaseEntity {
     private Long id;
 
     // 플랫폼이 발행한 거래 식별자
-    @Column(
-            name = "idempotent_key",
-            nullable = true,
-            unique = true,
-            length = 36) // 일시적 nullable = true 추후 수정예정
+    @Column(name = "idempotent_key", nullable = false, unique = true, length = 36)
     private String idempotentKey;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -37,6 +33,11 @@ public class AccountLedger extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "ledger_type", nullable = false, length = 20)
     private LedgerType ledgerType;
+
+    // 원장 처리 상태
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private LedgerStatus status;
 
     @Column(name = "amount", nullable = false, precision = 18, scale = 2)
     private BigDecimal amount;

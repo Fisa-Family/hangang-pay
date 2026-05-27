@@ -24,11 +24,7 @@ public class BlockchainLedger extends BaseEntity {
     private Long id;
 
     // 플랫폼이 발행한 거래 식별자
-    @Column(
-            name = "idempotent_key",
-            nullable = true,
-            unique = true,
-            length = 36) // 일시적 nullable = true 추후 수정예정
+    @Column(name = "idempotent_key", nullable = false, unique = true, length = 36)
     private String idempotentKey;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -66,6 +62,11 @@ public class BlockchainLedger extends BaseEntity {
     }
 
     public void markFailed() {
+        this.status = BlockchainTxStatus.FAILED;
+    }
+
+    /** 컨트랙트 실패 후 FAILED 상태로 전환 */
+    public void fail() {
         this.status = BlockchainTxStatus.FAILED;
     }
 }

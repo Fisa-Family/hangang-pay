@@ -17,7 +17,10 @@ public enum TransactionErrorCode implements BaseErrorCode {
             HttpStatus.INTERNAL_SERVER_ERROR,
             "BLOCKCHAIN_LEDGER_NOT_FOUND",
             "블록체인 ledger를 찾을 수 없습니다."),
-    ;
+    TRANSACTION_DUPLICATE_PROCESSING(
+            HttpStatus.CONFLICT, "TRANSACTION_DUPLICATE_PROCESSING", "동일한 거래가 이미 처리 중입니다."),
+    TRANSACTION_ALREADY_FAILED(
+            HttpStatus.UNPROCESSABLE_ENTITY, "TRANSACTION_ALREADY_FAILED", "이미 실패한 거래입니다.");
 
     private final HttpStatus status;
     private final String code;

@@ -135,7 +135,7 @@ public class TransactionCommandService {
                 paymentExecutionStateWriter.completeSuccess(
                         transactionUuid,
                         bankResponse.txHash(),
-                        String.valueOf(bankResponse.blockNumber()),
+                        String.valueOf(bankResponse.bankTransactionId()),
                         bankResponse.confirmedAt());
 
         /** 4. Redis용 idempotency snapshot 저장 */
@@ -161,7 +161,7 @@ public class TransactionCommandService {
         if (bankStatus.status() == TransactionStatus.SUCCESS) {
             validateBankSuccessRecoveryResult(bankStatus);
             transaction.recoverSuccess(
-                    bankStatus.txHash(), String.valueOf(bankStatus.blockNumber()));
+                    bankStatus.txHash(), String.valueOf(bankStatus.bankTransactionId()));
         }
 
         /** 은행 FAILED -> 플랫폼 FAILED */
@@ -177,7 +177,7 @@ public class TransactionCommandService {
     }
 
     private void validateBankSuccessRecoveryResult(BankTransactionStatusResponse bankStatus) {
-        if (bankStatus.txHash() == null || bankStatus.blockNumber() == null) {
+        if (bankStatus.txHash() == null || bankStatus.bankTransactionId() == null) {
             throw new BusinessException(TransactionErrorCode.PAYMENT_RECOVERY_RESULT_INVALID);
         }
     }
