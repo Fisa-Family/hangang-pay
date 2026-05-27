@@ -63,6 +63,9 @@ public interface TransactionRepository {
      */
     List<Long> findPendingExchangeIdsForReconcile(LocalDateTime threshold, int maxAttempts);
 
+    /** 원거래 UUID를 참조하는 SUCCESS CANCEL 거래 존재 여부 */
+    boolean existsSuccessCancelByOriginalTransactionUuid(String originalTransactionUuid);
+
     /** 가장 최근 PENDING CHARGE 1건 - 충전 init 중복 방지용 */
     Optional<Transaction> findLatestPendingCharge(Long partyId);
 

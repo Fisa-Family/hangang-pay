@@ -60,6 +60,7 @@ public interface TransactionJpaRepository extends JpaRepository<Transaction, Lon
     @EntityGraph(
             attributePaths = {
                 "fromParty",
+                "toParty",
                 "fromAccount",
                 "fromAccount.institution",
                 "toAccount",
@@ -142,6 +143,12 @@ public interface TransactionJpaRepository extends JpaRepository<Transaction, Lon
             @Param("type") TransactionType type,
             @Param("threshold") LocalDateTime threshold,
             @Param("maxAttempts") int maxAttempts);
+
+    /** 원거래 UUID를 참조하는 특정 상태/타입 거래 존재 여부 */
+    boolean existsByOriginalTransactionUuidAndTransactionTypeAndStatus(
+            String originalTransactionUuid,
+            TransactionType transactionType,
+            TransactionStatus status);
 
     /** 거래 유형 SUCCESS 전체 기간 누적 금액 */
     @Query(

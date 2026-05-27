@@ -7,33 +7,31 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public record MerchantPaymentHistoryItem(
-        String paymentId,
+        Long transactionId,
+        String approvalNumber,
         String payerName,
         BigDecimal amount,
         TransactionType transactionType,
-        LocalDateTime createdAt,
-        LocalDateTime cursorCreatedAt,
-        Long cursorId)
+        LocalDateTime createdAt)
         implements CursorItem {
 
     @Override
     public LocalDateTime getCursorCreatedAt() {
-        return cursorCreatedAt;
+        return createdAt;
     }
 
     @Override
     public Long getCursorId() {
-        return cursorId;
+        return transactionId;
     }
 
     public static MerchantPaymentHistoryItem from(Transaction transaction, String payerName) {
         return new MerchantPaymentHistoryItem(
+                transaction.getId(),
                 transaction.getApprovalNumber(),
-                payerName,
+                UsernameMasker.mask(payerName),
                 transaction.getAmount(),
                 transaction.getTransactionType(),
-                transaction.getCreatedAt(),
-                transaction.getCreatedAt(),
-                transaction.getId());
+                transaction.getCreatedAt());
     }
 }

@@ -6,6 +6,7 @@ import family.fisa.hangangpay.domain.account.dto.MerchantAccountUpdateResponse;
 import family.fisa.hangangpay.domain.account.service.AccountCommandService;
 import family.fisa.hangangpay.domain.merchant.dto.MerchantInfoResponse;
 import family.fisa.hangangpay.domain.merchant.dto.MerchantMyPageResponse;
+import family.fisa.hangangpay.domain.merchant.dto.MerchantPaymentDetailResponse;
 import family.fisa.hangangpay.domain.merchant.dto.MerchantQrResponse;
 import family.fisa.hangangpay.domain.merchant.dto.MerchantSettlementHistoryItem;
 import family.fisa.hangangpay.domain.merchant.service.MerchantQrService;
@@ -13,6 +14,7 @@ import family.fisa.hangangpay.domain.merchant.service.MerchantQueryService;
 import family.fisa.hangangpay.domain.transaction.code.TransactionSuccessCode;
 import family.fisa.hangangpay.domain.transaction.dto.request.ExchangeExecuteRequest;
 import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeExecuteResponse;
+import family.fisa.hangangpay.domain.transaction.dto.response.MerchantPaymentDetail;
 import family.fisa.hangangpay.domain.transaction.dto.response.MerchantPaymentHistoryItem;
 import family.fisa.hangangpay.domain.transaction.service.ExchangeCommandService;
 import family.fisa.hangangpay.domain.transaction.service.TransactionQueryService;
@@ -85,6 +87,19 @@ public class MerchantController {
         CursorPageResponse<MerchantPaymentHistoryItem> page =
                 transactionQueryService.getMerchantPaymentHistory(partyId, cursor, size);
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, page));
+    }
+
+    /** 가맹점의 결제 상세 내역을 조회한다. */
+    @Operation(summary = "가맹점 결제 상세 조회 (MERCHANT-003)")
+    @GetMapping("/payments/{transactionId}")
+    public ResponseEntity<ApiResponse<MerchantPaymentDetailResponse<MerchantPaymentDetail>>>
+            getMerchantPaymentDetail(
+                    @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId,
+                    @PathVariable Long transactionId) {
+
+        MerchantPaymentDetailResponse<MerchantPaymentDetail> response =
+                transactionQueryService.getMerchantPaymentDetail(partyId, transactionId);
+        return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
     }
 
     @Operation(
