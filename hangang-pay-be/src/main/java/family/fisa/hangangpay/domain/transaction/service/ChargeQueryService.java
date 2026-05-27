@@ -51,8 +51,7 @@ public class ChargeQueryService {
                         startOfMonth,
                         startOfNextMonth);
         // 월 한도에서 이번 달 충전액을 뺀 나머지가 이번 달 충전 가능 금액이 됨
-        BigDecimal remainingLimit =
-                MONTHLY_LIMIT.subtract(chargedThisMonth).max(BigDecimal.ZERO);
+        BigDecimal remainingLimit = MONTHLY_LIMIT.subtract(chargedThisMonth).max(BigDecimal.ZERO);
 
         // 응답 조합 후 반환
         return ChargeInitResponse.of(

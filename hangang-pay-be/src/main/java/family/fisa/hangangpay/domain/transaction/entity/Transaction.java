@@ -136,7 +136,8 @@ public class Transaction extends BaseEntity {
     private Integer reconcileAttemptCount = 0;
 
     /** CHARGE init: PENDING 거래 예약 (amount, fromAccount는 실행 시점에 채워짐) */
-    public static Transaction chargeInit(Party fromParty, Wallet toWallet, BigDecimal discountRate) {
+    public static Transaction chargeInit(
+            Party fromParty, Wallet toWallet, BigDecimal discountRate) {
         return Transaction.builder()
                 .transactionUuid(UUID.randomUUID().toString())
                 .transactionType(TransactionType.CHARGE)
