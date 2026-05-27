@@ -66,7 +66,7 @@ public class PaymentStateWriter {
         BlockchainLedger managed = fetchById(ledgerId, transactionUuid);
 
         // 2. ledger CONFIRMED 전환 (dirty-checking으로 commit 시 DB 반영)
-        managed.confirm(receipt);
+        managed.markSuccess(receipt);
         log.info(
                 "[bank] CONFIRMED 전환 완료. transactionUuid={}, txHash={}",
                 transactionUuid,
@@ -99,7 +99,7 @@ public class PaymentStateWriter {
         BlockchainLedger managed = fetchById(ledgerId, transactionUuid);
 
         // 2. ledger CONFIRMED 전환
-        managed.confirm(receipt);
+        managed.markSuccess(receipt);
         log.info(
                 "[bank] 취소 CONFIRMED 전환 완료. transactionUuid={}, txHash={}",
                 transactionUuid,

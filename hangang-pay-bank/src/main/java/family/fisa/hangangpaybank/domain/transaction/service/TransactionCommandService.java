@@ -125,7 +125,7 @@ public class TransactionCommandService {
                 .map(
                         existing -> {
                             switch (existing.getStatus()) {
-                                case CONFIRMED -> {
+                                case SUCCESS -> {
                                     // 이미 완료된 거래 → 기존 결과를 그대로 반환 (컨트랙트 재호출 없음)
                                     log.info(
                                             "[bank] 멱등성: CONFIRMED 재요청 감지. transactionUuid={}",
@@ -210,7 +210,7 @@ public class TransactionCommandService {
                 .map(
                         existing -> {
                             switch (existing.getStatus()) {
-                                case CONFIRMED -> {
+                                case SUCCESS -> {
                                     // 이미 완료된 취소 → 기존 결과를 그대로 반환
                                     log.info(
                                             "[bank] 멱등성: 취소 CONFIRMED 재요청 감지. transactionUuid={}",

@@ -11,7 +11,7 @@ import family.fisa.hangangpaybank.domain.institution.repository.BankAccountRepos
 import family.fisa.hangangpaybank.domain.institution.repository.BankWalletRepository;
 import family.fisa.hangangpaybank.domain.institution.repository.InstitutionRepository;
 import family.fisa.hangangpaybank.domain.ledger.entity.AccountLedger;
-import family.fisa.hangangpaybank.domain.ledger.entity.AccountLedgerStatus;
+import family.fisa.hangangpaybank.domain.ledger.entity.LedgerStatus;
 import family.fisa.hangangpaybank.domain.ledger.entity.LedgerType;
 import family.fisa.hangangpaybank.domain.ledger.repository.AccountLedgerRepository;
 import family.fisa.hangangpaybank.domain.transaction.code.error.TransactionErrorCode;
@@ -81,7 +81,7 @@ public class ExchangeStateWriter {
                                 .ledgerType(LedgerType.DEPOSIT)
                                 .amount(request.amount())
                                 .balanceAfter(newAccountBalance)
-                                .status(AccountLedgerStatus.SUCCESS)
+                                .status(LedgerStatus.SUCCESS)
                                 .idempotentKey(request.transactionUuid())
                                 .build());
 
@@ -108,7 +108,7 @@ public class ExchangeStateWriter {
                         .ledgerType(LedgerType.DEPOSIT)
                         .amount(request.amount())
                         .balanceAfter(bankAccount.getBalance())
-                        .status(AccountLedgerStatus.FAILED)
+                        .status(LedgerStatus.FAILED)
                         .idempotentKey(request.transactionUuid())
                         .build());
     }
