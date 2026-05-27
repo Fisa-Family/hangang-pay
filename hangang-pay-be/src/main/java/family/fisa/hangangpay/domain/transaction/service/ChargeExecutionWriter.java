@@ -44,6 +44,7 @@ public class ChargeExecutionWriter {
     /** 충전 거래 실행 준비: 검증·멱등성 판단·PROCESSING 전환 */
     public ChargeExecutionPreparationResult prepareProcessing(
             Long sessionPartyId,
+            Long institutionId,
             Long accountId,
             BigDecimal amount,
             String transactionUuid,
@@ -112,7 +113,7 @@ public class ChargeExecutionWriter {
                 new ChargeExecutionPrepared(
                         transactionUuid,
                         requestHash,
-                        account.getInstitution().getId(),
+                        institutionId,
                         account.getAccountNumber(),
                         transaction.getToWallet().getAddress(),
                         finalAmount));

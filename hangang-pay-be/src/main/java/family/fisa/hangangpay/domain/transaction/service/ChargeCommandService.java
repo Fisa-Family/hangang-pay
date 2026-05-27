@@ -31,6 +31,7 @@ public class ChargeCommandService {
         ChargeExecutionPreparationResult result =
                 chargeExecutionWriter.prepareProcessing(
                         sessionPartyId,
+                        request.institutionId(),
                         request.accountId(),
                         request.amount(),
                         request.transactionUuid(),

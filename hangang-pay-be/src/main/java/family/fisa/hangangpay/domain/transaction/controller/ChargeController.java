@@ -6,8 +6,6 @@ import family.fisa.hangangpay.domain.transaction.dto.response.ChargeExecuteRespo
 import family.fisa.hangangpay.domain.transaction.dto.response.ChargeInitResponse;
 import family.fisa.hangangpay.domain.transaction.service.ChargeCommandService;
 import family.fisa.hangangpay.domain.transaction.service.ChargeQueryService;
-import family.fisa.hangangpay.global.code.error.GeneralErrorCode;
-import family.fisa.hangangpay.global.exception.BusinessException;
 import family.fisa.hangangpay.global.response.ApiResponse;
 import family.fisa.hangangpay.global.session.SessionAttributeNames;
 import io.swagger.v3.oas.annotations.Operation;
@@ -49,9 +47,6 @@ public class ChargeController {
     public ResponseEntity<ApiResponse<ChargeExecuteResponse>> executeCharge(
             @SessionAttribute(SessionAttributeNames.PARTY_ID) Long sessionPartyId,
             @Valid @RequestBody ChargeExecuteRequest request) {
-        if (request.partyId() != null && !sessionPartyId.equals(request.partyId())) {
-            throw new BusinessException(GeneralErrorCode.COMMON_FORBIDDEN);
-        }
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(
                         ApiResponse.onSuccess(
