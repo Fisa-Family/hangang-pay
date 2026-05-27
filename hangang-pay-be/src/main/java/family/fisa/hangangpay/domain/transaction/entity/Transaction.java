@@ -135,6 +135,15 @@ public class Transaction extends BaseEntity {
     @Builder.Default
     private Integer reconcileAttemptCount = 0;
 
+    /** 충전 실행 준비: 계좌, 금액, 할인액 설정 및 PROCESSING 전환 */
+    public void prepareChargeExecution(
+            Account fromAccount, BigDecimal amount, BigDecimal discountAmount) {
+        this.fromAccount = fromAccount;
+        this.amount = amount;
+        this.discountAmount = discountAmount;
+        this.status = TransactionStatus.PROCESSING;
+    }
+
     /** CHARGE init: PENDING 거래 예약 (amount, fromAccount는 실행 시점에 채워짐) */
     public static Transaction chargeInit(
             Party fromParty, Wallet toWallet, BigDecimal discountRate) {
