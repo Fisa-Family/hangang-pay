@@ -24,8 +24,8 @@ public class WalletController {
     /** 지갑 조회 서비스 */
     private final WalletQueryService walletQueryService;
 
-    /** WALLET-001 잔액 조회 엔드포인트 */
     @Operation(summary = "잔액 조회 (WALLET-001)", description = "partyId 기준으로 지갑 잔액을 조회한다.")
+    /** 세션 partyId 기준 지갑 잔액 조회 */
     @GetMapping("/balance")
     public ResponseEntity<ApiResponse<WalletBalanceResponse>> getBalance(
             @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId) {
