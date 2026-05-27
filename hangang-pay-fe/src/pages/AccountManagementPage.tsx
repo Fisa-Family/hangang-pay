@@ -99,7 +99,9 @@ export function AccountManagementPage() {
             </Button>
           </div>
 
-          <aside className={`mt-3 flex justify-center rounded-lg px-4 py-3 text-center ${SUPPORTING_TEXT_CLASS}`}>
+          <aside
+            className={`mt-3 flex justify-center rounded-lg px-4 py-3 text-center ${SUPPORTING_TEXT_CLASS}`}
+          >
             <p>계좌는 최대 3개까지 등록할 수 있어요.</p>
           </aside>
         </div>

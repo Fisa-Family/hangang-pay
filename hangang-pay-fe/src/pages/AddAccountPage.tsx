@@ -1,7 +1,14 @@
 import type { FormEvent } from 'react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AppShell, Button, PageHeader, PinCodeInput, SelectField, TextField } from '@/components/common'
+import {
+  AppShell,
+  Button,
+  PageHeader,
+  PinCodeInput,
+  SelectField,
+  TextField,
+} from '@/components/common'
 
 const BANK_OPTIONS = [
   { label: '우리은행', value: '우리은행' },
