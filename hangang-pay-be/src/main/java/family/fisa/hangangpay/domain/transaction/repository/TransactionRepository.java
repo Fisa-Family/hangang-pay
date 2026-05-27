@@ -65,4 +65,10 @@ public interface TransactionRepository {
 
     /** 원거래 UUID를 참조하는 SUCCESS CANCEL 거래 존재 여부 */
     boolean existsSuccessCancelByOriginalTransactionUuid(String originalTransactionUuid);
+
+    /** 가장 최근 PENDING CHARGE 1건 - 충전 init 중복 방지용 */
+    Optional<Transaction> findLatestPendingCharge(Long partyId);
+
+    /** 특정 거래 유형의 SUCCESS 누적 금액 (전체 기간) */
+    BigDecimal sumAllSuccessByType(Long partyId, TransactionType type);
 }
