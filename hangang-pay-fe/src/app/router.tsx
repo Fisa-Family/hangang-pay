@@ -15,6 +15,8 @@ import { PlaceholderPage } from '@/pages/PlaceholderPage'
 import { UserHomePage } from '@/pages/UserHomePage'
 import { UserMyPage } from '@/pages/UserMyPage'
 import { MerchantHomePage } from '@/pages/MerchantHomePage'
+import { AccountManagementPage } from '@/pages/AccountManagementPage'
+import { AddAccountPage } from '@/pages/AddAccountPage'
 import { AppShell } from '@/components/common'
 
 // 미등록 경로 접근 시 경로 기반으로 해당 영역 홈으로 교체
@@ -95,6 +97,12 @@ export const router = createBrowserRouter([
               },
               { path: '/mypage', element: <UserMyPage /> },
             ],
+          },
+          { path: '/mypage/accounts', element: <AccountManagementPage /> },
+          { path: '/mypage/accounts/add', element: <AddAccountPage /> },
+          {
+            path: '/mypage/accounts/new',
+            element: <AddAccountPage />,
           },
         ],
       },
