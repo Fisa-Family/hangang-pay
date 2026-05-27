@@ -1,6 +1,6 @@
 # REST API
 
-모든 API 경로 앞에는 `/api/v1` prefix를 붙인다. 아래 표의 path는 prefix를 제외한 경로다.  
+모든 API 경로 앞에는 `/api/v1` prefix를 붙인다. 아래 표의 path는 prefix를 제외한 경로다.
 단, `MERCHANT-009`는 예외로 `/api/v2`를 사용한다.
 
 ## Common Rules

@@ -152,4 +152,30 @@ public interface TransactionJpaRepository extends JpaRepository<Transaction, Lon
                     + "  family.fisa.hangangpay.domain.transaction.entity.TransactionStatus.SUCCESS")
     BigDecimal sumAllSuccessByType(
             @Param("partyId") Long partyId, @Param("type") TransactionType type);
+
+    @Query(
+            "SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t "
+                    + "WHERE t.toParty.id = :merchantPartyId "
+                    + "AND t.transactionType = family.fisa.hangangpay.domain.transaction.entity.TransactionType.PAYMENT "
+                    + "AND t.status = :status "
+                    + "AND t.createdAt >= :startInclusive "
+                    + "AND t.createdAt < :endExclusive")
+    BigDecimal sumMerchantPaymentAmountBetween(
+            @Param("merchantPartyId") Long merchantPartyId,
+            @Param("status") TransactionStatus status,
+            @Param("startInclusive") LocalDateTime startInclusive,
+            @Param("endExclusive") LocalDateTime endExclusive);
+
+    @Query(
+            "SELECT COUNT(t) FROM Transaction t "
+                    + "WHERE t.toParty.id = :merchantPartyId "
+                    + "AND t.transactionType = family.fisa.hangangpay.domain.transaction.entity.TransactionType.PAYMENT "
+                    + "AND t.status = :status "
+                    + "AND t.createdAt >= :startInclusive "
+                    + "AND t.createdAt < :endExclusive")
+    long countMerchantPaymentsBetween(
+            @Param("merchantPartyId") Long merchantPartyId,
+            @Param("status") TransactionStatus status,
+            @Param("startInclusive") LocalDateTime startInclusive,
+            @Param("endExclusive") LocalDateTime endExclusive);
 }

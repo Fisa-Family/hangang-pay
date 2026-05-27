@@ -144,6 +144,95 @@ class TransactionRepositoryImplTest {
                 .containsExactly(first.getTransactionUuid());
     }
 
+    @Test
+    @DisplayName("가맹점 대시보드 집계: 기간 내 SUCCESS PAYMENT(toParty=merchant)만 합계와 건수에 포함")
+    void aggregateMerchantPaymentDashboard_filtersSuccessPaymentsToMerchantWithinPeriod() {
+        Party user = persistParty(PartyType.USER);
+        Party merchant = persistParty(PartyType.MERCHANT);
+        Party otherMerchant = persistParty(PartyType.MERCHANT);
+
+        LocalDateTime start = LocalDateTime.of(2026, 5, 27, 0, 0);
+        LocalDateTime end = LocalDateTime.of(2026, 5, 28, 0, 0);
+
+        persistTransaction(
+                "included-1",
+                TransactionType.PAYMENT,
+                TransactionStatus.SUCCESS,
+                user,
+                merchant,
+                new BigDecimal("100000"),
+                "APV-2026-00000001",
+                LocalDateTime.of(2026, 5, 27, 10, 0));
+        persistTransaction(
+                "included-2",
+                TransactionType.PAYMENT,
+                TransactionStatus.SUCCESS,
+                user,
+                merchant,
+                new BigDecimal("150000"),
+                "APV-2026-00000002",
+                LocalDateTime.of(2026, 5, 27, 23, 59));
+
+        persistTransaction(
+                "before-period",
+                TransactionType.PAYMENT,
+                TransactionStatus.SUCCESS,
+                user,
+                merchant,
+                new BigDecimal("999999"),
+                "APV-2026-00000003",
+                LocalDateTime.of(2026, 5, 26, 23, 59));
+        persistTransaction(
+                "end-exclusive",
+                TransactionType.PAYMENT,
+                TransactionStatus.SUCCESS,
+                user,
+                merchant,
+                new BigDecimal("999999"),
+                "APV-2026-00000004",
+                LocalDateTime.of(2026, 5, 28, 0, 0));
+        persistTransaction(
+                "failed-payment",
+                TransactionType.PAYMENT,
+                TransactionStatus.FAILED,
+                user,
+                merchant,
+                new BigDecimal("999999"),
+                "APV-2026-00000005",
+                LocalDateTime.of(2026, 5, 27, 12, 0));
+        persistTransaction(
+                "cancel-excluded",
+                TransactionType.CANCEL,
+                TransactionStatus.SUCCESS,
+                merchant,
+                user,
+                new BigDecimal("999999"),
+                "APV-2026-00000006",
+                LocalDateTime.of(2026, 5, 27, 13, 0));
+        persistTransaction(
+                "other-merchant",
+                TransactionType.PAYMENT,
+                TransactionStatus.SUCCESS,
+                user,
+                otherMerchant,
+                new BigDecimal("999999"),
+                "APV-2026-00000007",
+                LocalDateTime.of(2026, 5, 27, 14, 0));
+
+        entityManager.flush();
+        entityManager.clear();
+
+        BigDecimal amount =
+                transactionRepository.sumMerchantPaymentAmountBetween(
+                        merchant.getId(), TransactionStatus.SUCCESS, start, end);
+        long count =
+                transactionRepository.countMerchantPaymentsBetween(
+                        merchant.getId(), TransactionStatus.SUCCESS, start, end);
+
+        assertThat(amount).isEqualByComparingTo(new BigDecimal("250000"));
+        assertThat(count).isEqualTo(2L);
+    }
+
     private Party persistParty(PartyType partyType) {
         Party party = Party.builder().partyType(partyType).build();
         entityManager.persist(party);
@@ -153,18 +242,20 @@ class TransactionRepositoryImplTest {
     private Transaction persistTransaction(
             String transactionUuid,
             TransactionType transactionType,
+            TransactionStatus status,
             Party fromParty,
             Party toParty,
+            BigDecimal amount,
             String approvalNumber,
             LocalDateTime createdAt) {
         Transaction transaction =
                 Transaction.builder()
                         .transactionUuid(transactionUuid)
                         .transactionType(transactionType)
-                        .status(TransactionStatus.SUCCESS)
+                        .status(status)
                         .fromParty(fromParty)
                         .toParty(toParty)
-                        .amount(new BigDecimal("10000"))
+                        .amount(amount)
                         .approvalNumber(approvalNumber)
                         .build();
 
@@ -180,5 +271,23 @@ class TransactionRepositoryImplTest {
                 .executeUpdate();
 
         return transaction;
+    }
+
+    private Transaction persistTransaction(
+            String transactionUuid,
+            TransactionType transactionType,
+            Party fromParty,
+            Party toParty,
+            String approvalNumber,
+            LocalDateTime createdAt) {
+        return persistTransaction(
+                transactionUuid,
+                transactionType,
+                TransactionStatus.SUCCESS,
+                fromParty,
+                toParty,
+                new BigDecimal("10000"),
+                approvalNumber,
+                createdAt);
     }
 }
