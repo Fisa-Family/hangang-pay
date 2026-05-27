@@ -196,12 +196,10 @@ export function UserMyPage() {
       )}
 
       <section className="flex flex-col gap-2">
-        <p className="text-xs font-medium text-muted-foreground">내역 확인</p>
         <HistoryEntryCard onClick={() => navigate('/mypage/payments')} />
       </section>
 
       <section className="flex flex-col gap-2">
-        <p className="text-xs font-medium text-muted-foreground">설정</p>
         <SettingsMenuCard
           items={[
             {
