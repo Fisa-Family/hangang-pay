@@ -45,6 +45,7 @@ class MerchantControllerTest {
         MerchantPaymentDetail detail =
                 new MerchantPaymentDetail(
                         25L,
+                        TransactionType.CANCEL,
                         new BigDecimal("12000"),
                         "김*영",
                         "APV-2026-00000025",
@@ -65,6 +66,6 @@ class MerchantControllerTest {
                 .andExpect(jsonPath("$.result.detail.payerName").value("김*영"))
                 .andExpect(jsonPath("$.result.detail.approvalNumber").value("APV-2026-00000025"))
                 .andExpect(jsonPath("$.result.detail.cancelAvailable").value(false))
-                .andExpect(jsonPath("$.result.detail.transactionType").doesNotExist());
+                .andExpect(jsonPath("$.result.detail.transactionType").value("CANCEL"));
     }
 }

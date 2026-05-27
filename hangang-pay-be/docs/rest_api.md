@@ -1,6 +1,6 @@
 # REST API
 
-모든 API 경로 앞에는 `/api/v1` prefix를 붙인다. 아래 표의 path는 prefix를 제외한 경로다.  
+모든 API 경로 앞에는 `/api/v1` prefix를 붙인다. 아래 표의 path는 prefix를 제외한 경로다.
 단, `MERCHANT-009`는 예외로 `/api/v2`를 사용한다.
 
 ## Common Rules
@@ -111,56 +111,3 @@ SMS 인증과 계좌 1원 인증은 mock으로 처리한다. 백엔드는 인증
 | `MY-002` | 사용자 내역 조회 | `GET` | `/users/histories` | `O` | `USER` | 소비자 전용 |
 | `MY-003` | 내역 상세 조회 | `GET` | `/users/histories/{historyId}` | `O` | `USER` | 소비자 전용 |
 | `WALLET-001` | 잔액 조회 | `GET` | `/wallet/balance` | `O` | `USER \| MERCHANT` | 역할별 서비스/응답 분리 가능 |
-
-## MERCHANT-002
-
-가맹점 결제 내역 조회 item의 `transactionId`는 `transaction.id`이며, 상세조회 `GET /api/v1/merchant/payments/{transactionId}`에 그대로 전달한다. `approvalNumber`는 화면 표시용 승인번호다.
-
-```json
-{
-  "isSuccess": true,
-  "status": "OK",
-  "code": "COMMON_OK",
-  "message": "요청에 성공했습니다.",
-  "result": {
-    "content": [
-      {
-        "transactionId": 25,
-        "approvalNumber": "APV-2026-00000025",
-        "payerName": "김*영",
-        "amount": 12000,
-        "transactionType": "PAYMENT",
-        "createdAt": "2026-05-14T14:23:00"
-      }
-    ],
-    "nextCursorCreatedAt": "2026-05-14T14:23:00",
-    "nextCursorId": 25,
-    "hasNext": true
-  }
-}
-```
-
-## MERCHANT-003
-
-가맹점 결제 상세 조회는 `transaction.id`로 PAYMENT/CANCEL 거래를 조회한다. 거래 소유 검증 기준은 PAYMENT이면 `transaction.to_party_id = session.partyId`, CANCEL이면 `transaction.from_party_id = session.partyId`다.
-
-```json
-{
-  "isSuccess": true,
-  "status": "OK",
-  "code": "COMMON_OK",
-  "message": "요청에 성공했습니다.",
-  "result": {
-    "transactionType": "CANCEL",
-    "detail": {
-      "historyId": 25,
-      "amount": 12000,
-      "payerName": "김*영",
-      "approvalNumber": "APV-2026-00000025",
-      "paymentStatus": "SUCCESS",
-      "createdAt": "2026-05-14T14:23:00",
-      "cancelAvailable": false
-    }
-  }
-}
-```

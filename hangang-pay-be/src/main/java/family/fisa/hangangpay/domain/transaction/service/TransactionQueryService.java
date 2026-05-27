@@ -217,7 +217,8 @@ public class TransactionQueryService {
 
         return MerchantPaymentDetailResponse.of(
                 transaction.getTransactionType(),
-                MerchantPaymentDetail.from(transaction, payerName));
+                MerchantPaymentDetail.from(
+                        transaction, payerName, isMerchantPaymentCancelAvailable(transaction)));
     }
 
     /** 사용자 충전 상세 내역 조회 */
@@ -276,6 +277,14 @@ public class TransactionQueryService {
             return transaction.getToParty().getId();
         }
         return transaction.getFromParty().getId();
+    }
+
+    /** 가맹점이 해당 결제에 대해 취소 가능 여부 확인 */
+    private boolean isMerchantPaymentCancelAvailable(Transaction transaction) {
+        return transaction.getTransactionType() == TransactionType.PAYMENT
+                && transaction.getStatus() == TransactionStatus.SUCCESS
+                && !transactionRepository.existsSuccessCancelByOriginalTransactionUuid(
+                        transaction.getTransactionUuid());
     }
 
     /** 가맹점 정산 내역 조회 */

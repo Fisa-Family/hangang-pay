@@ -62,4 +62,7 @@ public interface TransactionRepository {
      * 배치 reconcile 대상 id 조회 - PENDING + EXCHANGE + createdAt < threshold && attempt < maxAttempts
      */
     List<Long> findPendingExchangeIdsForReconcile(LocalDateTime threshold, int maxAttempts);
+
+    /** 원거래 UUID를 참조하는 SUCCESS CANCEL 거래 존재 여부 */
+    boolean existsSuccessCancelByOriginalTransactionUuid(String originalTransactionUuid);
 }
