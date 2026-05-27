@@ -1,5 +1,6 @@
-import type { ReactNode, SVGProps } from 'react'
+import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
+import { ChevronRightIcon } from './icons'
 
 export interface SettingsMenuItem {
   id: string
@@ -15,68 +16,45 @@ interface SettingsMenuCardProps {
   items: SettingsMenuItem[]
 }
 
-function ChevronRightIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
-      {...props}
-    >
-      <path d="m9 18 6-6-6-6" />
-    </svg>
-  )
-}
-
 export function SettingsMenuCard({ items }: SettingsMenuCardProps) {
   return (
-    <div className="flex flex-col gap-2">
-      {items.map((item) => {
-        const isDanger = item.variant === 'danger'
-        return (
-          <button
-            key={item.id}
-            type="button"
-            onClick={item.onClick}
-            disabled={item.disabled}
-            className={cn(
-              'flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left',
-              'active:bg-surface disabled:opacity-40'
-            )}
-          >
-            <div
-              className={cn(
-                'flex h-12 w-12 shrink-0 items-center justify-center rounded-lg',
-                isDanger ? 'bg-destructive/10' : 'bg-primary/10'
-              )}
-            >
-              {item.icon}
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <p
-                className={cn(
-                  'text-sm font-semibold',
-                  isDanger ? 'text-destructive' : 'text-foreground'
-                )}
+    <div className="overflow-hidden rounded-2xl border border-border/40 bg-card shadow-sm">
+      <ul className="divide-y divide-border/40">
+        {items.map((item) => {
+          const isDanger = item.variant === 'danger'
+          return (
+            <li key={item.id}>
+              <button
+                type="button"
+                onClick={item.onClick}
+                disabled={item.disabled}
+                className="flex w-full items-center gap-3 px-4 py-4 text-left transition-colors active:bg-surface disabled:opacity-40"
               >
-                {item.label}
-              </p>
-              {item.description ? (
-                <p className="mt-0.5 text-xs text-muted-foreground">{item.description}</p>
-              ) : null}
-            </div>
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center">
+                  {item.icon}
+                </div>
 
-            <ChevronRightIcon className="h-5 w-5 shrink-0 text-muted-foreground" />
-          </button>
-        )
-      })}
+                <div className="min-w-0 flex-1">
+                  <p
+                    className={cn(
+                      'text-sm font-semibold',
+                      isDanger ? 'text-destructive' : 'text-foreground'
+                    )}
+                  >
+                    {item.label}
+                  </p>
+                </div>
+
+                {item.description ? (
+                  <p className="shrink-0 text-xs text-muted-foreground">{item.description}</p>
+                ) : null}
+
+                <ChevronRightIcon className="h-5 w-5 shrink-0 text-muted-foreground" />
+              </button>
+            </li>
+          )
+        })}
+      </ul>
     </div>
   )
 }
