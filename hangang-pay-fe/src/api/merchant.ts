@@ -22,3 +22,14 @@ export interface MerchantSettlementPage {
 export function fetchMerchantSettlements(size = 4): Promise<MerchantSettlementPage> {
   return apiFetch<MerchantSettlementPage>(`/merchant/settlements?size=${size}`)
 }
+
+// 가맹점 본인 QR 응답 (BE: MerchantQrResponse)
+export interface MerchantQrResponse {
+  /** data URL 형태 ("data:image/png;base64,...") — img src에 그대로 사용 가능 */
+  qrImageBase64: string
+}
+
+// 가맹점 QR 조회 → GET /api/v1/merchant/qr
+export function fetchMerchantQr(): Promise<MerchantQrResponse> {
+  return apiFetch<MerchantQrResponse>('/merchant/qr')
+}
