@@ -5,6 +5,7 @@ import family.fisa.hangangpay.domain.account.entity.AccountType;
 
 public record ChargeAccountResponse(
         Long accountId,
+        Long institutionId,
         String institutionCode,
         String institutionName,
         String accountNumber,
@@ -14,6 +15,7 @@ public record ChargeAccountResponse(
     public static ChargeAccountResponse from(Account account) {
         return new ChargeAccountResponse(
                 account.getId(),
+                account.getInstitution().getId(),
                 account.getInstitution().getInstitutionCode(),
                 account.getInstitution().getInstitutionName(),
                 account.getAccountNumber(),
