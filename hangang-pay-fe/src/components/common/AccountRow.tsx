@@ -36,17 +36,17 @@ export function AccountRow({
             <p className="truncate text-base font-bold">{bankName}</p>
 
             {primary ? (
-              <span className="rounded-lg bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
-                주거래
-              </span>
+<span className="rounded-md bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+  주거래
+</span>
             ) : (
-              <button
-                type="button"
-                onClick={onSetPrimary}
-                className="text-sm font-medium text-primary"
-              >
-                주거래 변경
-              </button>
+<button
+  type="button"
+  onClick={onSetPrimary}
+  className="rounded-md bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted/80"
+>
+  주거래 변경
+</button>
             )}
           </div>
 
@@ -56,14 +56,14 @@ export function AccountRow({
         </div>
 
         {mode === 'manage' ? (
-          <Button
-            variant="danger"
-            size="md"
-            onClick={onDelete}
-            className="h-10 w-auto shrink-0 px-4"
-          >
-            삭제
-          </Button>
+<Button
+  variant="ghost"
+  size="md"
+  onClick={onDelete}
+  className="h-9 w-auto shrink-0 rounded-md px-3 text-sm font-semibold text-destructive hover:bg-destructive/5 hover:text-destructive"
+>
+  삭제
+</Button>
         ) : null}
       </div>
     </section>
