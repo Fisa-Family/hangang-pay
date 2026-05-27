@@ -8,12 +8,14 @@ import {
 } from 'react-router-dom'
 import { useEffect } from 'react'
 import { useCurrentUser } from '@/auth/useCurrentUser'
-import { MainLayout } from '@/routes/layouts'
+import { FullscreenLayout, MainLayout } from '@/routes/layouts'
 import { RequireAuth, RequireRole } from '@/routes/guards'
 import { LoginPage } from '@/pages/LoginPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 import { UserHomePage } from '@/pages/UserHomePage'
 import { UserMyPage } from '@/pages/UserMyPage'
+import { UserPayScanPage } from '@/pages/UserPayScanPage'
+import { UserPayAmountPage } from '@/pages/UserPayAmountPage'
 import { MerchantHomePage } from '@/pages/MerchantHomePage'
 import { MerchantQrPage } from '@/pages/MerchantQrPage'
 import { AppShell } from '@/components/common'
@@ -83,10 +85,6 @@ export const router = createBrowserRouter([
             children: [
               { path: '/home', element: <UserHomePage /> },
               {
-                path: '/pay/scan',
-                element: <PlaceholderPage title="QR 스캔" screenId="U-PAY-SCAN" />,
-              },
-              {
                 path: '/mypage/payments',
                 element: <PlaceholderPage title="결제내역" screenId="U-MY-PAYMENTS" />,
               },
@@ -96,6 +94,14 @@ export const router = createBrowserRouter([
               },
               { path: '/mypage', element: <UserMyPage /> },
             ],
+          },
+          {
+            element: <FullscreenLayout fullBleed />,
+            children: [{ path: '/pay/scan', element: <UserPayScanPage /> }],
+          },
+          {
+            element: <FullscreenLayout />,
+            children: [{ path: '/pay/amount/:merchantId', element: <UserPayAmountPage /> }],
           },
         ],
       },
