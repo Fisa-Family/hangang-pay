@@ -1,16 +1,5 @@
 package family.fisa.hangangpay.domain.merchant.controller;
 
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.SessionAttribute;
-
 import family.fisa.hangangpay.client.bank.dto.MerchantRedeemInitResponse;
 import family.fisa.hangangpay.domain.account.dto.MerchantAccountUpdateRequest;
 import family.fisa.hangangpay.domain.account.dto.MerchantAccountUpdateResponse;
@@ -36,6 +25,16 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.SessionAttribute;
 
 @RestController
 @RequestMapping("/api/v1/merchant")
@@ -50,7 +49,9 @@ public class MerchantController {
     private final ExchangeCommandService exchangeCommandService;
 
     /** QR에서 추출한 merchantId로 결제 진입에 필요한 가맹점 정보를 조회한다. */
-    @Operation(summary = "QR 가맹점 정보 조회 (PAY-001)", description = "QR에서 추출한 merchantId로 서버 DB의 신뢰된 가맹점 정보(이름, 주소, 지갑 주소)를 조회한다.")
+    @Operation(
+            summary = "QR 가맹점 정보 조회 (PAY-001)",
+            description = "QR에서 추출한 merchantId로 서버 DB의 신뢰된 가맹점 정보(이름, 주소, 지갑 주소)를 조회한다.")
     @GetMapping("/{merchantId}")
     public ResponseEntity<ApiResponse<MerchantInfoResponse>> getMerchantInfo(
             @PathVariable Long merchantId) {
@@ -61,13 +62,14 @@ public class MerchantController {
     /** 가맹점의 정산 내역을 조회한다. */
     @Operation(summary = "가맹점 정산 내역 조회 (MERCHANT-005)")
     @GetMapping("/settlements")
-    public ResponseEntity<ApiResponse<CursorPageResponse<MerchantSettlementHistoryItem>>> getMerchantSettlements(
-            @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId,
-            CursorPageRequest cursor,
-            @RequestParam(defaultValue = "20") int size) {
+    public ResponseEntity<ApiResponse<CursorPageResponse<MerchantSettlementHistoryItem>>>
+            getMerchantSettlements(
+                    @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId,
+                    CursorPageRequest cursor,
+                    @RequestParam(defaultValue = "20") int size) {
 
-        CursorPageResponse<MerchantSettlementHistoryItem> page = transactionQueryService
-                .getMerchantSettlementHistory(partyId, cursor, size);
+        CursorPageResponse<MerchantSettlementHistoryItem> page =
+                transactionQueryService.getMerchantSettlementHistory(partyId, cursor, size);
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, page));
     }
 
@@ -85,7 +87,9 @@ public class MerchantController {
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, page));
     }
 
-    @Operation(summary = "가맹점 정산 신청 조회 (MERCHANT-006)", description = "현재 세션 가맹점의 보유 토큰 잔액(availableAmount)과 SETTLEMENT 계좌 정보를 반환한다.")
+    @Operation(
+            summary = "가맹점 정산 신청 조회 (MERCHANT-006)",
+            description = "현재 세션 가맹점의 보유 토큰 잔액(availableAmount)과 SETTLEMENT 계좌 정보를 반환한다.")
     @GetMapping("/redeem")
     public ResponseEntity<ApiResponse<MerchantRedeemInitResponse>> getMerchantRedeemInit(
             @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId) {
@@ -93,18 +97,23 @@ public class MerchantController {
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
     }
 
-    @Operation(summary = "가맹점 정산 신청 (MERCHANT-007)", description = "가맹점의 보유 토큰 잔액(availableAmount)을 현금으로 환전한다.")
+    @Operation(
+            summary = "가맹점 정산 신청 (MERCHANT-007)",
+            description = "가맹점의 보유 토큰 잔액(availableAmount)을 현금으로 환전한다.")
     @PostMapping("/redeem")
     public ResponseEntity<ApiResponse<ExchangeExecuteResponse>> executeMerchantRedeem(
             @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId,
             @Valid @RequestBody ExchangeExecuteRequest request) {
-        ExchangeExecuteResponse response = exchangeCommandService.executeMerchantExchange(partyId, request);
+        ExchangeExecuteResponse response =
+                exchangeCommandService.executeMerchantExchange(partyId, request);
         return ResponseEntity.ok(
                 ApiResponse.onSuccess(TransactionSuccessCode.EXCHANGE_EXECUTED, response));
     }
 
     /** 현재 세션 가맹점의 결제용 QR을 조회한다. */
-    @Operation(summary = "가맹점 QR 조회 (MERCHANT-007)", description = "현재 세션의 가맹점 식별값(merchantId, partyId)을 담은 PNG QR을 base64로 반환한다.")
+    @Operation(
+            summary = "가맹점 QR 조회 (MERCHANT-007)",
+            description = "현재 세션의 가맹점 식별값(merchantId, partyId)을 담은 PNG QR을 base64로 반환한다.")
     @GetMapping("/qr")
     public ResponseEntity<ApiResponse<MerchantQrResponse>> getMerchantQr(
             @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId) {
@@ -129,8 +138,8 @@ public class MerchantController {
             @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId,
             @Valid @RequestBody MerchantAccountUpdateRequest request) {
 
-        MerchantAccountUpdateResponse response = accountCommandService.updateMerchantSettlementAccount(partyId,
-                request);
+        MerchantAccountUpdateResponse response =
+                accountCommandService.updateMerchantSettlementAccount(partyId, request);
 
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
     }

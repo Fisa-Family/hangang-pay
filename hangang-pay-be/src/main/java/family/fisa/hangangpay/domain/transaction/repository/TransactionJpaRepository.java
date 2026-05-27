@@ -40,9 +40,8 @@ public interface TransactionJpaRepository extends JpaRepository<Transaction, Lon
             Limit limit);
 
     /**
-     * 가맹점 결제 이력 페이징.
-     * - PAYMENT: 사용자 -> 가맹점 결제이므로 가맹점은 toParty
-     * - CANCEL: 가맹점 -> 사용자 환불이므로 가맹점은 fromParty
+     * 가맹점 결제 이력 페이징. - PAYMENT: 사용자 -> 가맹점 결제이므로 가맹점은 toParty - CANCEL: 가맹점 -> 사용자 환불이므로 가맹점은
+     * fromParty
      */
     @EntityGraph(attributePaths = {"fromParty", "toParty"})
     Window<Transaction>
