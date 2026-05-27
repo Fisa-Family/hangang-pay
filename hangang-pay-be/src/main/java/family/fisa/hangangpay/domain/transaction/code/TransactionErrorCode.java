@@ -43,10 +43,12 @@ public enum TransactionErrorCode implements BaseErrorCode {
             HttpStatus.CONFLICT, "EXCHANGE_ALREADY_FAILED", "이미 실패한 환전입니다. 새로 시도해 주세요."),
     INVALID_PAYMENT_PIN(HttpStatus.UNAUTHORIZED, "INVALID_PAYMENT_PIN", "결제 비밀번호가 일치하지 않습니다."),
     WALLET_NOT_FOUND(HttpStatus.NOT_FOUND, "WALLET_NOT_FOUND", "지갑을 찾을 수 없습니다."),
-    EXCHANGE_CONTRACT_FAILED(HttpStatus.BAD_GATEWAY, "EXCHANGE_CONTRACT_FAILED", "환전 컨트렉트 호출에 실패했습니다."),
-    BLOCKCHAIN_LEDGER_NOT_FOUND(HttpStatus.INTERNAL_SERVER_ERROR, "BLOCKCHAIN_LEDGER_NOT_FOUND", "블록체인 ledger를 찾을 수 없습니다."),
-
-
+    EXCHANGE_CONTRACT_FAILED(
+            HttpStatus.BAD_GATEWAY, "EXCHANGE_CONTRACT_FAILED", "환전 컨트렉트 호출에 실패했습니다."),
+    BLOCKCHAIN_LEDGER_NOT_FOUND(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "BLOCKCHAIN_LEDGER_NOT_FOUND",
+            "블록체인 ledger를 찾을 수 없습니다."),
     ;
 
     private final HttpStatus status;
