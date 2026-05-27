@@ -26,11 +26,11 @@ public class ChargeCommandService {
 
     /** 충전 실행 오케스트레이션: 멱등성 판단 → 은행 충전 요청 → 상태 전환 */
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    public ChargeExecuteResponse execute(Long sessionPartyId, ChargeExecuteRequest request) {
+    public ChargeExecuteResponse execute(Long partyId, ChargeExecuteRequest request) {
 
         ChargeExecutionPreparationResult result =
                 chargeExecutionWriter.prepareProcessing(
-                        sessionPartyId,
+                        partyId,
                         request.institutionId(),
                         request.accountId(),
                         request.amount(),

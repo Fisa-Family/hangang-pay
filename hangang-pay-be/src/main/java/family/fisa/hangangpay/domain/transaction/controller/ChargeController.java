@@ -45,12 +45,12 @@ public class ChargeController {
     @Operation(summary = "충전 실행", description = "PENDING 충전 거래를 실행하고 결과를 반환합니다.")
     @PostMapping("/charge")
     public ResponseEntity<ApiResponse<ChargeExecuteResponse>> executeCharge(
-            @SessionAttribute(SessionAttributeNames.PARTY_ID) Long sessionPartyId,
+            @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId,
             @Valid @RequestBody ChargeExecuteRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(
                         ApiResponse.onSuccess(
                                 TransactionSuccessCode.CHARGE_EXECUTED,
-                                chargeCommandService.execute(sessionPartyId, request)));
+                                chargeCommandService.execute(partyId, request)));
     }
 }

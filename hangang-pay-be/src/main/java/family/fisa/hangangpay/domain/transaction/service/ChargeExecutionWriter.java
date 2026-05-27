@@ -41,9 +41,9 @@ public class ChargeExecutionWriter {
     private final ChargeIdempotencyStore chargeIdempotencyStore;
     private final ChargeRequestHashGenerator chargeRequestHashGenerator;
 
-    /** 충전 거래 실행 준비: 검증·멱등성 판단·PROCESSING 전환 */
+    /** 충전 거래 실행 준비: 검증, 멱등성 판단, PROCESSING 전환 */
     public ChargeExecutionPreparationResult prepareProcessing(
-            Long sessionPartyId,
+            Long partyId,
             Long institutionId,
             Long accountId,
             BigDecimal amount,
@@ -59,19 +59,19 @@ public class ChargeExecutionWriter {
                                 () -> new BusinessException(TransactionErrorCode.CHARGE_NOT_FOUND));
 
         // 소유권 검증
-        transaction.validateOwner(sessionPartyId);
+        transaction.validateOwner(partyId);
 
         // 계좌 소유권 검증
         Account account =
                 accountRepository
-                        .findByIdAndParty_Id(accountId, sessionPartyId)
+                        .findByIdAndParty_Id(accountId, partyId)
                         .orElseThrow(
                                 () -> new BusinessException(AccountErrorCode.ACCOUNT_NOT_FOUND));
 
         // PIN 검증
         User user =
                 userRepository
-                        .findByParty_Id(sessionPartyId)
+                        .findByParty_Id(partyId)
                         .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
         if (!user.matchesPaymentPin(paymentPin, passwordEncoder)) {
             throw new BusinessException(TransactionErrorCode.INVALID_PAYMENT_PIN);
@@ -79,8 +79,7 @@ public class ChargeExecutionWriter {
 
         // 요청 중복 여부 확인
         String requestHash =
-                chargeRequestHashGenerator.generate(
-                        transactionUuid, sessionPartyId, accountId, amount);
+                chargeRequestHashGenerator.generate(transactionUuid, partyId, accountId, amount);
 
         ChargeIdempotencyDecision decision =
                 chargeIdempotencyStore.beginExecution(
@@ -107,7 +106,7 @@ public class ChargeExecutionWriter {
         // 충전 거래 실행 준비
         transaction.prepareChargeExecution(account, amount, discountAmount);
 
-        log.info("충전 실행 준비 완료. transactionUuid={}, partyId={}", transactionUuid, sessionPartyId);
+        log.info("충전 실행 준비 완료. transactionUuid={}, partyId={}", transactionUuid, partyId);
 
         return ChargeExecutionPreparationResult.prepared(
                 new ChargeExecutionPrepared(
@@ -147,6 +146,7 @@ public class ChargeExecutionWriter {
         return ChargeExecuteResponse.from(transaction, LocalDateTime.now());
     }
 
+    /* 충전 거래 조회 */
     private Transaction getChargeTransaction(String transactionUuid) {
         return transactionRepository
                 .findByTransactionUuid(transactionUuid)
