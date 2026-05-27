@@ -32,7 +32,9 @@ public class UserRepositoryImpl implements UserRepository {
     @Override
     public List<User> findByParty_IdIn(List<Long> partyIds) {
         return userJpaRepository.findByParty_IdIn(partyIds);
+    }
 
+    @Override
     public Optional<User> findByParty_Id(Long partyId) {
         return userJpaRepository.findByParty_Id(partyId);
     }
