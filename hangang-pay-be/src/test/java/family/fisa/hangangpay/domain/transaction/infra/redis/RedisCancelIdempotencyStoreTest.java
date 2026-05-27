@@ -34,7 +34,7 @@ class RedisCancelIdempotencyStoreTest {
 
     private static final Duration IDEMPOTENCY_TTL = Duration.ofDays(7);
     private static final String ORIGINAL_PAYMENT_UUID = "11111111-1111-1111-1111-111111111111";
-    private static final String REQUEST_HASH = "20";  // String.valueOf(merchantPartyId)
+    private static final String REQUEST_HASH = "20"; // String.valueOf(merchantPartyId)
     private static final String DIFFERENT_REQUEST_HASH = "99";
     private static final String KEY = "cancel:idempotency:" + ORIGINAL_PAYMENT_UUID;
 
@@ -51,8 +51,7 @@ class RedisCancelIdempotencyStoreTest {
                         .registerModule(new JavaTimeModule())
                         .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
-        redisCancelIdempotencyStore =
-                new RedisCancelIdempotencyStore(redisTemplate, objectMapper);
+        redisCancelIdempotencyStore = new RedisCancelIdempotencyStore(redisTemplate, objectMapper);
 
         given(redisTemplate.opsForValue()).willReturn(valueOperations);
     }
@@ -88,8 +87,7 @@ class RedisCancelIdempotencyStoreTest {
     @DisplayName("기존 record와 requestHash가 다르면 CONFLICT를 반환한다")
     void beginCancel_differentHashReturnsConflict() throws Exception {
         // 1. 이미 다른 가맹점(또는 다른 파라미터)의 취소 record가 선점 중이다
-        CancelIdempotencyRecord existing =
-                record(TransactionStatus.PROCESSING, REQUEST_HASH, null);
+        CancelIdempotencyRecord existing = record(TransactionStatus.PROCESSING, REQUEST_HASH, null);
 
         given(valueOperations.setIfAbsent(eq(KEY), anyString(), eq(IDEMPOTENCY_TTL)))
                 .willReturn(false);
@@ -128,8 +126,7 @@ class RedisCancelIdempotencyStoreTest {
     @DisplayName("같은 requestHash이지만 snapshot이 없으면 PROCESSING을 반환한다")
     void beginCancel_sameHashWithoutSnapshotReturnsProcessing() throws Exception {
         // 1. 동일 요청이 아직 Bank 호출 또는 후처리 중이다
-        CancelIdempotencyRecord existing =
-                record(TransactionStatus.PROCESSING, REQUEST_HASH, null);
+        CancelIdempotencyRecord existing = record(TransactionStatus.PROCESSING, REQUEST_HASH, null);
 
         given(valueOperations.setIfAbsent(eq(KEY), anyString(), eq(IDEMPOTENCY_TTL)))
                 .willReturn(false);
@@ -147,8 +144,7 @@ class RedisCancelIdempotencyStoreTest {
     @DisplayName("completeCancel은 기존 record에 성공 snapshot을 저장한다")
     void completeCancel_storesSnapshot() throws Exception {
         // 1. 취소 처리 완료 전 PROCESSING 상태 record가 존재한다
-        CancelIdempotencyRecord existing =
-                record(TransactionStatus.PROCESSING, REQUEST_HASH, null);
+        CancelIdempotencyRecord existing = record(TransactionStatus.PROCESSING, REQUEST_HASH, null);
         PaymentCancelResponse snapshot = successSnapshot();
 
         given(valueOperations.get(KEY)).willReturn(writeRecord(existing));
@@ -171,8 +167,7 @@ class RedisCancelIdempotencyStoreTest {
     @DisplayName("markCancelStatus는 snapshot 없이 상태만 갱신한다")
     void markCancelStatus_updatesStatusWithoutSnapshot() throws Exception {
         // 1. Bank 타임아웃 등으로 snapshot이 없는 PROCESSING record가 있다
-        CancelIdempotencyRecord existing =
-                record(TransactionStatus.PROCESSING, REQUEST_HASH, null);
+        CancelIdempotencyRecord existing = record(TransactionStatus.PROCESSING, REQUEST_HASH, null);
 
         given(valueOperations.get(KEY)).willReturn(writeRecord(existing));
 
@@ -196,9 +191,7 @@ class RedisCancelIdempotencyStoreTest {
     // ===== 픽스처 =====
 
     private CancelIdempotencyRecord record(
-            TransactionStatus status,
-            String requestHash,
-            PaymentCancelResponse responseSnapshot) {
+            TransactionStatus status, String requestHash, PaymentCancelResponse responseSnapshot) {
         return new CancelIdempotencyRecord(
                 ORIGINAL_PAYMENT_UUID, requestHash, status, responseSnapshot);
     }

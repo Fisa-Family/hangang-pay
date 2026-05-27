@@ -44,13 +44,25 @@ public class BlockchainLedger extends BaseEntity {
     @Column(name = "confirmed_at")
     private LocalDateTime confirmedAt;
 
-    /** 컨트랙트 성공 후 CONFIRMED 상태로 전환 */
-    public void confirm(TransactionReceipt receipt) {
-        this.status = BlockchainTxStatus.CONFIRMED;
+    public static BlockchainLedger of(
+            Institution institution, BlockchainTxStatus status, String idempotentKey) {
+        return BlockchainLedger.builder()
+                .institution(institution)
+                .status(status)
+                .idempotentKey(idempotentKey)
+                .build();
+    }
+
+    public void markSuccess(TransactionReceipt receipt) {
+        this.status = BlockchainTxStatus.SUCCESS;
         this.txHash = receipt.getTransactionHash();
         this.blockNumber =
                 receipt.getBlockNumber() != null ? receipt.getBlockNumber().longValueExact() : null;
         this.confirmedAt = LocalDateTime.now();
+    }
+
+    public void markFailed() {
+        this.status = BlockchainTxStatus.FAILED;
     }
 
     /** 컨트랙트 실패 후 FAILED 상태로 전환 */

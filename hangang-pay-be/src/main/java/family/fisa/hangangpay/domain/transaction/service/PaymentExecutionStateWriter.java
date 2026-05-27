@@ -99,8 +99,6 @@ public class PaymentExecutionStateWriter {
         return PaymentExecutionResponse.from(transaction, merchant.getMerchantName(), confirmedAt);
     }
 
-
-
     /** 내부 메소드 */
     private User getUser(Long userId) {
         return userRepository

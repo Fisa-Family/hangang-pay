@@ -28,6 +28,10 @@ public interface TransactionRepository {
             ScrollPosition position,
             Limit limit);
 
+    /** 가맹점 수취 결제/취소 이력 페이징 */
+    Window<Transaction> findPaymentTransactionsByMerchantPartyId(
+            Long partyId, TransactionStatus status, ScrollPosition position, Limit limit);
+
     /** 거래 상세 - id + type IN, fromParty/fromAccount/toAccount/fromWallet/toWallet fetch join */
     Optional<Transaction> findDetailByIdAndTypes(Long id, List<TransactionType> types);
 
@@ -59,9 +63,19 @@ public interface TransactionRepository {
      */
     List<Long> findPendingExchangeIdsForReconcile(LocalDateTime threshold, int maxAttempts);
 
+    /** 원거래 UUID를 참조하는 SUCCESS CANCEL 거래 존재 여부 */
+    boolean existsSuccessCancelByOriginalTransactionUuid(String originalTransactionUuid);
+
+    /** 가장 최근 PENDING CHARGE 1건 - 충전 init 중복 방지용 */
+    Optional<Transaction> findLatestPendingCharge(Long partyId);
+
+    /** 특정 거래 유형의 SUCCESS 누적 금액 (전체 기간) */
+    BigDecimal sumAllSuccessByType(Long partyId, TransactionType type);
+
     /** 원본 PAYMENT의 SUCCESS + CANCEL 존재 여부 확인 - 재취소 방지용 */
     boolean existsSuccessCancelFor(String originalTransactionUuid);
 
     /** 복구 가능한 CANCEL 조회 - CANCEL + status IN (UNKNOWN, PROCESSING) */
-    Optional<Transaction> findRecoverableCancelByOriginalTransactionUuid(String originalTransactionUuid);
+    Optional<Transaction> findRecoverableCancelByOriginalTransactionUuid(
+            String originalTransactionUuid);
 }

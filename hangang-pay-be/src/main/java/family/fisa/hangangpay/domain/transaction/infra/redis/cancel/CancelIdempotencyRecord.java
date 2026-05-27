@@ -9,7 +9,6 @@ public record CancelIdempotencyRecord(
         TransactionStatus status,
         PaymentCancelResponse responseSnapshot) {
 
-
     public static CancelIdempotencyRecord processing(
             String originalPaymentUuid, String requestHash) {
         return new CancelIdempotencyRecord(

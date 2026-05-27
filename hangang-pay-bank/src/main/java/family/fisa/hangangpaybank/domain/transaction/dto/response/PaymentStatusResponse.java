@@ -24,7 +24,7 @@ public record PaymentStatusResponse(
 
     private static String mapStatus(BlockchainTxStatus status) {
         return switch (status) {
-            case CONFIRMED -> "SUCCESS";
+            case SUCCESS -> "SUCCESS";
             case FAILED -> "FAILED";
             case PENDING -> "PROCESSING";
         };

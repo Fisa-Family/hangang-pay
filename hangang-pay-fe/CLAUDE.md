@@ -4,6 +4,18 @@ React + Vite 기반 대시보드. `blockchain-be`의 REST API를 호출하여 �
 
 루트 `CLAUDE.md`도 함께 참조.
 
+## 개발 방식
+
+**스펙 주도 개발(Spec-Driven Development)**을 따릅니다. 기능 구현 전 반드시
+`requirements → design → tasks` 3단계 문서를 작성하고 승인을 받은 뒤 코드에 착수합니다.
+
+상세 워크플로우, 문서 템플릿, EARS 표기법 등은 다음 가이드를 참조:
+
+- 가이드: [.claude/steering/spec-driven-development.md](.claude/steering/spec-driven-development.md)
+- 템플릿: `.claude/templates/{requirements,design,tasks}-template.md`
+
+스펙 산출물 위치: `.claude/specs/<feature-slug>/`
+
 ## 모듈 책임
 
 1. 사용자/은행 드롭다운 선택 (로그인 없음)

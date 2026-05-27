@@ -8,11 +8,10 @@ import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelIdempotencyDecision;
 import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelIdempotencyStore;
 import family.fisa.hangangpay.global.exception.BusinessException;
+import java.time.Duration;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
-
-import java.time.Duration;
 
 @Component
 @RequiredArgsConstructor
@@ -24,8 +23,7 @@ public class RedisCancelIdempotencyStore implements CancelIdempotencyStore {
     private final ObjectMapper objectMapper;
 
     @Override
-    public CancelIdempotencyDecision beginCancel(
-            String originalPaymentUuid, String requestHash) {
+    public CancelIdempotencyDecision beginCancel(String originalPaymentUuid, String requestHash) {
 
         String key = KEY_PREFIX + originalPaymentUuid;
 
@@ -62,8 +60,9 @@ public class RedisCancelIdempotencyStore implements CancelIdempotencyStore {
         CancelIdempotencyRecord existing = readRecord(key);
 
         // 6. SUCCESS snapshot 저장 — 이후 동일 요청 재시도에 그대로 반환
-        redisTemplate.opsForValue().set(key, serialize(existing.complete(responseSnapshot)),
-                IDEMPOTENCY_TTL);
+        redisTemplate
+                .opsForValue()
+                .set(key, serialize(existing.complete(responseSnapshot)), IDEMPOTENCY_TTL);
     }
 
     @Override
@@ -72,7 +71,9 @@ public class RedisCancelIdempotencyStore implements CancelIdempotencyStore {
         CancelIdempotencyRecord existing = readRecord(key);
 
         // 7. UNKNOWN 등 — snapshot 없이 상태만 갱신, 복구 스케줄러가 처리하도록 유도
-        redisTemplate.opsForValue().set(key, serialize(existing.withStatus(status)), IDEMPOTENCY_TTL);
+        redisTemplate
+                .opsForValue()
+                .set(key, serialize(existing.withStatus(status)), IDEMPOTENCY_TTL);
     }
 
     private CancelIdempotencyRecord readRecord(String key) {

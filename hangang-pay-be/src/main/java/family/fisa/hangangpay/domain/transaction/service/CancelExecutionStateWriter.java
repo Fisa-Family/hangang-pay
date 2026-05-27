@@ -1,6 +1,5 @@
 package family.fisa.hangangpay.domain.transaction.service;
 
-
 import family.fisa.hangangpay.domain.merchant.code.MerchantErrorCode;
 import family.fisa.hangangpay.domain.merchant.entity.Merchant;
 import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
@@ -11,6 +10,9 @@ import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
 import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelExecutionPrepared;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
 import family.fisa.hangangpay.global.exception.BusinessException;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
@@ -18,10 +20,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.UUID;
 
 @Slf4j
 @Service
@@ -34,11 +32,10 @@ public class CancelExecutionStateWriter {
     private final PasswordEncoder passwordEncoder;
 
     /**
-     * 취소 사전 처리 - 검증 + CANCEL 저장 + 승인번호 + Processing 전환
-     * 이 메서드가 커밋되면, Bank 호출 전까지 CANCEL 레코드가 DB에 남아있다.
-     * 네트워크 오류 시 스케줄러가 이를 복구하는 대상으로 인식할 수 있음.
+     * 취소 사전 처리 - 검증 + CANCEL 저장 + 승인번호 + Processing 전환 이 메서드가 커밋되면, Bank 호출 전까지 CANCEL 레코드가 DB에
+     * 남아있다. 네트워크 오류 시 스케줄러가 이를 복구하는 대상으로 인식할 수 있음.
      */
-    public CancelExecutionPrepared prepareCancel (
+    public CancelExecutionPrepared prepareCancel(
             Long merchantPartyId, Long transactionId, String paymentPin) {
         // 1. 원본 PAYMENT 조회 (fromParty, fromWallet, toWallet fetch join 포함)
         Transaction original = getPaymentTransaction(transactionId);
@@ -57,7 +54,7 @@ public class CancelExecutionStateWriter {
         }
 
         // 5. SUCCESS CANCEL 중복 차단 - FAILED는 재시도 허용
-        if(transactionRepository.existsSuccessCancelFor(original.getTransactionUuid())) {
+        if (transactionRepository.existsSuccessCancelFor(original.getTransactionUuid())) {
             throw new BusinessException(TransactionErrorCode.PAYMENT_ALREADY_CANCELLED);
         }
 
@@ -81,8 +78,8 @@ public class CancelExecutionStateWriter {
     }
 
     /**
-     * bankClient를 이용해서 은행 API를 호출 할 때, 네트워크 / 인프라 문제로 인해 서버가 끊킬 경우,
-     * 해당 Transaction.status를 Unknown으로 바꾼다.
+     * bankClient를 이용해서 은행 API를 호출 할 때, 네트워크 / 인프라 문제로 인해 서버가 끊킬 경우, 해당 Transaction.status를
+     * Unknown으로 바꾼다.
      */
     public PaymentCancelResponse markUnknown(String cancelTransactionUuid) {
         // 1. CANCEL 거래 재조회 - prepareCancel는 REQUIRES_NEW로, 이미 커밋되서 해당 엔티티는 detached임.
@@ -104,7 +101,7 @@ public class CancelExecutionStateWriter {
             String cancelTransactionUuid,
             String txHash,
             String bankTransactionId,
-            LocalDateTime confirmedAt ){
+            LocalDateTime confirmedAt) {
         // 1. CANCEL 거래 조회
         Transaction cancelTx = getTransactionByUuid(cancelTransactionUuid);
 
@@ -118,18 +115,13 @@ public class CancelExecutionStateWriter {
 
         // 4. 응답 조립
         return PaymentCancelResponse.from(cancelTx, confirmedAt);
-
     }
 
-
-
-    /** 내부 메소드  */
-
+    /** 내부 메소드 */
     private @NonNull Transaction getPaymentTransaction(Long transactionId) {
         return transactionRepository
-                        .findDetailByIdAndTypes(transactionId, List.of(TransactionType.PAYMENT))
-                        .orElseThrow(
-                                () -> new BusinessException(TransactionErrorCode.PAYMENT_NOT_FOUND));
+                .findDetailByIdAndTypes(transactionId, List.of(TransactionType.PAYMENT))
+                .orElseThrow(() -> new BusinessException(TransactionErrorCode.PAYMENT_NOT_FOUND));
     }
 
     private Transaction getTransactionByUuid(String cancelTransactionUuid) {

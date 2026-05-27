@@ -40,8 +40,9 @@ class UnknownPaymentRecoverySchedulerTest {
 
     @BeforeEach
     void setUp() {
-        scheduler = new UnknownPaymentRecoveryScheduler(
-                transactionRepository, transactionCommandService);
+        scheduler =
+                new UnknownPaymentRecoveryScheduler(
+                        transactionRepository, transactionCommandService);
     }
 
     @Test
@@ -111,13 +112,14 @@ class UnknownPaymentRecoverySchedulerTest {
 
     private Transaction cancelTransaction(TransactionStatus status) {
         // 1. CANCEL의 fromParty는 가맹점 — createCancel()이 원본 PAYMENT 방향을 뒤집기 때문
-        Party merchantParty = Party.builder().id(MERCHANT_PARTY_ID).partyType(PartyType.MERCHANT).build();
+        Party merchantParty =
+                Party.builder().id(MERCHANT_PARTY_ID).partyType(PartyType.MERCHANT).build();
         Party userParty = Party.builder().id(USER_PARTY_ID).partyType(PartyType.USER).build();
 
         return Transaction.builder()
                 .id(CANCEL_ID)
                 .transactionUuid(CANCEL_UUID)
-                .originalTransactionUuid(PAYMENT_UUID)   // 2. 원본 PAYMENT UUID 참조
+                .originalTransactionUuid(PAYMENT_UUID) // 2. 원본 PAYMENT UUID 참조
                 .transactionType(TransactionType.CANCEL)
                 .status(status)
                 .fromParty(merchantParty)
@@ -128,7 +130,7 @@ class UnknownPaymentRecoverySchedulerTest {
 
     private Transaction paymentTransaction() {
         return Transaction.builder()
-                .id(PAYMENT_ID)                          // 3. id — recoverCancel 호출에 필요
+                .id(PAYMENT_ID) // 3. id — recoverCancel 호출에 필요
                 .transactionUuid(PAYMENT_UUID)
                 .transactionType(TransactionType.PAYMENT)
                 .status(TransactionStatus.SUCCESS)

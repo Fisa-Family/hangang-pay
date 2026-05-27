@@ -33,8 +33,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
-class
-CancelExecutionStateWriterTest {
+class CancelExecutionStateWriterTest {
 
     private static final Long USER_PARTY_ID = 10L;
     private static final Long MERCHANT_PARTY_ID = 20L;
@@ -52,10 +51,9 @@ CancelExecutionStateWriterTest {
 
     @BeforeEach
     void setUp() {
-        cancelExecutionStateWriter = new CancelExecutionStateWriter(
-                transactionRepository,
-                merchantRepository,
-                passwordEncoder);
+        cancelExecutionStateWriter =
+                new CancelExecutionStateWriter(
+                        transactionRepository, merchantRepository, passwordEncoder);
     }
 
     // ===== prepareCancel =====
@@ -67,8 +65,9 @@ CancelExecutionStateWriterTest {
         Transaction original = paymentTransaction(MERCHANT_PARTY_ID, TransactionStatus.SUCCESS);
 
         // 2. 전 단계 검증 통과 설정
-        given(transactionRepository.findDetailByIdAndTypes(
-                        TRANSACTION_ID, List.of(TransactionType.PAYMENT)))
+        given(
+                        transactionRepository.findDetailByIdAndTypes(
+                                TRANSACTION_ID, List.of(TransactionType.PAYMENT)))
                 .willReturn(Optional.of(original));
         given(merchantRepository.findByParty_Id(MERCHANT_PARTY_ID))
                 .willReturn(Optional.of(merchant("pin-hash")));
@@ -80,7 +79,8 @@ CancelExecutionStateWriterTest {
 
         // 4. 실행
         CancelExecutionPrepared result =
-                cancelExecutionStateWriter.prepareCancel(MERCHANT_PARTY_ID, TRANSACTION_ID, "123456");
+                cancelExecutionStateWriter.prepareCancel(
+                        MERCHANT_PARTY_ID, TRANSACTION_ID, "123456");
 
         // 5. 취소 방향 검증 - 원본 PAYMENT의 역방향 (가맹점 -> 소비자)
         assertThat(result.fromWalletAddress()).isEqualTo("0x-merchant");
@@ -102,14 +102,16 @@ CancelExecutionStateWriterTest {
     void prepareCancel_failsWhenMerchantIsNotReceiver() {
         // 1. toParty가 다른 가맹점(OTHER_PARTY_ID)인 거래
         Transaction original = paymentTransaction(OTHER_PARTY_ID, TransactionStatus.SUCCESS);
-        given(transactionRepository.findDetailByIdAndTypes(
-                        TRANSACTION_ID, List.of(TransactionType.PAYMENT)))
+        given(
+                        transactionRepository.findDetailByIdAndTypes(
+                                TRANSACTION_ID, List.of(TransactionType.PAYMENT)))
                 .willReturn(Optional.of(original));
 
         // 2. 현재 세션 가맹점(MERCHANT_PARTY_ID)이 아닌 거래를 취소하려 하면 거부
-        assertThatThrownBy(() ->
-                        cancelExecutionStateWriter.prepareCancel(
-                                MERCHANT_PARTY_ID, TRANSACTION_ID, "123456"))
+        assertThatThrownBy(
+                        () ->
+                                cancelExecutionStateWriter.prepareCancel(
+                                        MERCHANT_PARTY_ID, TRANSACTION_ID, "123456"))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("code", TransactionErrorCode.PAYMENT_CANCEL_FORBIDDEN);
     }
@@ -119,14 +121,16 @@ CancelExecutionStateWriterTest {
     void prepareCancel_failsWhenPaymentNotSuccess() {
         // 1. PENDING 상태 거래 - 아직 Bank 실행 전이라 취소 불가
         Transaction original = paymentTransaction(MERCHANT_PARTY_ID, TransactionStatus.PENDING);
-        given(transactionRepository.findDetailByIdAndTypes(
-                        TRANSACTION_ID, List.of(TransactionType.PAYMENT)))
+        given(
+                        transactionRepository.findDetailByIdAndTypes(
+                                TRANSACTION_ID, List.of(TransactionType.PAYMENT)))
                 .willReturn(Optional.of(original));
 
         // 2. 취소 불가 상태 오류 발생
-        assertThatThrownBy(() ->
-                        cancelExecutionStateWriter.prepareCancel(
-                                MERCHANT_PARTY_ID, TRANSACTION_ID, "123456"))
+        assertThatThrownBy(
+                        () ->
+                                cancelExecutionStateWriter.prepareCancel(
+                                        MERCHANT_PARTY_ID, TRANSACTION_ID, "123456"))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("code", TransactionErrorCode.PAYMENT_NOT_CANCELLABLE);
     }
@@ -136,8 +140,9 @@ CancelExecutionStateWriterTest {
     void prepareCancel_failsWhenPinMismatch() {
         // 1. 유효한 PAYMENT 거래 설정
         Transaction original = paymentTransaction(MERCHANT_PARTY_ID, TransactionStatus.SUCCESS);
-        given(transactionRepository.findDetailByIdAndTypes(
-                        TRANSACTION_ID, List.of(TransactionType.PAYMENT)))
+        given(
+                        transactionRepository.findDetailByIdAndTypes(
+                                TRANSACTION_ID, List.of(TransactionType.PAYMENT)))
                 .willReturn(Optional.of(original));
         given(merchantRepository.findByParty_Id(MERCHANT_PARTY_ID))
                 .willReturn(Optional.of(merchant("pin-hash")));
@@ -145,9 +150,10 @@ CancelExecutionStateWriterTest {
         given(passwordEncoder.matches("wrong-pin", "pin-hash")).willReturn(false);
 
         // 3. PIN 불일치 오류 발생
-        assertThatThrownBy(() ->
-                        cancelExecutionStateWriter.prepareCancel(
-                                MERCHANT_PARTY_ID, TRANSACTION_ID, "wrong-pin"))
+        assertThatThrownBy(
+                        () ->
+                                cancelExecutionStateWriter.prepareCancel(
+                                        MERCHANT_PARTY_ID, TRANSACTION_ID, "wrong-pin"))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("code", TransactionErrorCode.INVALID_PAYMENT_PIN);
     }
@@ -157,8 +163,9 @@ CancelExecutionStateWriterTest {
     void prepareCancel_failsWhenAlreadyCancelled() {
         // 1. 유효한 PAYMENT 거래 설정 - PIN까지 통과
         Transaction original = paymentTransaction(MERCHANT_PARTY_ID, TransactionStatus.SUCCESS);
-        given(transactionRepository.findDetailByIdAndTypes(
-                        TRANSACTION_ID, List.of(TransactionType.PAYMENT)))
+        given(
+                        transactionRepository.findDetailByIdAndTypes(
+                                TRANSACTION_ID, List.of(TransactionType.PAYMENT)))
                 .willReturn(Optional.of(original));
         given(merchantRepository.findByParty_Id(MERCHANT_PARTY_ID))
                 .willReturn(Optional.of(merchant("pin-hash")));
@@ -167,11 +174,13 @@ CancelExecutionStateWriterTest {
         given(transactionRepository.existsSuccessCancelFor(TRANSACTION_UUID)).willReturn(true);
 
         // 3. 이미 취소된 결제 오류 발생
-        assertThatThrownBy(() ->
-                        cancelExecutionStateWriter.prepareCancel(
-                                MERCHANT_PARTY_ID, TRANSACTION_ID, "123456"))
+        assertThatThrownBy(
+                        () ->
+                                cancelExecutionStateWriter.prepareCancel(
+                                        MERCHANT_PARTY_ID, TRANSACTION_ID, "123456"))
                 .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("code", TransactionErrorCode.PAYMENT_ALREADY_CANCELLED);
+                .hasFieldOrPropertyWithValue(
+                        "code", TransactionErrorCode.PAYMENT_ALREADY_CANCELLED);
     }
 
     // ===== completeSuccess =====
@@ -187,8 +196,9 @@ CancelExecutionStateWriterTest {
                 .willReturn(Optional.of(cancelTx));
 
         // 2. completeSuccess 실행
-        PaymentCancelResponse response = cancelExecutionStateWriter.completeSuccess(
-                CANCEL_UUID, "0x-cancel-tx", "888", confirmedAt);
+        PaymentCancelResponse response =
+                cancelExecutionStateWriter.completeSuccess(
+                        CANCEL_UUID, "0x-cancel-tx", "888", confirmedAt);
 
         // 3. 거래 상태 전환 검증
         assertThat(cancelTx.getStatus()).isEqualTo(TransactionStatus.SUCCESS);
@@ -210,12 +220,14 @@ CancelExecutionStateWriterTest {
     @DisplayName("completeSuccess에서 CANCEL 거래를 찾을 수 없으면 PAYMENT_NOT_FOUND 오류가 발생한다")
     void completeSuccess_failsWhenCancelTransactionNotFound() {
         // 1. 존재하지 않는 UUID
-        given(transactionRepository.findByTransactionUuid(CANCEL_UUID)).willReturn(Optional.empty());
+        given(transactionRepository.findByTransactionUuid(CANCEL_UUID))
+                .willReturn(Optional.empty());
 
         // 2. PAYMENT_NOT_FOUND 오류 발생
-        assertThatThrownBy(() ->
-                        cancelExecutionStateWriter.completeSuccess(
-                                CANCEL_UUID, "0x-cancel-tx", "888", LocalDateTime.now()))
+        assertThatThrownBy(
+                        () ->
+                                cancelExecutionStateWriter.completeSuccess(
+                                        CANCEL_UUID, "0x-cancel-tx", "888", LocalDateTime.now()))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("code", TransactionErrorCode.PAYMENT_NOT_FOUND);
     }

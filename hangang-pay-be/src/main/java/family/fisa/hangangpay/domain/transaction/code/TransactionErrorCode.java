@@ -34,12 +34,10 @@ public enum TransactionErrorCode implements BaseErrorCode {
             HttpStatus.TOO_MANY_REQUESTS,
             "PAYMENT_RATE_LIMIT_EXCEEDED",
             "요청이 너무 많습니다. 잠시 후 다시 시도해주세요."),
-    PAYMENT_CANCEL_FORBIDDEN(
-            HttpStatus.FORBIDDEN, "PAYMENT_CANCEL_FORBIDDEN", "취소 권한이 없는 결제입니다."),
+    PAYMENT_CANCEL_FORBIDDEN(HttpStatus.FORBIDDEN, "PAYMENT_CANCEL_FORBIDDEN", "취소 권한이 없는 결제입니다."),
     PAYMENT_NOT_CANCELLABLE(
             HttpStatus.BAD_REQUEST, "PAYMENT_NOT_CANCELLABLE", "취소할 수 없는 결제 상태입니다."),
-    PAYMENT_ALREADY_CANCELLED(
-            HttpStatus.CONFLICT, "PAYMENT_ALREADY_CANCELLED", "이미 취소된 결제입니다."),
+    PAYMENT_ALREADY_CANCELLED(HttpStatus.CONFLICT, "PAYMENT_ALREADY_CANCELLED", "이미 취소된 결제입니다."),
     EXCHANGE_NOT_ELIGIBLE(
             HttpStatus.BAD_REQUEST,
             "EXCHANGE_NOT_ELIGIBLE",
@@ -59,8 +57,24 @@ public enum TransactionErrorCode implements BaseErrorCode {
             HttpStatus.INTERNAL_SERVER_ERROR,
             "CANCEL_IDEMPOTENCY_RECORD_INVALID",
             "취소 멱등성 기록이 올바르지 않습니다."),
-    CANCEL_NOT_RECOVERABLE(
-            HttpStatus.BAD_REQUEST, "CANCEL_NOT_RECOVERABLE", "복구할 수 없는 취소 상태입니다.");
+    CANCEL_NOT_RECOVERABLE(HttpStatus.BAD_REQUEST, "CANCEL_NOT_RECOVERABLE", "복구할 수 없는 취소 상태입니다."),
+    WALLET_NOT_FOUND(HttpStatus.NOT_FOUND, "WALLET_NOT_FOUND", "지갑을 찾을 수 없습니다."),
+    EXCHANGE_CONTRACT_FAILED(
+            HttpStatus.BAD_GATEWAY, "EXCHANGE_CONTRACT_FAILED", "환전 컨트렉트 호출에 실패했습니다."),
+    BLOCKCHAIN_LEDGER_NOT_FOUND(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "BLOCKCHAIN_LEDGER_NOT_FOUND",
+            "블록체인 ledger를 찾을 수 없습니다."),
+    CHARGE_ALREADY_PROCESSING(
+            HttpStatus.CONFLICT, "CHARGE_ALREADY_PROCESSING", "이미 처리 중인 충전 요청입니다."),
+    CHARGE_IDEMPOTENCY_RECORD_NOT_FOUND(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "CHARGE_IDEMPOTENCY_RECORD_NOT_FOUND",
+            "충전 멱등성 기록을 찾을 수 없습니다."),
+    CHARGE_IDEMPOTENCY_RECORD_INVALID(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "CHARGE_IDEMPOTENCY_RECORD_INVALID",
+            "충전 멱등성 기록이 올바르지 않습니다.");
 
     private final HttpStatus status;
     private final String code;

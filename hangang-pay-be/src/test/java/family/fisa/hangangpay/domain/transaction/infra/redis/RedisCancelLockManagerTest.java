@@ -51,7 +51,8 @@ class RedisCancelLockManagerTest {
         given(valueOperations.setIfAbsent(eq(KEY), anyString(), eq(LOCK_TTL))).willReturn(true);
 
         // 2. 락 획득 후 supplier 실행
-        String result = redisCancelLockManager.withCancelLock(ORIGINAL_PAYMENT_UUID, () -> "success");
+        String result =
+                redisCancelLockManager.withCancelLock(ORIGINAL_PAYMENT_UUID, () -> "success");
 
         // 3. supplier 반환값이 그대로 전달된다
         assertThat(result).isEqualTo("success");
@@ -68,8 +69,9 @@ class RedisCancelLockManagerTest {
 
         // 2. CANCEL_ALREADY_PROCESSING 예외가 발생해야 한다
         assertThatThrownBy(
-                        () -> redisCancelLockManager.withCancelLock(
-                                ORIGINAL_PAYMENT_UUID, () -> "should-not-run"))
+                        () ->
+                                redisCancelLockManager.withCancelLock(
+                                        ORIGINAL_PAYMENT_UUID, () -> "should-not-run"))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue(
                         "code", TransactionErrorCode.CANCEL_ALREADY_PROCESSING);
@@ -88,11 +90,12 @@ class RedisCancelLockManagerTest {
         // 2. Bank 호출 실패나 DB 오류가 나도 lock은 finally에서 반드시 해제되어야 한다
         // - lock을 해제하지 않으면 TTL(30s)이 만료될 때까지 동일 결제 취소가 막힌다
         assertThatThrownBy(
-                        () -> redisCancelLockManager.withCancelLock(
-                                ORIGINAL_PAYMENT_UUID,
-                                () -> {
-                                    throw new IllegalArgumentException("bank timeout");
-                                }))
+                        () ->
+                                redisCancelLockManager.withCancelLock(
+                                        ORIGINAL_PAYMENT_UUID,
+                                        () -> {
+                                            throw new IllegalArgumentException("bank timeout");
+                                        }))
                 .isInstanceOf(IllegalArgumentException.class);
 
         // 3. 예외 발생 후에도 Lua script로 lock을 해제한다

@@ -10,6 +10,7 @@ import family.fisa.hangangpaybank.domain.transaction.dto.response.ChargeResponse
 import family.fisa.hangangpaybank.domain.transaction.dto.response.ExchangeResponse;
 import family.fisa.hangangpaybank.domain.transaction.dto.response.PaymentResponse;
 import family.fisa.hangangpaybank.domain.transaction.dto.response.PaymentStatusResponse;
+import family.fisa.hangangpaybank.domain.transaction.service.ExchangeOrchestrator;
 import family.fisa.hangangpaybank.domain.transaction.service.PaymentQueryService;
 import family.fisa.hangangpaybank.domain.transaction.service.TransactionCommandService;
 import family.fisa.hangangpaybank.global.response.ApiResponse;
@@ -32,6 +33,7 @@ public class TransactionController {
 
     private final TransactionCommandService transactionCommandService;
     private final PaymentQueryService paymentQueryService;
+    private final ExchangeOrchestrator exchangeOrchestrator;
 
     @Operation(summary = "충전", description = "은행 계좌 잔액을 차감하고 한강페이 토큰을 mint한다.")
     @PostMapping("/charge")
@@ -51,7 +53,7 @@ public class TransactionController {
     public ResponseEntity<ApiResponse<ExchangeResponse>> exchange(
             @RequestBody ExchangeRequest request) {
         // 1. 환전 처리
-        ExchangeResponse response = transactionCommandService.exchange(request);
+        ExchangeResponse response = exchangeOrchestrator.exchange(request);
 
         // 2. 성공 응답 반환
         return ResponseEntity.status(TransactionSuccessCode.TRANSACTION_EXCHANGE_OK.getStatus())

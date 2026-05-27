@@ -19,9 +19,6 @@ import family.fisa.hangangpay.domain.transaction.dto.response.PaymentIntentRespo
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
-
-import java.util.List;
-
 import family.fisa.hangangpay.domain.transaction.internal.cancel.*;
 import family.fisa.hangangpay.domain.transaction.internal.payment.*;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
@@ -31,6 +28,7 @@ import family.fisa.hangangpay.domain.wallet.repository.WalletRepository;
 import family.fisa.hangangpay.global.code.error.GeneralErrorCode;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -120,8 +118,9 @@ public class TransactionCommandService {
         /** 2. 분산 락 - 같은 originalPaymentUuid 취소가 동시에 두 건 진입하지 못하게 차단 */
         return cancelLockManager.withCancelLock(
                 originalTransactionUuid,
-                () -> executeCancelWithLock(merchantPartyId, transactionId, originalTransactionUuid, request)
-        );
+                () ->
+                        executeCancelWithLock(
+                                merchantPartyId, transactionId, originalTransactionUuid, request));
     }
 
     public PaymentCancelResponse recoverCancel(Long merchantPartyId, Long transactionId) {
@@ -208,7 +207,11 @@ public class TransactionCommandService {
                 transaction, merchant.getMerchantName(), bankStatus.confirmedAt());
     }
 
-    private PaymentCancelResponse executeCancelWithLock(Long merchantPartyId, Long transactionId, String originalTransactionUuid, PaymentCancelRequest request) {
+    private PaymentCancelResponse executeCancelWithLock(
+            Long merchantPartyId,
+            Long transactionId,
+            String originalTransactionUuid,
+            PaymentCancelRequest request) {
         /** 1. 멱등성 판정 */
         String requestHash = String.valueOf(merchantPartyId);
 
@@ -236,18 +239,22 @@ public class TransactionCommandService {
             bankResponse = bankClient.cancel(prepared.toBankCancelRequest());
         } catch (ResourceAccessException ex) {
             /** 4-1. 연결 실패된 기존 트랜잭션 수정 - UNKNOWN */
-            log.warn("Bank cancel 네트워크 오류. cancelUuid={}, reason={}",
-                    prepared.cancelTransactionUuid(), ex.getMessage());
-            cancelIdempotencyStore.markCancelStatus(originalTransactionUuid, TransactionStatus.UNKNOWN);
+            log.warn(
+                    "Bank cancel 네트워크 오류. cancelUuid={}, reason={}",
+                    prepared.cancelTransactionUuid(),
+                    ex.getMessage());
+            cancelIdempotencyStore.markCancelStatus(
+                    originalTransactionUuid, TransactionStatus.UNKNOWN);
             return cancelExecutionStateWriter.markUnknown(prepared.cancelTransactionUuid());
         }
 
         /** 4-2. SUCCESS 확정 - REQUIRES_NEW 트랜잭션으로 커밋 */
-        PaymentCancelResponse response = cancelExecutionStateWriter.completeSuccess(
-                prepared.cancelTransactionUuid(),
-                bankResponse.txHash(),
-                String.valueOf(bankResponse.bankTransactionId()),
-                bankResponse.confirmedAt());
+        PaymentCancelResponse response =
+                cancelExecutionStateWriter.completeSuccess(
+                        prepared.cancelTransactionUuid(),
+                        bankResponse.txHash(),
+                        String.valueOf(bankResponse.bankTransactionId()),
+                        bankResponse.confirmedAt());
 
         /** 5. 멱등성 snapshot 저장 */
         cancelIdempotencyStore.completeCancel(originalTransactionUuid, response);
@@ -272,7 +279,8 @@ public class TransactionCommandService {
         if (bankStatus.status() == TransactionStatus.SUCCESS) {
             cancelTx.recoverSuccess(
                     bankStatus.txHash(), String.valueOf(bankStatus.bankTransactionId()));
-            PaymentCancelResponse response = PaymentCancelResponse.from(cancelTx, bankStatus.confirmedAt());
+            PaymentCancelResponse response =
+                    PaymentCancelResponse.from(cancelTx, bankStatus.confirmedAt());
             // 멱등성 snapshot 갱신 — 이후 cancelPayment 재시도 시 저장된 응답 반환
             cancelIdempotencyStore.completeCancel(original.getTransactionUuid(), response);
             return response;
@@ -302,11 +310,13 @@ public class TransactionCommandService {
     private @NonNull Transaction getCancelTransaction(String originalTransactionUuid) {
         return transactionRepository
                 .findRecoverableCancelByOriginalTransactionUuid(originalTransactionUuid)
-                .orElseThrow(() -> new BusinessException(TransactionErrorCode.CANCEL_NOT_RECOVERABLE));
+                .orElseThrow(
+                        () -> new BusinessException(TransactionErrorCode.CANCEL_NOT_RECOVERABLE));
     }
 
     private String getTransactionUuid(Long transactionId) {
-        return transactionRepository.findById(transactionId)
+        return transactionRepository
+                .findById(transactionId)
                 .orElseThrow(() -> new BusinessException(TransactionErrorCode.PAYMENT_NOT_FOUND))
                 .getTransactionUuid();
     }

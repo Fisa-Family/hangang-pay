@@ -15,7 +15,7 @@ const config: HardhatUserConfig = {
   },
   networks: {
     besu: {
-      url: "http://localhost:8545",
+      url: process.env.BESU_RPC_URL ?? "http://localhost:8545",
       chainId: 1337,
       gasPrice: 0,
       accounts: [

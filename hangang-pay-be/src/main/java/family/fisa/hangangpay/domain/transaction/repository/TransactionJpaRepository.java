@@ -39,11 +39,28 @@ public interface TransactionJpaRepository extends JpaRepository<Transaction, Lon
             ScrollPosition position,
             Limit limit);
 
+    /**
+     * 가맹점 결제 이력 페이징. - PAYMENT: 사용자 -> 가맹점 결제이므로 가맹점은 toParty - CANCEL: 가맹점 -> 사용자 환불이므로 가맹점은
+     * fromParty
+     */
+    @EntityGraph(attributePaths = {"fromParty", "toParty"})
+    Window<Transaction>
+            findByStatusAndTransactionTypeAndToParty_IdOrStatusAndTransactionTypeAndFromParty_IdOrderByCreatedAtDescIdDesc(
+                    TransactionStatus paymentStatus,
+                    TransactionType paymentType,
+                    Long merchantToPartyId,
+                    TransactionStatus cancelStatus,
+                    TransactionType cancelType,
+                    Long merchantFromPartyId,
+                    ScrollPosition position,
+                    Limit limit);
+
     /** 거래 상세 - fromParty + Account + Wallet fetch join */
     @Query("SELECT t FROM Transaction t WHERE t.id = :id AND t.transactionType IN :types")
     @EntityGraph(
             attributePaths = {
                 "fromParty",
+                "toParty",
                 "fromAccount",
                 "fromAccount.institution",
                 "toAccount",
@@ -127,11 +144,21 @@ public interface TransactionJpaRepository extends JpaRepository<Transaction, Lon
             @Param("threshold") LocalDateTime threshold,
             @Param("maxAttempts") int maxAttempts);
 
-    /**  원본 PAYMENT의 SUCCESS + CANCEL 존재 여부 확인 - 재취소 방지용  */
+    /** 원거래 UUID를 참조하는 특정 상태/타입 거래 존재 여부 */
     boolean existsByOriginalTransactionUuidAndTransactionTypeAndStatus(
             String originalTransactionUuid,
             TransactionType transactionType,
             TransactionStatus status);
+
+    /** 거래 유형 SUCCESS 전체 기간 누적 금액 */
+    @Query(
+            "SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t "
+                    + "WHERE t.fromParty.id = :partyId "
+                    + "AND t.transactionType = :type "
+                    + "AND t.status = "
+                    + "  family.fisa.hangangpay.domain.transaction.entity.TransactionStatus.SUCCESS")
+    BigDecimal sumAllSuccessByType(
+            @Param("partyId") Long partyId, @Param("type") TransactionType type);
 
     /** 복구 가능한 CANCEL 조회 - UNKNOWN 상태만 */
     Optional<Transaction> findByOriginalTransactionUuidAndTransactionTypeAndStatus(

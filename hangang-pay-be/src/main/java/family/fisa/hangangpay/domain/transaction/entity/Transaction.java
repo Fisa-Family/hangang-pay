@@ -9,6 +9,7 @@ import family.fisa.hangangpay.global.entity.BaseEntity;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -134,6 +135,29 @@ public class Transaction extends BaseEntity {
     @Builder.Default
     private Integer reconcileAttemptCount = 0;
 
+    /** 충전 실행 준비: 계좌, 금액, 할인액 설정 및 PROCESSING 전환 */
+    public void prepareChargeExecution(
+            Account fromAccount, BigDecimal amount, BigDecimal discountAmount) {
+        this.fromAccount = fromAccount;
+        this.amount = amount;
+        this.discountAmount = discountAmount;
+        this.status = TransactionStatus.PROCESSING;
+    }
+
+    /** CHARGE init: PENDING 거래 예약 (amount, fromAccount는 실행 시점에 채워짐) */
+    public static Transaction chargeInit(
+            Party fromParty, Wallet toWallet, BigDecimal discountRate) {
+        return Transaction.builder()
+                .transactionUuid(UUID.randomUUID().toString())
+                .transactionType(TransactionType.CHARGE)
+                .status(TransactionStatus.PENDING)
+                .fromParty(fromParty)
+                .toWallet(toWallet)
+                .amount(BigDecimal.ZERO)
+                .discountRate(discountRate)
+                .build();
+    }
+
     /** CHARGE: 계좌 → 토큰 mint */
     public static Transaction forCharge(
             String transactionUuid,
@@ -209,12 +233,12 @@ public class Transaction extends BaseEntity {
                 .originalTransactionUuid(this.transactionUuid)
                 .transactionType(TransactionType.CANCEL)
                 .status(TransactionStatus.PENDING)
-                .fromParty(this.toParty)     // toParty = 기존 가맹점
-                .toParty(this.fromParty)     // fromParty = 기존 소비자
-                .fromWallet(this.toWallet)   // 기존 가맹점
-                .toWallet(this.fromWallet)   // 기존 소비자
+                .fromParty(this.toParty) // toParty = 기존 가맹점
+                .toParty(this.fromParty) // fromParty = 기존 소비자
+                .fromWallet(this.toWallet) // 기존 가맹점
+                .toWallet(this.fromWallet) // 기존 소비자
                 .amount(this.amount)
-                .approvalNumber(null)        // save 이후 생성
+                .approvalNumber(null) // save 이후 생성
                 .build();
     }
 
@@ -285,17 +309,16 @@ public class Transaction extends BaseEntity {
         this.reconcileAttemptCount = this.reconcileAttemptCount + 1;
     }
 
-
     /** 취소 요청자가 원본 결제의 수신 가맹점인지 검증 */
     public void validateMerchantIsReceiver(Long merchantPartyId) {
-        if(!this.toParty.getId().equals(merchantPartyId)) {
+        if (!this.toParty.getId().equals(merchantPartyId)) {
             throw new BusinessException(TransactionErrorCode.PAYMENT_CANCEL_FORBIDDEN);
         }
     }
 
     /** 취소 가능한 거래인지 검증 - PAYMENT +SUCCESS 조합에만 허용 */
     public void validateCancellable() {
-        if(this.transactionType != TransactionType.PAYMENT
+        if (this.transactionType != TransactionType.PAYMENT
                 || this.status != TransactionStatus.SUCCESS) {
             throw new BusinessException(TransactionErrorCode.PAYMENT_NOT_CANCELLABLE);
         }

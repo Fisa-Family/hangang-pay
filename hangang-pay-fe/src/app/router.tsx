@@ -13,7 +13,9 @@ import { RequireAuth, RequireRole } from '@/routes/guards'
 import { LoginPage } from '@/pages/LoginPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 import { UserHomePage } from '@/pages/UserHomePage'
+import { UserMyPage } from '@/pages/UserMyPage'
 import { MerchantHomePage } from '@/pages/MerchantHomePage'
+import { MerchantQrPage } from '@/pages/MerchantQrPage'
 import { AppShell } from '@/components/common'
 
 // 미등록 경로 접근 시 경로 기반으로 해당 영역 홈으로 교체
@@ -88,7 +90,11 @@ export const router = createBrowserRouter([
                 path: '/mypage/payments',
                 element: <PlaceholderPage title="결제내역" screenId="U-MY-PAYMENTS" />,
               },
-              { path: '/mypage', element: <PlaceholderPage title="마이페이지" screenId="U-MY" /> },
+              {
+                path: '/mypage/accounts',
+                element: <PlaceholderPage title="계좌 관리" screenId="U-MY-ACCOUNTS" />,
+              },
+              { path: '/mypage', element: <UserMyPage /> },
             ],
           },
         ],
@@ -101,6 +107,7 @@ export const router = createBrowserRouter([
             element: <MainLayout navType="merchant" />,
             children: [
               { path: '/merchant/home', element: <MerchantHomePage /> },
+              { path: '/merchant/qr', element: <MerchantQrPage /> },
               {
                 path: '/merchant/payments',
                 element: <PlaceholderPage title="결제 내역" screenId="M-PAY" />,
