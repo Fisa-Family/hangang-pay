@@ -1,22 +1,21 @@
 package family.fisa.hangangpay.domain.transaction.dto.response;
 
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
-import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
 import family.fisa.hangangpay.global.pagination.CursorItem;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-public record PaymentHistoryItem(
+public record MerchantPaymentHistoryItem(
         String paymentId,
-        String merchantName,
+        String payerName,
         BigDecimal amount,
-        LocalDateTime paidAt,
-        TransactionStatus status,
-        TransactionType historyType,
+        TransactionType transactionType,
+        LocalDateTime createdAt,
         LocalDateTime cursorCreatedAt,
         Long cursorId)
         implements CursorItem {
+
     @Override
     public LocalDateTime getCursorCreatedAt() {
         return cursorCreatedAt;
@@ -27,14 +26,13 @@ public record PaymentHistoryItem(
         return cursorId;
     }
 
-    public static PaymentHistoryItem from(Transaction transaction, String merchantName) {
-        return new PaymentHistoryItem(
+    public static MerchantPaymentHistoryItem from(Transaction transaction, String payerName) {
+        return new MerchantPaymentHistoryItem(
                 transaction.getApprovalNumber(),
-                merchantName,
+                payerName,
                 transaction.getAmount(),
-                transaction.getCreatedAt(),
-                transaction.getStatus(),
                 transaction.getTransactionType(),
+                transaction.getCreatedAt(),
                 transaction.getCreatedAt(),
                 transaction.getId());
     }

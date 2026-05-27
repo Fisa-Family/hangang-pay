@@ -48,6 +48,21 @@ public class TransactionRepositoryImpl implements TransactionRepository {
     }
 
     @Override
+    public Window<Transaction> findPaymentTransactionsByMerchantPartyId(
+            Long partyId, TransactionStatus status, ScrollPosition position, Limit limit) {
+        return jpaRepository
+                .findByStatusAndTransactionTypeAndToParty_IdOrStatusAndTransactionTypeAndFromParty_IdOrderByCreatedAtDescIdDesc(
+                        status,
+                        TransactionType.PAYMENT,
+                        partyId,
+                        status,
+                        TransactionType.CANCEL,
+                        partyId,
+                        position,
+                        limit);
+    }
+
+    @Override
     public Optional<Transaction> findDetailByIdAndTypes(Long id, List<TransactionType> types) {
         return jpaRepository.findByIdAndTransactionTypeIn(id, types);
     }

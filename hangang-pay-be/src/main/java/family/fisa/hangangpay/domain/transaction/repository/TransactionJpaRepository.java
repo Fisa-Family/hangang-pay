@@ -39,6 +39,22 @@ public interface TransactionJpaRepository extends JpaRepository<Transaction, Lon
             ScrollPosition position,
             Limit limit);
 
+    /**
+     * 가맹점 결제 이력 페이징. - PAYMENT: 사용자 -> 가맹점 결제이므로 가맹점은 toParty - CANCEL: 가맹점 -> 사용자 환불이므로 가맹점은
+     * fromParty
+     */
+    @EntityGraph(attributePaths = {"fromParty", "toParty"})
+    Window<Transaction>
+            findByStatusAndTransactionTypeAndToParty_IdOrStatusAndTransactionTypeAndFromParty_IdOrderByCreatedAtDescIdDesc(
+                    TransactionStatus paymentStatus,
+                    TransactionType paymentType,
+                    Long merchantToPartyId,
+                    TransactionStatus cancelStatus,
+                    TransactionType cancelType,
+                    Long merchantFromPartyId,
+                    ScrollPosition position,
+                    Limit limit);
+
     /** 거래 상세 - fromParty + Account + Wallet fetch join */
     @Query("SELECT t FROM Transaction t WHERE t.id = :id AND t.transactionType IN :types")
     @EntityGraph(

@@ -28,6 +28,10 @@ public interface TransactionRepository {
             ScrollPosition position,
             Limit limit);
 
+    /** 가맹점 수취 결제/취소 이력 페이징 */
+    Window<Transaction> findPaymentTransactionsByMerchantPartyId(
+            Long partyId, TransactionStatus status, ScrollPosition position, Limit limit);
+
     /** 거래 상세 - id + type IN, fromParty/fromAccount/toAccount/fromWallet/toWallet fetch join */
     Optional<Transaction> findDetailByIdAndTypes(Long id, List<TransactionType> types);
 

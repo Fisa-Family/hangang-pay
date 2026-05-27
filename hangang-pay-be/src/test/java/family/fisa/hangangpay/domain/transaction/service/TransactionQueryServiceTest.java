@@ -14,11 +14,14 @@ import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.entity.PartyType;
 import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
+import family.fisa.hangangpay.domain.transaction.dto.response.MerchantPaymentHistoryItem;
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
 import family.fisa.hangangpay.domain.user.code.error.UserErrorCode;
+import family.fisa.hangangpay.domain.user.entity.User;
+import family.fisa.hangangpay.domain.user.repository.UserRepository;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import family.fisa.hangangpay.global.pagination.CursorPageRequest;
 import family.fisa.hangangpay.global.pagination.CursorPageResponse;
@@ -43,6 +46,7 @@ class TransactionQueryServiceTest {
 
     @Mock MerchantRepository merchantRepository;
     @Mock TransactionRepository transactionRepository;
+    @Mock UserRepository userRepository;
     @Mock PaginationService paginationService;
 
     @InjectMocks TransactionQueryService transactionQueryService;
@@ -69,9 +73,14 @@ class TransactionQueryServiceTest {
         return Merchant.builder().party(merchantParty(partyId)).merchantName(name).build();
     }
 
+    private User user(Long partyId, String name) {
+        return User.builder().party(party(partyId)).username(name).build();
+    }
+
     private Transaction mockTx(Long id, Party fromParty, Party toParty, TransactionType type) {
         Transaction tx = mock(Transaction.class);
         lenient().when(tx.getId()).thenReturn(id);
+        lenient().when(tx.getApprovalNumber()).thenReturn("APV-2026-%08d".formatted(id));
         lenient().when(tx.getFromParty()).thenReturn(fromParty);
         lenient().when(tx.getToParty()).thenReturn(toParty);
         lenient().when(tx.getTransactionType()).thenReturn(type);
@@ -240,6 +249,73 @@ class TransactionQueryServiceTest {
                             eq(List.of(TransactionType.EXCHANGE)),
                             any(ScrollPosition.class),
                             any(Limit.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("가맹점 결제 내역 조회 (getMerchantPaymentHistory)")
+    class GetMerchantPaymentHistory {
+
+        @Test
+        @DisplayName("정상: PAYMENT는 fromParty, CANCEL은 toParty를 결제자로 매핑")
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        void success_mapsPayerByTransactionType() {
+            Transaction payment =
+                    mockTx(
+                            1L,
+                            party(PARTY_ID),
+                            merchantParty(MERCHANT_PARTY_ID),
+                            TransactionType.PAYMENT);
+            Transaction cancel =
+                    mockTx(
+                            2L,
+                            merchantParty(MERCHANT_PARTY_ID),
+                            party(OTHER_PARTY_ID),
+                            TransactionType.CANCEL);
+            Window<Transaction> window =
+                    Window.from(List.of(payment, cancel), i -> ScrollPosition.offset(i));
+
+            when(paginationService.resolveScrollPosition(any()))
+                    .thenReturn(ScrollPosition.offset());
+            when(transactionRepository.findPaymentTransactionsByMerchantPartyId(
+                            eq(MERCHANT_PARTY_ID),
+                            eq(TransactionStatus.SUCCESS),
+                            any(ScrollPosition.class),
+                            any(Limit.class)))
+                    .thenReturn(window);
+            when(userRepository.findByParty_IdIn(List.of(PARTY_ID, OTHER_PARTY_ID)))
+                    .thenReturn(List.of(user(PARTY_ID, "김한강"), user(OTHER_PARTY_ID, "이수")));
+
+            CursorPageResponse sentinel = mock(CursorPageResponse.class);
+            when(paginationService.toCursorPage(any()))
+                    .thenAnswer(
+                            invocation -> {
+                                Window<MerchantPaymentHistoryItem> responseWindow =
+                                        invocation.getArgument(0);
+                                List<MerchantPaymentHistoryItem> content =
+                                        responseWindow.getContent();
+
+                                assertThat(content).hasSize(2);
+                                assertThat(content.get(0).paymentId())
+                                        .isEqualTo("APV-2026-00000001");
+                                assertThat(content.get(0).payerName()).isEqualTo("김*강");
+                                assertThat(content.get(0).transactionType())
+                                        .isEqualTo(TransactionType.PAYMENT);
+                                assertThat(content.get(1).paymentId())
+                                        .isEqualTo("APV-2026-00000002");
+                                assertThat(content.get(1).payerName()).isEqualTo("이*");
+                                assertThat(content.get(1).transactionType())
+                                        .isEqualTo(TransactionType.CANCEL);
+
+                                return sentinel;
+                            });
+
+            CursorPageResponse result =
+                    transactionQueryService.getMerchantPaymentHistory(
+                            MERCHANT_PARTY_ID, emptyRequest(), PAGE_SIZE);
+
+            assertThat(result).isSameAs(sentinel);
+            verify(userRepository).findByParty_IdIn(List.of(PARTY_ID, OTHER_PARTY_ID));
         }
     }
 

@@ -1,0 +1,184 @@
+package family.fisa.hangangpay.domain.transaction.repository;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import family.fisa.hangangpay.domain.party.entity.Party;
+import family.fisa.hangangpay.domain.party.entity.PartyType;
+import family.fisa.hangangpay.domain.transaction.entity.Transaction;
+import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
+import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
+import jakarta.persistence.EntityManager;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.Limit;
+import org.springframework.data.domain.ScrollPosition;
+import org.springframework.data.domain.Window;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
+
+@SpringBootTest
+@ActiveProfiles("test")
+@Transactional
+class TransactionRepositoryImplTest {
+
+    @Autowired TransactionRepository transactionRepository;
+    @Autowired EntityManager entityManager;
+
+    @Test
+    @DisplayName("가맹점 결제 이력: PAYMENT(toParty=merchant)와 CANCEL(fromParty=merchant)을 최신순으로 조회")
+    void findPaymentTransactionsByMerchantPartyId_filtersPaymentAndCancelDirections() {
+        Party user = persistParty(PartyType.USER);
+        Party otherUser = persistParty(PartyType.USER);
+        Party merchant = persistParty(PartyType.MERCHANT);
+        Party otherMerchant = persistParty(PartyType.MERCHANT);
+
+        Transaction oldPayment =
+                persistTransaction(
+                        "payment-old",
+                        TransactionType.PAYMENT,
+                        user,
+                        merchant,
+                        "APV-2026-00000001",
+                        LocalDateTime.of(2026, 5, 1, 10, 0));
+        Transaction latestCancel =
+                persistTransaction(
+                        "cancel-latest",
+                        TransactionType.CANCEL,
+                        merchant,
+                        otherUser,
+                        "APV-2026-00000002",
+                        LocalDateTime.of(2026, 5, 2, 10, 0));
+        persistTransaction(
+                "payment-other-merchant",
+                TransactionType.PAYMENT,
+                user,
+                otherMerchant,
+                "APV-2026-00000003",
+                LocalDateTime.of(2026, 5, 3, 10, 0));
+        persistTransaction(
+                "cancel-other-merchant",
+                TransactionType.CANCEL,
+                otherMerchant,
+                user,
+                "APV-2026-00000004",
+                LocalDateTime.of(2026, 5, 4, 10, 0));
+
+        entityManager.flush();
+        entityManager.clear();
+
+        Window<Transaction> result =
+                transactionRepository.findPaymentTransactionsByMerchantPartyId(
+                        merchant.getId(),
+                        TransactionStatus.SUCCESS,
+                        ScrollPosition.keyset(),
+                        Limit.of(10));
+
+        assertThat(result.hasNext()).isFalse();
+        assertThat(result.getContent())
+                .extracting(Transaction::getTransactionUuid)
+                .containsExactly(
+                        latestCancel.getTransactionUuid(), oldPayment.getTransactionUuid());
+    }
+
+    @Test
+    @DisplayName("가맹점 결제 이력: createdAt DESC, id DESC 기준으로 다음 cursor 이후를 조회")
+    void findPaymentTransactionsByMerchantPartyId_appliesKeysetCursor() {
+        Party user = persistParty(PartyType.USER);
+        Party merchant = persistParty(PartyType.MERCHANT);
+        LocalDateTime sameCreatedAt = LocalDateTime.of(2026, 5, 1, 10, 0);
+
+        Transaction first =
+                persistTransaction(
+                        "payment-first",
+                        TransactionType.PAYMENT,
+                        user,
+                        merchant,
+                        "APV-2026-00000001",
+                        sameCreatedAt);
+        Transaction second =
+                persistTransaction(
+                        "payment-second",
+                        TransactionType.PAYMENT,
+                        user,
+                        merchant,
+                        "APV-2026-00000002",
+                        sameCreatedAt);
+        Transaction third =
+                persistTransaction(
+                        "payment-third",
+                        TransactionType.PAYMENT,
+                        user,
+                        merchant,
+                        "APV-2026-00000003",
+                        sameCreatedAt);
+
+        entityManager.flush();
+        entityManager.clear();
+
+        Window<Transaction> firstPage =
+                transactionRepository.findPaymentTransactionsByMerchantPartyId(
+                        merchant.getId(),
+                        TransactionStatus.SUCCESS,
+                        ScrollPosition.keyset(),
+                        Limit.of(2));
+
+        assertThat(firstPage.hasNext()).isTrue();
+        assertThat(firstPage.getContent())
+                .extracting(Transaction::getTransactionUuid)
+                .containsExactly(third.getTransactionUuid(), second.getTransactionUuid());
+
+        Window<Transaction> secondPage =
+                transactionRepository.findPaymentTransactionsByMerchantPartyId(
+                        merchant.getId(),
+                        TransactionStatus.SUCCESS,
+                        firstPage.positionAt(1),
+                        Limit.of(2));
+
+        assertThat(secondPage.hasNext()).isFalse();
+        assertThat(secondPage.getContent())
+                .extracting(Transaction::getTransactionUuid)
+                .containsExactly(first.getTransactionUuid());
+    }
+
+    private Party persistParty(PartyType partyType) {
+        Party party = Party.builder().partyType(partyType).build();
+        entityManager.persist(party);
+        return party;
+    }
+
+    private Transaction persistTransaction(
+            String transactionUuid,
+            TransactionType transactionType,
+            Party fromParty,
+            Party toParty,
+            String approvalNumber,
+            LocalDateTime createdAt) {
+        Transaction transaction =
+                Transaction.builder()
+                        .transactionUuid(transactionUuid)
+                        .transactionType(transactionType)
+                        .status(TransactionStatus.SUCCESS)
+                        .fromParty(fromParty)
+                        .toParty(toParty)
+                        .amount(new BigDecimal("10000"))
+                        .approvalNumber(approvalNumber)
+                        .build();
+
+        entityManager.persist(transaction);
+        entityManager.flush();
+        entityManager
+                .createQuery(
+                        "UPDATE Transaction t "
+                                + "SET t.createdAt = :createdAt, t.updatedAt = :createdAt "
+                                + "WHERE t.id = :id")
+                .setParameter("createdAt", createdAt)
+                .setParameter("id", transaction.getId())
+                .executeUpdate();
+
+        return transaction;
+    }
+}
