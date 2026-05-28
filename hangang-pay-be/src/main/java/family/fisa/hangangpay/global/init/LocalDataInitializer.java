@@ -148,7 +148,7 @@ public class LocalDataInitializer implements ApplicationRunner {
 
         // 충전 5건
         Transaction charge1 =
-                transactionRepository.save(
+                transactionRepository.saveAndFlush(
                         Transaction.forCharge(
                                 UUID.randomUUID().toString(),
                                 userParty,
@@ -161,7 +161,7 @@ public class LocalDataInitializer implements ApplicationRunner {
         backdate(charge1.getId(), 15, 9);
 
         Transaction charge2 =
-                transactionRepository.save(
+                transactionRepository.saveAndFlush(
                         Transaction.forCharge(
                                 UUID.randomUUID().toString(),
                                 userParty,
@@ -174,7 +174,7 @@ public class LocalDataInitializer implements ApplicationRunner {
         backdate(charge2.getId(), 12, 14);
 
         Transaction charge3 =
-                transactionRepository.save(
+                transactionRepository.saveAndFlush(
                         Transaction.forCharge(
                                 UUID.randomUUID().toString(),
                                 userParty,
@@ -187,7 +187,7 @@ public class LocalDataInitializer implements ApplicationRunner {
         backdate(charge3.getId(), 9, 19);
 
         Transaction charge4 =
-                transactionRepository.save(
+                transactionRepository.saveAndFlush(
                         Transaction.forCharge(
                                 UUID.randomUUID().toString(),
                                 userParty,
@@ -200,7 +200,7 @@ public class LocalDataInitializer implements ApplicationRunner {
         backdate(charge4.getId(), 6, 10);
 
         Transaction charge5 =
-                transactionRepository.save(
+                transactionRepository.saveAndFlush(
                         Transaction.forCharge(
                                 UUID.randomUUID().toString(),
                                 userParty,
@@ -214,7 +214,7 @@ public class LocalDataInitializer implements ApplicationRunner {
 
         // 소비자 결제 8건 (가맹점 수취)
         Transaction payment1 =
-                transactionRepository.save(
+                transactionRepository.saveAndFlush(
                         Transaction.forPayment(
                                 UUID.randomUUID().toString(),
                                 userParty,
@@ -228,7 +228,7 @@ public class LocalDataInitializer implements ApplicationRunner {
         backdate(payment1.getId(), 14, 12);
 
         Transaction payment2 =
-                transactionRepository.save(
+                transactionRepository.saveAndFlush(
                         Transaction.forPayment(
                                 UUID.randomUUID().toString(),
                                 userParty,
@@ -242,7 +242,7 @@ public class LocalDataInitializer implements ApplicationRunner {
         backdate(payment2.getId(), 13, 18);
 
         Transaction payment3 =
-                transactionRepository.save(
+                transactionRepository.saveAndFlush(
                         Transaction.forPayment(
                                 UUID.randomUUID().toString(),
                                 userParty,
@@ -256,7 +256,7 @@ public class LocalDataInitializer implements ApplicationRunner {
         backdate(payment3.getId(), 11, 13);
 
         Transaction payment4 =
-                transactionRepository.save(
+                transactionRepository.saveAndFlush(
                         Transaction.forPayment(
                                 UUID.randomUUID().toString(),
                                 userParty,
@@ -270,7 +270,7 @@ public class LocalDataInitializer implements ApplicationRunner {
         backdate(payment4.getId(), 10, 19);
 
         Transaction payment5 =
-                transactionRepository.save(
+                transactionRepository.saveAndFlush(
                         Transaction.forPayment(
                                 UUID.randomUUID().toString(),
                                 userParty,
@@ -284,7 +284,7 @@ public class LocalDataInitializer implements ApplicationRunner {
         backdate(payment5.getId(), 8, 12);
 
         Transaction payment6 =
-                transactionRepository.save(
+                transactionRepository.saveAndFlush(
                         Transaction.forPayment(
                                 UUID.randomUUID().toString(),
                                 userParty,
@@ -298,7 +298,7 @@ public class LocalDataInitializer implements ApplicationRunner {
         backdate(payment6.getId(), 5, 11);
 
         Transaction payment7 =
-                transactionRepository.save(
+                transactionRepository.saveAndFlush(
                         Transaction.forPayment(
                                 UUID.randomUUID().toString(),
                                 userParty,
@@ -312,7 +312,7 @@ public class LocalDataInitializer implements ApplicationRunner {
         backdate(payment7.getId(), 2, 20);
 
         Transaction payment8 =
-                transactionRepository.save(
+                transactionRepository.saveAndFlush(
                         Transaction.forPayment(
                                 UUID.randomUUID().toString(),
                                 userParty,
@@ -327,7 +327,7 @@ public class LocalDataInitializer implements ApplicationRunner {
 
         // 가맹점 정산(환전) 4건
         Transaction mExchange1 =
-                transactionRepository.save(
+                transactionRepository.saveAndFlush(
                         Transaction.forExchange(
                                 UUID.randomUUID().toString(),
                                 merchantParty,
@@ -340,7 +340,7 @@ public class LocalDataInitializer implements ApplicationRunner {
         backdate(mExchange1.getId(), 10, 15);
 
         Transaction mExchange2 =
-                transactionRepository.save(
+                transactionRepository.saveAndFlush(
                         Transaction.forExchange(
                                 UUID.randomUUID().toString(),
                                 merchantParty,
@@ -353,7 +353,7 @@ public class LocalDataInitializer implements ApplicationRunner {
         backdate(mExchange2.getId(), 7, 16);
 
         Transaction mExchange3 =
-                transactionRepository.save(
+                transactionRepository.saveAndFlush(
                         Transaction.forExchange(
                                 UUID.randomUUID().toString(),
                                 merchantParty,
@@ -366,7 +366,7 @@ public class LocalDataInitializer implements ApplicationRunner {
         backdate(mExchange3.getId(), 3, 17);
 
         Transaction mExchange4 =
-                transactionRepository.save(
+                transactionRepository.saveAndFlush(
                         Transaction.forExchange(
                                 UUID.randomUUID().toString(),
                                 merchantParty,
@@ -380,7 +380,7 @@ public class LocalDataInitializer implements ApplicationRunner {
 
         // 소비자 환불 1건
         Transaction uExchange =
-                transactionRepository.save(
+                transactionRepository.saveAndFlush(
                         Transaction.forExchange(
                                 UUID.randomUUID().toString(),
                                 userParty,
