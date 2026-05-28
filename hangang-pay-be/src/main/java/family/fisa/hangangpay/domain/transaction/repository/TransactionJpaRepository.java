@@ -161,7 +161,7 @@ public interface TransactionJpaRepository extends JpaRepository<Transaction, Lon
             @Param("partyId") Long partyId, @Param("type") TransactionType type);
 
     @Query(
-            "SELECT * FROM Transaction t "
+            "SELECT t FROM Transaction t "
                     + "WHERE t.toParty.id = :merchantPartyId "
                     + "AND t.transactionType = family.fisa.hangangpay.domain.transaction.entity.TransactionType.PAYMENT "
                     + "AND t.status = :status "

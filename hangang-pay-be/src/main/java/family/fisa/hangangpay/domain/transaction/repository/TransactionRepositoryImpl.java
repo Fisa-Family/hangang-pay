@@ -149,7 +149,12 @@ public class TransactionRepositoryImpl implements TransactionRepository {
     }
 
     @Override
-    public List<Transaction> findMerchantPaymentsBetween(Long merchantPartyId, TransactionStatus status, LocalDateTime startInclusive, LocalDateTime endExclusive) {
-       return jpaRepository.findMerchantPaymentsBetween(merchantPartyId, status, startInclusive, endExclusive);
+    public List<Transaction> findMerchantPaymentsBetween(
+            Long merchantPartyId,
+            TransactionStatus status,
+            LocalDateTime startInclusive,
+            LocalDateTime endExclusive) {
+        return jpaRepository.findMerchantPaymentsBetween(
+                merchantPartyId, status, startInclusive, endExclusive);
     }
 }

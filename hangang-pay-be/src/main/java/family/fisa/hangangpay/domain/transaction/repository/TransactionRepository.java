@@ -73,8 +73,8 @@ public interface TransactionRepository {
     BigDecimal sumAllSuccessByType(Long partyId, TransactionType type);
 
     List<Transaction> findMerchantPaymentsBetween(
-        Long merchantPartyId,
-        TransactionStatus status,
-        LocalDateTime startInclusive,
-        LocalDateTime endExclusive);
+            Long merchantPartyId,
+            TransactionStatus status,
+            LocalDateTime startInclusive,
+            LocalDateTime endExclusive);
 }

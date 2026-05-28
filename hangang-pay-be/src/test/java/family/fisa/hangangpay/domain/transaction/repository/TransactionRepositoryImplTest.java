@@ -11,7 +11,6 @@ import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -224,13 +223,13 @@ class TransactionRepositoryImplTest {
         entityManager.clear();
 
         List<Transaction> payments =
-            transactionRepository.findMerchantPaymentsBetween(
-                merchant.getId(), TransactionStatus.SUCCESS, start, end);
+                transactionRepository.findMerchantPaymentsBetween(
+                        merchant.getId(), TransactionStatus.SUCCESS, start, end);
 
-        BigDecimal amount = payments.stream()
-            .map(Transaction::getAmount)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
-
+        BigDecimal amount =
+                payments.stream()
+                        .map(Transaction::getAmount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         assertThat(amount).isEqualByComparingTo(new BigDecimal("250000"));
         assertThat(payments.size()).isEqualTo(2);

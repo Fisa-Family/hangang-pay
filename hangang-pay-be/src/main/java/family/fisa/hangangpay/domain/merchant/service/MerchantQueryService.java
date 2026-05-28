@@ -22,7 +22,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -110,22 +109,25 @@ public class MerchantQueryService {
         LocalDateTime startOfMonth = today.withDayOfMonth(1).atStartOfDay();
         LocalDateTime startOfNextMonth = today.plusMonths(1).withDayOfMonth(1).atStartOfDay();
 
-        List<Transaction> todayPayments = transactionRepository.findMerchantPaymentsBetween(
-            partyId, TransactionStatus.SUCCESS, startOfToday, startOfTomorrow
-        );
+        List<Transaction> todayPayments =
+                transactionRepository.findMerchantPaymentsBetween(
+                        partyId, TransactionStatus.SUCCESS, startOfToday, startOfTomorrow);
 
-        BigDecimal todaySales = todayPayments.stream()
-            .map(Transaction::getAmount)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal todaySales =
+                todayPayments.stream()
+                        .map(Transaction::getAmount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         long todayCount = todayPayments.size();
         BigDecimal pendingSettlement = getWalletBalance(partyId);
 
-        BigDecimal monthlyTotalSales = transactionRepository.findMerchantPaymentsBetween(
-            partyId, TransactionStatus.SUCCESS, startOfMonth, startOfNextMonth
-        ).stream()
-            .map(Transaction::getAmount)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal monthlyTotalSales =
+                transactionRepository
+                        .findMerchantPaymentsBetween(
+                                partyId, TransactionStatus.SUCCESS, startOfMonth, startOfNextMonth)
+                        .stream()
+                        .map(Transaction::getAmount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         log.info(
                 "가맹점 매출 요약 조회 완료. partyId={}, todaySales={}, todayCount={}, pendingSettlement={}, monthlyTotalSales={}",
