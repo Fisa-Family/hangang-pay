@@ -11,6 +11,7 @@ import static org.mockito.BDDMockito.given;
 import family.fisa.hangangpay.auth.code.error.AuthErrorCode;
 import family.fisa.hangangpay.auth.dto.LoginRequest;
 import family.fisa.hangangpay.auth.dto.LoginResponse;
+import family.fisa.hangangpay.auth.dto.MerchantLoginRequest;
 import family.fisa.hangangpay.domain.merchant.entity.Merchant;
 import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.party.entity.Party;
@@ -33,6 +34,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 class AuthServiceTest {
 
     private static final String PHONE_NUMBER = "010-1234-5678";
+    private static final String BUSINESS_NUMBER = "123-45-67890";
     private static final String RAW_PASSWORD = "password1234";
     private static final String PASSWORD_HASH = "{bcrypt}hash";
 
@@ -70,12 +72,13 @@ class AuthServiceTest {
         MockHttpSession session = new MockHttpSession();
         Merchant merchant = merchant(2L, 20L);
 
-        given(merchantRepository.findByPhoneNumberWithParty(PHONE_NUMBER))
+        given(merchantRepository.findByBusinessNumberWithParty(BUSINESS_NUMBER))
                 .willReturn(Optional.of(merchant));
         given(passwordEncoder.matches(RAW_PASSWORD, PASSWORD_HASH)).willReturn(true);
 
         LoginResponse response =
-                authService.loginMerchant(new LoginRequest(PHONE_NUMBER, RAW_PASSWORD), session);
+                authService.loginMerchant(
+                        new MerchantLoginRequest(BUSINESS_NUMBER, RAW_PASSWORD), session);
 
         assertThat(response.principalId()).isEqualTo(2L);
         assertThat(response.partyId()).isEqualTo(20L);

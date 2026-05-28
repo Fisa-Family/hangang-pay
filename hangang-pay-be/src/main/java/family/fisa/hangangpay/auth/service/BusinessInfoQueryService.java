@@ -1,4 +1,4 @@
-package family.fisa.hangangpay.domain.merchant.service;
+package family.fisa.hangangpay.auth.service;
 
 import family.fisa.hangangpay.domain.merchant.code.MerchantErrorCode;
 import family.fisa.hangangpay.domain.merchant.dto.BusinessInfoResponse;

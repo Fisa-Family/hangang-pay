@@ -1,18 +1,19 @@
 package family.fisa.hangangpay.auth.service;
 
 import family.fisa.hangangpay.auth.code.error.AuthErrorCode;
-import family.fisa.hangangpay.auth.dto.UserRegisterRequest;
-import family.fisa.hangangpay.auth.dto.UserRegisterResponse;
 import family.fisa.hangangpay.domain.account.entity.Account;
 import family.fisa.hangangpay.domain.account.entity.AccountType;
 import family.fisa.hangangpay.domain.account.repository.AccountRepository;
 import family.fisa.hangangpay.domain.institution.entity.Institution;
 import family.fisa.hangangpay.domain.institution.service.InstitutionQueryService;
+import family.fisa.hangangpay.domain.merchant.dto.BusinessInfoResponse;
+import family.fisa.hangangpay.domain.merchant.dto.MerchantRegisterRequest;
+import family.fisa.hangangpay.domain.merchant.dto.MerchantRegisterResponse;
+import family.fisa.hangangpay.domain.merchant.entity.Merchant;
+import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.entity.PartyType;
 import family.fisa.hangangpay.domain.party.repository.PartyRepository;
-import family.fisa.hangangpay.domain.user.entity.User;
-import family.fisa.hangangpay.domain.user.repository.UserRepository;
 import family.fisa.hangangpay.domain.wallet.service.WalletCommandService;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import family.fisa.hangangpay.global.session.SessionAttributeNames;
@@ -29,59 +30,61 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class UserRegistrationService {
+public class MerchantRegistrationService {
 
     private static final Duration SIGNUP_VERIFICATION_TTL = Duration.ofMinutes(30);
 
     private final PartyRepository partyRepository;
-    private final UserRepository userRepository;
+    private final MerchantRepository merchantRepository;
     private final AccountRepository accountRepository;
     private final WalletCommandService walletCommandService;
     private final InstitutionQueryService institutionQueryService;
+    private final BusinessInfoQueryService businessInfoQueryService;
     private final PasswordEncoder passwordEncoder;
 
-    public UserRegisterResponse register(UserRegisterRequest request, HttpSession session) {
+    public MerchantRegisterResponse register(MerchantRegisterRequest request, HttpSession session) {
         validateTerms(request.termsAgreed());
-        validatePhoneVerification(request, session);
         validateAccountVerification(request, session);
 
-        // TODO: existsBy 방식으로 바꾸기 - fetch join 까지 필요없음
-        userRepository
-                .findByPhoneNumberWithParty(request.phoneNumber())
-                .ifPresent(
-                        user -> {
-                            throw new BusinessException(AuthErrorCode.DUPLICATE_PHONE_NUMBER);
-                        });
+        BusinessInfoResponse businessInfo =
+                businessInfoQueryService.getBusinessInfo(request.businessNumber());
+
+        if (merchantRepository.existsByBusinessNumber(request.businessNumber())) {
+            throw new BusinessException(AuthErrorCode.DUPLICATE_BUSINESS_NUMBER);
+        }
 
         Institution institution = institutionQueryService.getById(request.institutionId());
 
-        Party party = partyRepository.save(Party.of(PartyType.USER));
-        User user =
-                userRepository.save(
-                        User.builder()
+        Party party = partyRepository.save(Party.of(PartyType.MERCHANT));
+        Merchant merchant =
+                merchantRepository.save(
+                        Merchant.builder()
                                 .party(party)
-                                .username(request.name())
+                                .username(request.username())
                                 .passwordHash(passwordEncoder.encode(request.password()))
                                 .paymentPinHash(passwordEncoder.encode(request.paymentPin()))
-                                .phoneNumber(request.phoneNumber())
-                                .birthDate(request.birthDate())
+                                .businessNumber(request.businessNumber())
+                                .merchantName(businessInfo.merchantName())
+                                .ownerName(businessInfo.ownerName())
+                                .address(businessInfo.address())
                                 .build());
 
         accountRepository.save(
                 Account.builder()
                         .party(party)
                         .institution(institution)
-                        .accountType(AccountType.PRIMARY)
+                        .accountType(AccountType.SETTLEMENT)
                         .accountNumber(request.accountNumber())
                         .build());
         walletCommandService.createWallet(party, institution);
 
         clearSignupSession(session);
-        log.info("소비자 회원가입 완료: userId={}, partyId={}", user.getId(), party.getId());
-        return new UserRegisterResponse(party.getId(), user.getId());
+        log.info("가맹점 회원가입 완료: merchantId={}, partyId={}", merchant.getId(), party.getId());
+        return new MerchantRegisterResponse(
+                party.getId(), merchant.getId(), merchant.getMerchantName());
     }
 
-    private void validateTerms(UserRegisterRequest.TermsAgreed termsAgreed) {
+    private void validateTerms(MerchantRegisterRequest.TermsAgreed termsAgreed) {
         if (termsAgreed == null
                 || !termsAgreed.serviceTerms()
                 || !termsAgreed.privacyTerms()
@@ -91,27 +94,7 @@ public class UserRegistrationService {
         }
     }
 
-    private void validatePhoneVerification(UserRegisterRequest request, HttpSession session) {
-        Boolean verified =
-                (Boolean) session.getAttribute(SessionAttributeNames.SIGNUP_PHONE_VERIFIED);
-        String phoneNumber =
-                (String) session.getAttribute(SessionAttributeNames.SIGNUP_PHONE_NUMBER);
-        LocalDateTime verifiedAt =
-                (LocalDateTime)
-                        session.getAttribute(SessionAttributeNames.SIGNUP_PHONE_VERIFIED_AT);
-
-        if (!Boolean.TRUE.equals(verified) || phoneNumber == null || verifiedAt == null) {
-            throw new BusinessException(AuthErrorCode.SIGNUP_PHONE_NOT_VERIFIED);
-        }
-        if (!phoneNumber.equals(request.phoneNumber())) {
-            throw new BusinessException(AuthErrorCode.SIGNUP_PHONE_MISMATCH);
-        }
-        if (isExpired(verifiedAt)) {
-            throw new BusinessException(AuthErrorCode.SIGNUP_PHONE_VERIFICATION_EXPIRED);
-        }
-    }
-
-    private void validateAccountVerification(UserRegisterRequest request, HttpSession session) {
+    private void validateAccountVerification(MerchantRegisterRequest request, HttpSession session) {
         Boolean verified =
                 (Boolean) session.getAttribute(SessionAttributeNames.SIGNUP_ACCOUNT_VERIFIED);
         Long institutionId =
@@ -132,19 +115,12 @@ public class UserRegistrationService {
                 || !accountNumber.equals(request.accountNumber())) {
             throw new BusinessException(AuthErrorCode.SIGNUP_ACCOUNT_MISMATCH);
         }
-        if (isExpired(verifiedAt)) {
+        if (verifiedAt.plus(SIGNUP_VERIFICATION_TTL).isBefore(LocalDateTime.now())) {
             throw new BusinessException(AuthErrorCode.SIGNUP_ACCOUNT_VERIFICATION_EXPIRED);
         }
     }
 
-    private boolean isExpired(LocalDateTime verifiedAt) {
-        return verifiedAt.plus(SIGNUP_VERIFICATION_TTL).isBefore(LocalDateTime.now());
-    }
-
     private void clearSignupSession(HttpSession session) {
-        session.removeAttribute(SessionAttributeNames.SIGNUP_PHONE_VERIFIED);
-        session.removeAttribute(SessionAttributeNames.SIGNUP_PHONE_NUMBER);
-        session.removeAttribute(SessionAttributeNames.SIGNUP_PHONE_VERIFIED_AT);
         session.removeAttribute(SessionAttributeNames.SIGNUP_ACCOUNT_VERIFIED);
         session.removeAttribute(SessionAttributeNames.SIGNUP_INSTITUTION_ID);
         session.removeAttribute(SessionAttributeNames.SIGNUP_ACCOUNT_NUMBER);
