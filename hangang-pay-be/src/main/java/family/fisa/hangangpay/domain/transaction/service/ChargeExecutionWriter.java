@@ -11,7 +11,7 @@ import family.fisa.hangangpay.domain.transaction.internal.ChargeExecutionPrepare
 import family.fisa.hangangpay.domain.transaction.internal.ChargeIdempotencyDecision;
 import family.fisa.hangangpay.domain.transaction.internal.ChargeIdempotencyStore;
 import family.fisa.hangangpay.domain.transaction.internal.ChargeRequestHashGenerator;
-import family.fisa.hangangpay.domain.transaction.internal.PaymentIdempotencyDecisionType;
+import family.fisa.hangangpay.domain.transaction.internal.payment.PaymentIdempotencyDecisionType;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
 import family.fisa.hangangpay.domain.user.code.error.UserErrorCode;
 import family.fisa.hangangpay.domain.user.entity.User;
