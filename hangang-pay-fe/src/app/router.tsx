@@ -11,7 +11,6 @@ import { useCurrentUser } from '@/auth/useCurrentUser'
 import { FullscreenLayout, MainLayout } from '@/routes/layouts'
 import { RequireAuth, RequireRole } from '@/routes/guards'
 import { LoginPage } from '@/pages/LoginPage'
-import { PlaceholderPage } from '@/pages/PlaceholderPage'
 import { UserHistoryPage } from '@/pages/UserHistoryPage'
 import { UserHomePage } from '@/pages/UserHomePage'
 import { UserMyPage } from '@/pages/UserMyPage'
@@ -127,8 +126,7 @@ export const router = createBrowserRouter([
               { path: '/merchant/home', element: <MerchantHomePage /> },
               { path: '/merchant/qr', element: <MerchantQrPage /> },
               { path: '/merchant/payments', element: <MerchantPaymentsPage /> },
-              { path: '/merchant/mypage', element: <MerchantMyPage />
-              },
+              { path: '/merchant/mypage', element: <MerchantMyPage /> },
             ],
           },
           {
