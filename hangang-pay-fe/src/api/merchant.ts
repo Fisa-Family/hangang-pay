@@ -73,3 +73,81 @@ export interface MerchantMyPageResponse {
 export function fetchMerchantMyPage(): Promise<MerchantMyPageResponse> {
   return apiFetch<MerchantMyPageResponse>('/merchant/mypage')
 }
+
+// ── 가맹점 결제 내역 / 상세 / 취소 (MERCHANT-002 / 003 / 004) ──
+
+export type MerchantTransactionType = 'PAYMENT' | 'CANCEL'
+
+// MERCHANT-002: 결제 내역 단건 (PAYMENT + CANCEL 혼합 스트림, SUCCESS만)
+export interface MerchantPaymentHistoryItem {
+  transactionId: number
+  approvalNumber: string
+  payerName: string // 마스킹됨 (예: 김*영)
+  amount: number
+  transactionType: MerchantTransactionType
+  createdAt: string
+}
+
+export interface MerchantPaymentPage {
+  content: MerchantPaymentHistoryItem[]
+  nextCursorCreatedAt: string | null
+  nextCursorId: number | null
+  hasNext: boolean
+}
+
+// GET /api/v1/merchant/payments
+export function fetchMerchantPayments(params: {
+  size?: number
+  cursorCreatedAt?: string
+  cursorId?: number
+}): Promise<MerchantPaymentPage> {
+  const q = new URLSearchParams({ size: String(params.size ?? 20) })
+  if (params.cursorCreatedAt) q.set('cursorCreatedAt', params.cursorCreatedAt)
+  if (params.cursorId != null) q.set('cursorId', String(params.cursorId))
+  return apiFetch<MerchantPaymentPage>(`/merchant/payments?${q}`)
+}
+
+// MERCHANT-003: 결제 상세
+export interface MerchantPaymentDetail {
+  transactionId: number
+  transactionType: MerchantTransactionType
+  amount: number
+  payerName: string
+  approvalNumber: string
+  paymentStatus: string
+  createdAt: string
+  cancelAvailable: boolean // 취소 버튼 노출 기준
+}
+
+export interface MerchantPaymentDetailResponse {
+  transactionType: MerchantTransactionType
+  detail: MerchantPaymentDetail
+}
+
+// GET /api/v1/merchant/payments/{transactionId}
+export function fetchMerchantPaymentDetail(
+  transactionId: number
+): Promise<MerchantPaymentDetailResponse> {
+  return apiFetch<MerchantPaymentDetailResponse>(`/merchant/payments/${transactionId}`)
+}
+
+// MERCHANT-004: 결제 취소 (PIN 인증)
+export interface PaymentCancelResult {
+  transactionUuid: string
+  status: string // 'SUCCESS' | 'UNKNOWN' — SUCCESS만 확정 취소
+  approvalNumber: string
+  txHash: string
+  amount: number
+  confirmedAt: string
+}
+
+// POST /api/v1/merchant/payments/{transactionId}/cancel
+export function cancelMerchantPayment(
+  transactionId: number,
+  paymentPin: string
+): Promise<PaymentCancelResult> {
+  return apiFetch<PaymentCancelResult>(`/merchant/payments/${transactionId}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify({ paymentPin }),
+  })
+}

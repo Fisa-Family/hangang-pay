@@ -1,15 +1,15 @@
-import { useEffect, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
-import { BackspaceIcon, PageHeader } from '@/components/common'
+import { cn } from '@/lib/utils'
+import { BackspaceIcon } from './icons'
 
-interface LocationState {
-  transactionUuid: string
-  amount: number
-  merchantName: string
-  balance: number
+interface PinEntryProps {
+  pin: string
+  length?: number
+  onChange: (pin: string) => void
+  title?: string
+  subtitle?: string
+  onForgot?: () => void
+  className?: string
 }
-
-const PIN_LENGTH = 6
 
 const PIN_PAD_ROWS = [
   [
@@ -29,86 +29,50 @@ const PIN_PAD_ROWS = [
   ],
 ] as const
 
-export function PayPinPage() {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const state = location.state as LocationState | null
-
-  const [pin, setPin] = useState('')
-
-  useEffect(() => {
-    if (pin.length === PIN_LENGTH && state) {
-      navigate('/pay/processing', {
-        state: {
-          transactionUuid: state.transactionUuid,
-          pin,
-          amount: state.amount,
-          merchantName: state.merchantName,
-        },
-      })
-    }
-  }, [pin, navigate, state])
-
-  function handleDigit(d: string) {
-    setPin((p) => (p.length < PIN_LENGTH ? p + d : p))
+export function PinEntry({
+  pin,
+  length = 6,
+  onChange,
+  title = 'PIN번호를 입력해주세요',
+  subtitle = '안전한 서비스 이용을 위해 PIN번호를 입력해주세요.',
+  onForgot,
+  className,
+}: PinEntryProps) {
+  const handleDigit = (d: string) => {
+    if (pin.length >= length) return
+    onChange(pin + d)
   }
-
-  function handleBackspace() {
-    setPin((p) => p.slice(0, -1))
-  }
+  const handleBackspace = () => onChange(pin.slice(0, -1))
 
   return (
-    <div className="flex h-dvh flex-col bg-white">
-      {/* 헤더 */}
-      <PageHeader
-        title="PIN번호 입력"
-        className="px-5 pt-14"
-        rightAction={
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="text-sm font-medium text-muted-foreground"
-          >
-            취소
-          </button>
-        }
-      />
-
-      {/* 안내 문구 + 도트 */}
+    <div className={cn('flex min-h-0 flex-1 flex-col', className)}>
       <div className="flex flex-1 flex-col items-center justify-center gap-8 px-5">
         <div className="flex flex-col items-center gap-3 text-center">
-          <p className="text-[22px] font-bold text-foreground">PIN번호를 입력해주세요</p>
-          <p className="text-[13px] text-muted-foreground">
-            안전한 서비스 이용을 위해 PIN번호를 입력해주세요.
-          </p>
+          <p className="text-[22px] font-bold text-foreground">{title}</p>
+          <p className="text-[13px] text-muted-foreground">{subtitle}</p>
         </div>
 
-        {/* PIN 도트 */}
         <div className="flex gap-4">
-          {Array.from({ length: PIN_LENGTH }, (_, i) => (
+          {Array.from({ length }, (_, i) => (
             <div
               key={i}
-              className={`h-4 w-4 rounded-full border-2 transition-colors ${
+              className={cn(
+                'h-4 w-4 rounded-full border-2 transition-colors',
                 i < pin.length
                   ? 'border-foreground bg-foreground'
                   : 'border-muted-foreground/40 bg-transparent'
-              }`}
+              )}
             />
           ))}
         </div>
 
-        <button
-          type="button"
-          className="text-sm font-medium text-primary"
-          onClick={() => {
-            /* TODO: PIN 재설정 플로우 */
-          }}
-        >
-          PIN번호를 잊으셨나요?
-        </button>
+        {onForgot ? (
+          <button type="button" className="text-sm font-medium text-primary" onClick={onForgot}>
+            PIN번호를 잊으셨나요?
+          </button>
+        ) : null}
       </div>
 
-      {/* 전화기식 키패드 */}
       <div className="border-t border-border/60">
         {PIN_PAD_ROWS.map((row) => (
           <div key={row[0].d} className="grid grid-cols-3">
@@ -127,7 +91,6 @@ export function PayPinPage() {
             ))}
           </div>
         ))}
-        {/* 빈칸 / 0 / ⌫ */}
         <div className="grid grid-cols-3">
           <div className="h-16 border-b border-r border-border/60" />
           <button

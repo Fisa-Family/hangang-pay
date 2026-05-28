@@ -7,6 +7,7 @@ interface ConfirmDialogProps {
   confirmText: string
   cancelText: string
   variant?: 'default' | 'danger'
+  reverseButtons?: boolean // true면 confirm(예)을 왼쪽, cancel(아니요)을 오른쪽에 배치
   onConfirm: () => void
   onCancel: () => void
 }
@@ -18,12 +19,24 @@ export function ConfirmDialog({
   confirmText,
   cancelText,
   variant = 'default',
+  reverseButtons = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
   if (!open) {
     return null
   }
+
+  const confirmButton = (
+    <Button variant={variant === 'danger' ? 'danger' : 'primary'} onClick={onConfirm}>
+      {confirmText}
+    </Button>
+  )
+  const cancelButton = (
+    <Button variant="secondary" onClick={onCancel}>
+      {cancelText}
+    </Button>
+  )
 
   return (
     <div className="absolute inset-0 z-30 flex items-end bg-foreground/45 px-4 pb-4">
@@ -33,12 +46,17 @@ export function ConfirmDialog({
           <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>
         ) : null}
         <div className="mt-5 grid grid-cols-2 gap-2">
-          <Button variant="secondary" onClick={onCancel}>
-            {cancelText}
-          </Button>
-          <Button variant={variant === 'danger' ? 'danger' : 'primary'} onClick={onConfirm}>
-            {confirmText}
-          </Button>
+          {reverseButtons ? (
+            <>
+              {confirmButton}
+              {cancelButton}
+            </>
+          ) : (
+            <>
+              {cancelButton}
+              {confirmButton}
+            </>
+          )}
         </div>
       </section>
     </div>

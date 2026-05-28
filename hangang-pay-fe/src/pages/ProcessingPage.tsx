@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { executePayment, recoverPayment } from '@/api/payment'
 import { ApiError } from '@/api/client'
-import { formatWon } from '@/lib/format'
+import { ProcessingView } from '@/components/common'
 
 interface LocationState {
   transactionUuid: string
@@ -11,7 +11,7 @@ interface LocationState {
   merchantName: string
 }
 
-export function PayProcessingPage() {
+export function ProcessingPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const state = location.state as LocationState | null
@@ -44,25 +44,12 @@ export function PayProcessingPage() {
   }, [state, navigate])
 
   return (
-    <div className="flex h-dvh flex-col items-center justify-center gap-6 bg-white">
-      {/* 스피너 */}
-      <div
-        className="h-18 w-18 animate-spin rounded-full border-4 border-gray-200 border-t-blue-500"
-        style={{ animationDuration: '0.9s' }}
+    <div className="h-dvh bg-white">
+      <ProcessingView
+        title="결제를 처리하고 있어요"
+        amount={state?.amount}
+        caption={state?.merchantName}
       />
-
-      {/* 안내 문구 */}
-      <div className="flex flex-col items-center gap-2 text-center">
-        <p className="text-base font-medium text-muted-foreground">결제를 처리하고 있어요</p>
-        {state && (
-          <>
-            <p className="text-[28px] font-bold tabular-nums text-foreground">
-              {formatWon(state.amount)}
-            </p>
-            <p className="text-sm text-muted-foreground">{state.merchantName}</p>
-          </>
-        )}
-      </div>
     </div>
   )
 }
