@@ -73,11 +73,13 @@ public class TransactionRepositoryImpl implements TransactionRepository {
         return jpaRepository.findByIdAndTransactionTypeIn(id, types);
     }
 
+    /** 스케줄러용 - UNKNOWN 상태 PAYMENT 전체 목록 조회 */
     @Override
     public List<Transaction> findAllUnknownByType(TransactionType type) {
         return jpaRepository.findByStatusAndTransactionType(TransactionStatus.UNKNOWN, type);
     }
 
+    /** 특정 월 거래 유형별 누적 금액 조회 */
     @Override
     public BigDecimal sumMonthlyAmount(
             Long partyId,
@@ -89,6 +91,7 @@ public class TransactionRepositoryImpl implements TransactionRepository {
                 partyId, type, status, startOfMonth, startOfNextMonth);
     }
 
+    /** 가장 최근 SUCCESS CHARGE 1건 조회 */
     @Override
     public Optional<Transaction> findLatestSuccessCharge(Long partyId) {
         return jpaRepository
@@ -155,5 +158,15 @@ public class TransactionRepositoryImpl implements TransactionRepository {
             String originalTransactionUuid) {
         return jpaRepository.findByOriginalTransactionUuidAndTransactionTypeAndStatus(
                 originalTransactionUuid, TransactionType.CANCEL, TransactionStatus.UNKNOWN);
+    }
+
+    @Override
+    public List<Transaction> findMerchantPaymentsBetween(
+            Long merchantPartyId,
+            TransactionStatus status,
+            LocalDateTime startInclusive,
+            LocalDateTime endExclusive) {
+        return jpaRepository.findMerchantPaymentsBetween(
+                merchantPartyId, status, startInclusive, endExclusive);
     }
 }

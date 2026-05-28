@@ -8,14 +8,22 @@ import {
 } from 'react-router-dom'
 import { useEffect } from 'react'
 import { useCurrentUser } from '@/auth/useCurrentUser'
-import { MainLayout } from '@/routes/layouts'
+import { FullscreenLayout, MainLayout } from '@/routes/layouts'
 import { RequireAuth, RequireRole } from '@/routes/guards'
 import { LoginPage } from '@/pages/LoginPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
+import { UserHistoryPage } from '@/pages/UserHistoryPage'
 import { UserHomePage } from '@/pages/UserHomePage'
 import { UserMyPage } from '@/pages/UserMyPage'
+import { UserPayScanPage } from '@/pages/UserPayScanPage'
 import { MerchantHomePage } from '@/pages/MerchantHomePage'
+import { AccountManagementPage } from '@/pages/AccountManagementPage'
+import { AddAccountPage } from '@/pages/AddAccountPage'
 import { MerchantQrPage } from '@/pages/MerchantQrPage'
+import { PayConfirmPage } from '@/pages/PayConfirmPage'
+import { PayPinPage } from '@/pages/PayPinPage'
+import { PayProcessingPage } from '@/pages/PayProcessingPage'
+import { PayCompletePage } from '@/pages/PayCompletePage'
 import { AppShell } from '@/components/common'
 
 // 미등록 경로 접근 시 경로 기반으로 해당 영역 홈으로 교체
@@ -78,23 +86,30 @@ export const router = createBrowserRouter([
       {
         element: <RequireRole roles={['USER']} />,
         children: [
+          // 하단 네비 있는 메인 레이아웃
           {
             element: <MainLayout navType="user" />,
             children: [
               { path: '/home', element: <UserHomePage /> },
-              {
-                path: '/pay/scan',
-                element: <PlaceholderPage title="QR 스캔" screenId="U-PAY-SCAN" />,
-              },
-              {
-                path: '/mypage/payments',
-                element: <PlaceholderPage title="결제내역" screenId="U-MY-PAYMENTS" />,
-              },
-              {
-                path: '/mypage/accounts',
-                element: <PlaceholderPage title="계좌 관리" screenId="U-MY-ACCOUNTS" />,
-              },
+              { path: '/mypage/payments', element: <UserHistoryPage /> },
               { path: '/mypage', element: <UserMyPage /> },
+            ],
+          },
+          { path: '/mypage/accounts', element: <AccountManagementPage /> },
+          { path: '/mypage/accounts/add', element: <AddAccountPage /> },
+          // 결제 플로우 (하단 네비 없음)
+          {
+            element: <FullscreenLayout fullBleed />,
+            children: [{ path: '/pay/scan', element: <UserPayScanPage /> }],
+          },
+          {
+            element: <FullscreenLayout />,
+            children: [
+              { path: '/pay/amount/:merchantId', element: <PayConfirmPage /> },
+              { path: '/pay/confirm', element: <PayConfirmPage /> },
+              { path: '/pay/pin', element: <PayPinPage /> },
+              { path: '/pay/processing', element: <PayProcessingPage /> },
+              { path: '/pay/complete', element: <PayCompletePage /> },
             ],
           },
         ],

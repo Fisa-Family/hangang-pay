@@ -1,0 +1,152 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useInfiniteQuery } from '@tanstack/react-query'
+import { ApiError } from '@/api/client'
+import { apiErrorMessages, isApiErrorCode } from '@/api/errorCodes'
+import { fetchUserHistoriesNormalized, type HistoryPage, type HistoryTab } from '@/api/user'
+import {
+  EmptyState,
+  HistoryDateGroupHeader,
+  HistoryListItem,
+  HistoryTypeTabs,
+  PageHeader,
+} from '@/components/common'
+import { groupByDate } from './UserHistoryPage.helpers'
+
+const API_SPEC = {
+  MY_002: { id: 'MY-002' },
+} as const
+
+function buildErrorMessage(spec: (typeof API_SPEC)[keyof typeof API_SPEC], error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.code && isApiErrorCode(error.code)) return apiErrorMessages[error.code]
+    return error.message
+  }
+
+  return `${spec.id} 요청에 실패했습니다. 네트워크 연결을 확인해 주세요.`
+}
+
+const HISTORY_PAGE_SIZE = 20
+const SENTINEL_ROOT_MARGIN = '120px'
+
+function CalendarIcon() {
+  return (
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <path d="M16 2v4M8 2v4M3 10h18" />
+    </svg>
+  )
+}
+
+export function UserHistoryPage() {
+  const navigate = useNavigate()
+  const [tab, setTab] = useState<HistoryTab>('ALL')
+
+  const query = useInfiniteQuery({
+    queryKey: ['users', 'histories', tab],
+    queryFn: ({ pageParam }) =>
+      fetchUserHistoriesNormalized({
+        tab,
+        size: HISTORY_PAGE_SIZE,
+        cursorCreatedAt: pageParam?.cursorCreatedAt,
+        cursorId: pageParam?.cursorId,
+      }),
+    initialPageParam: null as HistoryPage['nextCursor'],
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    retry: false,
+  })
+
+  const items = useMemo(() => query.data?.pages.flatMap((p) => p.items) ?? [], [query.data])
+  const grouped = useMemo(() => groupByDate(items), [items])
+
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    const node = sentinelRef.current
+    if (!node) return
+    if (!query.hasNextPage) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting && !query.isFetchingNextPage) {
+            void query.fetchNextPage()
+          }
+        }
+      },
+      { rootMargin: SENTINEL_ROOT_MARGIN }
+    )
+
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [query])
+
+  const errorMessage = query.error ? buildErrorMessage(API_SPEC.MY_002, query.error) : null
+  const showInitialLoading = query.isLoading && !query.error
+  const showEmpty = !query.isLoading && !query.error && items.length === 0
+
+  return (
+    <div className="flex h-full flex-col">
+      <PageHeader
+        title="내역 조회"
+        onBack={() => navigate(-1)}
+        rightAction={
+          <button
+            type="button"
+            aria-label="날짜 필터"
+            onClick={() => {}}
+            className="flex size-11 items-center justify-center rounded-lg text-foreground hover:bg-muted"
+          >
+            <CalendarIcon />
+          </button>
+        }
+      />
+
+      <HistoryTypeTabs value={tab} onChange={setTab} />
+
+      <div className="flex-1 overflow-y-auto">
+        {showInitialLoading && (
+          <p className="px-4 py-6 text-center text-sm text-muted-foreground">불러오는 중...</p>
+        )}
+
+        {errorMessage && (
+          <div className="m-4 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm font-medium text-destructive shadow-sm">
+            {errorMessage}
+          </div>
+        )}
+
+        {showEmpty && (
+          <div className="p-4">
+            <EmptyState message="내역이 없습니다." />
+          </div>
+        )}
+
+        {!query.error &&
+          grouped.map((group) => (
+            <section key={group.date}>
+              <HistoryDateGroupHeader isoDate={group.items[0].createdAt} />
+              {group.items.map((item) => (
+                <HistoryListItem key={item.id} item={item} />
+              ))}
+            </section>
+          ))}
+
+        {query.hasNextPage && (
+          <div ref={sentinelRef} className="px-4 py-4 text-center text-sm text-muted-foreground">
+            {query.isFetchingNextPage ? '불러오는 중...' : ''}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

@@ -56,6 +56,7 @@ class ExchangeCommandServiceTest {
     @Mock UserRepository userRepository;
     @Mock MerchantRepository merchantRepository;
     @Mock PasswordEncoder passwordEncoder;
+    @Mock ExchangeQueryService exchangeQueryService;
 
     @InjectMocks ExchangeCommandService exchangeCommandService;
 
@@ -138,23 +139,10 @@ class ExchangeCommandServiceTest {
         return tx;
     }
 
-    /** 자격 검증 통과 stub. balanceBefore = chargedBefore (PAYMENT/EXCHANGE 이전 합은 0) */
-    private void stubEligibility(String chargedBefore, String chargeAmount, String usedSince) {
+    /** 자격 검증 통과 stub */
+    private void stubEligibilityPass() {
         when(transactionRepository.findByTransactionUuid(UUID)).thenReturn(Optional.empty());
-        when(transactionRepository.findLatestSuccessCharge(PARTY_ID))
-                .thenReturn(Optional.of(latestCharge(chargeAmount)));
-        when(transactionRepository.sumSuccessByTypeBefore(
-                        PARTY_ID, TransactionType.CHARGE, CHARGE_AT))
-                .thenReturn(new BigDecimal(chargedBefore));
-        when(transactionRepository.sumSuccessByTypeBefore(
-                        PARTY_ID, TransactionType.PAYMENT, CHARGE_AT))
-                .thenReturn(BigDecimal.ZERO);
-        when(transactionRepository.sumSuccessByTypeBefore(
-                        PARTY_ID, TransactionType.EXCHANGE, CHARGE_AT))
-                .thenReturn(BigDecimal.ZERO);
-        when(transactionRepository.sumSuccessByTypeSince(
-                        PARTY_ID, TransactionType.PAYMENT, CHARGE_AT))
-                .thenReturn(new BigDecimal(usedSince));
+        when(exchangeQueryService.checkEligibility(PARTY_ID)).thenReturn(true);
     }
 
     /** claim → bank → complete 정상 흐름 stub */
@@ -245,46 +233,12 @@ class ExchangeCommandServiceTest {
     class Eligibility {
 
         @Test
-        @DisplayName("충전 이력 없음 -> EXCHANGE_NOT_ELIGIBLE")
-        void 충전이력_없음() {
+        @DisplayName("자격 미달(eligible=false) -> EXCHANGE_NOT_ELIGIBLE")
+        void 자격_미달() {
             // given
             stubUserPinPass();
             when(transactionRepository.findByTransactionUuid(UUID)).thenReturn(Optional.empty());
-            when(transactionRepository.findLatestSuccessCharge(PARTY_ID))
-                    .thenReturn(Optional.empty());
-
-            // when, then
-            assertThatThrownBy(
-                            () ->
-                                    exchangeCommandService.executeUserExchange(
-                                            PARTY_ID, request("50000")))
-                    .isInstanceOf(BusinessException.class)
-                    .extracting("code")
-                    .isEqualTo(TransactionErrorCode.EXCHANGE_NOT_ELIGIBLE);
-        }
-
-        @Test
-        @DisplayName("잔액 10K + 충전 60K = 70K, 사용 42K (정확히 60%) -> 통과")
-        void 정확히_임계값_통과() {
-            // given
-            stubUserPinPass();
-            stubEligibility("10000", "60000", "42000");
-            ExchangeExecuteResponse expected = stubHappyPath();
-
-            // when
-            ExchangeExecuteResponse response =
-                    exchangeCommandService.executeUserExchange(PARTY_ID, request("50000"));
-
-            // then
-            assertThat(response).isSameAs(expected);
-        }
-
-        @Test
-        @DisplayName("잔액 10K + 충전 60K = 70K, 사용 41,999 (1원 미달) -> 거절")
-        void 임계값_미달() {
-            // given
-            stubUserPinPass();
-            stubEligibility("10000", "60000", "41999");
+            when(exchangeQueryService.checkEligibility(PARTY_ID)).thenReturn(false);
 
             // when, then
             assertThatThrownBy(
@@ -299,11 +253,11 @@ class ExchangeCommandServiceTest {
         }
 
         @Test
-        @DisplayName("첫 충전 (잔액 0) + 충전 50K, 사용 30K -> 통과")
-        void 첫_충전_통과() {
+        @DisplayName("자격 통과(eligible=true) -> 정상 실행")
+        void 자격_통과() {
             // given
             stubUserPinPass();
-            stubEligibility("0", "50000", "30000");
+            stubEligibilityPass();
             ExchangeExecuteResponse expected = stubHappyPath();
 
             // when
@@ -442,7 +396,7 @@ class ExchangeCommandServiceTest {
         void 정상_호출_순서() {
             // given
             stubUserPinPass();
-            stubEligibility("10000", "60000", "50000");
+            stubEligibilityPass();
             ExchangeExecuteResponse expected = stubHappyPath();
 
             // when
@@ -467,7 +421,7 @@ class ExchangeCommandServiceTest {
         void bank_실패() {
             // given
             stubUserPinPass();
-            stubEligibility("10000", "60000", "50000");
+            stubEligibilityPass();
 
             ExchangeRequest bankReq =
                     new ExchangeRequest(UUID, 1L, "0xabc", "110-1234", new BigDecimal("50000"));
@@ -496,7 +450,7 @@ class ExchangeCommandServiceTest {
         void claim_실패() {
             // given
             stubUserPinPass();
-            stubEligibility("10000", "60000", "50000");
+            stubEligibilityPass();
 
             BusinessException claimEx =
                     new BusinessException(TransactionErrorCode.WALLET_NOT_FOUND);

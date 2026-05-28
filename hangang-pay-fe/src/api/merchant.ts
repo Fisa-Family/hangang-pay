@@ -33,3 +33,17 @@ export interface MerchantQrResponse {
 export function fetchMerchantQr(): Promise<MerchantQrResponse> {
   return apiFetch<MerchantQrResponse>('/merchant/qr')
 }
+
+// PAY-001: 가맹점 정보 조회
+export interface MerchantInfoResponse {
+  merchantId: number
+  partyId: number
+  merchantName: string
+  address: string
+  walletAddress: string
+}
+
+// GET /api/v1/merchant/{merchantId}
+export function fetchMerchantInfo(merchantId: number): Promise<MerchantInfoResponse> {
+  return apiFetch<MerchantInfoResponse>(`/merchant/${merchantId}`)
+}

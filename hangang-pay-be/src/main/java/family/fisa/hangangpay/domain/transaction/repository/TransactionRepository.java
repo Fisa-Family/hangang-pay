@@ -78,4 +78,10 @@ public interface TransactionRepository {
     /** 복구 가능한 CANCEL 조회 - CANCEL + status IN (UNKNOWN, PROCESSING) */
     Optional<Transaction> findRecoverableCancelByOriginalTransactionUuid(
             String originalTransactionUuid);
+
+    List<Transaction> findMerchantPaymentsBetween(
+            Long merchantPartyId,
+            TransactionStatus status,
+            LocalDateTime startInclusive,
+            LocalDateTime endExclusive);
 }
