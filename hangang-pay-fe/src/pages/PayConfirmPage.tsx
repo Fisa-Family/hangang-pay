@@ -153,12 +153,7 @@ export function PayConfirmPage() {
 
       {/* 결제하기 버튼 */}
       <div className="px-4 pb-8 pt-3">
-        <Button
-          size="lg"
-          className="rounded-2xl"
-          disabled={!canPay}
-          onClick={handlePay}
-        >
+        <Button size="lg" className="rounded-2xl" disabled={!canPay} onClick={handlePay}>
           {intentMutation.isPending ? '처리 중…' : '결제하기'}
         </Button>
       </div>
