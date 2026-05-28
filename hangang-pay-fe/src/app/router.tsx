@@ -18,6 +18,8 @@ import { UserMyPage } from '@/pages/UserMyPage'
 import { UserPayScanPage } from '@/pages/UserPayScanPage'
 import { UserPayAmountPage } from '@/pages/UserPayAmountPage'
 import { MerchantHomePage } from '@/pages/MerchantHomePage'
+import { AccountManagementPage } from '@/pages/AccountManagementPage'
+import { AddAccountPage } from '@/pages/AddAccountPage'
 import { MerchantQrPage } from '@/pages/MerchantQrPage'
 import { AppShell } from '@/components/common'
 
@@ -85,14 +87,16 @@ export const router = createBrowserRouter([
             element: <MainLayout navType="user" />,
             children: [
               { path: '/home', element: <UserHomePage /> },
-              { path: '/mypage/payments', element: <UserHistoryPage /> },
               {
-                path: '/mypage/accounts',
-                element: <PlaceholderPage title="계좌 관리" screenId="U-MY-ACCOUNTS" />,
+                path: '/pay/scan',
+                element: <PlaceholderPage title="QR 스캔" screenId="U-PAY-SCAN" />,
               },
+              { path: '/mypage/payments', element: <UserHistoryPage /> },
               { path: '/mypage', element: <UserMyPage /> },
             ],
           },
+          { path: '/mypage/accounts', element: <AccountManagementPage /> },
+          { path: '/mypage/accounts/add', element: <AddAccountPage /> },
           {
             element: <FullscreenLayout fullBleed />,
             children: [{ path: '/pay/scan', element: <UserPayScanPage /> }],
