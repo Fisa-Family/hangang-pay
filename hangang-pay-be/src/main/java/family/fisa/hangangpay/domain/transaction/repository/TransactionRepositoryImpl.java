@@ -25,6 +25,12 @@ public class TransactionRepositoryImpl implements TransactionRepository {
         return jpaRepository.save(transaction);
     }
 
+    /** 거래 저장 후 즉시 flush */
+    @Override
+    public Transaction saveAndFlush(Transaction transaction) {
+        return jpaRepository.saveAndFlush(transaction);
+    }
+
     /** PK로 거래 단건 조회 */
     @Override
     public Optional<Transaction> findById(Long id) {
