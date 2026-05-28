@@ -19,7 +19,7 @@ public class UnknownPaymentRecoveryScheduler {
     private final TransactionRepository transactionRepository;
     private final TransactionCommandService transactionCommandService;
 
-    @Scheduled(cron = "* */1 * * * *")
+    @Scheduled(cron = "0 * * * * *")
     public void resolveUnknownPayments() {
         List<Transaction> targets =
                 transactionRepository.findAllUnknownByType(TransactionType.PAYMENT);
@@ -40,7 +40,7 @@ public class UnknownPaymentRecoveryScheduler {
         }
     }
 
-    @Scheduled(cron = "* */1 * * * *")
+    @Scheduled(cron = "0 * * * * *")
     public void resolveUnknownCancels() {
         // 1. UNKNOWN 상태 CANCEL 전체 조회 (fromParty fetch join 포함)
         List<Transaction> targets =
