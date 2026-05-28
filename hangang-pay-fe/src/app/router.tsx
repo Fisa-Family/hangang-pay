@@ -87,10 +87,6 @@ export const router = createBrowserRouter([
             element: <MainLayout navType="user" />,
             children: [
               { path: '/home', element: <UserHomePage /> },
-              {
-                path: '/pay/scan',
-                element: <PlaceholderPage title="QR 스캔" screenId="U-PAY-SCAN" />,
-              },
               { path: '/mypage/payments', element: <UserHistoryPage /> },
               { path: '/mypage', element: <UserMyPage /> },
             ],
