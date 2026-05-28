@@ -12,6 +12,7 @@ import family.fisa.hangangpay.domain.merchant.dto.MerchantInfoResponse;
 import family.fisa.hangangpay.domain.merchant.dto.MerchantMyPageResponse;
 import family.fisa.hangangpay.domain.merchant.entity.Merchant;
 import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
+import family.fisa.hangangpay.domain.transaction.entity.Transaction;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
 import family.fisa.hangangpay.domain.wallet.entity.Wallet;
@@ -20,9 +21,12 @@ import family.fisa.hangangpay.global.exception.BusinessException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
@@ -96,6 +100,7 @@ public class MerchantQueryService {
     }
 
     /** 가맹점 매출 요약 조회 */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public MerchantDashboardResponse getDashboard(Long partyId) {
         log.info("가맹점 매출 요약 조회 시작. partyId={}", partyId);
 
@@ -105,19 +110,22 @@ public class MerchantQueryService {
         LocalDateTime startOfMonth = today.withDayOfMonth(1).atStartOfDay();
         LocalDateTime startOfNextMonth = today.plusMonths(1).withDayOfMonth(1).atStartOfDay();
 
-        BigDecimal todaySales =
-                transactionRepository.sumMerchantPaymentAmountBetween(
-                        partyId, TransactionStatus.SUCCESS, startOfToday, startOfTomorrow);
+        List<Transaction> todayPayments = transactionRepository.findMerchantPaymentsBetween(
+            partyId, TransactionStatus.SUCCESS, startOfToday, startOfTomorrow
+        );
 
-        long todayCount =
-                transactionRepository.countMerchantPaymentsBetween(
-                        partyId, TransactionStatus.SUCCESS, startOfToday, startOfTomorrow);
+        BigDecimal todaySales = todayPayments.stream()
+            .map(Transaction::getAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+        long todayCount = todayPayments.size();
         BigDecimal pendingSettlement = getWalletBalance(partyId);
 
-        BigDecimal monthlyTotalSales =
-                transactionRepository.sumMerchantPaymentAmountBetween(
-                        partyId, TransactionStatus.SUCCESS, startOfMonth, startOfNextMonth);
+        BigDecimal monthlyTotalSales = transactionRepository.findMerchantPaymentsBetween(
+            partyId, TransactionStatus.SUCCESS, startOfMonth, startOfNextMonth
+        ).stream()
+            .map(Transaction::getAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         log.info(
                 "가맹점 매출 요약 조회 완료. partyId={}, todaySales={}, todayCount={}, pendingSettlement={}, monthlyTotalSales={}",

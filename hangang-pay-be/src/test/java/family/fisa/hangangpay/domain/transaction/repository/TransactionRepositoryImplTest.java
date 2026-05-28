@@ -10,6 +10,8 @@ import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -221,15 +223,17 @@ class TransactionRepositoryImplTest {
         entityManager.flush();
         entityManager.clear();
 
-        BigDecimal amount =
-                transactionRepository.sumMerchantPaymentAmountBetween(
-                        merchant.getId(), TransactionStatus.SUCCESS, start, end);
-        long count =
-                transactionRepository.countMerchantPaymentsBetween(
-                        merchant.getId(), TransactionStatus.SUCCESS, start, end);
+        List<Transaction> payments =
+            transactionRepository.findMerchantPaymentsBetween(
+                merchant.getId(), TransactionStatus.SUCCESS, start, end);
+
+        BigDecimal amount = payments.stream()
+            .map(Transaction::getAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
 
         assertThat(amount).isEqualByComparingTo(new BigDecimal("250000"));
-        assertThat(count).isEqualTo(2L);
+        assertThat(payments.size()).isEqualTo(2);
     }
 
     @Test

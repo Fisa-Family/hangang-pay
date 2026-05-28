@@ -149,22 +149,7 @@ public class TransactionRepositoryImpl implements TransactionRepository {
     }
 
     @Override
-    public BigDecimal sumMerchantPaymentAmountBetween(
-            Long merchantPartyId,
-            TransactionStatus status,
-            LocalDateTime startInclusive,
-            LocalDateTime endExclusive) {
-        return jpaRepository.sumMerchantPaymentAmountBetween(
-                merchantPartyId, status, startInclusive, endExclusive);
-    }
-
-    @Override
-    public long countMerchantPaymentsBetween(
-            Long merchantPartyId,
-            TransactionStatus status,
-            LocalDateTime startInclusive,
-            LocalDateTime endExclusive) {
-        return jpaRepository.countMerchantPaymentsBetween(
-                merchantPartyId, status, startInclusive, endExclusive);
+    public List<Transaction> findMerchantPaymentsBetween(Long merchantPartyId, TransactionStatus status, LocalDateTime startInclusive, LocalDateTime endExclusive) {
+       return jpaRepository.findMerchantPaymentsBetween(merchantPartyId, status, startInclusive, endExclusive);
     }
 }

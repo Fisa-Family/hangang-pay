@@ -2,8 +2,7 @@ package family.fisa.hangangpay.domain.merchant.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -23,6 +22,7 @@ import family.fisa.hangangpay.domain.merchant.entity.Merchant;
 import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.entity.PartyType;
+import family.fisa.hangangpay.domain.transaction.entity.Transaction;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
 import family.fisa.hangangpay.domain.wallet.entity.Wallet;
@@ -31,6 +31,7 @@ import family.fisa.hangangpay.global.exception.BusinessException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -291,22 +292,29 @@ public class MerchantQueryServiceTest {
             LocalDateTime startOfMonth = today.withDayOfMonth(1).atStartOfDay();
             LocalDateTime startOfNextMonth = today.plusMonths(1).withDayOfMonth(1).atStartOfDay();
 
-            when(transactionRepository.sumMerchantPaymentAmountBetween(
+            Transaction tx1 = mock(Transaction.class);
+            Transaction tx2 = mock(Transaction.class);
+            when(tx1.getAmount()).thenReturn(new BigDecimal("150000"));
+            when(tx2.getAmount()).thenReturn(new BigDecimal("100000"));
+
+            Transaction tx3 = mock(Transaction.class);
+            Transaction tx4 = mock(Transaction.class);
+            when(tx3.getAmount()).thenReturn(new BigDecimal("1600000"));
+            when(tx4.getAmount()).thenReturn(new BigDecimal("1600000"));
+
+            when(transactionRepository.findMerchantPaymentsBetween(
                             PARTY_ID, TransactionStatus.SUCCESS, startOfToday, startOfTomorrow))
-                    .thenReturn(new BigDecimal("250000"));
-            when(transactionRepository.countMerchantPaymentsBetween(
-                            PARTY_ID, TransactionStatus.SUCCESS, startOfToday, startOfTomorrow))
-                    .thenReturn(17L);
+                    .thenReturn(List.of(tx1, tx2));
+            when(transactionRepository.findMerchantPaymentsBetween(
+                            PARTY_ID, TransactionStatus.SUCCESS, startOfMonth, startOfNextMonth))
+                    .thenReturn(List.of(tx3, tx4));
             when(walletRepository.findByParty_Id(PARTY_ID)).thenReturn(Optional.of(wallet));
             when(bankClient.getBankWalletByAddress(WALLET_ADDRESS)).thenReturn(bankWallet);
-            when(transactionRepository.sumMerchantPaymentAmountBetween(
-                            PARTY_ID, TransactionStatus.SUCCESS, startOfMonth, startOfNextMonth))
-                    .thenReturn(new BigDecimal("3200000"));
 
             MerchantDashboardResponse result = merchantQueryService.getDashboard(PARTY_ID);
 
             assertThat(result.todaySales()).isEqualByComparingTo(new BigDecimal("250000"));
-            assertThat(result.todayCount()).isEqualTo(17L);
+            assertThat(result.todayCount()).isEqualTo(2);
             assertThat(result.pendingSettlement()).isEqualByComparingTo(new BigDecimal("180000"));
             assertThat(result.monthlyTotalSales()).isEqualByComparingTo(new BigDecimal("3200000"));
         }
@@ -314,19 +322,9 @@ public class MerchantQueryServiceTest {
         @Test
         @DisplayName("Wallet 없음 -> MERCHANT_NOT_FOUND")
         void throws_whenWalletMissing() {
-            LocalDate today = LocalDate.now();
-            LocalDateTime startOfToday = today.atStartOfDay();
-            LocalDateTime startOfTomorrow = today.plusDays(1).atStartOfDay();
-            LocalDateTime startOfMonth = today.withDayOfMonth(1).atStartOfDay();
-            LocalDateTime startOfNextMonth = today.plusMonths(1).withDayOfMonth(1).atStartOfDay();
-
-            when(transactionRepository.sumMerchantPaymentAmountBetween(
-                            PARTY_ID, TransactionStatus.SUCCESS, startOfToday, startOfTomorrow))
-                    .thenReturn(BigDecimal.ZERO);
-            when(transactionRepository.countMerchantPaymentsBetween(
-                            PARTY_ID, TransactionStatus.SUCCESS, startOfToday, startOfTomorrow))
-                    .thenReturn(0L);
             when(walletRepository.findByParty_Id(PARTY_ID)).thenReturn(Optional.empty());
+            when(transactionRepository.findMerchantPaymentsBetween(any(), any(), any(), any()))
+                    .thenReturn(List.of());
 
             assertThatThrownBy(() -> merchantQueryService.getDashboard(PARTY_ID))
                     .isInstanceOf(BusinessException.class)
