@@ -93,7 +93,7 @@ SMS 인증과 계좌 1원 인증은 mock으로 처리한다. 백엔드는 인증
 | `ACCOUNT-004` | 주거래 계좌 변경 | `PATCH` | `/accounts/{accountId}/primary` | `O` | `USER \| MERCHANT` | 본인 계좌만 변경 |
 | `PAY-001` | QR 가맹점 정보 조회 | `GET` | `/merchant/{merchantId}` | `O` | `USER` | QR 스캔 후 결제 플로우 진입 |
 | `PAY-002` | 결제 실행 | `POST` | `/payment` | `O` | `USER` | 소비자 전용 |
-| `CHARGE-001` | 충전 정보 조회 | `GET` | `/charge/{partyId}/init` | `O` | `USER` | 충전 한도·할인 계산 포함 |
+| `CHARGE-001` | 충전 정보 조회 | `GET` | `/charge/init` | `O` | `USER` | 충전 한도·할인 계산 포함 |
 | `CHARGE-002` | 충전 실행 | `POST` | `/charge` | `O` | `USER` | 소비자 전용 |
 | `EXCHANGE-001` | 환전 정보 조회 | `GET` | `/exchange/{partyId}/init` | `O` | `USER \| MERCHANT` | 환전 가능 여부·예정 금액 포함 |
 | `EXCHANGE-002` | 환전 실행 | `POST` | `/exchange/execute` | `O` | `USER \| MERCHANT` | 현재 컨트롤러는 소비자 환전 실행만 노출 |

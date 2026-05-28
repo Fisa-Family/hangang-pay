@@ -11,7 +11,7 @@ public enum TransactionSuccessCode implements BaseSuccessCode {
     CHARGE_INFO_RETRIEVED(HttpStatus.OK, "CHARGE_INFO_RETRIEVED", "충전 정보를 조회했습니다."),
     CHARGE_LIMIT_RETRIEVED(HttpStatus.OK, "CHARGE_LIMIT_RETRIEVED", "충전 한도를 성공적으로 조회했습니다."),
     CHARGE_CALCULATED(HttpStatus.OK, "CHARGE_CALCULATED", "충전 금액을 성공적으로 계산했습니다."),
-    CHARGE_EXECUTED(HttpStatus.OK, "CHARGE_EXECUTED", "충전을 성공적으로 실행했습니다."),
+    CHARGE_EXECUTED(HttpStatus.CREATED, "CHARGE_EXECUTED", "충전이 완료되었습니다."),
     EXCHANGE_EXECUTED(HttpStatus.OK, "EXCHANGE_EXECUTED", "환전을 성공적으로 실행했습니다."),
     PAYMENT_INTENT_CREATED(HttpStatus.CREATED, "PAYMENT_INTENT_CREATED", "결제 의도를 성공적으로 생성했습니다."),
     PAYMENT_EXECUTED(HttpStatus.OK, "PAYMENT_EXECUTED", "결제를 성공적으로 실행했습니다."),
