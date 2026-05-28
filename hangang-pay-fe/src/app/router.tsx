@@ -20,6 +20,7 @@ import { MerchantHomePage } from '@/pages/MerchantHomePage'
 import { AccountManagementPage } from '@/pages/AccountManagementPage'
 import { AddAccountPage } from '@/pages/AddAccountPage'
 import { MerchantQrPage } from '@/pages/MerchantQrPage'
+import { MerchantMyPage } from '@/pages/MerchantMyPage'
 import { PayConfirmPage } from '@/pages/PayConfirmPage'
 import { PayPinPage } from '@/pages/PayPinPage'
 import { PayProcessingPage } from '@/pages/PayProcessingPage'
@@ -127,10 +128,7 @@ export const router = createBrowserRouter([
                 path: '/merchant/payments',
                 element: <PlaceholderPage title="결제 내역" screenId="M-PAY" />,
               },
-              {
-                path: '/merchant/mypage',
-                element: <PlaceholderPage title="가맹점 마이" screenId="M-MY" />,
-              },
+              { path: '/merchant/mypage', element: <MerchantMyPage /> },
             ],
           },
         ],
