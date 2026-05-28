@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { AccountRow, AppShell, Button, PageHeader } from '@/components/common'
+import { useState } from 'react'
+import { AccountRow, AppShell, Button, PageHeader, ConfirmDialog } from '@/components/common'
 import { deleteAccount, fetchAccounts, setPrimaryAccount } from '@/api/accounts'
 import { useCurrentUser } from '@/auth/useCurrentUser'
 
@@ -8,6 +9,8 @@ export function AccountManagementPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { isLoading: isAuthLoading } = useCurrentUser()
+
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null)
 
   const accountsQuery = useQuery({
     queryKey: ['accounts'],
@@ -59,8 +62,7 @@ export function AccountManagementPage() {
                   maskedAccountNumber={account.maskedAccountNumber}
                   primary={account.accountType === 'PRIMARY'}
                   onSetPrimary={() => primaryMutation.mutate(account.accountId)}
-                  onDelete={() => deleteMutation.mutate(account.accountId)}
-                />
+onDelete={() => setDeleteTargetId(account.accountId)}                />
               ))}
             </section>
           )}
@@ -80,6 +82,20 @@ export function AccountManagementPage() {
           </aside>
         </div>
       </div>
+      <ConfirmDialog
+  open={deleteTargetId !== null}
+  title="계좌를 삭제하시겠어요?"
+  description="삭제 후에는 다시 등록해야 합니다."
+  confirmText="삭제"
+  cancelText="취소"
+  variant="danger"
+  onConfirm={() => {
+    if (deleteTargetId === null) return
+    deleteMutation.mutate(deleteTargetId)
+    setDeleteTargetId(null)
+  }}
+  onCancel={() => setDeleteTargetId(null)}
+/>
     </AppShell>
   )
 }

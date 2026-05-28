@@ -9,6 +9,8 @@ import {
   PinCodeInput,
   SelectField,
   TextField,
+  Toast,
+  type ToastState,
 } from '@/components/common'
 import { addAccount, requestAccountVerification, verifyAccount } from '@/api/accounts'
 import { ApiError } from '@/api/client'
@@ -25,8 +27,6 @@ const VERIFICATION_CODE_LENGTH = 6
 const SECTION_TITLE_CLASS = 'mb-3 text-base font-bold text-foreground'
 const HIDDEN_FIELD_LABEL_CLASS = 'space-y-0 [&>span:first-child]:sr-only'
 const SUPPORTING_TEXT_CLASS = 'text-xs font-medium leading-5 text-muted-foreground'
-const TOAST_CLASS =
-  'pointer-events-none absolute right-5 bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] left-5 z-20 rounded-lg border bg-card/75 px-4 py-3 text-sm font-semibold shadow-lg shadow-foreground/10 backdrop-blur-md'
 
 interface VerificationRequestPayload {
   bank: string
@@ -41,11 +41,6 @@ interface AddAccountPageProps {
   onBack?: () => void
   onRequestVerification?: (payload: VerificationRequestPayload) => void
   onSubmit?: (payload: AddAccountSubmitPayload) => void
-}
-
-interface ToastState {
-  message: string
-  variant: 'success' | 'error'
 }
 
 function buildErrorMessage(error: unknown): string {
@@ -307,18 +302,13 @@ export function AddAccountPage({ onBack, onRequestVerification, onSubmit }: AddA
         </footer>
       </form>
 
-      {toast ? (
-        <div
-          role={toast.variant === 'error' ? 'alert' : 'status'}
-          className={`${TOAST_CLASS} ${
-            toast.variant === 'error'
-              ? 'border-destructive/25 text-destructive'
-              : 'border-primary/25 text-foreground'
-          }`}
-        >
-          {toast.message}
-        </div>
-      ) : null}
+<Toast
+  open={toast !== null}
+  message={toast?.message ?? ''}
+  variant={toast?.variant}
+  actionLabel={toast?.variant === 'error' ? '다시 시도' : undefined}
+  onAction={toast?.variant === 'error' ? handleRequestVerification : undefined}
+/>
     </AppShell>
   )
 }

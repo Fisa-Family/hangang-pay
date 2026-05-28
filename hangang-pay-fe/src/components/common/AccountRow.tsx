@@ -60,7 +60,7 @@ export function AccountRow({
   variant="ghost"
   size="md"
   onClick={onDelete}
-  className="h-9 w-auto shrink-0 rounded-md px-3 text-sm font-semibold text-destructive hover:bg-destructive/5 hover:text-destructive"
+  className="h-8 w-auto shrink-0 rounded-md px-2.5 text-sm font-semibold text-destructive hover:bg-destructive/5 hover:text-destructive"
 >
   삭제
 </Button>
