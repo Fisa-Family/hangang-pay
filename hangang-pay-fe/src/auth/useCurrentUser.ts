@@ -21,7 +21,7 @@ async function createMockSession(role: string): Promise<void> {
     const body =
       role === 'MERCHANT'
         ? { phoneNumber: '01087654321', password: 'test1234' }
-        : { phoneNumber: '01012345678', password: 'test1234' }
+        : { phoneNumber: '01012345678', password: 'password' }
     await fetch(`${BASE_URL}${path}`, {
       method: 'POST',
       credentials: 'include',

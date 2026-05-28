@@ -1,5 +1,6 @@
 import type { FormEvent } from 'react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import {
   AppShell,
@@ -9,20 +10,23 @@ import {
   SelectField,
   TextField,
 } from '@/components/common'
+import { addAccount, requestAccountVerification, verifyAccount } from '@/api/accounts'
+import { ApiError } from '@/api/client'
+import { apiErrorMessages, isApiErrorCode } from '@/api/errorCodes'
+import { useCurrentUser } from '@/auth/useCurrentUser'
 
 const BANK_OPTIONS = [
-  { label: '우리은행', value: '우리은행' },
-  { label: '국민은행', value: '국민은행' },
-  { label: '신한은행', value: '신한은행' },
-  { label: '하나은행', value: '하나은행' },
-  { label: '농협은행', value: '농협은행' },
-  { label: '카카오뱅크', value: '카카오뱅크' },
-  { label: '토스뱅크', value: '토스뱅크' },
+  { label: '우리은행', value: 'WR', institutionId: 2 },
+  { label: '신한은행', value: 'SH', institutionId: 3 },
+  { label: '하나은행', value: 'HN', institutionId: 4 },
 ]
 
+const VERIFICATION_CODE_LENGTH = 6
 const SECTION_TITLE_CLASS = 'mb-3 text-base font-bold text-foreground'
 const HIDDEN_FIELD_LABEL_CLASS = 'space-y-0 [&>span:first-child]:sr-only'
 const SUPPORTING_TEXT_CLASS = 'text-xs font-medium leading-5 text-muted-foreground'
+const TOAST_CLASS =
+  'pointer-events-none absolute right-5 bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] left-5 z-20 rounded-lg border bg-card/75 px-4 py-3 text-sm font-semibold shadow-lg shadow-foreground/10 backdrop-blur-md'
 
 interface VerificationRequestPayload {
   bank: string
@@ -37,6 +41,22 @@ interface AddAccountPageProps {
   onBack?: () => void
   onRequestVerification?: (payload: VerificationRequestPayload) => void
   onSubmit?: (payload: AddAccountSubmitPayload) => void
+}
+
+interface ToastState {
+  message: string
+  variant: 'success' | 'error'
+}
+
+function buildErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.code && isApiErrorCode(error.code)) return apiErrorMessages[error.code]
+    return error.message
+  }
+
+  if (error instanceof Error) return error.message
+
+  return '요청에 실패했습니다. 네트워크 연결을 확인해 주세요.'
 }
 
 function ChevronDownIcon() {
@@ -63,12 +83,88 @@ function onlyDigits(value: string) {
 
 export function AddAccountPage({ onBack, onRequestVerification, onSubmit }: AddAccountPageProps) {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const { isAuthenticated, isLoading: isAuthLoading } = useCurrentUser()
   const [selectedBank, setSelectedBank] = useState('')
   const [accountNumber, setAccountNumber] = useState('')
   const [verificationCode, setVerificationCode] = useState('')
+  const [verificationRequested, setVerificationRequested] = useState(false)
+  const [toast, setToast] = useState<ToastState | null>(null)
 
-  const canRequestVerification = selectedBank.length > 0 && accountNumber.length > 0
-  const canSubmit = canRequestVerification && verificationCode.length === 3
+  const selectedBankOption = BANK_OPTIONS.find((option) => option.value === selectedBank)
+
+  const canRequestVerification =
+    isAuthenticated && !isAuthLoading && selectedBank.length > 0 && accountNumber.length > 0
+  const canSubmit =
+    canRequestVerification &&
+    verificationRequested &&
+    verificationCode.length === VERIFICATION_CODE_LENGTH
+
+  const requestVerificationMutation = useMutation({
+    mutationFn: requestAccountVerification,
+    onSuccess: (response) => {
+      setVerificationRequested(true)
+      setToast({
+        message: `인증번호가 발송되었습니다. 테스트 코드: ${response.code}`,
+        variant: 'success',
+      })
+    },
+    onError: (error) => {
+      setVerificationRequested(false)
+      setToast({ message: buildErrorMessage(error), variant: 'error' })
+    },
+  })
+
+  const addAccountMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedBankOption) throw new Error('은행을 선택해주세요.')
+
+      try {
+        await verifyAccount({
+          institutionId: selectedBankOption.institutionId,
+          accountNumber,
+          code: verificationCode,
+        })
+      } catch (error) {
+        throw new Error(`인증 확인 실패: ${buildErrorMessage(error)}`)
+      }
+
+      try {
+        return await addAccount({
+          institutionCode: selectedBankOption.value,
+          accountNumber,
+        })
+      } catch (error) {
+        throw new Error(`계좌 등록 실패: ${buildErrorMessage(error)}`)
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      navigate('/mypage/accounts', { replace: true })
+    },
+    onError: (error) => {
+      setToast({ message: buildErrorMessage(error), variant: 'error' })
+    },
+  })
+
+  const isSubmitting =
+    isAuthLoading || requestVerificationMutation.isPending || addAccountMutation.isPending
+
+  useEffect(() => {
+    if (!toast) return
+
+    const timeoutId = window.setTimeout(() => {
+      setToast(null)
+    }, 3000)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [toast])
+
+  const resetVerification = () => {
+    setVerificationCode('')
+    setVerificationRequested(false)
+    setToast(null)
+  }
 
   const handleBack = () => {
     if (onBack) {
@@ -81,17 +177,36 @@ export function AddAccountPage({ onBack, onRequestVerification, onSubmit }: AddA
 
   const handleAccountNumberChange = (value: string) => {
     setAccountNumber(onlyDigits(value))
+    resetVerification()
   }
 
   const handleVerificationCodeChange = (value: string) => {
-    setVerificationCode(onlyDigits(value).slice(0, 3))
+    setVerificationCode(onlyDigits(value).slice(0, VERIFICATION_CODE_LENGTH))
+  }
+
+  const handleBankChange = (value: string) => {
+    setSelectedBank(value)
+    resetVerification()
   }
 
   const handleRequestVerification = () => {
-    if (!canRequestVerification) return
+    if (!isAuthLoading && !isAuthenticated) {
+      setToast({ message: '로그인 세션을 만들지 못했습니다.', variant: 'error' })
+      return
+    }
+
+    if (!canRequestVerification || !selectedBankOption) return
+
+    setVerificationCode('')
+    setVerificationRequested(false)
 
     onRequestVerification?.({
-      bank: selectedBank,
+      bank: selectedBankOption.label,
+      accountNumber,
+    })
+
+    requestVerificationMutation.mutate({
+      institutionId: selectedBankOption.institutionId,
       accountNumber,
     })
   }
@@ -101,10 +216,12 @@ export function AddAccountPage({ onBack, onRequestVerification, onSubmit }: AddA
     if (!canSubmit) return
 
     onSubmit?.({
-      bank: selectedBank,
+      bank: selectedBankOption?.label ?? selectedBank,
       accountNumber,
       verificationCode,
     })
+
+    addAccountMutation.mutate()
   }
 
   return (
@@ -121,7 +238,7 @@ export function AddAccountPage({ onBack, onRequestVerification, onSubmit }: AddA
               label="은행 선택"
               value={selectedBank}
               options={BANK_OPTIONS}
-              onChange={setSelectedBank}
+              onChange={handleBankChange}
               placeholder="은행을 선택해주세요"
               className={HIDDEN_FIELD_LABEL_CLASS}
             />
@@ -139,11 +256,6 @@ export function AddAccountPage({ onBack, onRequestVerification, onSubmit }: AddA
               placeholder="'-' 없이 숫자만 입력해주세요"
               className={HIDDEN_FIELD_LABEL_CLASS}
             />
-            <div className="mt-2">
-              <p className={SUPPORTING_TEXT_CLASS}>
-                입력한 계좌번호가 본인 명의인지 1원 인증을 통해 확인합니다.
-              </p>
-            </div>
           </section>
 
           <section className="py-6" aria-labelledby="one-won-verification-title">
@@ -153,17 +265,23 @@ export function AddAccountPage({ onBack, onRequestVerification, onSubmit }: AddA
             <p className={SUPPORTING_TEXT_CLASS}>
               입력하신 계좌로 1원을 보내드려요.
               <br />
-              입금자명에 표시된 숫자 3자리를 입력해주세요.
+              입금자명에 표시된 숫자 6자리를 입력해주세요.
             </p>
 
             <Button
               variant="ghost"
               size="lg"
               onClick={handleRequestVerification}
-              disabled={!canRequestVerification}
+              disabled={!canRequestVerification || isSubmitting}
               className="mt-4 gap-2 border border-primary/60 bg-card text-primary shadow-sm shadow-primary/20 hover:bg-primary/5 hover:text-primary"
             >
-              1원 인증 요청
+              {isAuthLoading
+                ? '준비 중'
+                : !isAuthenticated
+                  ? '로그인 필요'
+                : requestVerificationMutation.isPending
+                  ? '요청 중'
+                  : '1원 인증 요청'}
             </Button>
 
             <div className="flex justify-center py-3 text-muted-foreground">
@@ -174,19 +292,33 @@ export function AddAccountPage({ onBack, onRequestVerification, onSubmit }: AddA
               <p className={SECTION_TITLE_CLASS}>인증번호 입력</p>
               <PinCodeInput
                 value={verificationCode}
-                length={3}
+                length={VERIFICATION_CODE_LENGTH}
                 onChange={handleVerificationCodeChange}
+                disabled={!verificationRequested || addAccountMutation.isPending}
               />
             </div>
           </section>
         </div>
 
         <footer className="shrink-0 bg-card pt-3 pb-[calc(env(safe-area-inset-bottom)+0.25rem)]">
-          <Button type="submit" size="lg" disabled={!canSubmit}>
-            확인
+          <Button type="submit" size="lg" disabled={!canSubmit || isSubmitting}>
+            {addAccountMutation.isPending ? '등록 중' : '확인'}
           </Button>
         </footer>
       </form>
+
+      {toast ? (
+        <div
+          role={toast.variant === 'error' ? 'alert' : 'status'}
+          className={`${TOAST_CLASS} ${
+            toast.variant === 'error'
+              ? 'border-destructive/25 text-destructive'
+              : 'border-primary/25 text-foreground'
+          }`}
+        >
+          {toast.message}
+        </div>
+      ) : null}
     </AppShell>
   )
 }

@@ -1,67 +1,38 @@
-import { useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { AccountRow, AppShell, Button, PageHeader } from '@/components/common'
-
-interface RegisteredAccount {
-  id: string
-  bankName: string
-  maskedAccountNumber: string
-  primary: boolean
-}
-
-const SAMPLE_ACCOUNTS: RegisteredAccount[] = [
-  {
-    id: 'woori-1002',
-    bankName: '우리은행',
-    maskedAccountNumber: '1002-9764-1234',
-    primary: true,
-  },
-  {
-    id: 'kb-1234',
-    bankName: '국민은행',
-    maskedAccountNumber: '1234-0865-5678',
-    primary: false,
-  },
-]
-
-const SUPPORTING_TEXT_CLASS = 'text-xs font-medium leading-5 text-muted-foreground'
-
-function PlusIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      aria-hidden
-    >
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-  )
-}
+import { deleteAccount, fetchAccounts, setPrimaryAccount } from '@/api/accounts'
+import { useCurrentUser } from '@/auth/useCurrentUser'
 
 export function AccountManagementPage() {
   const navigate = useNavigate()
-  const [accounts, setAccounts] = useState(SAMPLE_ACCOUNTS)
+  const queryClient = useQueryClient()
+  const { isLoading: isAuthLoading } = useCurrentUser()
+
+  const accountsQuery = useQuery({
+    queryKey: ['accounts'],
+    queryFn: fetchAccounts,
+    enabled: !isAuthLoading,
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteAccount,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+    },
+  })
+
+  const primaryMutation = useMutation({
+    mutationFn: setPrimaryAccount,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+    },
+  })
+
+  const isLoadingAccounts = isAuthLoading || accountsQuery.isLoading
 
   const handleBack = () => {
     navigate(-1)
-  }
-
-  const handleDelete = (accountId: string) => {
-    setAccounts((currentAccounts) => currentAccounts.filter((account) => account.id !== accountId))
-  }
-
-  const handleSetPrimary = (accountId: string) => {
-    setAccounts((currentAccounts) =>
-      currentAccounts.map((account) => ({
-        ...account,
-        primary: account.id === accountId,
-      }))
-    )
   }
 
   const handleAddAccount = () => {
@@ -74,19 +45,25 @@ export function AccountManagementPage() {
         <PageHeader title="계좌 관리" onBack={handleBack} />
 
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pt-3">
-          <section aria-label="등록 계좌 목록" className="flex flex-col gap-2.5">
-            {accounts.map((account) => (
-              <AccountRow
-                key={account.id}
-                mode="manage"
-                bankName={account.bankName}
-                maskedAccountNumber={account.maskedAccountNumber}
-                primary={account.primary}
-                onSetPrimary={() => handleSetPrimary(account.id)}
-                onDelete={() => handleDelete(account.id)}
-              />
-            ))}
-          </section>
+          {isLoadingAccounts ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">계좌를 불러오는 중입니다.</p>
+          ) : accountsQuery.isError ? (
+            <p className="py-6 text-center text-sm text-destructive">계좌 정보를 불러오지 못했습니다.</p>
+          ) : (
+            <section aria-label="등록 계좌 목록" className="flex flex-col gap-2.5">
+              {(accountsQuery.data ?? []).map((account) => (
+                <AccountRow
+                  key={account.accountId}
+                  mode="manage"
+                  bankName={account.bankName}
+                  maskedAccountNumber={account.maskedAccountNumber}
+                  primary={account.accountType === 'PRIMARY'}
+                  onSetPrimary={() => primaryMutation.mutate(account.accountId)}
+                  onDelete={() => deleteMutation.mutate(account.accountId)}
+                />
+              ))}
+            </section>
+          )}
 
           <div className="mt-4">
             <Button
@@ -94,14 +71,11 @@ export function AccountManagementPage() {
               onClick={handleAddAccount}
               className="gap-2 border border-input bg-card text-foreground hover:bg-muted hover:text-foreground"
             >
-              <PlusIcon />
               계좌 추가
             </Button>
           </div>
 
-          <aside
-            className={`mt-3 flex justify-center rounded-lg px-4 py-3 text-center ${SUPPORTING_TEXT_CLASS}`}
-          >
+          <aside className="mt-3 flex justify-center rounded-lg px-4 py-3 text-center text-xs font-medium leading-5 text-muted-foreground">
             <p>계좌는 최대 3개까지 등록할 수 있어요.</p>
           </aside>
         </div>

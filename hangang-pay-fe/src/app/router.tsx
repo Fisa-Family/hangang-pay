@@ -91,10 +91,6 @@ export const router = createBrowserRouter([
                 path: '/mypage/payments',
                 element: <PlaceholderPage title="결제내역" screenId="U-MY-PAYMENTS" />,
               },
-              {
-                path: '/mypage/accounts',
-                element: <PlaceholderPage title="계좌 관리" screenId="U-MY-ACCOUNTS" />,
-              },
               { path: '/mypage', element: <UserMyPage /> },
             ],
           },
