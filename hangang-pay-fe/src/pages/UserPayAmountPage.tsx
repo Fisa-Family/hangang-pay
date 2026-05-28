@@ -5,9 +5,11 @@ import { ApiError } from '@/api/client'
 import { apiErrorMessages, isApiErrorCode } from '@/api/errorCodes'
 import { fetchMerchantInfo } from '@/api/merchant'
 import { fetchWalletBalance } from '@/api/wallet'
-import { AmountInput, BackTitleHeader, EmptyState, NumberPad } from '@/components/common'
-import { appendAmountDigit, formatWon, removeAmountDigit } from '@/lib/format'
+import { BackTitleHeader, EmptyState } from '@/components/common'
+import { formatWon } from '@/lib/format'
 import { cn } from '@/lib/utils'
+
+const MAX_AMOUNT_DIGITS = 9
 
 const API_SPEC = {
   PAY_001: { id: 'PAY-001' },
@@ -121,7 +123,23 @@ export function UserPayAmountPage() {
         </section>
       )}
 
-      <AmountInput value={amount} placeholder="0원" onClick={() => {}} />
+      <label className="flex min-h-20 w-full items-center justify-end gap-1 rounded-lg border border-input bg-card px-4 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15">
+        <input
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          autoComplete="off"
+          value={amount === 0 ? '' : new Intl.NumberFormat('ko-KR').format(amount)}
+          placeholder="0"
+          onChange={(e) => {
+            const digits = e.target.value.replace(/\D/g, '').slice(0, MAX_AMOUNT_DIGITS)
+            setAmount(digits ? Number(digits) : 0)
+          }}
+          className="min-w-0 flex-1 bg-transparent text-right text-3xl font-bold tabular-nums text-foreground placeholder:text-muted-foreground focus:outline-none"
+          aria-label="결제 금액"
+        />
+        <span className="shrink-0 text-3xl font-bold text-foreground">원</span>
+      </label>
 
       <p
         className={cn(
@@ -131,12 +149,6 @@ export function UserPayAmountPage() {
       >
         {overBalance ? '잔액이 부족합니다' : '잔액 내에서 결제할 수 있어요'}
       </p>
-
-      <NumberPad
-        onDigit={(d) => setAmount((v) => appendAmountDigit(v, d))}
-        onBackspace={() => setAmount(removeAmountDigit)}
-        onClear={() => setAmount(0)}
-      />
 
       <button
         type="button"

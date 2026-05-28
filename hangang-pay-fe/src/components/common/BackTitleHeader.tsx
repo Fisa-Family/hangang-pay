@@ -5,12 +5,12 @@ interface BackTitleHeaderProps {
 
 export function BackTitleHeader({ title, onBack }: BackTitleHeaderProps) {
   return (
-    <header className="flex flex-col gap-2 pt-2 pb-3">
+    <header className="flex items-center gap-2 pt-2 pb-3">
       <button
         type="button"
         aria-label="뒤로가기"
         onClick={onBack}
-        className="flex h-9 w-9 items-center justify-center rounded-lg text-foreground hover:bg-muted"
+        className="-ml-2 flex h-9 w-9 items-center justify-center rounded-lg text-foreground hover:bg-muted"
       >
         <svg
           viewBox="0 0 24 24"
