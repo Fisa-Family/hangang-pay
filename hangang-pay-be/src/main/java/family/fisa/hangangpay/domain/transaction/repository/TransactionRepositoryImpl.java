@@ -147,4 +147,14 @@ public class TransactionRepositoryImpl implements TransactionRepository {
     public BigDecimal sumAllSuccessByType(Long partyId, TransactionType type) {
         return jpaRepository.sumAllSuccessByType(partyId, type);
     }
+
+    @Override
+    public List<Transaction> findMerchantPaymentsBetween(
+            Long merchantPartyId,
+            TransactionStatus status,
+            LocalDateTime startInclusive,
+            LocalDateTime endExclusive) {
+        return jpaRepository.findMerchantPaymentsBetween(
+                merchantPartyId, status, startInclusive, endExclusive);
+    }
 }

@@ -17,6 +17,8 @@ import { UserHomePage } from '@/pages/UserHomePage'
 import { UserMyPage } from '@/pages/UserMyPage'
 import { UserPayScanPage } from '@/pages/UserPayScanPage'
 import { MerchantHomePage } from '@/pages/MerchantHomePage'
+import { AccountManagementPage } from '@/pages/AccountManagementPage'
+import { AddAccountPage } from '@/pages/AddAccountPage'
 import { MerchantQrPage } from '@/pages/MerchantQrPage'
 import { PayConfirmPage } from '@/pages/PayConfirmPage'
 import { PayPinPage } from '@/pages/PayPinPage'
@@ -90,13 +92,11 @@ export const router = createBrowserRouter([
             children: [
               { path: '/home', element: <UserHomePage /> },
               { path: '/mypage/payments', element: <UserHistoryPage /> },
-              {
-                path: '/mypage/accounts',
-                element: <PlaceholderPage title="계좌 관리" screenId="U-MY-ACCOUNTS" />,
-              },
               { path: '/mypage', element: <UserMyPage /> },
             ],
           },
+          { path: '/mypage/accounts', element: <AccountManagementPage /> },
+          { path: '/mypage/accounts/add', element: <AddAccountPage /> },
           // 결제 플로우 (하단 네비 없음)
           {
             element: <FullscreenLayout fullBleed />,

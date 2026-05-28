@@ -100,7 +100,7 @@ SMS 인증과 계좌 1원 인증은 mock으로 처리한다. 백엔드는 인증
 | `PAY-004` | 결제 상태 복구 | `POST` | `/payment/{transactionUuid}/recover` | `O` | `USER` | 결제 실패·중단 시 상태 복구 |
 | `CHARGE-001` | 충전 정보 조회 | `GET` | `/charge/init` | `O` | `USER` | 충전 한도·할인 계산 포함 |
 | `CHARGE-002` | 충전 실행 | `POST` | `/charge` | `O` | `USER` | 소비자 전용 |
-| `EXCHANGE-001` | 환전 정보 조회 | `GET` | `/exchange/{partyId}/init` | `O` | `USER \| MERCHANT` | 환전 가능 여부·예정 금액 포함 |
+| `EXCHANGE-001` | 환전 정보 조회 | `GET` | `/exchange/init` | `O` | `USER \| MERCHANT` | 환전 가능 여부·예정 금액 포함 |
 | `EXCHANGE-002` | 환전 실행 | `POST` | `/exchange/execute` | `O` | `USER \| MERCHANT` | 현재 컨트롤러는 소비자 환전 실행만 노출 |
 | `MERCHANT-001` | 가맹점 매출 요약 조회 | `GET` | `/merchant/dashboard` | `O` | `MERCHANT` | 가맹점 전용 |
 | `MERCHANT-002` | 가맹점 결제 내역 조회 | `GET` | `/merchant/payments` | `O` | `MERCHANT` | 가맹점 전용; item의 `transactionId`를 상세조회 path에 사용 |
