@@ -47,3 +47,29 @@ export interface MerchantInfoResponse {
 export function fetchMerchantInfo(merchantId: number): Promise<MerchantInfoResponse> {
   return apiFetch<MerchantInfoResponse>(`/merchant/${merchantId}`)
 }
+
+// MERCHANT-009: 가맹점 마이페이지 조회 — 정산 계좌 정보
+export interface MerchantSettlementAccountItem {
+  accountId: number
+  institutionName: string
+  accountNumber: string
+  accountType: string
+}
+
+// MERCHANT-009: 가맹점 마이페이지 조회 — 응답 (BE: MerchantMyPageResponse)
+export interface MerchantMyPageResponse {
+  merchantId: number
+  partyId: number
+  merchantName: string
+  businessNumber: string
+  ownerName: string
+  phoneNumber: string
+  address: string
+  settlementAccount: MerchantSettlementAccountItem
+}
+
+// MERCHANT-009: 가맹점 마이페이지 조회 → GET /api/v1/merchant/mypage
+// ⚠️ docs/rest_api.md는 /api/v2 명시, 실제 BE 구현은 /api/v1 (불일치)
+export function fetchMerchantMyPage(): Promise<MerchantMyPageResponse> {
+  return apiFetch<MerchantMyPageResponse>('/merchant/mypage')
+}
