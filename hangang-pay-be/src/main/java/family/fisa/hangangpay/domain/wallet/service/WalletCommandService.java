@@ -31,22 +31,19 @@ public class WalletCommandService {
 
         // 1. bank에 지갑 발급 요청 (Custodial - bank가 keypair 생성)
         BankWalletResponse bankWallet =
-            bankClient
-                .createBankWallet(new CreateBankWalletRequest(
-                    institution.getId(),
-                    party.getId(),
-                    merchant));
+                bankClient.createBankWallet(
+                        new CreateBankWalletRequest(institution.getId(), party.getId(), merchant));
 
         // 2. wallet_address 정규화
         String walletAddress = normalizeAddress(bankWallet.walletAddress());
 
         // 3. BE Wallet 저장
         Wallet wallet =
-            Wallet.builder()
-                  .party(party)
-                  .institution(institution)
-                  .address(walletAddress)
-                  .build();
+                Wallet.builder()
+                        .party(party)
+                        .institution(institution)
+                        .address(walletAddress)
+                        .build();
 
         return walletRepository.save(wallet);
     }
