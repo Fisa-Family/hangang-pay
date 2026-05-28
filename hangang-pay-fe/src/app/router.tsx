@@ -89,9 +89,7 @@ export const router = createBrowserRouter([
                 path: '/pay/scan',
                 element: <PlaceholderPage title="QR 스캔" screenId="U-PAY-SCAN" />,
               },
-              { path: '/mypage/payments',
-                element: <UserHistoryPage />
-              },
+              { path: '/mypage/payments', element: <UserHistoryPage /> },
               {
                 path: '/mypage/accounts',
                 element: <PlaceholderPage title="계좌 관리" screenId="U-MY-ACCOUNTS" />,
