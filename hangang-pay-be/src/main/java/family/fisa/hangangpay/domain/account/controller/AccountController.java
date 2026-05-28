@@ -5,9 +5,7 @@ import family.fisa.hangangpay.domain.account.dto.AccountListResponse;
 import family.fisa.hangangpay.domain.account.dto.AccountResponse;
 import family.fisa.hangangpay.domain.account.dto.PrimaryAccountResponse;
 import family.fisa.hangangpay.domain.account.service.AccountService;
-import family.fisa.hangangpay.global.code.error.GeneralErrorCode;
 import family.fisa.hangangpay.global.code.success.GeneralSuccessCode;
-import family.fisa.hangangpay.global.exception.BusinessException;
 import family.fisa.hangangpay.global.response.ApiResponse;
 import family.fisa.hangangpay.global.session.SessionAttributeNames;
 import io.swagger.v3.oas.annotations.Operation;
@@ -44,7 +42,6 @@ public class AccountController {
                     Long partyId) {
 
         // 계좌 목록 조회 후 응답 반환
-        validateSession(partyId);
         AccountListResponse response = accountService.getAccounts(partyId);
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
     }
@@ -59,7 +56,6 @@ public class AccountController {
             @Valid @RequestBody AccountAddRequest request) {
 
         // 계좌 추가 후 201 응답 반환
-        validateSession(partyId);
         AccountResponse response = accountService.addAccount(partyId, request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_CREATED, response));
@@ -75,7 +71,6 @@ public class AccountController {
             @PathVariable Long accountId) {
 
         // 계좌 삭제 후 200 응답 반환
-        validateSession(partyId);
         accountService.deleteAccount(partyId, accountId);
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK));
     }
@@ -90,14 +85,7 @@ public class AccountController {
             @PathVariable Long accountId) {
 
         // 주거래 계좌 변경 후 200 응답 반환
-        validateSession(partyId);
         PrimaryAccountResponse response = accountService.changePrimaryAccount(partyId, accountId);
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
-    }
-
-    private void validateSession(Long partyId) {
-        if (partyId == null) {
-            throw new BusinessException(GeneralErrorCode.COMMON_UNAUTHORIZED);
-        }
     }
 }
