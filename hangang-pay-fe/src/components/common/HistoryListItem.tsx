@@ -21,7 +21,7 @@ function amountClass(displayType: DisplayHistoryType): string {
 
 export function HistoryListItem({ item }: HistoryListItemProps) {
   return (
-    <div className="flex w-full items-center gap-3 px-4 py-3">
+    <div className="flex w-full items-center gap-3 border-b border-border/50 px-4 py-3 last:border-b-0">
       <span className="w-12 shrink-0 text-sm font-medium tabular-nums text-muted-foreground">
         {formatTimeHHmm(item.createdAt)}
       </span>
