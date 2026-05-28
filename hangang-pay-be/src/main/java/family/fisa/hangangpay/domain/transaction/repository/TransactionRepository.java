@@ -38,7 +38,7 @@ public interface TransactionRepository {
     Optional<Transaction> findDetailByIdAndTypes(Long id, List<TransactionType> types);
 
     /** 스케줄러용 - UNKNOWN 상태 PAYMENT 트랜잭션 전체 조회 */
-    List<Transaction> findAllUnknownPayments();
+    List<Transaction> findAllUnknownByType(TransactionType type);
 
     /** 파티 식별자 기준 특정 월의 거래 유형별 누적 금액 조회 */
     BigDecimal sumMonthlyAmount(
@@ -73,4 +73,17 @@ public interface TransactionRepository {
 
     /** 특정 거래 유형의 SUCCESS 누적 금액 (전체 기간) */
     BigDecimal sumAllSuccessByType(Long partyId, TransactionType type);
+
+    /** 원본 PAYMENT의 SUCCESS + CANCEL 존재 여부 확인 - 재취소 방지용 */
+    boolean existsSuccessCancelFor(String originalTransactionUuid);
+
+    /** 복구 가능한 CANCEL 조회 - CANCEL + status IN (UNKNOWN, PROCESSING) */
+    Optional<Transaction> findRecoverableCancelByOriginalTransactionUuid(
+            String originalTransactionUuid);
+
+    List<Transaction> findMerchantPaymentsBetween(
+            Long merchantPartyId,
+            TransactionStatus status,
+            LocalDateTime startInclusive,
+            LocalDateTime endExclusive);
 }

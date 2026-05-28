@@ -2,6 +2,7 @@ package family.fisa.hangangpay.domain.transaction.service;
 
 import family.fisa.hangangpay.client.bank.BankClient;
 import family.fisa.hangangpay.client.bank.dto.BankTransactionStatusResponse;
+import family.fisa.hangangpay.client.bank.dto.CancelResponse;
 import family.fisa.hangangpay.client.bank.dto.PaymentResponse;
 import family.fisa.hangangpay.domain.merchant.code.MerchantErrorCode;
 import family.fisa.hangangpay.domain.merchant.entity.Merchant;
@@ -9,26 +10,29 @@ import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.repository.PartyRepository;
 import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
+import family.fisa.hangangpay.domain.transaction.dto.request.PaymentCancelRequest;
 import family.fisa.hangangpay.domain.transaction.dto.request.PaymentExecuteRequest;
 import family.fisa.hangangpay.domain.transaction.dto.request.PaymentIntentCreateRequest;
+import family.fisa.hangangpay.domain.transaction.dto.response.PaymentCancelResponse;
 import family.fisa.hangangpay.domain.transaction.dto.response.PaymentExecutionResponse;
 import family.fisa.hangangpay.domain.transaction.dto.response.PaymentIntentResponse;
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
-import family.fisa.hangangpay.domain.transaction.internal.*;
+import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
+import family.fisa.hangangpay.domain.transaction.internal.cancel.*;
+import family.fisa.hangangpay.domain.transaction.internal.payment.*;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
-import family.fisa.hangangpay.domain.user.code.error.UserErrorCode;
-import family.fisa.hangangpay.domain.user.entity.User;
-import family.fisa.hangangpay.domain.user.repository.UserRepository;
 import family.fisa.hangangpay.domain.wallet.code.error.WalletErrorCode;
 import family.fisa.hangangpay.domain.wallet.entity.Wallet;
 import family.fisa.hangangpay.domain.wallet.repository.WalletRepository;
 import family.fisa.hangangpay.global.code.error.GeneralErrorCode;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,13 +48,15 @@ public class TransactionCommandService {
     private final TransactionRepository transactionRepository;
     private final MerchantRepository merchantRepository;
     private final WalletRepository walletRepository;
-    private final UserRepository userRepository;
     private final PartyRepository partyRepository;
     private final BankClient bankClient;
     private final PaymentIdempotencyStore paymentIdempotencyStore;
     private final PaymentLockManager paymentLockManager;
     private final PaymentRateLimiter paymentRateLimiter;
+    private final CancelIdempotencyStore cancelIdempotencyStore;
+    private final CancelLockManager cancelLockManager;
     private final PaymentExecutionStateWriter paymentExecutionStateWriter;
+    private final CancelExecutionStateWriter cancelExecutionStateWriter;
 
     public PaymentIntentResponse createPaymentIntent(
             Long partyId, PaymentIntentCreateRequest request) {
@@ -100,6 +106,31 @@ public class TransactionCommandService {
     public PaymentExecutionResponse recoverPayment(Long partyId, String transactionUuid) {
         return paymentLockManager.withTransactionLock(
                 transactionUuid, () -> recoverPaymentWithLock(partyId, transactionUuid));
+    }
+
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public PaymentCancelResponse cancelPayment(
+            Long merchantPartyId, Long transactionId, PaymentCancelRequest request) {
+
+        /** 1. Lock 확보 - cancelUuid는 prepareCancel 내부에서 생성됨, originalTrnasacitonUuid 사용 */
+        String originalTransactionUuid = getTransactionUuid(transactionId);
+
+        /** 2. 분산 락 - 같은 originalPaymentUuid 취소가 동시에 두 건 진입하지 못하게 차단 */
+        return cancelLockManager.withCancelLock(
+                originalTransactionUuid,
+                () ->
+                        executeCancelWithLock(
+                                merchantPartyId, transactionId, originalTransactionUuid, request));
+    }
+
+    public PaymentCancelResponse recoverCancel(Long merchantPartyId, Long transactionId) {
+        // 1. lock 키 확보
+        Transaction original = getPaymentById(transactionId);
+
+        // 2. 분산 락 — 취소 실행과 복구가 동시에 같은 CANCEL 레코드를 건드리지 못하게 차단
+        return cancelLockManager.withCancelLock(
+                original.getTransactionUuid(),
+                () -> recoverCancelWithLock(merchantPartyId, original));
     }
 
     /** 내부 메소드 */
@@ -176,10 +207,118 @@ public class TransactionCommandService {
                 transaction, merchant.getMerchantName(), bankStatus.confirmedAt());
     }
 
+    private PaymentCancelResponse executeCancelWithLock(
+            Long merchantPartyId,
+            Long transactionId,
+            String originalTransactionUuid,
+            PaymentCancelRequest request) {
+        /** 1. 멱등성 판정 */
+        String requestHash = String.valueOf(merchantPartyId);
+
+        CancelIdempotencyDecision decision =
+                cancelIdempotencyStore.beginCancel(originalTransactionUuid, requestHash);
+
+        if (decision.type() == CancelIdempotencyDecisionType.RETURN_SNAPSHOT) {
+            return decision.responseSnapshot();
+        }
+        if (decision.type() == CancelIdempotencyDecisionType.PROCESSING) {
+            throw new BusinessException(TransactionErrorCode.CANCEL_ALREADY_PROCESSING);
+        }
+        if (decision.type() == CancelIdempotencyDecisionType.CONFLICT) {
+            throw new BusinessException(TransactionErrorCode.IDEMPOTENCY_CONFLICT);
+        }
+
+        /** 2. 검증 + CANCEL 저장 + Processing - REQUIRES_NEW 트랜잭션으로 커밋 */
+        CancelExecutionPrepared prepared =
+                cancelExecutionStateWriter.prepareCancel(
+                        merchantPartyId, transactionId, request.paymentPin());
+
+        /** 3. BANK 취소 호출 - DB 트랜잭션 밖에서 실행 */
+        CancelResponse bankResponse;
+        try {
+            bankResponse = bankClient.cancel(prepared.toBankCancelRequest());
+        } catch (ResourceAccessException ex) {
+            /** 4-1. 연결 실패된 기존 트랜잭션 수정 - UNKNOWN */
+            log.warn(
+                    "Bank cancel 네트워크 오류. cancelUuid={}, reason={}",
+                    prepared.cancelTransactionUuid(),
+                    ex.getMessage());
+            cancelIdempotencyStore.markCancelStatus(
+                    originalTransactionUuid, TransactionStatus.UNKNOWN);
+            return cancelExecutionStateWriter.markUnknown(prepared.cancelTransactionUuid());
+        }
+
+        /** 4-2. SUCCESS 확정 - REQUIRES_NEW 트랜잭션으로 커밋 */
+        PaymentCancelResponse response =
+                cancelExecutionStateWriter.completeSuccess(
+                        prepared.cancelTransactionUuid(),
+                        bankResponse.txHash(),
+                        String.valueOf(bankResponse.bankTransactionId()),
+                        bankResponse.confirmedAt());
+
+        /** 5. 멱등성 snapshot 저장 */
+        cancelIdempotencyStore.completeCancel(originalTransactionUuid, response);
+
+        return response;
+    }
+
+    private PaymentCancelResponse recoverCancelWithLock(
+            Long merchantPartyId, Transaction original) {
+
+        /** 1. 가맹점 소유권 검증 */
+        original.validateMerchantIsReceiver(merchantPartyId);
+
+        /** 2. 복구 대상 CANCEL 조회 (UNKNOWN 상태만) */
+        Transaction cancelTx = getCancelTransaction(original.getTransactionUuid());
+
+        /** 3. Bank 상태 조회 */
+        BankTransactionStatusResponse bankStatus =
+                bankClient.getTransactionStatus(cancelTx.getTransactionUuid());
+
+        /** 4-1. SUCCESS → 취소 완료 확정 */
+        if (bankStatus.status() == TransactionStatus.SUCCESS) {
+            cancelTx.recoverSuccess(
+                    bankStatus.txHash(), String.valueOf(bankStatus.bankTransactionId()));
+            PaymentCancelResponse response =
+                    PaymentCancelResponse.from(cancelTx, bankStatus.confirmedAt());
+            // 멱등성 snapshot 갱신 — 이후 cancelPayment 재시도 시 저장된 응답 반환
+            cancelIdempotencyStore.completeCancel(original.getTransactionUuid(), response);
+            return response;
+        }
+
+        /** 4-2. FAILED → 취소 실패 확정 */
+        if (bankStatus.status() == TransactionStatus.FAILED) {
+            cancelTx.recoverFailed();
+        }
+
+        /** 4-3. PROCESSING/UNKNOWN → 상태 유지, 다음 복구 시도 대상 */
+        return PaymentCancelResponse.from(cancelTx, bankStatus.confirmedAt());
+    }
+
     private void validateBankSuccessRecoveryResult(BankTransactionStatusResponse bankStatus) {
         if (bankStatus.txHash() == null || bankStatus.bankTransactionId() == null) {
             throw new BusinessException(TransactionErrorCode.PAYMENT_RECOVERY_RESULT_INVALID);
         }
+    }
+
+    private Transaction getPaymentById(Long transactionId) {
+        return transactionRepository
+                .findDetailByIdAndTypes(transactionId, List.of(TransactionType.PAYMENT))
+                .orElseThrow(() -> new BusinessException(TransactionErrorCode.PAYMENT_NOT_FOUND));
+    }
+
+    private @NonNull Transaction getCancelTransaction(String originalTransactionUuid) {
+        return transactionRepository
+                .findRecoverableCancelByOriginalTransactionUuid(originalTransactionUuid)
+                .orElseThrow(
+                        () -> new BusinessException(TransactionErrorCode.CANCEL_NOT_RECOVERABLE));
+    }
+
+    private String getTransactionUuid(Long transactionId) {
+        return transactionRepository
+                .findById(transactionId)
+                .orElseThrow(() -> new BusinessException(TransactionErrorCode.PAYMENT_NOT_FOUND))
+                .getTransactionUuid();
     }
 
     private Transaction getTransaction(String transactionUuid) {
@@ -192,12 +331,6 @@ public class TransactionCommandService {
         return partyRepository
                 .findById(partyId)
                 .orElseThrow(() -> new BusinessException(GeneralErrorCode.COMMON_NOT_FOUND));
-    }
-
-    private User getUser(Long userId) {
-        return userRepository
-                .findByIdWithParty(userId)
-                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
     }
 
     private Merchant getMerchant(Long merchantPartyId) {

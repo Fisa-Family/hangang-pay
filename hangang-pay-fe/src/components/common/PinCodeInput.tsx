@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { cn } from '@/lib/utils'
 
 interface PinCodeInputProps {
@@ -15,13 +16,15 @@ export function PinCodeInput({
   error,
   disabled = false,
 }: PinCodeInputProps) {
+  const inputRef = useRef<HTMLInputElement>(null)
   const chars = Array.from({ length }, (_, index) => value[index] ?? '')
 
   return (
     <div className="space-y-2">
       <div
-        className="grid gap-2"
+        className="grid cursor-text gap-2"
         style={{ gridTemplateColumns: `repeat(${length}, minmax(0, 1fr))` }}
+        onClick={() => inputRef.current?.focus()}
       >
         {chars.map((char, index) => (
           <div
@@ -37,6 +40,7 @@ export function PinCodeInput({
         ))}
       </div>
       <input
+        ref={inputRef}
         aria-label="인증 코드"
         inputMode="numeric"
         value={value}

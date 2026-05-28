@@ -1,4 +1,4 @@
-package family.fisa.hangangpay.domain.transaction.internal;
+package family.fisa.hangangpay.domain.transaction.internal.payment;
 
 public interface PaymentRateLimiter {
     void checkIntentRateLimit(Long partyId, Long merchantPartyId);

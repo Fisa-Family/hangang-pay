@@ -1,7 +1,7 @@
-package family.fisa.hangangpay.domain.transaction.infra.redis;
+package family.fisa.hangangpay.domain.transaction.infra.redis.payment;
 
 import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
-import family.fisa.hangangpay.domain.transaction.internal.PaymentRateLimiter;
+import family.fisa.hangangpay.domain.transaction.internal.payment.PaymentRateLimiter;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import java.time.Duration;
 import java.util.List;

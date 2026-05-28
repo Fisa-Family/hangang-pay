@@ -10,6 +10,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
+import family.fisa.hangangpay.domain.transaction.infra.redis.payment.RedisPaymentLockManager;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import java.time.Duration;
 import java.util.List;

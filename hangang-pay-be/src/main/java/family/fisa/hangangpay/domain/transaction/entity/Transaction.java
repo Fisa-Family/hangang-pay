@@ -227,26 +227,18 @@ public class Transaction extends BaseEntity {
     }
 
     /** CANCEL: PAYMENT 역방향 transfer */
-    public static Transaction forCancel(
-            String transactionUuid,
-            String originalTransactionUuid,
-            Party fromParty,
-            Party toParty,
-            Wallet fromWallet,
-            Wallet toWallet,
-            BigDecimal amount,
-            String approvalNumber) {
+    public Transaction createCancel(String cancelUuid) {
         return Transaction.builder()
-                .transactionUuid(transactionUuid)
-                .originalTransactionUuid(originalTransactionUuid)
+                .transactionUuid(cancelUuid)
+                .originalTransactionUuid(this.transactionUuid)
                 .transactionType(TransactionType.CANCEL)
                 .status(TransactionStatus.PENDING)
-                .fromParty(fromParty)
-                .toParty(toParty)
-                .fromWallet(fromWallet)
-                .toWallet(toWallet)
-                .amount(amount)
-                .approvalNumber(approvalNumber)
+                .fromParty(this.toParty) // toParty = 기존 가맹점
+                .toParty(this.fromParty) // fromParty = 기존 소비자
+                .fromWallet(this.toWallet) // 기존 가맹점
+                .toWallet(this.fromWallet) // 기존 소비자
+                .amount(this.amount)
+                .approvalNumber(null) // save 이후 생성
                 .build();
     }
 
@@ -315,5 +307,25 @@ public class Transaction extends BaseEntity {
     /** reconcile 시도 횟수 1 증가 (JPA 변경감지) */
     public void incrementReconcileAttempt() {
         this.reconcileAttemptCount = this.reconcileAttemptCount + 1;
+    }
+
+    /** 취소 요청자가 원본 결제의 수신 가맹점인지 검증 */
+    public void validateMerchantIsReceiver(Long merchantPartyId) {
+        if (!this.toParty.getId().equals(merchantPartyId)) {
+            throw new BusinessException(TransactionErrorCode.PAYMENT_CANCEL_FORBIDDEN);
+        }
+    }
+
+    /** 취소 가능한 거래인지 검증 - PAYMENT +SUCCESS 조합에만 허용 */
+    public void validateCancellable() {
+        if (this.transactionType != TransactionType.PAYMENT
+                || this.status != TransactionStatus.SUCCESS) {
+            throw new BusinessException(TransactionErrorCode.PAYMENT_NOT_CANCELLABLE);
+        }
+    }
+
+    /** id 확보 후, 승인번호 세팅 - forCancel 팩토리에서는 id가 없으므로 별도 메서드 사용 */
+    public void assignApprovalNumber(String approvalNumber) {
+        this.approvalNumber = approvalNumber;
     }
 }
