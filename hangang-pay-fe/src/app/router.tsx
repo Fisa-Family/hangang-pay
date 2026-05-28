@@ -22,6 +22,7 @@ import { AddAccountPage } from '@/pages/AddAccountPage'
 import { MerchantQrPage } from '@/pages/MerchantQrPage'
 import { MerchantPaymentsPage } from '@/pages/MerchantPaymentsPage'
 import { MerchantPaymentDetailPage } from '@/pages/MerchantPaymentDetailPage'
+import { MerchantMyPage } from '@/pages/MerchantMyPage'
 import { PayConfirmPage } from '@/pages/PayConfirmPage'
 import { PinPage } from '@/pages/PinPage.tsx'
 import { ProcessingPage } from '@/pages/ProcessingPage.tsx'
@@ -126,9 +127,7 @@ export const router = createBrowserRouter([
               { path: '/merchant/home', element: <MerchantHomePage /> },
               { path: '/merchant/qr', element: <MerchantQrPage /> },
               { path: '/merchant/payments', element: <MerchantPaymentsPage /> },
-              {
-                path: '/merchant/mypage',
-                element: <PlaceholderPage title="가맹점 마이" screenId="M-MY" />,
+              { path: '/merchant/mypage', element: <MerchantMyPage />
               },
             ],
           },

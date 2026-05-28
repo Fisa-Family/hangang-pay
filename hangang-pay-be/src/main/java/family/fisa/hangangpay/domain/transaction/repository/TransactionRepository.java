@@ -15,6 +15,8 @@ public interface TransactionRepository {
 
     Transaction save(Transaction transaction);
 
+    Transaction saveAndFlush(Transaction transaction);
+
     Optional<Transaction> findById(Long id);
 
     /** 비즈니스 식별자(transaction_uuid)로 단건 조회 - CANCEL 시 원본 PAYMENT 조회용 */
