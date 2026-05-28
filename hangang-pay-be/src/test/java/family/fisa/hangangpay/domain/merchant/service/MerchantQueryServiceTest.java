@@ -2,8 +2,7 @@ package family.fisa.hangangpay.domain.merchant.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -16,16 +15,23 @@ import family.fisa.hangangpay.domain.account.entity.AccountType;
 import family.fisa.hangangpay.domain.account.repository.AccountRepository;
 import family.fisa.hangangpay.domain.institution.entity.Institution;
 import family.fisa.hangangpay.domain.merchant.code.MerchantErrorCode;
+import family.fisa.hangangpay.domain.merchant.dto.MerchantDashboardResponse;
 import family.fisa.hangangpay.domain.merchant.dto.MerchantInfoResponse;
 import family.fisa.hangangpay.domain.merchant.dto.MerchantMyPageResponse;
 import family.fisa.hangangpay.domain.merchant.entity.Merchant;
 import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.entity.PartyType;
+import family.fisa.hangangpay.domain.transaction.entity.Transaction;
+import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
+import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
 import family.fisa.hangangpay.domain.wallet.entity.Wallet;
 import family.fisa.hangangpay.domain.wallet.repository.WalletRepository;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -42,6 +48,7 @@ public class MerchantQueryServiceTest {
     @Mock AccountRepository accountRepository;
     @Mock private WalletRepository walletRepository;
     @Mock private BankClient bankClient;
+    @Mock private TransactionRepository transactionRepository;
 
     @Mock Institution institution;
 
@@ -264,6 +271,64 @@ public class MerchantQueryServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .hasFieldOrPropertyWithValue(
                             "code", MerchantErrorCode.MERCHANT_SETTLEMENT_ACCOUNT_NOT_FOUND);
+        }
+    }
+
+    @Nested
+    @DisplayName("가맹점 매출 요약 조회 (getDashboard)")
+    class GetDashboard {
+
+        @Test
+        @DisplayName("정상: 오늘 매출, 오늘 결제 건수, 지갑 잔액, 월 누적 매출을 반환")
+        void success() {
+            Party party = party(PARTY_ID);
+            Wallet wallet = wallet(party, WALLET_ADDRESS);
+            BankWalletResponse bankWallet =
+                    new BankWalletResponse(1L, 100L, WALLET_ADDRESS, new BigDecimal("180000"));
+
+            LocalDate today = LocalDate.now();
+            LocalDateTime startOfToday = today.atStartOfDay();
+            LocalDateTime startOfTomorrow = today.plusDays(1).atStartOfDay();
+            LocalDateTime startOfMonth = today.withDayOfMonth(1).atStartOfDay();
+            LocalDateTime startOfNextMonth = today.plusMonths(1).withDayOfMonth(1).atStartOfDay();
+
+            Transaction tx1 = mock(Transaction.class);
+            Transaction tx2 = mock(Transaction.class);
+            when(tx1.getAmount()).thenReturn(new BigDecimal("150000"));
+            when(tx2.getAmount()).thenReturn(new BigDecimal("100000"));
+
+            Transaction tx3 = mock(Transaction.class);
+            Transaction tx4 = mock(Transaction.class);
+            when(tx3.getAmount()).thenReturn(new BigDecimal("1600000"));
+            when(tx4.getAmount()).thenReturn(new BigDecimal("1600000"));
+
+            when(transactionRepository.findMerchantPaymentsBetween(
+                            PARTY_ID, TransactionStatus.SUCCESS, startOfToday, startOfTomorrow))
+                    .thenReturn(List.of(tx1, tx2));
+            when(transactionRepository.findMerchantPaymentsBetween(
+                            PARTY_ID, TransactionStatus.SUCCESS, startOfMonth, startOfNextMonth))
+                    .thenReturn(List.of(tx3, tx4));
+            when(walletRepository.findByParty_Id(PARTY_ID)).thenReturn(Optional.of(wallet));
+            when(bankClient.getBankWalletByAddress(WALLET_ADDRESS)).thenReturn(bankWallet);
+
+            MerchantDashboardResponse result = merchantQueryService.getDashboard(PARTY_ID);
+
+            assertThat(result.todaySales()).isEqualByComparingTo(new BigDecimal("250000"));
+            assertThat(result.todayCount()).isEqualTo(2);
+            assertThat(result.pendingSettlement()).isEqualByComparingTo(new BigDecimal("180000"));
+            assertThat(result.monthlyTotalSales()).isEqualByComparingTo(new BigDecimal("3200000"));
+        }
+
+        @Test
+        @DisplayName("Wallet 없음 -> MERCHANT_NOT_FOUND")
+        void throws_whenWalletMissing() {
+            when(walletRepository.findByParty_Id(PARTY_ID)).thenReturn(Optional.empty());
+            when(transactionRepository.findMerchantPaymentsBetween(any(), any(), any(), any()))
+                    .thenReturn(List.of());
+
+            assertThatThrownBy(() -> merchantQueryService.getDashboard(PARTY_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("code", MerchantErrorCode.MERCHANT_NOT_FOUND);
         }
     }
 }

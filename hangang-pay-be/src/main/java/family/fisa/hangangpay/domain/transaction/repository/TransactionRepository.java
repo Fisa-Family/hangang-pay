@@ -71,4 +71,10 @@ public interface TransactionRepository {
 
     /** 특정 거래 유형의 SUCCESS 누적 금액 (전체 기간) */
     BigDecimal sumAllSuccessByType(Long partyId, TransactionType type);
+
+    List<Transaction> findMerchantPaymentsBetween(
+            Long merchantPartyId,
+            TransactionStatus status,
+            LocalDateTime startInclusive,
+            LocalDateTime endExclusive);
 }
