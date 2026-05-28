@@ -5,8 +5,11 @@ import family.fisa.hangangpay.domain.account.dto.AccountListResponse;
 import family.fisa.hangangpay.domain.account.dto.AccountResponse;
 import family.fisa.hangangpay.domain.account.dto.PrimaryAccountResponse;
 import family.fisa.hangangpay.domain.account.service.AccountService;
+import family.fisa.hangangpay.global.code.error.GeneralErrorCode;
 import family.fisa.hangangpay.global.code.success.GeneralSuccessCode;
+import family.fisa.hangangpay.global.exception.BusinessException;
 import family.fisa.hangangpay.global.response.ApiResponse;
+import family.fisa.hangangpay.global.session.SessionAttributeNames;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -20,8 +23,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.SessionAttribute;
 
 /** 계좌 관련 HTTP 요청 처리 컨트롤러 */
 @Tag(name = "계좌", description = "계좌 관리 API")
@@ -37,16 +40,11 @@ public class AccountController {
     @Operation(summary = "등록 계좌 목록 조회 (ACCOUNT-001)", description = "현재 로그인한 사용자의 등록된 계좌 목록을 조회한다.")
     @GetMapping
     public ResponseEntity<ApiResponse<AccountListResponse>> getAccounts(
-            // TODO: 로그인 구현 후 HttpSession session 파라미터로 교체 및 아래 세션 인증 블록 주석 해제
-            @RequestParam Long partyId) {
-
-        // TODO: 로그인 구현 후 아래 세션 인증 블록 주석 해제
-        // Long partyId = (Long) session.getAttribute("partyId");
-        // if (partyId == null) {
-        //     throw new BusinessException(GeneralErrorCode.UNAUTHORIZED_401);
-        // }
+            @SessionAttribute(name = SessionAttributeNames.PARTY_ID, required = false)
+                    Long partyId) {
 
         // 계좌 목록 조회 후 응답 반환
+        validateSession(partyId);
         AccountListResponse response = accountService.getAccounts(partyId);
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
     }
@@ -57,16 +55,11 @@ public class AccountController {
             description = "은행 원장 확인 및 예금주 검증 후 계좌를 등록한다. 최대 3개까지 등록 가능하다.")
     @PostMapping
     public ResponseEntity<ApiResponse<AccountResponse>> addAccount(
-            // TODO: 로그인 구현 후 HttpSession session 파라미터로 교체 및 아래 세션 인증 블록 주석 해제
-            @RequestParam Long partyId, @Valid @RequestBody AccountAddRequest request) {
-
-        // TODO: 로그인 구현 후 아래 세션 인증 블록 주석 해제
-        // Long partyId = (Long) session.getAttribute("partyId");
-        // if (partyId == null) {
-        //     throw new BusinessException(GeneralErrorCode.UNAUTHORIZED_401);
-        // }
+            @SessionAttribute(name = SessionAttributeNames.PARTY_ID, required = false) Long partyId,
+            @Valid @RequestBody AccountAddRequest request) {
 
         // 계좌 추가 후 201 응답 반환
+        validateSession(partyId);
         AccountResponse response = accountService.addAccount(partyId, request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_CREATED, response));
@@ -78,16 +71,11 @@ public class AccountController {
             description = "본인 계좌를 삭제한다. 주거래 계좌와 마지막 계좌는 삭제할 수 없다.")
     @DeleteMapping("/{accountId}")
     public ResponseEntity<ApiResponse<?>> deleteAccount(
-            // TODO: 로그인 구현 후 HttpSession session 파라미터로 교체 및 아래 세션 인증 블록 주석 해제
-            @RequestParam Long partyId, @PathVariable Long accountId) {
-
-        // TODO: 로그인 구현 후 아래 세션 인증 블록 주석 해제
-        // Long partyId = (Long) session.getAttribute("partyId");
-        // if (partyId == null) {
-        //     throw new BusinessException(GeneralErrorCode.UNAUTHORIZED_401);
-        // }
+            @SessionAttribute(name = SessionAttributeNames.PARTY_ID, required = false) Long partyId,
+            @PathVariable Long accountId) {
 
         // 계좌 삭제 후 200 응답 반환
+        validateSession(partyId);
         accountService.deleteAccount(partyId, accountId);
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK));
     }
@@ -98,17 +86,18 @@ public class AccountController {
             description = "지정한 계좌를 주거래 계좌로 변경한다. 기존 주거래 계좌는 일반 계좌로 전환된다.")
     @PatchMapping("/{accountId}/primary")
     public ResponseEntity<ApiResponse<PrimaryAccountResponse>> changePrimaryAccount(
-            // TODO: 로그인 구현 후 HttpSession session 파라미터로 교체 및 아래 세션 인증 블록 주석 해제
-            @RequestParam Long partyId, @PathVariable Long accountId) {
-
-        // TODO: 로그인 구현 후 아래 세션 인증 블록 주석 해제
-        // Long partyId = (Long) session.getAttribute("partyId");
-        // if (partyId == null) {
-        //     throw new BusinessException(GeneralErrorCode.UNAUTHORIZED_401);
-        // }
+            @SessionAttribute(name = SessionAttributeNames.PARTY_ID, required = false) Long partyId,
+            @PathVariable Long accountId) {
 
         // 주거래 계좌 변경 후 200 응답 반환
+        validateSession(partyId);
         PrimaryAccountResponse response = accountService.changePrimaryAccount(partyId, accountId);
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
+    }
+
+    private void validateSession(Long partyId) {
+        if (partyId == null) {
+            throw new BusinessException(GeneralErrorCode.COMMON_UNAUTHORIZED);
+        }
     }
 }
