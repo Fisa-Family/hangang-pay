@@ -21,23 +21,6 @@ export function PayProcessingPage() {
     if (!state || calledRef.current) return
     calledRef.current = true
 
-    // DEV: 서버 없이 2초 후 완료 화면으로 이동
-    if (import.meta.env.DEV) {
-      const timer = setTimeout(() => {
-        navigate('/pay/complete', {
-          state: {
-            approvalNumber: 'APV-2026-00000001',
-            amount: state.amount,
-            remainingBalance: 121500,
-            merchantName: state.merchantName,
-            paidAt: new Date().toISOString(),
-          },
-          replace: true,
-        })
-      }, 2000)
-      return () => clearTimeout(timer)
-    }
-
     executePayment({
       transactionUuid: state.transactionUuid,
       pin: state.pin,
@@ -52,8 +35,7 @@ export function PayProcessingPage() {
         } catch {
           // 복구 실패는 무시하고 에러 화면 이동
         }
-        const message =
-          err instanceof ApiError ? err.message : '결제 처리 중 오류가 발생했습니다.'
+        const message = err instanceof ApiError ? err.message : '결제 처리 중 오류가 발생했습니다.'
         navigate('/pay/confirm', {
           state: { error: message },
           replace: true,
@@ -63,7 +45,7 @@ export function PayProcessingPage() {
 
   return (
     <div className="flex h-dvh flex-col items-center justify-center gap-6 bg-white">
-      {/* 동글뱅이 스피너 */}
+      {/* 스피너 */}
       <div
         className="h-18 w-18 animate-spin rounded-full border-4 border-gray-200 border-t-blue-500"
         style={{ animationDuration: '0.9s' }}
@@ -81,27 +63,6 @@ export function PayProcessingPage() {
           </>
         )}
       </div>
-
-      {import.meta.env.DEV && (
-        <button
-          type="button"
-          onClick={() =>
-            navigate('/pay/complete', {
-              state: {
-                approvalNumber: 'APV-2026-00000001',
-                amount: state?.amount ?? 6500,
-                remainingBalance: 121500,
-                merchantName: state?.merchantName ?? '[DEV] 카페 드롭탑 강남점',
-                paidAt: new Date().toISOString(),
-              },
-              replace: true,
-            })
-          }
-          className="rounded-full bg-blue-600 px-8 py-2 text-sm font-bold text-white"
-        >
-          [DEV] 완료 화면으로
-        </button>
-      )}
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import type { PaymentResult } from '@/api/payment'
 import { formatWon } from '@/lib/format'
+import { Button } from '@/components/common'
 
 function formatPaidAt(isoString: string): string {
   const d = new Date(isoString)
@@ -14,13 +15,7 @@ function formatPaidAt(isoString: string): string {
 
 function CheckCircleIcon() {
   return (
-    <svg
-      width="56"
-      height="56"
-      viewBox="0 0 56 56"
-      fill="none"
-      aria-hidden
-    >
+    <svg width="56" height="56" viewBox="0 0 56 56" fill="none" aria-hidden>
       <circle cx="28" cy="28" r="28" fill="#22C55E" />
       <path
         d="M17 28l8 8 14-16"
@@ -53,9 +48,7 @@ export function PayCompletePage() {
       <div className="flex flex-1 flex-col items-center justify-center gap-5 w-full">
         <CheckCircleIcon />
 
-        <p className="text-xl font-bold text-foreground">
-          {result?.merchantName ?? '결제 완료'}
-        </p>
+        <p className="text-xl font-bold text-foreground">{result?.merchantName ?? '결제 완료'}</p>
 
         {/* 영수증 카드 */}
         <div className="w-full rounded-2xl bg-white p-5 shadow-sm">
@@ -69,26 +62,20 @@ export function PayCompletePage() {
               label="남은 잔액"
               value={result ? formatWon(result.remainingBalance) : '—'}
             />
-            <ResultRow
-              label="승인번호"
-              value={result?.approvalNumber ?? '—'}
-            />
-            <ResultRow
-              label="일시"
-              value={result ? formatPaidAt(result.paidAt) : '—'}
-            />
+            <ResultRow label="승인번호" value={result?.approvalNumber ?? '—'} />
+            <ResultRow label="일시" value={result ? formatPaidAt(result.paidAt) : '—'} />
           </div>
         </div>
       </div>
 
       {/* 홈으로 버튼 */}
-      <button
-        type="button"
+      <Button
+        size="lg"
+        className="rounded-2xl"
         onClick={() => navigate('/home', { replace: true })}
-        className="w-full rounded-2xl bg-primary py-4 text-base font-bold text-white"
       >
         홈으로
-      </button>
+      </Button>
     </div>
   )
 }
