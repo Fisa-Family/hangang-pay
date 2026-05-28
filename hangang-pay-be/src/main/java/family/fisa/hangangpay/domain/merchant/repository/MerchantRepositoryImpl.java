@@ -39,6 +39,11 @@ public class MerchantRepositoryImpl implements MerchantRepository {
     }
 
     @Override
+    public Optional<Merchant> findByBusinessNumberWithParty(String businessNumber) {
+        return merchantJpaRepository.findByBusinessNumberWithParty(businessNumber);
+    }
+
+    @Override
     public boolean existsByBusinessNumber(String businessNumber) {
         return merchantJpaRepository.existsByBusinessNumber(businessNumber);
     }

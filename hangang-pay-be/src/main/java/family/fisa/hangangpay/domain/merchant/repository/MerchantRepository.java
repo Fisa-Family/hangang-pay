@@ -11,6 +11,8 @@ public interface MerchantRepository {
 
     Optional<Merchant> findByPhoneNumberWithParty(String phoneNumber);
 
+    Optional<Merchant> findByBusinessNumberWithParty(String businessNumber);
+
     Optional<Merchant> findById(Long merchantId);
 
     Merchant save(Merchant merchant);

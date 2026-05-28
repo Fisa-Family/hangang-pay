@@ -8,6 +8,7 @@ import static family.fisa.hangangpay.global.session.SessionAttributeNames.USER_I
 import family.fisa.hangangpay.auth.code.error.AuthErrorCode;
 import family.fisa.hangangpay.auth.dto.LoginRequest;
 import family.fisa.hangangpay.auth.dto.LoginResponse;
+import family.fisa.hangangpay.auth.dto.MerchantLoginRequest;
 import family.fisa.hangangpay.domain.merchant.entity.Merchant;
 import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.party.entity.PartyType;
@@ -51,12 +52,12 @@ public class AuthService {
         return new LoginResponse(user.getId(), user.getParty().getId(), PartyType.USER);
     }
 
-    public LoginResponse loginMerchant(LoginRequest request, HttpSession session) {
-        validateLoginRequest(request.phoneNumber(), request.password());
+    public LoginResponse loginMerchant(MerchantLoginRequest request, HttpSession session) {
+        validateLoginRequest(request.businessNumber(), request.password());
 
         Merchant merchant =
                 merchantRepository
-                        .findByPhoneNumberWithParty(request.phoneNumber())
+                        .findByBusinessNumberWithParty(request.businessNumber())
                         .orElseThrow(
                                 () -> new BusinessException(AuthErrorCode.INVALID_CREDENTIALS));
 

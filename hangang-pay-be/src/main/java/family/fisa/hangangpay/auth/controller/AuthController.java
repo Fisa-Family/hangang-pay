@@ -2,6 +2,7 @@ package family.fisa.hangangpay.auth.controller;
 
 import family.fisa.hangangpay.auth.dto.LoginRequest;
 import family.fisa.hangangpay.auth.dto.LoginResponse;
+import family.fisa.hangangpay.auth.dto.MerchantLoginRequest;
 import family.fisa.hangangpay.auth.service.AuthService;
 import family.fisa.hangangpay.global.code.success.GeneralSuccessCode;
 import family.fisa.hangangpay.global.response.ApiResponse;
@@ -33,10 +34,10 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
     }
 
-    @Operation(summary = "가맹점 로그인", description = "휴대폰 번호와 비밀번호로 가맹점 세션을 생성한다.")
+    @Operation(summary = "가맹점 로그인", description = "사업자번호와 비밀번호로 가맹점 세션을 생성한다.")
     @PostMapping("/merchants/login")
     public ResponseEntity<ApiResponse<LoginResponse>> loginMerchant(
-            @RequestBody LoginRequest request, HttpServletRequest servletRequest) {
+            @RequestBody MerchantLoginRequest request, HttpServletRequest servletRequest) {
         HttpSession session = servletRequest.getSession(true);
         LoginResponse response = authService.loginMerchant(request, session);
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
