@@ -8,15 +8,19 @@ import {
 } from 'react-router-dom'
 import { useEffect } from 'react'
 import { useCurrentUser } from '@/auth/useCurrentUser'
-import { MainLayout } from '@/routes/layouts'
+import { FullscreenLayout, MainLayout } from '@/routes/layouts'
 import { RequireAuth, RequireRole } from '@/routes/guards'
 import { LoginPage } from '@/pages/LoginPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
+import { UserHistoryPage } from '@/pages/UserHistoryPage'
 import { UserHomePage } from '@/pages/UserHomePage'
 import { UserMyPage } from '@/pages/UserMyPage'
+import { UserPayScanPage } from '@/pages/UserPayScanPage'
+import { UserPayAmountPage } from '@/pages/UserPayAmountPage'
 import { MerchantHomePage } from '@/pages/MerchantHomePage'
 import { AccountManagementPage } from '@/pages/AccountManagementPage'
 import { AddAccountPage } from '@/pages/AddAccountPage'
+import { MerchantQrPage } from '@/pages/MerchantQrPage'
 import { AppShell } from '@/components/common'
 
 // 미등록 경로 접근 시 경로 기반으로 해당 영역 홈으로 교체
@@ -91,6 +95,7 @@ export const router = createBrowserRouter([
                 path: '/mypage/payments',
                 element: <PlaceholderPage title="결제내역" screenId="U-MY-PAYMENTS" />,
               },
+              { path: '/mypage/payments', element: <UserHistoryPage /> },
               { path: '/mypage', element: <UserMyPage /> },
             ],
           },
@@ -99,6 +104,14 @@ export const router = createBrowserRouter([
           {
             path: '/mypage/accounts/new',
             element: <AddAccountPage />,
+          },
+          {
+            element: <FullscreenLayout fullBleed />,
+            children: [{ path: '/pay/scan', element: <UserPayScanPage /> }],
+          },
+          {
+            element: <FullscreenLayout />,
+            children: [{ path: '/pay/amount/:merchantId', element: <UserPayAmountPage /> }],
           },
         ],
       },
@@ -110,6 +123,7 @@ export const router = createBrowserRouter([
             element: <MainLayout navType="merchant" />,
             children: [
               { path: '/merchant/home', element: <MerchantHomePage /> },
+              { path: '/merchant/qr', element: <MerchantQrPage /> },
               {
                 path: '/merchant/payments',
                 element: <PlaceholderPage title="결제 내역" screenId="M-PAY" />,

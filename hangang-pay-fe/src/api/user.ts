@@ -62,3 +62,137 @@ export function fetchUserHistories(
 export function fetchUserProfile(): Promise<UserProfileResponse> {
   return apiFetch<UserProfileResponse>('/users/profile')
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// 정규화 레이어: historyType별 raw 응답을 단일 표시 모델로 변환
+// ────────────────────────────────────────────────────────────────────────────
+
+export type HistoryTab = 'ALL' | 'PAYMENT' | 'CHARGE' | 'EXCHANGE'
+export type DisplayHistoryType = 'PAYMENT' | 'CANCEL' | 'CHARGE' | 'EXCHANGE'
+
+export interface HistoryListItem {
+  id: string
+  displayType: DisplayHistoryType
+  counterpartName: string
+  amount: number
+  sign: '+' | '-'
+  createdAt: string
+}
+
+export interface HistoryPage {
+  items: HistoryListItem[]
+  nextCursor: { cursorCreatedAt: string; cursorId: number } | null
+}
+
+export interface FetchHistoriesParams {
+  tab: HistoryTab
+  size?: number
+  cursorCreatedAt?: string
+  cursorId?: number
+}
+
+interface RawPaymentItem {
+  paymentId: string
+  merchantName: string
+  amount: number
+  paidAt: string
+  status: string
+  historyType: 'PAYMENT' | 'CANCEL'
+  cursorCreatedAt: string
+  cursorId: number
+}
+
+interface RawChargeItem {
+  id: number
+  amount: number
+  discountAmount: number
+  discountRate: number
+  status: string
+  historyType: 'CHARGE'
+  chargedAt: string
+}
+
+interface RawExchangeItem {
+  id: number
+  amount: number
+  status: string
+  historyType: 'EXCHANGE'
+  exchangedAt: string
+}
+
+type RawHistoryItem = RawPaymentItem | RawChargeItem | RawExchangeItem
+
+interface RawHistoryPage {
+  historyType: string
+  response: {
+    content: RawHistoryItem[]
+    nextCursorCreatedAt: string | null
+    nextCursorId: number | null
+    hasNext: boolean
+  }
+}
+
+const HANGANG_SYSTEM_NAME = '한강사랑상품권'
+
+export function normalizeHistoryItem(raw: RawHistoryItem): HistoryListItem {
+  switch (raw.historyType) {
+    case 'PAYMENT':
+      return {
+        id: raw.paymentId,
+        displayType: 'PAYMENT',
+        counterpartName: raw.merchantName,
+        amount: raw.amount,
+        sign: '-',
+        createdAt: raw.paidAt,
+      }
+    case 'CANCEL':
+      return {
+        id: raw.paymentId,
+        displayType: 'CANCEL',
+        counterpartName: raw.merchantName,
+        amount: raw.amount,
+        sign: '+',
+        createdAt: raw.paidAt,
+      }
+    case 'CHARGE':
+      return {
+        id: `CHARGE-${raw.id}`,
+        displayType: 'CHARGE',
+        counterpartName: HANGANG_SYSTEM_NAME,
+        amount: raw.amount,
+        sign: '+',
+        createdAt: raw.chargedAt,
+      }
+    case 'EXCHANGE':
+      return {
+        id: `EXCHANGE-${raw.id}`,
+        displayType: 'EXCHANGE',
+        counterpartName: HANGANG_SYSTEM_NAME,
+        amount: raw.amount,
+        sign: '-',
+        createdAt: raw.exchangedAt,
+      }
+  }
+}
+
+export async function fetchUserHistoriesNormalized(
+  params: FetchHistoriesParams
+): Promise<HistoryPage> {
+  const query = new URLSearchParams({
+    historyType: params.tab,
+    size: String(params.size ?? 20),
+    ...(params.cursorCreatedAt ? { cursorCreatedAt: params.cursorCreatedAt } : {}),
+    ...(params.cursorId != null ? { cursorId: String(params.cursorId) } : {}),
+  })
+
+  const raw = await apiFetch<RawHistoryPage>(`/users/histories?${query}`)
+  const items = raw.response.content.map(normalizeHistoryItem)
+
+  const { hasNext, nextCursorCreatedAt, nextCursorId } = raw.response
+  const nextCursor =
+    hasNext && nextCursorCreatedAt && nextCursorId != null
+      ? { cursorCreatedAt: nextCursorCreatedAt, cursorId: nextCursorId }
+      : null
+
+  return { items, nextCursor }
+}

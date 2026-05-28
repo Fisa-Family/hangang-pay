@@ -49,6 +49,16 @@ public enum TransactionErrorCode implements BaseErrorCode {
             HttpStatus.INTERNAL_SERVER_ERROR,
             "BLOCKCHAIN_LEDGER_NOT_FOUND",
             "블록체인 ledger를 찾을 수 없습니다."),
+    CHARGE_ALREADY_PROCESSING(
+            HttpStatus.CONFLICT, "CHARGE_ALREADY_PROCESSING", "이미 처리 중인 충전 요청입니다."),
+    CHARGE_IDEMPOTENCY_RECORD_NOT_FOUND(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "CHARGE_IDEMPOTENCY_RECORD_NOT_FOUND",
+            "충전 멱등성 기록을 찾을 수 없습니다."),
+    CHARGE_IDEMPOTENCY_RECORD_INVALID(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "CHARGE_IDEMPOTENCY_RECORD_INVALID",
+            "충전 멱등성 기록이 올바르지 않습니다."),
     ;
 
     private final HttpStatus status;
