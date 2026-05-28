@@ -20,9 +20,11 @@ import { MerchantHomePage } from '@/pages/MerchantHomePage'
 import { AccountManagementPage } from '@/pages/AccountManagementPage'
 import { AddAccountPage } from '@/pages/AddAccountPage'
 import { MerchantQrPage } from '@/pages/MerchantQrPage'
+import { MerchantPaymentsPage } from '@/pages/MerchantPaymentsPage'
+import { MerchantPaymentDetailPage } from '@/pages/MerchantPaymentDetailPage'
 import { PayConfirmPage } from '@/pages/PayConfirmPage'
-import { PayPinPage } from '@/pages/PayPinPage'
-import { PayProcessingPage } from '@/pages/PayProcessingPage'
+import { PinPage } from '@/pages/PinPage.tsx'
+import { ProcessingPage } from '@/pages/ProcessingPage.tsx'
 import { PayCompletePage } from '@/pages/PayCompletePage'
 import { AppShell } from '@/components/common'
 
@@ -107,8 +109,8 @@ export const router = createBrowserRouter([
             children: [
               { path: '/pay/amount/:merchantId', element: <PayConfirmPage /> },
               { path: '/pay/confirm', element: <PayConfirmPage /> },
-              { path: '/pay/pin', element: <PayPinPage /> },
-              { path: '/pay/processing', element: <PayProcessingPage /> },
+              { path: '/pay/pin', element: <PinPage /> },
+              { path: '/pay/processing', element: <ProcessingPage /> },
               { path: '/pay/complete', element: <PayCompletePage /> },
             ],
           },
@@ -123,13 +125,19 @@ export const router = createBrowserRouter([
             children: [
               { path: '/merchant/home', element: <MerchantHomePage /> },
               { path: '/merchant/qr', element: <MerchantQrPage /> },
-              {
-                path: '/merchant/payments',
-                element: <PlaceholderPage title="결제 내역" screenId="M-PAY" />,
-              },
+              { path: '/merchant/payments', element: <MerchantPaymentsPage /> },
               {
                 path: '/merchant/mypage',
                 element: <PlaceholderPage title="가맹점 마이" screenId="M-MY" />,
+              },
+            ],
+          },
+          {
+            element: <FullscreenLayout />,
+            children: [
+              {
+                path: '/merchant/payments/:transactionId',
+                element: <MerchantPaymentDetailPage />,
               },
             ],
           },
