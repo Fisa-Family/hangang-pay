@@ -49,9 +49,13 @@ export function AccountManagementPage() {
 
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pt-3">
           {isLoadingAccounts ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">계좌를 불러오는 중입니다.</p>
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              계좌를 불러오는 중입니다.
+            </p>
           ) : accountsQuery.isError ? (
-            <p className="py-6 text-center text-sm text-destructive">계좌 정보를 불러오지 못했습니다.</p>
+            <p className="py-6 text-center text-sm text-destructive">
+              계좌 정보를 불러오지 못했습니다.
+            </p>
           ) : (
             <section aria-label="등록 계좌 목록" className="flex flex-col gap-2.5">
               {(accountsQuery.data ?? []).map((account) => (
@@ -62,7 +66,8 @@ export function AccountManagementPage() {
                   maskedAccountNumber={account.maskedAccountNumber}
                   primary={account.accountType === 'PRIMARY'}
                   onSetPrimary={() => primaryMutation.mutate(account.accountId)}
-onDelete={() => setDeleteTargetId(account.accountId)}                />
+                  onDelete={() => setDeleteTargetId(account.accountId)}
+                />
               ))}
             </section>
           )}
@@ -83,19 +88,19 @@ onDelete={() => setDeleteTargetId(account.accountId)}                />
         </div>
       </div>
       <ConfirmDialog
-  open={deleteTargetId !== null}
-  title="계좌를 삭제하시겠어요?"
-  description="삭제 후에는 다시 등록해야 합니다."
-  confirmText="삭제"
-  cancelText="취소"
-  variant="danger"
-  onConfirm={() => {
-    if (deleteTargetId === null) return
-    deleteMutation.mutate(deleteTargetId)
-    setDeleteTargetId(null)
-  }}
-  onCancel={() => setDeleteTargetId(null)}
-/>
+        open={deleteTargetId !== null}
+        title="계좌를 삭제하시겠어요?"
+        description="삭제 후에는 다시 등록해야 합니다."
+        confirmText="삭제"
+        cancelText="취소"
+        variant="danger"
+        onConfirm={() => {
+          if (deleteTargetId === null) return
+          deleteMutation.mutate(deleteTargetId)
+          setDeleteTargetId(null)
+        }}
+        onCancel={() => setDeleteTargetId(null)}
+      />
     </AppShell>
   )
 }

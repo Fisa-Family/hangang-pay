@@ -43,23 +43,16 @@ export function addAccount(payload: AccountAddRequest): Promise<RegisteredAccoun
   })
 }
 
-export async function deleteAccount(
-  accountId: number
-): Promise<void> {
+export async function deleteAccount(accountId: number): Promise<void> {
   await apiFetch(`/accounts/${accountId}`, {
     method: 'DELETE',
   })
 }
 
-export async function setPrimaryAccount(
-  accountId: number
-): Promise<PrimaryAccountResponse> {
-  return apiFetch<PrimaryAccountResponse>(
-    `/accounts/${accountId}/primary`,
-    {
-      method: 'PATCH',
-    }
-  )
+export async function setPrimaryAccount(accountId: number): Promise<PrimaryAccountResponse> {
+  return apiFetch<PrimaryAccountResponse>(`/accounts/${accountId}/primary`, {
+    method: 'PATCH',
+  })
 }
 
 export function requestAccountVerification(

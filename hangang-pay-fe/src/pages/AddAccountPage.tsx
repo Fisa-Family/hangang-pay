@@ -121,7 +121,9 @@ export function AddAccountPage({ onBack, onRequestVerification, onSubmit }: AddA
           code: verificationCode,
         })
       } catch (error) {
-        throw new Error(`인증 확인 실패: ${buildErrorMessage(error)}`)
+        throw new Error(`인증 확인 실패: ${buildErrorMessage(error)}`, {
+          cause: error,
+        })
       }
 
       try {
@@ -130,7 +132,9 @@ export function AddAccountPage({ onBack, onRequestVerification, onSubmit }: AddA
           accountNumber,
         })
       } catch (error) {
-        throw new Error(`계좌 등록 실패: ${buildErrorMessage(error)}`)
+        throw new Error(`계좌 등록 실패: ${buildErrorMessage(error)}`, {
+          cause: error,
+        })
       }
     },
     onSuccess: () => {
@@ -274,9 +278,9 @@ export function AddAccountPage({ onBack, onRequestVerification, onSubmit }: AddA
                 ? '준비 중'
                 : !isAuthenticated
                   ? '로그인 필요'
-                : requestVerificationMutation.isPending
-                  ? '요청 중'
-                  : '1원 인증 요청'}
+                  : requestVerificationMutation.isPending
+                    ? '요청 중'
+                    : '1원 인증 요청'}
             </Button>
 
             <div className="flex justify-center py-3 text-muted-foreground">
@@ -302,13 +306,13 @@ export function AddAccountPage({ onBack, onRequestVerification, onSubmit }: AddA
         </footer>
       </form>
 
-<Toast
-  open={toast !== null}
-  message={toast?.message ?? ''}
-  variant={toast?.variant}
-  actionLabel={toast?.variant === 'error' ? '다시 시도' : undefined}
-  onAction={toast?.variant === 'error' ? handleRequestVerification : undefined}
-/>
+      <Toast
+        open={toast !== null}
+        message={toast?.message ?? ''}
+        variant={toast?.variant}
+        actionLabel={toast?.variant === 'error' ? '다시 시도' : undefined}
+        onAction={toast?.variant === 'error' ? handleRequestVerification : undefined}
+      />
     </AppShell>
   )
 }

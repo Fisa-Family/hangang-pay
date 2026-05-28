@@ -102,10 +102,6 @@ export const router = createBrowserRouter([
           { path: '/mypage/accounts', element: <AccountManagementPage /> },
           { path: '/mypage/accounts/add', element: <AddAccountPage /> },
           {
-            path: '/mypage/accounts/new',
-            element: <AddAccountPage />,
-          },
-          {
             element: <FullscreenLayout fullBleed />,
             children: [{ path: '/pay/scan', element: <UserPayScanPage /> }],
           },
