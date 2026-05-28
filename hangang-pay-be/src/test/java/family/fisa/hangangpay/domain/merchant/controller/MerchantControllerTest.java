@@ -12,6 +12,7 @@ import family.fisa.hangangpay.domain.merchant.service.MerchantQueryService;
 import family.fisa.hangangpay.domain.transaction.dto.response.MerchantPaymentDetail;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
 import family.fisa.hangangpay.domain.transaction.service.ExchangeCommandService;
+import family.fisa.hangangpay.domain.transaction.service.TransactionCommandService;
 import family.fisa.hangangpay.domain.transaction.service.TransactionQueryService;
 import family.fisa.hangangpay.global.exception.handler.GlobalExceptionHandler;
 import family.fisa.hangangpay.global.session.SessionAttributeNames;
@@ -38,6 +39,7 @@ class MerchantControllerTest {
     @MockitoBean private AccountCommandService accountCommandService;
     @MockitoBean private TransactionQueryService transactionQueryService;
     @MockitoBean private ExchangeCommandService exchangeCommandService;
+    @MockitoBean private TransactionCommandService transactionCommandService;
 
     @Test
     @DisplayName("가맹점 결제 상세 조회는 PAYMENT/CANCEL 타입과 detail을 함께 반환한다")

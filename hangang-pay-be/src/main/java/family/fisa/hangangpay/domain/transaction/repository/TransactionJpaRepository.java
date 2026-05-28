@@ -160,6 +160,12 @@ public interface TransactionJpaRepository extends JpaRepository<Transaction, Lon
     BigDecimal sumAllSuccessByType(
             @Param("partyId") Long partyId, @Param("type") TransactionType type);
 
+    /** 복구 가능한 CANCEL 조회 - UNKNOWN 상태만 */
+    Optional<Transaction> findByOriginalTransactionUuidAndTransactionTypeAndStatus(
+            String originalTransactionUuid,
+            TransactionType transactionType,
+            TransactionStatus status);
+
     @Query(
             "SELECT t FROM Transaction t "
                     + "WHERE t.toParty.id = :merchantPartyId "

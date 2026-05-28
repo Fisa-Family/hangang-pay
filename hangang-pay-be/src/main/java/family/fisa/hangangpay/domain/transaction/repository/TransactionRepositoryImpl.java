@@ -75,9 +75,8 @@ public class TransactionRepositoryImpl implements TransactionRepository {
 
     /** 스케줄러용 - UNKNOWN 상태 PAYMENT 전체 목록 조회 */
     @Override
-    public List<Transaction> findAllUnknownPayments() {
-        return jpaRepository.findByStatusAndTransactionType(
-                TransactionStatus.UNKNOWN, TransactionType.PAYMENT);
+    public List<Transaction> findAllUnknownByType(TransactionType type) {
+        return jpaRepository.findByStatusAndTransactionType(TransactionStatus.UNKNOWN, type);
     }
 
     /** 특정 월 거래 유형별 누적 금액 조회 */
@@ -146,6 +145,19 @@ public class TransactionRepositoryImpl implements TransactionRepository {
     @Override
     public BigDecimal sumAllSuccessByType(Long partyId, TransactionType type) {
         return jpaRepository.sumAllSuccessByType(partyId, type);
+    }
+
+    @Override
+    public boolean existsSuccessCancelFor(String originalTransactionUuid) {
+        return jpaRepository.existsByOriginalTransactionUuidAndTransactionTypeAndStatus(
+                originalTransactionUuid, TransactionType.CANCEL, TransactionStatus.SUCCESS);
+    }
+
+    @Override
+    public Optional<Transaction> findRecoverableCancelByOriginalTransactionUuid(
+            String originalTransactionUuid) {
+        return jpaRepository.findByOriginalTransactionUuidAndTransactionTypeAndStatus(
+                originalTransactionUuid, TransactionType.CANCEL, TransactionStatus.UNKNOWN);
     }
 
     @Override
