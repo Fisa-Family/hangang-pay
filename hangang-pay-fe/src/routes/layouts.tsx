@@ -32,3 +32,15 @@ export function MainLayout({ navType }: MainLayoutProps) {
     </AppShell>
   )
 }
+
+interface FullscreenLayoutProps {
+  fullBleed?: boolean
+}
+
+export function FullscreenLayout({ fullBleed = false }: FullscreenLayoutProps) {
+  return (
+    <AppShell fullBleed={fullBleed}>
+      <Outlet />
+    </AppShell>
+  )
+}
