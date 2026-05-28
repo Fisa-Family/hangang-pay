@@ -55,6 +55,7 @@ public class PaymentStateWriter {
      * @param fromBalance 차감 후 송신 지갑 잔액
      * @param toBalance 증가 후 수신 지갑 잔액
      */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public PaymentResponse completePayment(
             Long ledgerId,
             TransactionReceipt receipt,
@@ -87,6 +88,7 @@ public class PaymentStateWriter {
      * @param fromBalance 차감 후 송신 지갑 잔액
      * @param toBalance 증가 후 수신 지갑 잔액
      */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public CancelResponse completeCancel(
             Long ledgerId,
             TransactionReceipt receipt,

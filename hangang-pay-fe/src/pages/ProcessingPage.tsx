@@ -21,10 +21,7 @@ export function ProcessingPage() {
     if (!state || calledRef.current) return
     calledRef.current = true
 
-    executePayment({
-      transactionUuid: state.transactionUuid,
-      pin: state.pin,
-    })
+    executePayment(state.transactionUuid, state.pin)
       .then((result) => {
         navigate('/pay/complete', { state: result, replace: true })
       })

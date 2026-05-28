@@ -1,8 +1,8 @@
 import { apiFetch } from './client'
 
-// PAY-001: QR 가맹점 정보 조회
+// PAY-001: QR 가맹점 정보 조회 (BE: MerchantInfoResponse)
 export interface MerchantPaymentTarget {
-  merchantPartyId: number
+  partyId: number
   merchantName: string
   address: string
 }
@@ -26,22 +26,24 @@ export function createPaymentIntent(body: {
   })
 }
 
-// PAY-003: 결제 실행
+// PAY-003: 결제 실행 (BE: PaymentExecutionResponse)
 export interface PaymentResult {
+  transactionUuid: string
+  status: string
   approvalNumber: string
+  txHash: string
   amount: number
-  remainingBalance: number
   merchantName: string
-  paidAt: string
+  confirmedAt: string
 }
 
-export function executePayment(body: {
-  transactionUuid: string
-  pin: string
-}): Promise<PaymentResult> {
-  return apiFetch<PaymentResult>('/payment/execute', {
+export function executePayment(
+  transactionUuid: string,
+  paymentPin: string
+): Promise<PaymentResult> {
+  return apiFetch<PaymentResult>(`/payment/${transactionUuid}/execute`, {
     method: 'POST',
-    body: JSON.stringify(body),
+    body: JSON.stringify({ paymentPin }),
   })
 }
 
