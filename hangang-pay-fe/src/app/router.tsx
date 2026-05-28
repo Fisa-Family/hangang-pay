@@ -12,6 +12,7 @@ import { MainLayout } from '@/routes/layouts'
 import { RequireAuth, RequireRole } from '@/routes/guards'
 import { LoginPage } from '@/pages/LoginPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
+import { UserHistoryPage } from '@/pages/UserHistoryPage'
 import { UserHomePage } from '@/pages/UserHomePage'
 import { UserMyPage } from '@/pages/UserMyPage'
 import { MerchantHomePage } from '@/pages/MerchantHomePage'
@@ -86,10 +87,7 @@ export const router = createBrowserRouter([
                 path: '/pay/scan',
                 element: <PlaceholderPage title="QR 스캔" screenId="U-PAY-SCAN" />,
               },
-              {
-                path: '/mypage/payments',
-                element: <PlaceholderPage title="결제내역" screenId="U-MY-PAYMENTS" />,
-              },
+              { path: '/mypage/payments', element: <UserHistoryPage /> },
               {
                 path: '/mypage/accounts',
                 element: <PlaceholderPage title="계좌 관리" screenId="U-MY-ACCOUNTS" />,
