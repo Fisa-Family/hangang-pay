@@ -85,7 +85,7 @@ SMS 인증과 계좌 1원 인증은 mock으로 처리한다. 백엔드는 인증
 | `LOGIN-002` | 로그인 (가맹점) | `POST` | `/auth/merchants/login` | `X` | `PUBLIC` | 세션 생성 |
 | `LOGOUT-001` | 로그아웃 | `POST` | `/auth/logout` | `O` | `USER \| MERCHANT` | 현재 세션 삭제 |
 | `REG-001` | 소비자 회원가입 | `POST` | `/auth/users/register` | `X` | `PUBLIC` | 휴대폰·계좌 인증 세션 확인 후 회원/주계좌/지갑 생성 |
-| `REG-002` | 사업자 정보 조회 | `GET` | `/merchant/business-info` | `X` | `PUBLIC` | 쿼리 파라미터: `businessNumber` |
+| `REG-002` | 사업자 정보 조회 | `GET` | `/auth/merchants/business-info` | `X` | `PUBLIC` | 쿼리 파라미터: `businessNumber` |
 | `REG-003` | 가맹점 회원가입 | `POST` | `/auth/merchants/register` | `X` | `PUBLIC` | |
 | `ACCOUNT-001` | 등록 계좌 목록 조회 | `GET` | `/accounts` | `O` | `USER \| MERCHANT` | 현재 세션의 `partyId` 기준 |
 | `ACCOUNT-002` | 계좌 추가 | `POST` | `/accounts` | `O` | `USER \| MERCHANT` | 현재 세션의 `partyId` 기준 |

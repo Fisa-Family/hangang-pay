@@ -32,4 +32,19 @@ public class MerchantRepositoryImpl implements MerchantRepository {
     public Optional<Merchant> findById(Long merchantId) {
         return merchantJpaRepository.findById(merchantId);
     }
+
+    @Override
+    public Merchant save(Merchant merchant) {
+        return merchantJpaRepository.save(merchant);
+    }
+
+    @Override
+    public boolean existsByBusinessNumber(String businessNumber) {
+        return merchantJpaRepository.existsByBusinessNumber(businessNumber);
+    }
+
+    @Override
+    public boolean existsByUsername(String username) {
+        return merchantJpaRepository.existsByUsername(username);
+    }
 }

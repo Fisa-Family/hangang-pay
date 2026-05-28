@@ -14,4 +14,8 @@ public interface MerchantJpaRepository extends JpaRepository<Merchant, Long> {
 
     @Query("select m from Merchant m join fetch m.party where m.phoneNumber = :phoneNumber")
     Optional<Merchant> findByPhoneNumberWithParty(@Param("phoneNumber") String phoneNumber);
+
+    boolean existsByBusinessNumber(String businessNumber);
+
+    boolean existsByUsername(String username);
 }

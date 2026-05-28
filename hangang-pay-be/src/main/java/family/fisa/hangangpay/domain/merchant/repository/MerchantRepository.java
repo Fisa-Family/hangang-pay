@@ -12,4 +12,10 @@ public interface MerchantRepository {
     Optional<Merchant> findByPhoneNumberWithParty(String phoneNumber);
 
     Optional<Merchant> findById(Long merchantId);
+
+    Merchant save(Merchant merchant);
+
+    boolean existsByBusinessNumber(String businessNumber);
+
+    boolean existsByUsername(String username);
 }
