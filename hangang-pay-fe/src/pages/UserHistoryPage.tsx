@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useRef } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { ApiError } from '@/api/client'
 import { apiErrorMessages, isApiErrorCode } from '@/api/errorCodes'
@@ -30,9 +30,10 @@ function getHistoryDetailPath(item: HistoryListItemModel) {
       return `/mypage/history/charges/${item.historyId}`
 
     case 'PAYMENT':
-    case 'CANCEL':
       return `/mypage/history/payments/${item.historyId}`
 
+    case 'CANCEL':
+      return null
     case 'EXCHANGE':
       return `/mypage/history/exchanges/${item.historyId}`
 
@@ -74,7 +75,13 @@ function CalendarIcon() {
 
 export function UserHistoryPage() {
   const navigate = useNavigate()
-  const [tab, setTab] = useState<HistoryTab>('ALL')
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const tabParam = searchParams.get('tab')
+  const tab: HistoryTab =
+    tabParam === 'PAYMENT' || tabParam === 'CHARGE' || tabParam === 'EXCHANGE' || tabParam === 'ALL'
+      ? tabParam
+      : 'ALL'
 
   const query = useInfiniteQuery({
     queryKey: ['users', 'histories', tab],
@@ -85,8 +92,8 @@ export function UserHistoryPage() {
         cursorCreatedAt: pageParam?.cursorCreatedAt,
         cursorId: pageParam?.cursorId,
       }),
-    initialPageParam: null as HistoryPage['nextCursor'],
-    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    initialPageParam: null as HistoryPage['nextCursor'] | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     retry: false,
   })
 
@@ -136,8 +143,12 @@ export function UserHistoryPage() {
         }
       />
 
-      <HistoryTypeTabs value={tab} onChange={setTab} />
-
+      <HistoryTypeTabs
+        value={tab}
+        onChange={(nextTab) => {
+          setSearchParams(nextTab === 'ALL' ? {} : { tab: nextTab })
+        }}
+      />
       <div className="flex-1 overflow-y-auto">
         {showInitialLoading && (
           <p className="px-4 py-6 text-center text-sm text-muted-foreground">불러오는 중...</p>

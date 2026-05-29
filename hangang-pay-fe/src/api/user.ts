@@ -140,6 +140,7 @@ export function normalizeHistoryItem(raw: RawHistoryItem): HistoryListItem {
     case 'PAYMENT':
       return {
         id: raw.paymentId,
+        historyId: raw.cursorId,
         displayType: 'PAYMENT',
         counterpartName: raw.merchantName,
         amount: raw.amount,
@@ -149,6 +150,7 @@ export function normalizeHistoryItem(raw: RawHistoryItem): HistoryListItem {
     case 'CANCEL':
       return {
         id: raw.paymentId,
+        historyId: raw.cursorId,
         displayType: 'CANCEL',
         counterpartName: raw.merchantName,
         amount: raw.amount,
