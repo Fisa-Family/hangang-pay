@@ -9,10 +9,7 @@ import {
   type ToastState,
 } from '@/components/common'
 import { ApiError } from '@/api/client'
-import {
-  getExchangeHistoryDetail,
-  type ExchangeHistoryDetail,
-} from '@/api/exchangeHistories'
+import { getExchangeHistoryDetail, type ExchangeHistoryDetail } from '@/api/exchangeHistories'
 import icon from '@/components/common/icons/icon.png'
 
 const formatWon = (value: number) => `${value.toLocaleString('ko-KR')}원`
@@ -117,14 +114,14 @@ export function ExchangeDetailPage() {
 
           <div className="mt-4 border-t border-border/70 pt-2">
             {[
-  {
-    label: '입금계좌',
-    value: `${exchange.bankName} ${exchange.accountNumber}`,
-  },
-  {
-    label: '환전일시',
-    value: formatDateTime(exchange.createdAt),
-  },
+              {
+                label: '입금계좌',
+                value: `${exchange.bankName} ${exchange.accountNumber}`,
+              },
+              {
+                label: '환전일시',
+                value: formatDateTime(exchange.createdAt),
+              },
               {
                 label: '트랜잭션 해시',
                 value: (
