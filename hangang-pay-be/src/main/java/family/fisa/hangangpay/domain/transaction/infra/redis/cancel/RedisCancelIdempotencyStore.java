@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
 import family.fisa.hangangpay.domain.transaction.dto.response.PaymentCancelResponse;
-import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelIdempotencyDecision;
 import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelIdempotencyStore;
 import family.fisa.hangangpay.global.exception.BusinessException;
@@ -63,17 +62,6 @@ public class RedisCancelIdempotencyStore implements CancelIdempotencyStore {
         redisTemplate
                 .opsForValue()
                 .set(key, serialize(existing.complete(responseSnapshot)), IDEMPOTENCY_TTL);
-    }
-
-    @Override
-    public void markCancelStatus(String originalPaymentUuid, TransactionStatus status) {
-        String key = KEY_PREFIX + originalPaymentUuid;
-        CancelIdempotencyRecord existing = readRecord(key);
-
-        // 7. UNKNOWN 등 — snapshot 없이 상태만 갱신, 복구 스케줄러가 처리하도록 유도
-        redisTemplate
-                .opsForValue()
-                .set(key, serialize(existing.withStatus(status)), IDEMPOTENCY_TTL);
     }
 
     private CancelIdempotencyRecord readRecord(String key) {

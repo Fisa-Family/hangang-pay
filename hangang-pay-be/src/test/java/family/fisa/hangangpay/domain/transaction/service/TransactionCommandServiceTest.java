@@ -51,6 +51,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClientResponseException;
 
 @ExtendWith(MockitoExtension.class)
 class TransactionCommandServiceTest {
@@ -287,8 +288,7 @@ class TransactionCommandServiceTest {
 
         verify(bankClient).payment(prepared.toBankPaymentRequest());
         verify(paymentExecutionStateWriter).markUnknown(TRANSACTION_UUID);
-        verify(paymentIdempotencyStore)
-                .markExecutionStatus(TRANSACTION_UUID, TransactionStatus.UNKNOWN);
+        verify(paymentIdempotencyStore).completeExecution(TRANSACTION_UUID, unknownResponse);
         verify(paymentExecutionStateWriter, never()).completeSuccess(any(), any(), any(), any());
     }
 
@@ -680,6 +680,7 @@ class TransactionCommandServiceTest {
                 .prepareCancel(MERCHANT_PARTY_ID, TRANSACTION_ID, "123456");
         verify(bankClient).cancel(prepared.toBankCancelRequest());
         verify(cancelExecutionStateWriter).markUnknown(CANCEL_UUID);
+        verify(cancelIdempotencyStore).completeCancel(TRANSACTION_UUID, unknownResponse);
         verify(cancelExecutionStateWriter, never()).completeSuccess(any(), any(), any(), any());
     }
 
@@ -874,6 +875,148 @@ class TransactionCommandServiceTest {
 
         // 4. 소유권 실패 시 이후 흐름 없음
         verify(bankClient, never()).getTransactionStatus(any());
+    }
+
+    @Test
+    @DisplayName("Bank 서버 오류(RestClientResponseException) 시 CANCEL이 UNKNOWN으로 저장되고 snapshot이 적재된다")
+    void cancelPayment_bankServerError_marksUnknownAndStoresSnapshot() {
+        // 1. prepareCancel 정상 완료
+        CancelExecutionPrepared prepared =
+                new CancelExecutionPrepared(
+                        CANCEL_UUID,
+                        TRANSACTION_UUID,
+                        "0x-merchant",
+                        "0x-user",
+                        new BigDecimal("10000"));
+
+        // 2. UNKNOWN 응답
+        PaymentCancelResponse unknownResponse =
+                new PaymentCancelResponse(
+                        CANCEL_UUID,
+                        TransactionStatus.UNKNOWN,
+                        null,
+                        null,
+                        new BigDecimal("10000"),
+                        null);
+
+        given(transactionRepository.findById(TRANSACTION_ID))
+                .willReturn(Optional.of(paymentTransaction(TransactionStatus.SUCCESS)));
+        given(cancelLockManager.withCancelLock(anyString(), any()))
+                .willAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
+        given(cancelIdempotencyStore.beginCancel(anyString(), anyString()))
+                .willReturn(CancelIdempotencyDecision.newRequest());
+        given(cancelExecutionStateWriter.prepareCancel(MERCHANT_PARTY_ID, TRANSACTION_ID, "123456"))
+                .willReturn(prepared);
+        // 3. Bank 5xx
+        given(bankClient.cancel(prepared.toBankCancelRequest()))
+                .willThrow(
+                        new RestClientResponseException(
+                                "500", 500, "Internal Server Error", null, null, null));
+        given(cancelExecutionStateWriter.markUnknown(CANCEL_UUID)).willReturn(unknownResponse);
+
+        PaymentCancelResponse response =
+                transactionCommandService.cancelPayment(
+                        MERCHANT_PARTY_ID, TRANSACTION_ID, new PaymentCancelRequest("123456"));
+
+        // 4. UNKNOWN 응답 반환 검증
+        assertThat(response).isSameAs(unknownResponse);
+        assertThat(response.status()).isEqualTo(TransactionStatus.UNKNOWN);
+
+        // 5. snapshot 적재 검증 — markCancelStatus가 아니라 completeCancel
+        verify(cancelExecutionStateWriter).markUnknown(CANCEL_UUID);
+        verify(cancelIdempotencyStore).completeCancel(TRANSACTION_UUID, unknownResponse);
+        verify(cancelExecutionStateWriter, never()).completeSuccess(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Bank 서버 오류(RestClientResponseException) 시 PAYMENT가 UNKNOWN으로 저장되고 snapshot이 적재된다")
+    void executePayment_bankServerError_marksUnknownAndStoresSnapshot() {
+        // 1. prepareExecution 정상 완료
+        PaymentExecutionPrepared prepared =
+                new PaymentExecutionPrepared(
+                        TRANSACTION_UUID,
+                        REQUEST_HASH,
+                        "0x-user",
+                        "0x-merchant",
+                        new BigDecimal("10000"));
+
+        PaymentExecutionResponse unknownResponse =
+                new PaymentExecutionResponse(
+                        TRANSACTION_UUID,
+                        TransactionStatus.UNKNOWN,
+                        null,
+                        null,
+                        new BigDecimal("10000"),
+                        "성수 한강카페",
+                        null);
+
+        given(
+                        paymentExecutionStateWriter.prepareExecution(
+                                USER_ID, USER_PARTY_ID, TRANSACTION_UUID, "123456"))
+                .willReturn(PaymentExecutionPreparationResult.prepared(prepared));
+        // 2. Bank 5xx
+        given(bankClient.payment(prepared.toBankPaymentRequest()))
+                .willThrow(
+                        new RestClientResponseException(
+                                "500", 500, "Internal Server Error", null, null, null));
+        given(paymentExecutionStateWriter.markUnknown(TRANSACTION_UUID))
+                .willReturn(unknownResponse);
+        given(paymentLockManager.withTransactionLock(eq(TRANSACTION_UUID), any()))
+                .willAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
+
+        PaymentExecutionResponse response =
+                transactionCommandService.executePayment(
+                        USER_ID,
+                        USER_PARTY_ID,
+                        TRANSACTION_UUID,
+                        new PaymentExecuteRequest("123456"));
+
+        // 3. UNKNOWN 응답 반환 검증
+        assertThat(response).isSameAs(unknownResponse);
+        assertThat(response.status()).isEqualTo(TransactionStatus.UNKNOWN);
+
+        // 4. snapshot 적재 검증 — markExecutionStatus가 아니라 completeExecution
+        verify(paymentExecutionStateWriter).markUnknown(TRANSACTION_UUID);
+        verify(paymentIdempotencyStore).completeExecution(TRANSACTION_UUID, unknownResponse);
+        verify(paymentExecutionStateWriter, never()).completeSuccess(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("취소 복구 시 Bank SUCCESS인데 txHash가 없으면 복구 결과 오류가 발생한다")
+    void recoverCancel_bankSuccessWithNullTxHash_throwsRecoveryResultInvalid() {
+        // 1. 원본 PAYMENT와 복구 대상 CANCEL
+        Transaction originalPayment = paymentTransaction(TransactionStatus.SUCCESS);
+        Transaction cancelTx = cancelTransaction(TransactionStatus.UNKNOWN);
+
+        // 2. Bank SUCCESS인데 txHash 누락
+        BankTransactionStatusResponse bankStatus =
+                new BankTransactionStatusResponse(
+                        CANCEL_UUID,
+                        888L,
+                        TransactionStatus.SUCCESS,
+                        null, // txHash 없음
+                        LocalDateTime.of(2026, 5, 27, 14, 30));
+
+        given(
+                        transactionRepository.findDetailByIdAndTypes(
+                                TRANSACTION_ID, List.of(TransactionType.PAYMENT)))
+                .willReturn(Optional.of(originalPayment));
+        given(cancelLockManager.withCancelLock(anyString(), any()))
+                .willAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
+        given(
+                        transactionRepository.findRecoverableCancelByOriginalTransactionUuid(
+                                TRANSACTION_UUID))
+                .willReturn(Optional.of(cancelTx));
+        given(bankClient.getTransactionStatus(CANCEL_UUID)).willReturn(bankStatus);
+
+        // 3. PAYMENT_RECOVERY_RESULT_INVALID 예외 발생
+        assertThatThrownBy(
+                        () ->
+                                transactionCommandService.recoverCancel(
+                                        MERCHANT_PARTY_ID, TRANSACTION_ID))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue(
+                        "code", TransactionErrorCode.PAYMENT_RECOVERY_RESULT_INVALID);
     }
 
     private CancelResponse successBankCancelResponse() {

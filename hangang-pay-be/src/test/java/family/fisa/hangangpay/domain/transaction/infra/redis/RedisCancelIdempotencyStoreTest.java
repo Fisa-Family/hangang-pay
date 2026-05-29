@@ -163,31 +163,6 @@ class RedisCancelIdempotencyStoreTest {
         assertThat(saved.responseSnapshot()).isEqualTo(snapshot);
     }
 
-    @Test
-    @DisplayName("markCancelStatus는 snapshot 없이 상태만 갱신한다")
-    void markCancelStatus_updatesStatusWithoutSnapshot() throws Exception {
-        // 1. Bank 타임아웃 등으로 snapshot이 없는 PROCESSING record가 있다
-        CancelIdempotencyRecord existing = record(TransactionStatus.PROCESSING, REQUEST_HASH, null);
-
-        given(valueOperations.get(KEY)).willReturn(writeRecord(existing));
-
-        // 2. UNKNOWN으로 상태만 갱신
-        // - UNKNOWN 기록이 없으면 다음 재시도가 NEW_REQUEST로 처리되어 Bank를 한 번 더 호출한다
-        // - UNKNOWN을 기록해 두면 재시도 시 PROCESSING으로 인식해 스케줄러 복구로 유도한다
-        redisCancelIdempotencyStore.markCancelStatus(
-                ORIGINAL_PAYMENT_UUID, TransactionStatus.UNKNOWN);
-
-        // 3. snapshot은 null 유지, 상태만 UNKNOWN으로 바뀐다
-        ArgumentCaptor<String> valueCaptor = ArgumentCaptor.forClass(String.class);
-        verify(valueOperations).set(eq(KEY), valueCaptor.capture(), eq(IDEMPOTENCY_TTL));
-
-        CancelIdempotencyRecord saved = readRecord(valueCaptor.getValue());
-        assertThat(saved.originalPaymentUuid()).isEqualTo(ORIGINAL_PAYMENT_UUID);
-        assertThat(saved.requestHash()).isEqualTo(REQUEST_HASH);
-        assertThat(saved.status()).isEqualTo(TransactionStatus.UNKNOWN);
-        assertThat(saved.responseSnapshot()).isNull();
-    }
-
     // ===== 픽스처 =====
 
     private CancelIdempotencyRecord record(

@@ -37,6 +37,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClientResponseException;
 
 @Slf4j
 @Service
@@ -152,12 +153,12 @@ public class TransactionCommandService {
         PaymentResponse bankResponse;
         try {
             bankResponse = bankClient.payment(prepared.toBankPaymentRequest());
-        } catch (ResourceAccessException ex) {
-            /** 3-1. 연결 실패된 기존 트랜잭션 수정 - UNKNOWN */
+        } catch (ResourceAccessException | RestClientResponseException ex) {
+            /** 3-1. 네트워크/서버 오류 - UNKNOWN 후 snapshot 저장 */
             PaymentExecutionResponse response =
                     paymentExecutionStateWriter.markUnknown(transactionUuid);
 
-            paymentIdempotencyStore.markExecutionStatus(transactionUuid, TransactionStatus.UNKNOWN);
+            paymentIdempotencyStore.completeExecution(transactionUuid, response);
             return response;
         }
 
@@ -237,15 +238,16 @@ public class TransactionCommandService {
         CancelResponse bankResponse;
         try {
             bankResponse = bankClient.cancel(prepared.toBankCancelRequest());
-        } catch (ResourceAccessException ex) {
-            /** 4-1. 연결 실패된 기존 트랜잭션 수정 - UNKNOWN */
+        } catch (ResourceAccessException | RestClientResponseException ex) {
+            /** 4-1. 네트워크/서버 오류 - UNKNOWN 후 snapshot 저장 */
             log.warn(
-                    "Bank cancel 네트워크 오류. cancelUuid={}, reason={}",
+                    "Bank cancel 네트워크/서버 오류. cancelUuid={}, reason={}",
                     prepared.cancelTransactionUuid(),
                     ex.getMessage());
-            cancelIdempotencyStore.markCancelStatus(
-                    originalTransactionUuid, TransactionStatus.UNKNOWN);
-            return cancelExecutionStateWriter.markUnknown(prepared.cancelTransactionUuid());
+            PaymentCancelResponse unknownResponse =
+                    cancelExecutionStateWriter.markUnknown(prepared.cancelTransactionUuid());
+            cancelIdempotencyStore.completeCancel(originalTransactionUuid, unknownResponse);
+            return unknownResponse;
         }
 
         /** 4-2. SUCCESS 확정 - REQUIRES_NEW 트랜잭션으로 커밋 */
@@ -277,6 +279,7 @@ public class TransactionCommandService {
 
         /** 4-1. SUCCESS → 취소 완료 확정 */
         if (bankStatus.status() == TransactionStatus.SUCCESS) {
+            validateBankSuccessRecoveryResult(bankStatus);
             cancelTx.recoverSuccess(
                     bankStatus.txHash(), String.valueOf(bankStatus.bankTransactionId()));
             PaymentCancelResponse response =

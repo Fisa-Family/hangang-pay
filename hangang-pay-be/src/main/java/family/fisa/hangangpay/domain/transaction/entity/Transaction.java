@@ -35,7 +35,7 @@ import lombok.NoArgsConstructor;
  * approvalNumber          |   -    |    -     |    ✓    |   ✓
  * itemName                |   -    |    -     |    ✓    |   -
  * txHash                  |   ✓    |    ✓     |    ✓    |   ✓ (BankClient 응답에서 채움)
- * bankTransactionId       |   ✓    |    ✓     |    -    |   -  (account_ledger.id 값)
+ * bankTransactionId       |   ✓    |    ✓     |    ✓    |   ✓
  * originalTransactionUuid |   -    |    -     |    -    |   ✓
  * </pre>
  *
@@ -126,7 +126,9 @@ public class Transaction extends BaseEntity {
     @Column(name = "tx_hash", length = 100)
     private String txHash;
 
-    /** 은행 거래 ID (account_ledger.id 값, FK 없음) */
+    /**
+     * 은행 거래 ID (PAYMENT/CANCEL: blockchain_ledger.id, CHARGE/EXCHANGE: account_ledger.id, FK 없음)
+     */
     @Column(name = "bank_transaction_id", length = 100)
     private String bankTransactionId;
 

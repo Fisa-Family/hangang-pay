@@ -77,7 +77,7 @@ public interface TransactionRepository {
     /** 원본 PAYMENT의 SUCCESS + CANCEL 존재 여부 확인 - 재취소 방지용 */
     boolean existsSuccessCancelFor(String originalTransactionUuid);
 
-    /** 복구 가능한 CANCEL 조회 - CANCEL + status IN (UNKNOWN, PROCESSING) */
+    /** 복구 가능한 CANCEL 조회 - CANCEL + status = UNKNOWN */
     Optional<Transaction> findRecoverableCancelByOriginalTransactionUuid(
             String originalTransactionUuid);
 
