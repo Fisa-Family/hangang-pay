@@ -121,12 +121,25 @@ interface RawExchangeItem {
   exchangedAt: string
 }
 
+// ALL 조회 응답 원소 (BE AllHistoryItem) — 타입별로 일부 필드는 NON_NULL이라 생략될 수 있다
+interface RawAllItem {
+  historyId: number
+  historyType: 'PAYMENT' | 'CANCEL' | 'CHARGE' | 'EXCHANGE'
+  merchantName?: string // PAYMENT/CANCEL 만
+  amount: number
+  approvalNumber?: string // PAYMENT/CANCEL 만
+  discountAmount?: number // CHARGE 만
+  discountRate?: number // CHARGE 만
+  status: string
+  createdAt: string
+}
+
 type RawHistoryItem = RawPaymentItem | RawChargeItem | RawExchangeItem
 
 interface RawHistoryPage {
   historyType: string
   response: {
-    content: RawHistoryItem[]
+    content: (RawHistoryItem | RawAllItem)[]
     nextCursorCreatedAt: string | null
     nextCursorId: number | null
     hasNext: boolean
@@ -180,30 +193,73 @@ export function normalizeHistoryItem(raw: RawHistoryItem): HistoryListItem {
   }
 }
 
-// 홈 화면용 최근 거래 조회 — BE가 ALL 타입 미지원이라 결제, 충전, 환전 병렬 요청 후 최신순 정렬
+// ALL 응답 원소(AllHistoryItem)를 표시 모델로 변환
+export function normalizeAllHistoryItem(raw: RawAllItem): HistoryListItem {
+  switch (raw.historyType) {
+    case 'PAYMENT':
+      return {
+        id: `PAYMENT-${raw.historyId}`,
+        historyId: raw.historyId,
+        displayType: 'PAYMENT',
+        counterpartName: raw.merchantName ?? '알 수 없는 가맹점',
+        amount: raw.amount,
+        sign: '-',
+        createdAt: raw.createdAt,
+      }
+    case 'CANCEL':
+      return {
+        id: `CANCEL-${raw.historyId}`,
+        historyId: raw.historyId,
+        displayType: 'CANCEL',
+        counterpartName: raw.merchantName ?? '알 수 없는 가맹점',
+        amount: raw.amount,
+        sign: '+',
+        createdAt: raw.createdAt,
+      }
+    case 'CHARGE':
+      return {
+        id: `CHARGE-${raw.historyId}`,
+        historyId: raw.historyId,
+        displayType: 'CHARGE',
+        counterpartName: HANGANG_SYSTEM_NAME,
+        amount: raw.amount,
+        sign: '+',
+        createdAt: raw.createdAt,
+      }
+    case 'EXCHANGE':
+      return {
+        id: `EXCHANGE-${raw.historyId}`,
+        historyId: raw.historyId,
+        displayType: 'EXCHANGE',
+        counterpartName: HANGANG_SYSTEM_NAME,
+        amount: raw.amount,
+        sign: '-',
+        createdAt: raw.createdAt,
+      }
+  }
+}
+
+// 홈 화면용 최근 거래 조회 — ALL 단일 조회로 BE가 최신순 정렬한 결과를 그대로 사용
 export async function fetchRecentTransactions(size: number): Promise<HistoryListItem[]> {
-  const [payments, charges, exchanges] = await Promise.all([
-    fetchUserHistoriesNormalized({ tab: 'PAYMENT', size }),
-    fetchUserHistoriesNormalized({ tab: 'CHARGE', size }),
-    fetchUserHistoriesNormalized({ tab: 'EXCHANGE', size }),
-  ])
-  return [...payments.items, ...charges.items, ...exchanges.items]
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .slice(0, size)
+  const page = await fetchUserHistoriesNormalized({ tab: 'ALL', size })
+  return page.items
 }
 
 export async function fetchUserHistoriesNormalized(
   params: FetchHistoriesParams
 ): Promise<HistoryPage> {
   const query = new URLSearchParams({
-    historyType: params.tab,
+    type: params.tab,
     size: String(params.size ?? 20),
     ...(params.cursorCreatedAt ? { cursorCreatedAt: params.cursorCreatedAt } : {}),
     ...(params.cursorId != null ? { cursorId: String(params.cursorId) } : {}),
   })
 
   const raw = await apiFetch<RawHistoryPage>(`/users/histories?${query}`)
-  const items = raw.response.content.map(normalizeHistoryItem)
+  const items =
+    params.tab === 'ALL'
+      ? (raw.response.content as RawAllItem[]).map(normalizeAllHistoryItem)
+      : (raw.response.content as RawHistoryItem[]).map(normalizeHistoryItem)
 
   const { hasNext, nextCursorCreatedAt, nextCursorId } = raw.response
   const nextCursor =
