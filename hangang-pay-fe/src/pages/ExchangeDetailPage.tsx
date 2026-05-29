@@ -43,7 +43,7 @@ export function ExchangeDetailPage() {
     getExchangeHistoryDetail(id)
       .then(setDetail)
       .catch((err) => {
-        setError(err instanceof ApiError ? err.message : '환전 상세 조회에 실패했습니다.')
+        setError(err instanceof ApiError ? err.message : '환불 상세 조회에 실패했습니다.')
       })
   }, [id])
 
@@ -60,7 +60,7 @@ export function ExchangeDetailPage() {
   if (!detail && !error) {
     return (
       <div className="flex h-full flex-col">
-        <PageHeader title="환전 상세" onBack={() => navigate(-1)} />
+        <PageHeader title="환불 상세" onBack={() => navigate(-1)} />
         <ProcessingState status="loading" loadingText="상세 조회중" errorTitle="" />
       </div>
     )
@@ -69,7 +69,7 @@ export function ExchangeDetailPage() {
   if (error) {
     return (
       <div className="flex h-full flex-col">
-        <PageHeader title="환전 상세" onBack={() => navigate(-1)} />
+        <PageHeader title="환불 상세" onBack={() => navigate(-1)} />
         <ResultState
           variant="error"
           title="상세 조회 실패"
@@ -89,7 +89,7 @@ export function ExchangeDetailPage() {
 
   return (
     <div className="flex h-full flex-col bg-background">
-      <PageHeader title="환전 상세" onBack={() => navigate(-1)} />
+      <PageHeader title="환불 상세" onBack={() => navigate(-1)} />
 
       <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-4 pt-5">
         <section className="rounded-2xl border border-border bg-card px-5 py-5 shadow-sm">
@@ -105,7 +105,7 @@ export function ExchangeDetailPage() {
             </div>
 
             <div className="shrink-0 text-right">
-              <p className="text-xs text-muted-foreground">환전금액</p>
+              <p className="text-xs text-muted-foreground">환불금액</p>
               <p className="mt-1.5 text-[24px] font-bold leading-none text-foreground">
                 {formatWon(exchange.amount)}
               </p>
@@ -115,11 +115,11 @@ export function ExchangeDetailPage() {
           <div className="mt-4 border-t border-border/70 pt-2">
             {[
               {
-                label: '입금계좌',
+                label: '환불계좌',
                 value: `${exchange.bankName} ${exchange.accountNumber}`,
               },
               {
-                label: '환전일시',
+                label: '환불일시',
                 value: formatDateTime(exchange.createdAt),
               },
               {

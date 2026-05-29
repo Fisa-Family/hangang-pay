@@ -10,7 +10,7 @@ const TABS: ReadonlyArray<{ key: HistoryTab; label: string }> = [
   { key: 'ALL', label: '전체' },
   { key: 'PAYMENT', label: '결제' },
   { key: 'CHARGE', label: '충전' },
-  { key: 'EXCHANGE', label: '환전' },
+  { key: 'EXCHANGE', label: '환불' },
 ]
 
 export function HistoryTypeTabs({ value, onChange }: HistoryTypeTabsProps) {

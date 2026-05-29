@@ -49,7 +49,7 @@ export function HistoryEntryCard({ onClick }: HistoryEntryCardProps) {
       </div>
 
       {/* 우측 보조 텍스트 */}
-      <p className="shrink-0 text-xs text-muted-foreground">결제 · 충전 · 환전 내역</p>
+      <p className="shrink-0 text-xs text-muted-foreground">결제 · 충전 · 환불 내역</p>
 
       {/* 오른쪽 화살표 */}
       <ChevronRightIcon className="h-5 w-5 shrink-0 text-muted-foreground" />
