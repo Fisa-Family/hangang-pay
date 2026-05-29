@@ -2,29 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { fetchChargeInit } from '@/api/charge'
-import { BackspaceIcon, Button } from '@/components/common'
+import { BackspaceIcon, BackTitleHeader, Button } from '@/components/common'
 import { formatWon } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 const PAD_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0', '⌫'] as const
-
-// 뒤로가기 화살표 아이콘
-function BackChevron() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-6 w-6"
-      aria-hidden
-    >
-      <path d="m15 18-6-6 6-6" />
-    </svg>
-  )
-}
 
 // 계좌번호 마스킹
 function maskAccount(num: string): string {
@@ -118,18 +100,8 @@ export function ChargeAmountPage() {
 
   return (
     <div className="flex h-dvh flex-col bg-white">
-      {/* 헤더: 뒤로가기 왼쪽, 제목 중앙 */}
-      <div className="flex items-center px-3 pt-14 pb-1">
-        <button
-          type="button"
-          onClick={() => navigate('/home', { replace: true })}
-          aria-label="뒤로가기"
-          className="flex h-10 w-10 items-center justify-center text-foreground"
-        >
-          <BackChevron />
-        </button>
-        <h1 className="flex-1 text-center text-[17px] font-bold text-foreground">충전</h1>
-        <div className="w-10" />
+      <div className="px-5 pt-14">
+        <BackTitleHeader title="충전" onBack={() => navigate('/home', { replace: true })} />
       </div>
 
       {/* 잔액·한도 — flat 섹션 */}
