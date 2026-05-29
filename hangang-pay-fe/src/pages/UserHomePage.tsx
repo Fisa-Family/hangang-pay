@@ -132,7 +132,7 @@ function HistoryAmount({ type, amount }: { type: HistoryType; amount: number }) 
 
 function RecentTransactionList() {
   const { data } = useSuspenseQuery({
-    queryKey: ['users', 'histories', 'PAYMENT'],
+    queryKey: ['users', 'recent-histories'],
     queryFn: () => fetchUserHistories({ historyType: 'PAYMENT', size: HISTORY_LIMIT }),
     retry: false,
   })
