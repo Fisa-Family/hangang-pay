@@ -31,7 +31,7 @@ export function ChargeAmountPage() {
       // history.state는 F5 새로고침 후에도 유지되므로 오류 표시 후 즉시 제거
       window.history.replaceState(null, '')
     }
-  }, [])
+  }, [chargeError])
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null)
 
   const initQuery = useQuery({
