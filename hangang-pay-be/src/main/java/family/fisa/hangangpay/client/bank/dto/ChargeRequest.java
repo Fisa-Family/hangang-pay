@@ -7,4 +7,6 @@ public record ChargeRequest(
         Long institutionId,
         String accountNumber,
         String walletAddress,
-        BigDecimal amount) {}
+        BigDecimal amount,      // 계좌 차감 금액 (실 결제 금액)
+        BigDecimal mintAmount)  // 지갑 mint 금액 (충전가)
+{}

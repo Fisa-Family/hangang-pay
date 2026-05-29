@@ -10,11 +10,12 @@ public record ChargeExecutionPrepared(
         Long institutionId, // 금융기관 ID
         String accountNumber, // 출금 계좌번호
         String walletAddress, // 입금 지갑 주소
-        BigDecimal finalAmount) { // 할인 적용 후 실 결제 금액
+        BigDecimal finalAmount, // 계좌 차감 금액 (실 결제 금액)
+        BigDecimal amount) { // 지갑 mint 금액 (충전가)
 
     /** BankClient 요청 DTO로 변환 */
     public ChargeRequest toBankChargeRequest() {
         return new ChargeRequest(
-                transactionUuid, institutionId, accountNumber, walletAddress, finalAmount);
+                transactionUuid, institutionId, accountNumber, walletAddress, finalAmount, amount);
     }
 }

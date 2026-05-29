@@ -115,7 +115,8 @@ public class ChargeExecutionWriter {
                         institutionId,
                         account.getAccountNumber(),
                         transaction.getToWallet().getAddress(),
-                        finalAmount));
+                        finalAmount, // 계좌 차감 금액 (실 결제 금액, ex. 할인율 10% = 충전가의 90%)
+                        amount));   // 지갑 mint 금액 (충전가)
     }
 
     /** 충전 성공 처리 */
