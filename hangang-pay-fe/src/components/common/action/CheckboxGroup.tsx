@@ -1,4 +1,4 @@
-import { StatusBadge } from './StatusBadge'
+import { StatusBadge } from '../feedback/StatusBadge'
 
 interface CheckboxItem {
   id: string

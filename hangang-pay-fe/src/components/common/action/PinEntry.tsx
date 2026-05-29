@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import { BackspaceIcon } from './icons'
+import { BackspaceIcon } from '../icons'
 
 interface PinEntryProps {
   pin: string

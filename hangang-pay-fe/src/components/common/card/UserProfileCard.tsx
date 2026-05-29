@@ -1,7 +1,7 @@
 import { formatPhoneNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { UserProfileResponse } from '@/api/user'
-import { ChevronRightIcon } from './icons'
+import { ChevronRightIcon } from '../icons'
 
 interface UserProfileCardProps {
   profile: UserProfileResponse

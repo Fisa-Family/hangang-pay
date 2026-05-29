@@ -1,4 +1,4 @@
-import { Button } from './Button'
+import { Button } from '../action/Button'
 
 interface ConfirmDialogProps {
   open: boolean

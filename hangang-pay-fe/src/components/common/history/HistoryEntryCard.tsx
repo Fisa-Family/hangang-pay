@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import { ChevronRightIcon } from './icons'
+import { ChevronRightIcon } from '../icons'
 
 interface HistoryEntryCardProps {
   onClick: () => void

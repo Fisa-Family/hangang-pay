@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
-import { Button } from './Button'
+import { Button } from '../action/Button'
 
 interface ResultStateProps {
   variant: 'success' | 'error' | 'info'
