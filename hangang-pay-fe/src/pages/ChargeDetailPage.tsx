@@ -115,7 +115,7 @@ export function ChargeDetailPage() {
               {
                 label: '할인 금액',
                 value: (
-                  <span className="text-primary">{`-${formatWon(charge.discountAmount)}`}</span>
+                  <span className="text-success">{`-${formatWon(charge.discountAmount)}`}</span>
                 ),
               },
               {
