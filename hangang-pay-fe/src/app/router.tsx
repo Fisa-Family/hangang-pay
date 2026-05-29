@@ -32,6 +32,7 @@ import { ChargeProcessingPage } from '@/pages/ChargeProcessingPage'
 import { ChargeCompletePage } from '@/pages/ChargeCompletePage'
 import { AppShell } from '@/components/common'
 import { ChargeDetailPage } from '@/pages/ChargeDetailPage'
+import { PaymentDetailPage } from '@/pages/UserPaymentDetailPage'
 
 // 미등록 경로 접근 시 경로 기반으로 해당 영역 홈으로 교체
 function GoBack() {
@@ -122,6 +123,7 @@ export const router = createBrowserRouter([
               { path: '/charge/processing', element: <ChargeProcessingPage /> },
               { path: '/charge/complete', element: <ChargeCompletePage /> },
               { path: '/mypage/history/charges/:id', element: <ChargeDetailPage /> },
+              { path: '/mypage/history/payments/:id', element: <PaymentDetailPage /> },
             ],
           },
         ],
