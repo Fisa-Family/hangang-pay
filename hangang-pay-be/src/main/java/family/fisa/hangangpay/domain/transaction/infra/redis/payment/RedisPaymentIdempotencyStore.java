@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
 import family.fisa.hangangpay.domain.transaction.dto.response.PaymentExecutionResponse;
-import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.internal.payment.PaymentIdempotencyDecision;
 import family.fisa.hangangpay.domain.transaction.internal.payment.PaymentIdempotencyStore;
 import family.fisa.hangangpay.global.exception.BusinessException;
@@ -67,17 +66,6 @@ public class RedisPaymentIdempotencyStore implements PaymentIdempotencyStore {
         PaymentIdempotencyRecord completed = existing.complete(responseSnapshot);
 
         redisTemplate.opsForValue().set(key, serialize(completed), IDEMPOTENCY_TTL);
-    }
-
-    @Override
-    public void markExecutionStatus(String transactionUuid, TransactionStatus status) {
-        String key = key(transactionUuid);
-        PaymentIdempotencyRecord existing = readRecord(key);
-
-        // Bank 타임아웃처럼 최종 응답 snapshot이 없을 때도 현재 상태는 Redis에 남긴다.
-        PaymentIdempotencyRecord updated = existing.withStatus(status);
-
-        redisTemplate.opsForValue().set(key, serialize(updated), IDEMPOTENCY_TTL);
     }
 
     private String key(String transactionUuid) {

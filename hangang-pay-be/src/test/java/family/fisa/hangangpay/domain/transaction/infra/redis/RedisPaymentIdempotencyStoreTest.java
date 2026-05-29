@@ -167,29 +167,6 @@ class RedisPaymentIdempotencyStoreTest {
         assertThat(saved.responseSnapshot()).isEqualTo(snapshot);
     }
 
-    @Test
-    @DisplayName("markExecutionStatus는 snapshot 없이 상태만 갱신한다")
-    void markExecutionStatus_updatesStatusWithoutSnapshot() throws Exception {
-        PaymentIdempotencyRecord existing =
-                record(TransactionStatus.PROCESSING, REQUEST_HASH, null);
-
-        given(valueOperations.get(KEY)).willReturn(writeRecord(existing));
-
-        redisPaymentIdempotencyStore.markExecutionStatus(
-                TRANSACTION_UUID, TransactionStatus.UNKNOWN);
-
-        ArgumentCaptor<String> valueCaptor = ArgumentCaptor.forClass(String.class);
-        verify(valueOperations).set(eq(KEY), valueCaptor.capture(), eq(IDEMPOTENCY_TTL));
-
-        // Bank timeout처럼 응답 snapshot이 없을 때는 상태만 보존한다.
-        PaymentIdempotencyRecord saved = readRecord(valueCaptor.getValue());
-        assertThat(saved.transactionUuid()).isEqualTo(TRANSACTION_UUID);
-        assertThat(saved.requestHash()).isEqualTo(REQUEST_HASH);
-        assertThat(saved.status()).isEqualTo(TransactionStatus.UNKNOWN);
-        assertThat(saved.transactionId()).isEqualTo(TRANSACTION_ID);
-        assertThat(saved.responseSnapshot()).isNull();
-    }
-
     private PaymentIdempotencyRecord record(
             TransactionStatus status,
             String requestHash,
