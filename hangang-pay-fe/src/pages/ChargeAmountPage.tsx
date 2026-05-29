@@ -41,7 +41,7 @@ export function ChargeAmountPage() {
   })
 
   const data = initQuery.data
-  const accounts = data?.accounts ?? []
+  const accounts = useMemo(() => data?.accounts ?? [], [data])
   const discountRate = data?.discountRate ?? 0.1
 
   // 활성 계좌 ID 결정
