@@ -32,6 +32,12 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
     throw new ApiError(`HTTP ${response.status}`, response.status)
   }
 
+  if (response.status === 401) {
+    localStorage.removeItem('role')
+    window.location.replace('/login')
+    throw new ApiError(data.message ?? '인증이 필요합니다.', 401, data.code)
+  }
+
   if (!data.isSuccess) {
     throw new ApiError(data.message ?? '요청에 실패했습니다.', response.status, data.code)
   }

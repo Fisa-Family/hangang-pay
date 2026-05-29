@@ -127,6 +127,7 @@ export function MerchantMyPage() {
   const logoutMutation = useMutation({
     mutationFn: logout,
     onSuccess: () => {
+      localStorage.removeItem('role')
       queryClient.clear()
       navigate('/login', { replace: true })
     },
