@@ -6,7 +6,7 @@ import { fetchMerchantMyPage, type MerchantMyPageResponse } from '@/api/merchant
 import { logout } from '@/api/auth'
 import { ApiError } from '@/api/client'
 import { apiErrorMessages, isApiErrorCode } from '@/api/errorCodes'
-import { formatPhoneNumber } from '@/lib/format'
+import { formatMaskedAccount, formatPhoneNumber } from '@/lib/format'
 
 // 1. API 스펙 상수 정의
 const API_SPEC = {
@@ -38,13 +38,6 @@ const EMPTY_DATA: MerchantMyPageResponse = {
     accountNumber: '',
     accountType: '',
   },
-}
-
-// 4. 정산 계좌 설명 텍스트 생성 (은행명 + 계좌번호 끝 4자리)
-function buildAccountDescription(account: MerchantMyPageResponse['settlementAccount']): string {
-  if (!account.institutionName || !account.accountNumber) return ''
-  const last4 = account.accountNumber.slice(-4)
-  return `${account.institutionName} ****${last4}`
 }
 
 // 5. 아이콘 컴포넌트 — 건물 (정산 계좌 관리)
@@ -142,7 +135,10 @@ export function MerchantMyPage() {
 
   // 12. API 응답 또는 폴백 데이터
   const data = profileQuery.data ?? EMPTY_DATA
-  const accountDescription = buildAccountDescription(data.settlementAccount)
+  const accountDescription = formatMaskedAccount(
+    data.settlementAccount.institutionName,
+    data.settlementAccount.accountNumber
+  )
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pb-4">

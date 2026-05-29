@@ -33,8 +33,12 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
   }
 
   if (response.status === 401) {
-    localStorage.removeItem('role')
-    window.location.replace('/login')
+    // 세션 만료(COMMON_UNAUTHORIZED)일 때만 로그인으로. PIN/자격 오류 등 그 외 401은
+    // 호출부가 토스트·메시지로 처리하도록 ApiError로 던진다.
+    if (data.code === 'COMMON_UNAUTHORIZED') {
+      localStorage.removeItem('role')
+      window.location.replace('/login')
+    }
     throw new ApiError(data.message ?? '인증이 필요합니다.', 401, data.code)
   }
 

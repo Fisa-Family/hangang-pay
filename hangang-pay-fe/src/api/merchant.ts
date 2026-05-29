@@ -151,3 +151,44 @@ export function cancelMerchantPayment(
     body: JSON.stringify({ paymentPin }),
   })
 }
+
+// ── 가맹점 출금/환전 (MERCHANT-006 / 007) ──
+
+// MERCHANT-006: 출금 신청 조회 — 출금 가능 잔액 + 정산 계좌
+export interface MerchantRedeemInit {
+  availableAmount: number
+  settlementAccount: {
+    institutionName: string
+    accountNumber: string
+    accountType: string
+  }
+}
+
+// MERCHANT-007: 출금 신청 결과 — status === 'SUCCESS'만 확정 출금
+export interface MerchantRedeemResult {
+  transactionId: number
+  transactionUuid: string
+  amount: number
+  accountNumber: string
+  bankName: string
+  txHash: string
+  status: string // 'SUCCESS' | 'PENDING' | 'PROCESSING' | 'UNKNOWN' | 'FAILED' | 'EXPIRED'
+  exchangedAt: string
+}
+
+// GET /api/v1/merchant/redeem
+export function fetchMerchantRedeemInit(): Promise<MerchantRedeemInit> {
+  return apiFetch<MerchantRedeemInit>('/merchant/redeem')
+}
+
+// POST /api/v1/merchant/redeem — transactionUuid는 클라 생성 멱등키, amount는 전액
+export function executeMerchantRedeem(input: {
+  transactionUuid: string
+  amount: number
+  paymentPin: string
+}): Promise<MerchantRedeemResult> {
+  return apiFetch<MerchantRedeemResult>('/merchant/redeem', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
