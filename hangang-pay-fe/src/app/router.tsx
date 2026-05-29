@@ -9,7 +9,7 @@ import {
 import { useEffect } from 'react'
 import { useCurrentUser } from '@/auth/useCurrentUser'
 import { FullscreenLayout, MainLayout } from '@/routes/layouts'
-import { RequireAuth, RequireRole } from '@/routes/guards'
+import { RequireAuth, RequireRole, RedirectIfAuth } from '@/routes/guards'
 import { LoginPage } from '@/pages/LoginPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 import { UserHistoryPage } from '@/pages/UserHistoryPage'
@@ -72,8 +72,8 @@ export const router = createBrowserRouter([
     errorElement: <RootErrorElement />,
   },
   {
-    path: '/login',
-    element: <LoginPage />,
+    element: <RedirectIfAuth />,
+    children: [{ path: '/login', element: <LoginPage /> }],
   },
   // /merchant 단축 진입점 (홈으로 리다이렉트)
   {
