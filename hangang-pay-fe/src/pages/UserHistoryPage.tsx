@@ -3,7 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { ApiError } from '@/api/client'
 import { apiErrorMessages, isApiErrorCode } from '@/api/errorCodes'
-import { fetchUserHistoriesNormalized, type HistoryPage, type HistoryTab } from '@/api/user'
+import {
+  fetchUserHistoriesNormalized,
+  type HistoryListItem as HistoryListItemModel,
+  type HistoryPage,
+  type HistoryTab,
+} from '@/api/user'
 import {
   EmptyState,
   HistoryDateGroupHeader,
@@ -16,6 +21,25 @@ import { groupByDate } from './UserHistoryPage.helpers'
 const API_SPEC = {
   MY_002: { id: 'MY-002' },
 } as const
+
+function getHistoryDetailPath(item: HistoryListItemModel) {
+  if (item.historyId == null) return null
+
+  switch (item.displayType) {
+    case 'CHARGE':
+      return `/mypage/history/charges/${item.historyId}`
+
+    case 'PAYMENT':
+    case 'CANCEL':
+      return `/mypage/history/payments/${item.historyId}`
+
+    case 'EXCHANGE':
+      return `/mypage/history/exchanges/${item.historyId}`
+
+    default:
+      return null
+  }
+}
 
 function buildErrorMessage(spec: (typeof API_SPEC)[keyof typeof API_SPEC], error: unknown): string {
   if (error instanceof ApiError) {
@@ -135,9 +159,18 @@ export function UserHistoryPage() {
           grouped.map((group) => (
             <section key={group.date}>
               <HistoryDateGroupHeader isoDate={group.items[0].createdAt} />
-              {group.items.map((item) => (
-                <HistoryListItem key={item.id} item={item} />
-              ))}
+
+              {group.items.map((item) => {
+                const detailPath = getHistoryDetailPath(item)
+
+                return (
+                  <HistoryListItem
+                    key={item.id}
+                    item={item}
+                    onClick={detailPath ? () => navigate(detailPath) : undefined}
+                  />
+                )
+              })}
             </section>
           ))}
 

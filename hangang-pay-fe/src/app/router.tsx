@@ -27,6 +27,7 @@ import { PinPage } from '@/pages/PinPage.tsx'
 import { ProcessingPage } from '@/pages/ProcessingPage.tsx'
 import { PayCompletePage } from '@/pages/PayCompletePage'
 import { AppShell } from '@/components/common'
+import { ChargeDetailPage } from '@/pages/ChargeDetailPage'
 
 // 미등록 경로 접근 시 경로 기반으로 해당 영역 홈으로 교체
 function GoBack() {
@@ -112,6 +113,7 @@ export const router = createBrowserRouter([
               { path: '/pay/pin', element: <PinPage /> },
               { path: '/pay/processing', element: <ProcessingPage /> },
               { path: '/pay/complete', element: <PayCompletePage /> },
+              { path: '/mypage/history/charges/:id', element: <ChargeDetailPage /> },
             ],
           },
         ],
