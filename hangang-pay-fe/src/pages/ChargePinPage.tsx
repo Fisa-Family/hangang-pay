@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { PageHeader, PinEntry } from '@/components/common'
 
+// PIN 화면 진입 상태
 interface LocationState {
   transactionUuid: string
   institutionId: number
@@ -12,6 +13,7 @@ interface LocationState {
 
 const PIN_LENGTH = 6
 
+// 충전 PIN 입력 화면
 export function ChargePinPage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -19,6 +21,7 @@ export function ChargePinPage() {
 
   const [pin, setPin] = useState('')
 
+  // PIN 6자리 완성 시 처리 화면 이동
   useEffect(() => {
     if (pin.length === PIN_LENGTH && state) {
       navigate('/charge/processing', {

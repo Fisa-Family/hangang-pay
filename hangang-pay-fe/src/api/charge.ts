@@ -1,5 +1,6 @@
 import { apiFetch } from './client'
 
+// 충전 가능 계좌
 export interface ChargeAccount {
   accountId: number
   institutionId: number
@@ -9,6 +10,7 @@ export interface ChargeAccount {
   isPrimary: boolean
 }
 
+// 충전 초기화 응답
 export interface ChargeInitData {
   partyId: number
   transactionUuid: string
@@ -19,10 +21,12 @@ export interface ChargeInitData {
   accounts: ChargeAccount[]
 }
 
+// 충전 초기 데이터 조회
 export function fetchChargeInit(): Promise<ChargeInitData> {
   return apiFetch<ChargeInitData>('/charge/init')
 }
 
+// 충전 실행 요청 바디
 export interface ChargeExecuteRequest {
   transactionUuid: string
   institutionId: number
@@ -31,6 +35,7 @@ export interface ChargeExecuteRequest {
   paymentPin: string
 }
 
+// 충전 실행 결과
 export interface ChargeExecuteResult {
   partyId: number
   chargeId: number
@@ -39,6 +44,7 @@ export interface ChargeExecuteResult {
   chargedAt: string
 }
 
+// 충전 실행 요청
 export function executeCharge(body: ChargeExecuteRequest): Promise<ChargeExecuteResult> {
   return apiFetch<ChargeExecuteResult>('/charge', {
     method: 'POST',

@@ -4,6 +4,7 @@ import { executeCharge } from '@/api/charge'
 import { ApiError } from '@/api/client'
 import { ProcessingView } from '@/components/common'
 
+// 처리 화면 진입 상태
 interface LocationState {
   transactionUuid: string
   institutionId: number
@@ -13,10 +14,12 @@ interface LocationState {
   pin: string
 }
 
+// 충전 처리 화면
 export function ChargeProcessingPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const state = location.state as LocationState | null
+  // 마운트 시 API 이중 호출 방지
   const calledRef = useRef(false)
 
   useEffect(() => {

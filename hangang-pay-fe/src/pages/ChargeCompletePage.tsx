@@ -3,6 +3,7 @@ import type { ChargeExecuteResult } from '@/api/charge'
 import { formatWon } from '@/lib/format'
 import { Button } from '@/components/common'
 
+// 완료 체크 아이콘
 function CheckCircleIcon() {
   return (
     <div className="relative flex items-center justify-center">
@@ -21,6 +22,7 @@ function CheckCircleIcon() {
   )
 }
 
+// 충전 일시 포맷
 function formatChargedAt(iso: string): string {
   const d = new Date(iso)
   const yyyy = d.getFullYear()
@@ -31,6 +33,7 @@ function formatChargedAt(iso: string): string {
   return `${yyyy}.${mm}.${dd} ${hh}:${min}`
 }
 
+// 항목 레이블 값 행
 function SummaryRow({
   label,
   value,
@@ -52,6 +55,7 @@ function SummaryRow({
   )
 }
 
+// 충전 완료 화면
 export function ChargeCompletePage() {
   const navigate = useNavigate()
   const location = useLocation()

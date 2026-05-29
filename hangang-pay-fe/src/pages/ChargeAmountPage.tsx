@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 
 const PAD_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0', '⌫'] as const
 
+// 뒤로가기 화살표 아이콘
 function BackChevron() {
   return (
     <svg
@@ -25,15 +26,18 @@ function BackChevron() {
   )
 }
 
+// 계좌번호 마스킹
 function maskAccount(num: string): string {
   if (num.length <= 4) return num
   return `${num.slice(0, -4).replace(/\d/g, '*')}${num.slice(-4)}`
 }
 
+// 천단위 숫자 포맷
 function formatNumber(value: number): string {
   return new Intl.NumberFormat('ko-KR').format(value)
 }
 
+// 충전 금액 입력 화면
 export function ChargeAmountPage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -58,6 +62,7 @@ export function ChargeAmountPage() {
   const accounts = data?.accounts ?? []
   const discountRate = data?.discountRate ?? 0.1
 
+  // 활성 계좌 ID 결정
   const activeAccountId = useMemo(() => {
     if (selectedAccountId !== null) return selectedAccountId
     const primary = accounts.find((a) => a.isPrimary)
@@ -72,9 +77,11 @@ export function ChargeAmountPage() {
   const remainingLimit = data?.remainingLimit ?? 0
   const overLimit = amount > 0 && remainingLimit > 0 && amount > remainingLimit
 
+  // 충전 버튼 활성화 조건
   const canCharge =
     amount > 0 && !overLimit && selectedAccount !== null && !!data && !initQuery.isLoading
 
+  // 키패드 입력 처리
   function handleKey(key: string) {
     if (key === '⌫') {
       setAmountStr((prev) => prev.slice(0, -1))
@@ -88,6 +95,7 @@ export function ChargeAmountPage() {
     })
   }
 
+  // PIN 입력 화면 이동
   function handleCharge() {
     if (!canCharge || !data || !selectedAccount) return
     navigate('/charge/pin', {
@@ -101,6 +109,7 @@ export function ChargeAmountPage() {
     })
   }
 
+  // 계좌 순환 선택
   function cycleAccount() {
     if (accounts.length <= 1) return
     const idx = accounts.findIndex((a) => a.accountId === activeAccountId)
@@ -191,7 +200,7 @@ export function ChargeAmountPage() {
           )}
         </div>
 
-        {/* 결제 금액·계좌 — 회색 박스, 키패드보다 위 */}
+        {/* 결제 금액, 계좌 - 회색 박스, 키패드보다 위 */}
         <div className="mb-5 rounded-2xl bg-[#F4F6F8] px-4 py-3.5">
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-col gap-1">
@@ -222,7 +231,7 @@ export function ChargeAmountPage() {
         </div>
       </div>
 
-      {/* 키패드 — 핀테크 결제 스타일, 분리선 기반 */}
+      {/* 키패드 - 핀테크 결제 스타일, 분리선 기반 */}
       <div className="grid grid-cols-3 border-t border-[#E8EAED]">
         {PAD_KEYS.map((key, i) => {
           const isLastCol = (i + 1) % 3 === 0
