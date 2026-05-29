@@ -1,22 +1,21 @@
 import { ethers } from "hardhat";
 
-const LOCAL_CURRENCY_ADDRESS = process.env.LOCAL_CURRENCY_ADDRESS ?? "0x3Ace09BBA3b8507681146252d3Dd33cD4E2d4F63";
+const LOCAL_CURRENCY_ADDRESS =
+  process.env.LOCAL_CURRENCY_ADDRESS ?? "0x3Ace09BBA3b8507681146252d3Dd33cD4E2d4F63";
 const MERCHANT_WALLET = process.env.MERCHANT_WALLET ?? "";
 
 async function main() {
   if (!MERCHANT_WALLET) {
-    console.error("Usage: MERCHANT_WALLET=0x... [LOCAL_CURRENCY_ADDRESS=0x...] npx hardhat run scripts/add-merchant-whitelist.ts --network besu");
+    console.error(
+      "Usage: MERCHANT_WALLET=0x... [LOCAL_CURRENCY_ADDRESS=0x...] npx hardhat run scripts/add-merchant-whitelist.ts --network besu",
+    );
     process.exit(1);
   }
 
   const [bok] = await ethers.getSigners();
   console.log("Signer:", bok.address);
 
-  const lcp = await ethers.getContractAt(
-    "LocalCurrencyPolicy",
-    LOCAL_CURRENCY_ADDRESS,
-    bok
-  );
+  const lcp = await ethers.getContractAt("LocalCurrencyPolicy", LOCAL_CURRENCY_ADDRESS, bok);
 
   const before = await lcp.merchants(MERCHANT_WALLET);
   console.log("Merchant whitelisted before:", before);
