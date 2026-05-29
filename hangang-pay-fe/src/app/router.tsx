@@ -26,19 +26,11 @@ import { MerchantSettlementPage } from '@/pages/MerchantSettlementPage'
 import { PayConfirmPage } from '@/pages/PayConfirmPage'
 import { PinPage } from '@/pages/PinPage.tsx'
 import { ProcessingPage } from '@/pages/ProcessingPage.tsx'
-import { PayCompletePage } from '@/pages/PayCompletePage'
+import { CompletePage } from '@/pages/CompletePage'
 import { ChargeAmountPage } from '@/pages/ChargeAmountPage'
-import { ChargePinPage } from '@/pages/ChargePinPage'
-import { ChargeProcessingPage } from '@/pages/ChargeProcessingPage'
-import { ChargeCompletePage } from '@/pages/ChargeCompletePage'
 import { RefundCheckPage } from '@/pages/RefundCheckPage'
-import { RefundPinPage } from '@/pages/RefundPinPage'
-import { RefundProcessingPage } from '@/pages/RefundProcessingPage'
-import { RefundCompletePage } from '@/pages/RefundCompletePage'
 import { AppShell } from '@/components/common'
-import { ChargeDetailPage } from '@/pages/ChargeDetailPage'
-import { ExchangeDetailPage } from '@/pages/ExchangeDetailPage'
-import { PaymentDetailPage } from '@/pages/UserPaymentDetailPage'
+import { UserHistoryDetailPage } from '@/pages/UserHistoryDetailPage'
 
 // 미등록 경로 접근 시 경로 기반으로 해당 영역 홈으로 교체
 function GoBack() {
@@ -123,18 +115,18 @@ export const router = createBrowserRouter([
               { path: '/pay/confirm', element: <PayConfirmPage /> },
               { path: '/pay/pin', element: <PinPage /> },
               { path: '/pay/processing', element: <ProcessingPage /> },
-              { path: '/pay/complete', element: <PayCompletePage /> },
+              { path: '/pay/complete', element: <CompletePage /> },
               { path: '/charge/amount', element: <ChargeAmountPage /> },
-              { path: '/charge/pin', element: <ChargePinPage /> },
-              { path: '/charge/processing', element: <ChargeProcessingPage /> },
-              { path: '/charge/complete', element: <ChargeCompletePage /> },
-              { path: '/mypage/history/charges/:id', element: <ChargeDetailPage /> },
-              { path: '/mypage/history/exchanges/:id', element: <ExchangeDetailPage /> },
-              { path: '/mypage/history/payments/:id', element: <PaymentDetailPage /> },
+              { path: '/charge/pin', element: <PinPage /> },
+              { path: '/charge/processing', element: <ProcessingPage /> },
+              { path: '/charge/complete', element: <CompletePage /> },
+              { path: '/mypage/history/charges/:id', element: <UserHistoryDetailPage /> },
+              { path: '/mypage/history/exchanges/:id', element: <UserHistoryDetailPage /> },
+              { path: '/mypage/history/payments/:id', element: <UserHistoryDetailPage /> },
               { path: '/refund/check', element: <RefundCheckPage /> },
-              { path: '/refund/pin', element: <RefundPinPage /> },
-              { path: '/refund/processing', element: <RefundProcessingPage /> },
-              { path: '/refund/complete', element: <RefundCompletePage /> },
+              { path: '/refund/pin', element: <PinPage /> },
+              { path: '/refund/processing', element: <ProcessingPage /> },
+              { path: '/refund/complete', element: <CompletePage /> },
             ],
           },
         ],
