@@ -26,6 +26,10 @@ import { PayConfirmPage } from '@/pages/PayConfirmPage'
 import { PinPage } from '@/pages/PinPage.tsx'
 import { ProcessingPage } from '@/pages/ProcessingPage.tsx'
 import { PayCompletePage } from '@/pages/PayCompletePage'
+import { ChargeAmountPage } from '@/pages/ChargeAmountPage'
+import { ChargePinPage } from '@/pages/ChargePinPage'
+import { ChargeProcessingPage } from '@/pages/ChargeProcessingPage'
+import { ChargeCompletePage } from '@/pages/ChargeCompletePage'
 import { AppShell } from '@/components/common'
 
 // 미등록 경로 접근 시 경로 기반으로 해당 영역 홈으로 교체
@@ -112,6 +116,10 @@ export const router = createBrowserRouter([
               { path: '/pay/pin', element: <PinPage /> },
               { path: '/pay/processing', element: <ProcessingPage /> },
               { path: '/pay/complete', element: <PayCompletePage /> },
+              { path: '/charge/amount', element: <ChargeAmountPage /> },
+              { path: '/charge/pin', element: <ChargePinPage /> },
+              { path: '/charge/processing', element: <ChargeProcessingPage /> },
+              { path: '/charge/complete', element: <ChargeCompletePage /> },
             ],
           },
         ],
