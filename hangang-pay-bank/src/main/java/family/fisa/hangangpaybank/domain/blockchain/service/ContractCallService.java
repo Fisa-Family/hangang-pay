@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.web3j.abi.FunctionEncoder;
 import org.web3j.abi.datatypes.Address;
+import org.web3j.abi.datatypes.Bool;
 import org.web3j.abi.datatypes.Function;
 import org.web3j.abi.datatypes.generated.Uint256;
 import org.web3j.crypto.Credentials;
@@ -88,6 +89,17 @@ public class ContractCallService {
                         "cancelPayment",
                         List.of(new Address(from), new Address(to), new Uint256(amount)),
                         List.of());
+        return sendContractFunction(ContractType.LOCAL_CURRENCY, DEFAULT_GAS_LIMIT, function);
+    }
+
+    /** 가맹점 화이트리스트 등록 */
+    public TransactionReceipt setMerchant(String merchantAddress) {
+        Function function =
+                new Function(
+                        "setMerchant",
+                        List.of(new Address(merchantAddress), new Bool(true)),
+                        List.of());
+
         return sendContractFunction(ContractType.LOCAL_CURRENCY, DEFAULT_GAS_LIMIT, function);
     }
 

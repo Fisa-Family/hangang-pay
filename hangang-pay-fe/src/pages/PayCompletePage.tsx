@@ -58,12 +58,8 @@ export function PayCompletePage() {
           </p>
 
           <div className="border-t border-border/60 pt-4">
-            <ResultRow
-              label="남은 잔액"
-              value={result ? formatWon(result.remainingBalance) : '—'}
-            />
             <ResultRow label="승인번호" value={result?.approvalNumber ?? '—'} />
-            <ResultRow label="일시" value={result ? formatPaidAt(result.paidAt) : '—'} />
+            <ResultRow label="일시" value={result ? formatPaidAt(result.confirmedAt) : '—'} />
           </div>
         </div>
       </div>

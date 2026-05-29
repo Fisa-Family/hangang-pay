@@ -5,6 +5,7 @@ import family.fisa.hangangpay.client.bank.dto.BankWalletResponse;
 import family.fisa.hangangpay.client.bank.dto.CreateBankWalletRequest;
 import family.fisa.hangangpay.domain.institution.entity.Institution;
 import family.fisa.hangangpay.domain.party.entity.Party;
+import family.fisa.hangangpay.domain.party.entity.PartyType;
 import family.fisa.hangangpay.domain.wallet.entity.Wallet;
 import family.fisa.hangangpay.domain.wallet.repository.WalletRepository;
 import lombok.RequiredArgsConstructor;
@@ -25,10 +26,13 @@ public class WalletCommandService {
      * <p>Custodial 모델: bank가 keypair 생성 및 보유. BE는 walletAddress만 저장.
      */
     public Wallet createWallet(Party party, Institution institution) {
+        // 가맹점일경우 온체인 가맹점 화이트리스트 등록까지 요청
+        boolean merchant = party.getPartyType() == PartyType.MERCHANT;
+
         // 1. bank에 지갑 발급 요청 (Custodial - bank가 keypair 생성)
         BankWalletResponse bankWallet =
                 bankClient.createBankWallet(
-                        new CreateBankWalletRequest(institution.getId(), party.getId()));
+                        new CreateBankWalletRequest(institution.getId(), party.getId(), merchant));
 
         // 2. wallet_address 정규화
         String walletAddress = normalizeAddress(bankWallet.walletAddress());

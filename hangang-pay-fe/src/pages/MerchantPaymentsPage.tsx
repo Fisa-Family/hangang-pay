@@ -120,7 +120,7 @@ export function MerchantPaymentsPage() {
                   <span
                     className={cn(
                       'shrink-0 text-sm font-bold tabular-nums',
-                      item.displayType === 'CANCEL' ? 'text-primary' : 'text-foreground'
+                      item.sign === '+' ? 'text-primary' : 'text-foreground'
                     )}
                   >
                     {item.sign}

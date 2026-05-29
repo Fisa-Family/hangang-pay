@@ -10,6 +10,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.util.matcher.RegexRequestMatcher;
 import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
@@ -31,7 +32,9 @@ public class SecurityConfig {
                                 "/api/v1/auth/**",
                                 "/api/v1/accounts/**",
                                 "/api/v1/charge/**",
-                                "/api/v1/exchange/**"));
+                                "/api/v1/exchange/**",
+                                "/api/v1/payment/**",
+                                "/api/v1/merchant/**"));
 
         // 경로별 접근 권한 설정, 새 도메인 개발 시 해당 경로 추가 필요
         http.authorizeHttpRequests(
@@ -52,6 +55,12 @@ public class SecurityConfig {
                                 .permitAll()
                                 // 사용자 도메인
                                 .requestMatchers("/api/v1/users/**", "/api/v1/payment/**")
+                                .hasRole("USER")
+                                // QR 가맹점 정보 조회(PAY-001): 소비자가 결제 진입 시 호출.
+                                // /merchant/{merchantId} 숫자 ID만 허용해 다른 가맹점 전용 경로는 열지 않는다.
+                                .requestMatchers(
+                                        RegexRequestMatcher.regexMatcher(
+                                                HttpMethod.GET, "/api/v1/merchant/\\d+"))
                                 .hasRole("USER")
                                 // 가맹점 도메인
                                 .requestMatchers("/api/v1/merchant/**")

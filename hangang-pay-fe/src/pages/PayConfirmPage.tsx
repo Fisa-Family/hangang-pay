@@ -70,7 +70,7 @@ export function PayConfirmPage() {
   function handlePay() {
     if (!canPay || !merchantQuery.data) return
     intentMutation.mutate({
-      merchantPartyId: merchantQuery.data.merchantPartyId,
+      merchantPartyId: merchantQuery.data.partyId,
       amount,
     })
   }

@@ -7,10 +7,10 @@ export type MerchantPaymentsCursor = { cursorCreatedAt: string; cursorId: number
 export function toDisplayItem(raw: MerchantPaymentHistoryItem): HistoryListItem {
   return {
     id: String(raw.transactionId),
-    displayType: raw.transactionType, // PAYMENT → 검정/−, CANCEL → 파랑/+
+    displayType: raw.transactionType, // 가맹점 관점: PAYMENT(수취) → +, CANCEL(환불 지급) → −
     counterpartName: raw.payerName,
     amount: raw.amount,
-    sign: raw.transactionType === 'CANCEL' ? '+' : '-',
+    sign: raw.transactionType === 'CANCEL' ? '-' : '+',
     createdAt: raw.createdAt,
   }
 }

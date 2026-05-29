@@ -1,5 +1,6 @@
 package family.fisa.hangangpaybank.domain.institution.service;
 
+import family.fisa.hangangpaybank.domain.blockchain.service.ContractCallService;
 import family.fisa.hangangpaybank.domain.institution.code.error.InstitutionErrorCode;
 import family.fisa.hangangpaybank.domain.institution.dto.request.CreateBankWalletRequest;
 import family.fisa.hangangpaybank.domain.institution.dto.response.BankWalletResponse;
@@ -13,11 +14,13 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.web3j.crypto.ECKeyPair;
 import org.web3j.crypto.Keys;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -26,6 +29,7 @@ public class BankWalletCommandService {
     private final BankWalletRepository bankWalletRepository;
     private final InstitutionRepository institutionRepository;
     private final WalletKeyCipher walletKeyCipher;
+    private final ContractCallService contractCallService;
 
     public BankWallet save(BankWallet bankWallet) {
         return bankWalletRepository.save(bankWallet);
@@ -65,6 +69,16 @@ public class BankWalletCommandService {
                         .encryptedPrivateKey(encryptedPrivateKey)
                         .build();
         BankWallet saved = bankWalletRepository.save(bankWallet);
+
+        // 5. 가맹점이면 온체인 화이트리스트 등록
+        if (request.merchant()) {
+            try {
+                contractCallService.setMerchant(walletAddress);
+                log.info("[bank] 가맹점 온체인 등록 완료. walletAddress={}", walletAddress);
+            } catch (Exception e) {
+                log.warn("[bank] 가맹점 온체인 등록 실패. walletAddress={}", walletAddress, e);
+            }
+        }
 
         return BankWalletResponse.from(saved);
     }
