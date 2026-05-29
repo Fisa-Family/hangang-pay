@@ -16,6 +16,7 @@ import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.entity.PartyType;
 import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
+import family.fisa.hangangpay.domain.transaction.dto.response.AllHistoryItem;
 import family.fisa.hangangpay.domain.transaction.dto.response.MerchantPaymentDetail;
 import family.fisa.hangangpay.domain.transaction.dto.response.MerchantPaymentHistoryItem;
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
@@ -23,6 +24,7 @@ import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
 import family.fisa.hangangpay.domain.user.code.error.UserErrorCode;
+import family.fisa.hangangpay.domain.user.dto.UserHistoryType;
 import family.fisa.hangangpay.domain.user.entity.User;
 import family.fisa.hangangpay.domain.user.repository.UserRepository;
 import family.fisa.hangangpay.global.exception.BusinessException;
@@ -109,7 +111,7 @@ class TransactionQueryServiceTest {
                             party(PARTY_ID),
                             merchantParty(MERCHANT_PARTY_ID),
                             TransactionType.PAYMENT);
-            Window<Transaction> window = Window.from(List.of(tx), i -> ScrollPosition.offset(i));
+            Window<Transaction> window = Window.from(List.of(tx), ScrollPosition::offset);
 
             when(paginationService.resolveScrollPosition(any()))
                     .thenReturn(ScrollPosition.offset());
@@ -221,6 +223,143 @@ class TransactionQueryServiceTest {
                             eq(List.of(TransactionType.EXCHANGE)),
                             any(ScrollPosition.class),
                             any(Limit.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("전체 내역 조회 (getAllHistories)")
+    class GetAllHistories {
+
+        @Test
+        @DisplayName("정상: 4개 타입을 한 번에 조회하고 타입별로 AllHistoryItem 필드를 매핑")
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        void success_mapsEachType() {
+            Transaction payment =
+                    mockTx(
+                            1L,
+                            party(PARTY_ID),
+                            merchantParty(MERCHANT_PARTY_ID),
+                            TransactionType.PAYMENT);
+            Transaction charge = mockTx(2L, party(PARTY_ID), null, TransactionType.CHARGE);
+            when(charge.getDiscountAmount()).thenReturn(new BigDecimal("5000"));
+            when(charge.getDiscountRate()).thenReturn(new BigDecimal("0.10"));
+            Transaction exchange = mockTx(3L, party(PARTY_ID), null, TransactionType.EXCHANGE);
+
+            Window<Transaction> window =
+                    Window.from(List.of(payment, charge, exchange), i -> ScrollPosition.offset(i));
+
+            when(paginationService.resolveScrollPosition(any()))
+                    .thenReturn(ScrollPosition.offset());
+            when(transactionRepository.findTransactionByPartyId(
+                            eq(PARTY_ID),
+                            eq(TransactionStatus.SUCCESS),
+                            eq(
+                                    List.of(
+                                            TransactionType.PAYMENT,
+                                            TransactionType.CANCEL,
+                                            TransactionType.CHARGE,
+                                            TransactionType.EXCHANGE)),
+                            any(ScrollPosition.class),
+                            any(Limit.class)))
+                    .thenReturn(window);
+            when(merchantRepository.findByParty_IdIn(List.of(MERCHANT_PARTY_ID)))
+                    .thenReturn(List.of(merchant(MERCHANT_PARTY_ID, "카페 드롭탑")));
+
+            CursorPageResponse sentinel = mock(CursorPageResponse.class);
+            when(paginationService.toCursorPage(any()))
+                    .thenAnswer(
+                            invocation -> {
+                                Window<AllHistoryItem> responseWindow = invocation.getArgument(0);
+                                List<AllHistoryItem> content = responseWindow.getContent();
+
+                                assertThat(content).hasSize(3);
+
+                                // 결제: 가맹점명 + 승인번호 채움, 할인 필드 null
+                                AllHistoryItem p = content.get(0);
+                                assertThat(p.historyId()).isEqualTo(1L);
+                                assertThat(p.historyType()).isEqualTo(UserHistoryType.PAYMENT);
+                                assertThat(p.merchantName()).isEqualTo("카페 드롭탑");
+                                assertThat(p.approvalNumber()).isEqualTo("APV-2026-00000001");
+                                assertThat(p.discountAmount()).isNull();
+                                assertThat(p.discountRate()).isNull();
+
+                                // 충전: 할인 필드 채움, 가맹점명/승인번호 null
+                                AllHistoryItem c = content.get(1);
+                                assertThat(c.historyId()).isEqualTo(2L);
+                                assertThat(c.historyType()).isEqualTo(UserHistoryType.CHARGE);
+                                assertThat(c.merchantName()).isNull();
+                                assertThat(c.approvalNumber()).isNull();
+                                assertThat(c.discountAmount()).isEqualByComparingTo("5000");
+                                assertThat(c.discountRate()).isEqualByComparingTo("0.10");
+
+                                // 환전: amount/status/createdAt 외 전부 null
+                                AllHistoryItem e = content.get(2);
+                                assertThat(e.historyId()).isEqualTo(3L);
+                                assertThat(e.historyType()).isEqualTo(UserHistoryType.EXCHANGE);
+                                assertThat(e.merchantName()).isNull();
+                                assertThat(e.approvalNumber()).isNull();
+                                assertThat(e.discountAmount()).isNull();
+                                assertThat(e.discountRate()).isNull();
+
+                                return sentinel;
+                            });
+
+            CursorPageResponse result =
+                    transactionQueryService.getAllHistories(PARTY_ID, emptyRequest(), PAGE_SIZE);
+
+            assertThat(result).isSameAs(sentinel);
+            verify(transactionRepository)
+                    .findTransactionByPartyId(
+                            eq(PARTY_ID),
+                            eq(TransactionStatus.SUCCESS),
+                            eq(
+                                    List.of(
+                                            TransactionType.PAYMENT,
+                                            TransactionType.CANCEL,
+                                            TransactionType.CHARGE,
+                                            TransactionType.EXCHANGE)),
+                            any(ScrollPosition.class),
+                            any(Limit.class));
+        }
+
+        @Test
+        @DisplayName("가맹점 매핑 없음 -> 결제 원소 merchantName 이 '알 수 없는 가맹점' fallback")
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        void missingMerchant_fallback() {
+            Transaction payment =
+                    mockTx(
+                            1L,
+                            party(PARTY_ID),
+                            merchantParty(MERCHANT_PARTY_ID),
+                            TransactionType.PAYMENT);
+            Window<Transaction> window =
+                    Window.from(List.of(payment), i -> ScrollPosition.offset(i));
+
+            when(paginationService.resolveScrollPosition(any()))
+                    .thenReturn(ScrollPosition.offset());
+            when(transactionRepository.findTransactionByPartyId(
+                            eq(PARTY_ID),
+                            eq(TransactionStatus.SUCCESS),
+                            any(),
+                            any(ScrollPosition.class),
+                            any(Limit.class)))
+                    .thenReturn(window);
+            when(merchantRepository.findByParty_IdIn(List.of(MERCHANT_PARTY_ID)))
+                    .thenReturn(List.of());
+
+            CursorPageResponse sentinel = mock(CursorPageResponse.class);
+            when(paginationService.toCursorPage(any()))
+                    .thenAnswer(
+                            invocation -> {
+                                Window<AllHistoryItem> responseWindow = invocation.getArgument(0);
+                                assertThat(responseWindow.getContent().get(0).merchantName())
+                                        .isEqualTo("알 수 없는 가맹점");
+                                return sentinel;
+                            });
+
+            transactionQueryService.getAllHistories(PARTY_ID, emptyRequest(), PAGE_SIZE);
+
+            verify(merchantRepository).findByParty_IdIn(List.of(MERCHANT_PARTY_ID));
         }
     }
 

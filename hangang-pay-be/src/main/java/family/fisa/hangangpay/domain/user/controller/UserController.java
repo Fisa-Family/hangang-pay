@@ -2,16 +2,19 @@ package family.fisa.hangangpay.domain.user.controller;
 
 import static family.fisa.hangangpay.domain.user.dto.UserHistoryType.*;
 
+import family.fisa.hangangpay.domain.transaction.dto.response.AllHistoryItem;
 import family.fisa.hangangpay.domain.transaction.dto.response.ChargeHistoryItem;
 import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeHistoryItem;
 import family.fisa.hangangpay.domain.transaction.dto.response.PaymentHistoryItem;
 import family.fisa.hangangpay.domain.transaction.service.TransactionQueryService;
+import family.fisa.hangangpay.domain.user.code.error.UserErrorCode;
 import family.fisa.hangangpay.domain.user.dto.UserHistoryDetailResponse;
 import family.fisa.hangangpay.domain.user.dto.UserHistoryResponse;
 import family.fisa.hangangpay.domain.user.dto.UserHistoryType;
 import family.fisa.hangangpay.domain.user.dto.UserProfileResponse;
 import family.fisa.hangangpay.domain.user.service.UserQueryService;
 import family.fisa.hangangpay.global.code.success.GeneralSuccessCode;
+import family.fisa.hangangpay.global.exception.BusinessException;
 import family.fisa.hangangpay.global.pagination.CursorPageRequest;
 import family.fisa.hangangpay.global.pagination.CursorPageResponse;
 import family.fisa.hangangpay.global.response.ApiResponse;
@@ -48,11 +51,16 @@ public class UserController {
     @GetMapping("/histories")
     public ResponseEntity<ApiResponse<UserHistoryResponse<?>>> getHistories(
             @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId,
-            @RequestParam UserHistoryType historyType,
+            @RequestParam UserHistoryType type,
             @RequestParam(defaultValue = "20") int size,
             CursorPageRequest cursor) {
         UserHistoryResponse<?> result =
-                switch (historyType) {
+                switch (type) {
+                    case ALL -> {
+                        CursorPageResponse<AllHistoryItem> page =
+                                transactionQueryService.getAllHistories(partyId, cursor, size);
+                        yield UserHistoryResponse.of(ALL, page);
+                    }
                     case PAYMENT, CANCEL -> {
                         CursorPageResponse<PaymentHistoryItem> page =
                                 transactionQueryService.getUserPaymentHistory(
@@ -98,6 +106,7 @@ public class UserController {
                                     type,
                                     transactionQueryService.getUserExchangeHistoryDetail(
                                             partyId, historyId));
+                    case ALL -> throw new BusinessException(UserErrorCode.INVALID_HISTORY_TYPE);
                 };
 
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, result));
