@@ -83,7 +83,8 @@ public class TransactionCommandService {
                                 .idempotentKey(request.transactionUuid())
                                 .build());
 
-        // 6. 블록체인 mint 호출 (충전가 mint, 컨트랙트에서 실제로는 amount 단위로 mint하지만, BE에서는 할인율 적용된 finalAmount 단위로 멱등성 판단)
+        // 6. 블록체인 mint 호출 (충전가 mint, 컨트랙트에서 실제로는 amount 단위로 mint하지만, BE에서는 할인율 적용된 finalAmount 단위로
+        // 멱등성 판단)
         TransactionReceipt receipt =
                 contractCallService.charge(
                         request.institutionId(),
