@@ -19,7 +19,9 @@ export function PinPage() {
 
   useEffect(() => {
     if (pin.length !== PIN_LENGTH || !state) return
-    const { nextRoute, cancelRoute: _cancelRoute, ...rest } = state
+    const { nextRoute, ...rest } = state
+
+    delete rest.cancelRoute
     navigate(nextRoute, { state: { ...rest, pin } })
   }, [pin, navigate, state])
 

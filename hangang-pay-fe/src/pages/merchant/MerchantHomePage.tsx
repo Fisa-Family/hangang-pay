@@ -197,9 +197,7 @@ export function MerchantHomePage() {
           {/* 오늘 매출 */}
           <div className="flex-1 pr-5">
             <p className="text-sm text-muted-foreground">오늘 매출</p>
-            <p className="mt-1 text-[22px] font-bold leading-tight text-primary">
-              {formatWon(0)}
-            </p>
+            <p className="mt-1 text-[22px] font-bold leading-tight text-primary">{formatWon(0)}</p>
           </div>
           {/* 수직 구분선 */}
           <div className="w-px self-stretch bg-muted" />

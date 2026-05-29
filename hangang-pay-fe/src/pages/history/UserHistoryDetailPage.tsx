@@ -31,13 +31,7 @@ interface FlowConfig {
   rows: (detail: unknown, onCopy: (text: string) => void) => DetailRow[]
 }
 
-function TxHashButton({
-  hash,
-  onCopy,
-}: {
-  hash?: string
-  onCopy: (text: string) => void
-}) {
+function TxHashButton({ hash, onCopy }: { hash?: string; onCopy: (text: string) => void }) {
   if (!hash) return <span>{shortHash()}</span>
   return (
     <button
@@ -194,7 +188,8 @@ export function UserHistoryDetailPage() {
             <div className="shrink-0 text-right">
               <p className="text-xs text-muted-foreground">{flow.amountLabel}</p>
               <p className="mt-1.5 text-[24px] font-bold leading-none text-foreground">
-                {prefix}{formatWon(amount)}
+                {prefix}
+                {formatWon(amount)}
               </p>
             </div>
           </div>

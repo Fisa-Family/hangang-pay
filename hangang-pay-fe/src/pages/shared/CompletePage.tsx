@@ -43,8 +43,7 @@ const FLOWS: Record<string, FlowConfig> = {
     rows: (s) => [
       {
         label: '입금 계좌',
-        value:
-          s.bankName && s.accountNumber ? `${s.bankName} ${s.accountNumber}` : '—',
+        value: s.bankName && s.accountNumber ? `${s.bankName} ${s.accountNumber}` : '—',
       },
       {
         label: '신청일시',
@@ -96,7 +95,11 @@ export function CompletePage() {
         </div>
       </div>
 
-      <Button size="lg" className="rounded-2xl" onClick={() => navigate('/home', { replace: true })}>
+      <Button
+        size="lg"
+        className="rounded-2xl"
+        onClick={() => navigate('/home', { replace: true })}
+      >
         홈으로
       </Button>
     </div>
