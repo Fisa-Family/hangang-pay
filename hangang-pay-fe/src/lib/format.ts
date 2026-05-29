@@ -39,6 +39,13 @@ export function formatDateTime(iso: string): string {
   return `${yyyy}-${mm}-${dd} ${hh}:${mi}`
 }
 
+export function formatMaskedAccount(institutionName: string, accountNumber: string): string {
+  if (!institutionName || !accountNumber) {
+    return ''
+  }
+  return `${institutionName} ****${accountNumber.slice(-4)}`
+}
+
 export function formatPhoneNumber(raw: string): string {
   if (raw.length !== 11) {
     return raw

@@ -131,7 +131,7 @@ function BarChartIcon({ className }: { className?: string }) {
 // 보조 메뉴 항목과 이동 경로
 const secondaryMenuItems = [
   { label: '결제 내역', icon: DocumentIcon, path: '/merchant/payments' },
-  { label: '정산 내역', icon: PieChartIcon, path: '/merchant/settlement/history' },
+  { label: '출금 내역', icon: PieChartIcon, path: '/merchant/settlement/history' },
   { label: '매출 분석', icon: BarChartIcon, path: '/merchant/analytics' },
 ] as const
 
@@ -146,7 +146,7 @@ function RecentSettlementList() {
   const items = data.content
 
   if (items.length === 0) {
-    return <EmptyState message="최근 정산 내역이 없습니다." />
+    return <EmptyState message="최근 출금 내역이 없습니다." />
   }
 
   return (
@@ -231,14 +231,14 @@ export function MerchantHomePage() {
         <button
           type="button"
           onClick={() => navigate('/merchant/settlement')}
-          className="flex h-[120px] flex-col justify-between rounded-2xl bg-[#1E3A8A] p-4 text-left transition-opacity active:opacity-90"
+          className="flex h-[120px] flex-col justify-between rounded-2xl bg-[#1E40AF] p-4 text-left transition-opacity active:opacity-90"
         >
           {/* 원화 기호 원형 뱃지 */}
-          <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white/40">
-            <span className="font-bold text-white/40">₩</span>
+          <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white/70">
+            <span className="font-bold text-white">₩</span>
           </div>
           <div className="flex items-end justify-between">
-            <span className="text-[15px] font-bold text-white">정산받기</span>
+            <span className="text-[15px] font-bold text-white">출금하기</span>
             <ChevronRightIcon className="h-4 w-4 text-white" />
           </div>
         </button>
@@ -264,7 +264,7 @@ export function MerchantHomePage() {
       {/* 최근 정산 내역: 흰 카드 / 헤더(제목+전체보기) + 목록 */}
       <div className="rounded-2xl bg-white p-5 shadow-sm">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-bold text-[#111827]">최근 정산 내역</h2>
+          <h2 className="text-base font-bold text-[#111827]">최근 출금 내역</h2>
           <button
             type="button"
             onClick={() => navigate('/merchant/settlement/history')}
@@ -277,7 +277,7 @@ export function MerchantHomePage() {
         {isLoading ? (
           <div className="py-4 text-center text-sm text-muted-foreground">불러오는 중…</div>
         ) : (
-          <ErrorBoundary fallback={<EmptyState message="정산 내역을 불러올 수 없습니다." />}>
+          <ErrorBoundary fallback={<EmptyState message="출금 내역을 불러올 수 없습니다." />}>
             <Suspense
               fallback={
                 <div className="py-4 text-center text-sm text-muted-foreground">불러오는 중…</div>

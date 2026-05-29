@@ -22,6 +22,7 @@ import { MerchantQrPage } from '@/pages/MerchantQrPage'
 import { MerchantPaymentsPage } from '@/pages/MerchantPaymentsPage'
 import { MerchantPaymentDetailPage } from '@/pages/MerchantPaymentDetailPage'
 import { MerchantMyPage } from '@/pages/MerchantMyPage'
+import { MerchantSettlementPage } from '@/pages/MerchantSettlementPage'
 import { PayConfirmPage } from '@/pages/PayConfirmPage'
 import { PinPage } from '@/pages/PinPage.tsx'
 import { ProcessingPage } from '@/pages/ProcessingPage.tsx'
@@ -158,6 +159,7 @@ export const router = createBrowserRouter([
                 path: '/merchant/payments/:transactionId',
                 element: <MerchantPaymentDetailPage />,
               },
+              { path: '/merchant/settlement', element: <MerchantSettlementPage /> },
             ],
           },
         ],
