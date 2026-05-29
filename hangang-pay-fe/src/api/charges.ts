@@ -6,17 +6,11 @@ interface ChargeDetailResult {
     historyId: number
     amount: number
     discountAmount: number
-    discountRate: number
     actualPaidAmount: number
-    transferStatus: string
-    transferType: string
     accountNumber: string
     bankName: string
-    walletAddress: string
     createdAt: string
-    updatedAt: string
     txHash: string
-    blockchainStatus: string
   }
 }
 

@@ -10,6 +10,7 @@ import {
 } from '@/components/common'
 import { ApiError } from '@/api/client'
 import { getChargeDetail, type ChargeDetail } from '@/api/charges'
+import icon from '@/components/common/icons/icon.png'
 
 const formatWon = (value: number) => `${value.toLocaleString('ko-KR')}원`
 
@@ -92,11 +93,11 @@ export function ChargeDetailPage() {
       <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-4 pt-5">
         <section className="rounded-2xl border border-border bg-card px-5 py-5 shadow-sm">
           <div className="flex min-h-[72px] items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-xs font-bold text-primary">
-              한강
+            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl">
+              <img src={icon} alt="한강사랑상품권" className="h-full w-full object-cover" />
             </div>
 
-            <div className="min-w-0 flex-1 self-start pt-4">
+            <div className="min-w-0 flex-1">
               <p className="text-[16px] font-semibold leading-none text-foreground">
                 한강사랑상품권
               </p>
@@ -138,12 +139,20 @@ export function ChargeDetailPage() {
                     onClick={() => {
                       if (!charge.txHash) return
 
-                      void navigator.clipboard.writeText(charge.txHash)
-
-                      setToast({
-                        message: '트랜잭션 해시가 복사되었습니다.',
-                        variant: 'success',
-                      })
+                      void navigator.clipboard
+                        .writeText(charge.txHash)
+                        .then(() => {
+                          setToast({
+                            message: '트랜잭션 해시가 복사되었습니다.',
+                            variant: 'success',
+                          })
+                        })
+                        .catch(() => {
+                          setToast({
+                            message: '복사에 실패했습니다.',
+                            variant: 'error',
+                          })
+                        })
                     }}
                   >
                     {shortHash(charge.txHash)} ⧉
