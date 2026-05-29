@@ -132,8 +132,32 @@ public class LocalDataInitializer implements ApplicationRunner {
                                 .build());
         Wallet merchantWallet = walletCommandService.createWallet(merchantParty, bok);
 
+        // user2 — 환불 가능 시나리오 (충전 후 결제 65,000 >= threshold 60,000, 잔액 35,000)
+        Party user2Party = partyRepository.save(Party.of(PartyType.USER));
+        userRepository.save(
+                User.builder()
+                        .party(user2Party)
+                        .username("환불가능유저")
+                        .passwordHash(passwordEncoder.encode("password"))
+                        .paymentPinHash(passwordEncoder.encode("123456"))
+                        .phoneNumber("01099999999")
+                        .birthDate(LocalDate.of(1990, 6, 15))
+                        .region("성동구")
+                        .build());
+        Account user2Account =
+                accountRepository.save(
+                        Account.builder()
+                                .party(user2Party)
+                                .institution(shinhan)
+                                .accountType(AccountType.PRIMARY)
+                                .accountNumber("110-111-222333")
+                                .build());
+        Wallet user2Wallet = walletCommandService.createWallet(user2Party, bok);
+
         seedHistoryTransactions(
                 userParty, userAccount, userWallet, merchantParty, merchantAccount, merchantWallet);
+        // seedEligibleUserTransactions(user2Party, user2Account, user2Wallet, merchantParty,
+        // merchantWallet);
 
         log.info("[be-local-seed] done");
     }
@@ -391,6 +415,56 @@ public class LocalDataInitializer implements ApplicationRunner {
                                 BigDecimal.ZERO));
         uExchange.completeWithBankResponse("0xEXCTX0005", "BANK-TX-EXC-005");
         backdate(uExchange.getId(), 4, 17);
+    }
+
+    // user2: 충전 1건 후 결제 65,000원 → eligible=true, walletBalance=35,000
+    private void seedEligibleUserTransactions(
+            Party userParty,
+            Account userAccount,
+            Wallet userWallet,
+            Party merchantParty,
+            Wallet merchantWallet) {
+
+        Transaction charge =
+                transactionRepository.saveAndFlush(
+                        Transaction.forCharge(
+                                UUID.randomUUID().toString(),
+                                userParty,
+                                userAccount,
+                                userWallet,
+                                new BigDecimal("100000"),
+                                new BigDecimal("10000"),
+                                new BigDecimal("10.00")));
+        charge.completeWithBankResponse("0xCHARGETX0100", "BANK-TX-100");
+        backdate(charge.getId(), 5, 10);
+
+        Transaction payment1 =
+                transactionRepository.saveAndFlush(
+                        Transaction.forPayment(
+                                UUID.randomUUID().toString(),
+                                userParty,
+                                merchantParty,
+                                userWallet,
+                                merchantWallet,
+                                new BigDecimal("30000"),
+                                "APV-2026-00000009",
+                                "한강치킨"));
+        payment1.completeWithBankResponse("0xPAYTX0101", null);
+        backdate(payment1.getId(), 4, 10);
+
+        Transaction payment2 =
+                transactionRepository.saveAndFlush(
+                        Transaction.forPayment(
+                                UUID.randomUUID().toString(),
+                                userParty,
+                                merchantParty,
+                                userWallet,
+                                merchantWallet,
+                                new BigDecimal("35000"),
+                                "APV-2026-00000010",
+                                "한강삼겹살"));
+        payment2.completeWithBankResponse("0xPAYTX0102", null);
+        backdate(payment2.getId(), 3, 14);
     }
 
     // created_at을 과거 시각으로 덮어씀 — @CreatedDate updatable=false라 JPA 재플러시 후에도 유지

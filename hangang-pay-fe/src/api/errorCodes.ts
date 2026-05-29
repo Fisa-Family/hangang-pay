@@ -15,6 +15,11 @@ export const ApiErrorCode = {
   ACCOUNT_NOT_FOUND: 'ACCOUNT_NOT_FOUND',
 
   USER_NOT_FOUND: 'USER_NOT_FOUND',
+
+  EXCHANGE_NOT_ELIGIBLE: 'EXCHANGE_NOT_ELIGIBLE',
+  EXCHANGE_IN_PROGRESS: 'EXCHANGE_IN_PROGRESS',
+  EXCHANGE_ALREADY_FAILED: 'EXCHANGE_ALREADY_FAILED',
+  INVALID_PAYMENT_PIN: 'INVALID_PAYMENT_PIN',
 } as const
 
 export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode]
@@ -36,6 +41,11 @@ export const apiErrorMessages: Record<ApiErrorCode, string> = {
   [ApiErrorCode.ACCOUNT_NOT_FOUND]: '계좌를 찾을 수 없습니다.',
 
   [ApiErrorCode.USER_NOT_FOUND]: '사용자를 찾을 수 없습니다',
+
+  [ApiErrorCode.EXCHANGE_NOT_ELIGIBLE]: '충전금의 60% 이상 사용 후 환불 가능합니다',
+  [ApiErrorCode.EXCHANGE_IN_PROGRESS]: '이미 진행 중인 환불이 있습니다',
+  [ApiErrorCode.EXCHANGE_ALREADY_FAILED]: '이미 실패한 환불입니다. 다시 시도해 주세요',
+  [ApiErrorCode.INVALID_PAYMENT_PIN]: 'PIN이 올바르지 않습니다',
 }
 
 // 타입 가드
