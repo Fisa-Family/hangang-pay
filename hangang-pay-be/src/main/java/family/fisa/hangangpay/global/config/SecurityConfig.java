@@ -1,6 +1,7 @@
 package family.fisa.hangangpay.global.config;
 
 import family.fisa.hangangpay.global.security.SessionAuthenticationFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -76,6 +77,14 @@ public class SecurityConfig {
                                 .hasAnyRole("USER", "MERCHANT")
                                 .anyRequest()
                                 .authenticated());
+
+        http.exceptionHandling(
+                ex ->
+                        ex.authenticationEntryPoint(
+                                (request, response, authException) ->
+                                        response.sendError(
+                                                HttpServletResponse.SC_UNAUTHORIZED,
+                                                "Unauthorized")));
 
         http.addFilterBefore(
                 sessionAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
