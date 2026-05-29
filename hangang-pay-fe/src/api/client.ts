@@ -25,17 +25,21 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
     throw new ApiError('서버에 연결할 수 없습니다.', 0)
   }
 
-  let data: { isSuccess: boolean; message?: string; code?: string; result?: T }
+  let data: { isSuccess: boolean; message?: string; code?: string; result?: T } | null = null
   try {
     data = await response.json()
   } catch {
-    throw new ApiError(`HTTP ${response.status}`, response.status)
+    // JSON이 아닌 응답 (Spring Security 에러 등)
   }
 
-  if (response.status === 401) {
+  if (response.status === 401 && data === null) {
     localStorage.removeItem('role')
     window.location.replace('/login')
-    throw new ApiError(data.message ?? '인증이 필요합니다.', 401, data.code)
+    throw new ApiError('인증이 필요합니다.', 401)
+  }
+
+  if (data === null) {
+    throw new ApiError(`HTTP ${response.status}`, response.status)
   }
 
   if (!data.isSuccess) {
