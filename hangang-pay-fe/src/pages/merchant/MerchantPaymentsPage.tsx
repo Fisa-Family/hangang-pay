@@ -11,7 +11,7 @@ import {
 } from '@/components/common'
 import { formatTimeHHmm, formatWon } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { groupByDate } from './UserHistoryPage.helpers'
+import { groupByDate } from '../history/UserHistoryPage.helpers'
 import {
   getNextPageParam,
   toDisplayItem,
