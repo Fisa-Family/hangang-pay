@@ -3,10 +3,9 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { PageHeader, PinEntry } from '@/components/common'
 
 interface LocationState {
-  transactionUuid: string
-  amount: number
-  merchantName: string
-  balance: number
+  nextRoute: string
+  cancelRoute?: string
+  [key: string]: unknown
 }
 
 const PIN_LENGTH = 6
@@ -19,17 +18,18 @@ export function PinPage() {
   const [pin, setPin] = useState('')
 
   useEffect(() => {
-    if (pin.length === PIN_LENGTH && state) {
-      navigate('/pay/processing', {
-        state: {
-          transactionUuid: state.transactionUuid,
-          pin,
-          amount: state.amount,
-          merchantName: state.merchantName,
-        },
-      })
-    }
+    if (pin.length !== PIN_LENGTH || !state) return
+    const { nextRoute, cancelRoute: _cancelRoute, ...rest } = state
+    navigate(nextRoute, { state: { ...rest, pin } })
   }, [pin, navigate, state])
+
+  function handleCancel() {
+    if (state?.cancelRoute) {
+      navigate(state.cancelRoute, { replace: true })
+    } else {
+      navigate(-1)
+    }
+  }
 
   return (
     <div className="flex h-dvh flex-col bg-white">
@@ -39,14 +39,13 @@ export function PinPage() {
         rightAction={
           <button
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={handleCancel}
             className="text-sm font-medium text-muted-foreground"
           >
             취소
           </button>
         }
       />
-
       <PinEntry pin={pin} length={PIN_LENGTH} onChange={setPin} onForgot={() => {}} />
     </div>
   )

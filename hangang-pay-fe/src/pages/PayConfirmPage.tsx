@@ -39,6 +39,7 @@ export function PayConfirmPage() {
     onSuccess: (data) => {
       navigate('/pay/pin', {
         state: {
+          nextRoute: '/pay/processing',
           transactionUuid: data.transactionUuid,
           amount: Number(amountStr) || 0,
           merchantName: merchantQuery.data?.merchantName ?? '',

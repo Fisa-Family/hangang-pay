@@ -83,6 +83,8 @@ export function ChargeAmountPage() {
     if (!canCharge || !data || !selectedAccount) return
     navigate('/charge/pin', {
       state: {
+        nextRoute: '/charge/processing',
+        cancelRoute: '/charge/amount',
         transactionUuid: data.transactionUuid,
         institutionId: selectedAccount.institutionId,
         accountId: selectedAccount.accountId,
@@ -174,7 +176,7 @@ export function ChargeAmountPage() {
         </div>
 
         {/* 결제 금액, 계좌 - 회색 박스, 키패드보다 위 */}
-        <div className="mb-5 rounded-2xl bg-[#F4F6F8] px-4 py-3.5">
+        <div className="mb-5 rounded-2xl bg-muted px-4 py-3.5">
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-col gap-1">
               <span className="text-[13px] font-medium text-foreground">결제 금액</span>
@@ -205,7 +207,7 @@ export function ChargeAmountPage() {
       </div>
 
       {/* 키패드 - 핀테크 결제 스타일, 분리선 기반 */}
-      <div className="grid grid-cols-3 border-t border-[#E8EAED]">
+      <div className="grid grid-cols-3 border-t border-border">
         {PAD_KEYS.map((key, i) => {
           const isLastCol = (i + 1) % 3 === 0
           const isLastRow = i >= 9
@@ -216,9 +218,9 @@ export function ChargeAmountPage() {
               onClick={() => handleKey(key)}
               className={cn(
                 'flex h-[64px] items-center justify-center bg-white text-[22px] font-bold text-foreground',
-                'transition-colors active:bg-[#F4F6F8]',
-                !isLastCol && 'border-r border-[#E8EAED]',
-                !isLastRow && 'border-b border-[#E8EAED]'
+                'transition-colors active:bg-muted',
+                !isLastCol && 'border-r border-border',
+                !isLastRow && 'border-b border-border'
               )}
             >
               {key === '⌫' ? (

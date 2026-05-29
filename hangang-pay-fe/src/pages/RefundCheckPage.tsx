@@ -58,7 +58,12 @@ export function RefundCheckPage() {
   const handleSubmit = () => {
     if (!data || !effectiveSelectedId) return
     navigate('/refund/pin', {
-      state: { amount: data.walletBalance, accountId: effectiveSelectedId },
+      state: {
+        nextRoute: '/refund/processing',
+        transactionUuid: crypto.randomUUID(),
+        amount: data.walletBalance,
+        accountId: effectiveSelectedId,
+      },
     })
   }
 
