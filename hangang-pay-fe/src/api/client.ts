@@ -25,21 +25,18 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
     throw new ApiError('서버에 연결할 수 없습니다.', 0)
   }
 
-  let data: { isSuccess: boolean; message?: string; code?: string; result?: T }
-  try {
-    data = await response.json()
-  } catch {
-    throw new ApiError(`HTTP ${response.status}`, response.status)
+  const data: { isSuccess: boolean; message?: string; code?: string; result?: T } | null =
+    await response.json().catch(() => null)
+
+  const isAppError = data != null && data.isSuccess === false
+  if (response.status === 401 && !isAppError) {
+    localStorage.removeItem('role')
+    window.location.replace('/login')
+    throw new ApiError(data?.message ?? '인증이 필요합니다.', 401, data?.code)
   }
 
-  if (response.status === 401) {
-    // 세션 만료(COMMON_UNAUTHORIZED)일 때만 로그인으로. PIN/자격 오류 등 그 외 401은
-    // 호출부가 토스트·메시지로 처리하도록 ApiError로 던진다.
-    if (data.code === 'COMMON_UNAUTHORIZED') {
-      localStorage.removeItem('role')
-      window.location.replace('/login')
-    }
-    throw new ApiError(data.message ?? '인증이 필요합니다.', 401, data.code)
+  if (data === null) {
+    throw new ApiError(`HTTP ${response.status}`, response.status)
   }
 
   if (!data.isSuccess) {

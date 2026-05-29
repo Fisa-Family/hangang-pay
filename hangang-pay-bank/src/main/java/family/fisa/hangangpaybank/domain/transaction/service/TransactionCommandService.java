@@ -83,19 +83,20 @@ public class TransactionCommandService {
                                 .idempotentKey(request.transactionUuid())
                                 .build());
 
-        // 6. 블록체인 mint 호출 (계좌 → 사용자 지갑으로 토큰 발행)
+        // 6. 블록체인 mint 호출 (충전가 mint, 컨트랙트에서 실제로는 amount 단위로 mint하지만, BE에서는 할인율 적용된 finalAmount 단위로
+        // 멱등성 판단)
         TransactionReceipt receipt =
                 contractCallService.charge(
                         request.institutionId(),
                         bankWallet.getWalletAddress(),
-                        toTokenUnit(request.amount()));
+                        toTokenUnit(request.mintAmount()));
 
         // 7. blockchain_ledger 기록 (idempotent_key = BE의 transactionUuid)
         BlockchainLedger ledger =
                 saveBlockchainLedger(institution, receipt, request.transactionUuid());
 
-        // 8. 지갑 잔액 증가
-        BigDecimal newWalletBalance = bankWallet.getBalance().add(request.amount());
+        // 8. 지갑 잔액 증가 (충전가)
+        BigDecimal newWalletBalance = bankWallet.getBalance().add(request.mintAmount());
         bankWallet.updateBalance(newWalletBalance);
 
         // 9. Response 반환

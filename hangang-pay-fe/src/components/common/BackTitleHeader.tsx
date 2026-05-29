@@ -1,11 +1,14 @@
+import { cn } from '@/lib/utils'
+
 interface BackTitleHeaderProps {
   title: string
   onBack: () => void
+  className?: string
 }
 
-export function BackTitleHeader({ title, onBack }: BackTitleHeaderProps) {
+export function BackTitleHeader({ title, onBack, className }: BackTitleHeaderProps) {
   return (
-    <header className="flex items-center gap-2 pt-2 pb-3">
+    <header className={cn('flex items-center gap-2 pt-2 pb-3', className)}>
       <button
         type="button"
         aria-label="뒤로가기"

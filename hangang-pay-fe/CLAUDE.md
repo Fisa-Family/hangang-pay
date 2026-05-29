@@ -145,6 +145,7 @@ src/
 - 데스크톱 전용 레이아웃을 새로 만들지 않는다.
 - Tailwind CSS v4를 사용한다. CSS Modules나 인라인 스타일은 기존 패턴상 필요한 경우에만 제한적으로 사용한다.
 - 화면별 예외는 `docs/dev-specs/screens/*.md`를 우선한다.
+- 색상은 반드시 `src/index.css`에 정의된 CSS 변수 토큰(`bg-background`, `bg-card`, `text-foreground` 등)을 사용한다. `#rrggbb` 또는 `rgb()` 형태의 임의 색상값은 사용하지 않는다. 토큰에 없는 색이 필요하다면 먼저 `src/index.css`를 확인해 가장 가까운 토큰을 찾는다.
 
 ## 테스트 방침
 

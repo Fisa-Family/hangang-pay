@@ -31,8 +31,14 @@ import { ChargeAmountPage } from '@/pages/ChargeAmountPage'
 import { ChargePinPage } from '@/pages/ChargePinPage'
 import { ChargeProcessingPage } from '@/pages/ChargeProcessingPage'
 import { ChargeCompletePage } from '@/pages/ChargeCompletePage'
+import { RefundCheckPage } from '@/pages/RefundCheckPage'
+import { RefundPinPage } from '@/pages/RefundPinPage'
+import { RefundProcessingPage } from '@/pages/RefundProcessingPage'
+import { RefundCompletePage } from '@/pages/RefundCompletePage'
 import { AppShell } from '@/components/common'
 import { ChargeDetailPage } from '@/pages/ChargeDetailPage'
+import { ExchangeDetailPage } from '@/pages/ExchangeDetailPage'
+import { PaymentDetailPage } from '@/pages/UserPaymentDetailPage'
 
 // 미등록 경로 접근 시 경로 기반으로 해당 영역 홈으로 교체
 function GoBack() {
@@ -123,6 +129,12 @@ export const router = createBrowserRouter([
               { path: '/charge/processing', element: <ChargeProcessingPage /> },
               { path: '/charge/complete', element: <ChargeCompletePage /> },
               { path: '/mypage/history/charges/:id', element: <ChargeDetailPage /> },
+              { path: '/mypage/history/exchanges/:id', element: <ExchangeDetailPage /> },
+              { path: '/mypage/history/payments/:id', element: <PaymentDetailPage /> },
+              { path: '/refund/check', element: <RefundCheckPage /> },
+              { path: '/refund/pin', element: <RefundPinPage /> },
+              { path: '/refund/processing', element: <RefundProcessingPage /> },
+              { path: '/refund/complete', element: <RefundCompletePage /> },
             ],
           },
         ],

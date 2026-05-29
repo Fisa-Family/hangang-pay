@@ -9,7 +9,7 @@ import {
   type ToastState,
 } from '@/components/common'
 import { ApiError } from '@/api/client'
-import { getChargeDetail, type ChargeDetail } from '@/api/chargeHistories'
+import { getPaymentHistoryDetail, type PaymentHistoryDetail } from '@/api/paymentHistories'
 import icon from '@/components/common/icons/icon.png'
 
 const formatWon = (value: number) => `${value.toLocaleString('ko-KR')}원`
@@ -30,20 +30,20 @@ const formatDateTime = (value: string) =>
 
 const shortHash = (hash?: string) => (hash ? `${hash.slice(0, 14)}...${hash.slice(-4)}` : '-')
 
-export function ChargeDetailPage() {
+export function PaymentDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const [detail, setDetail] = useState<ChargeDetail | null>(null)
+  const [detail, setDetail] = useState<PaymentHistoryDetail | null>(null)
   const [error, setError] = useState('')
   const [toast, setToast] = useState<ToastState | null>(null)
 
   useEffect(() => {
     if (!id) return
 
-    getChargeDetail(id)
+    getPaymentHistoryDetail(id)
       .then(setDetail)
       .catch((err) => {
-        setError(err instanceof ApiError ? err.message : '충전 상세 조회에 실패했습니다.')
+        setError(err instanceof ApiError ? err.message : '결제 상세 조회에 실패했습니다.')
       })
   }, [id])
 
@@ -60,7 +60,7 @@ export function ChargeDetailPage() {
   if (!detail && !error) {
     return (
       <div className="flex h-full flex-col">
-        <PageHeader title="충전 상세" onBack={() => navigate(-1)} />
+        <PageHeader title="결제 상세" onBack={() => navigate(-1)} />
         <ProcessingState status="loading" loadingText="상세 조회중" errorTitle="" />
       </div>
     )
@@ -69,7 +69,7 @@ export function ChargeDetailPage() {
   if (error) {
     return (
       <div className="flex h-full flex-col">
-        <PageHeader title="충전 상세" onBack={() => navigate(-1)} />
+        <PageHeader title="결제 상세" onBack={() => navigate(-1)} />
         <ResultState
           variant="error"
           title="상세 조회 실패"
@@ -82,13 +82,14 @@ export function ChargeDetailPage() {
       </div>
     )
   }
+
   if (!detail) return null
 
-  const charge = detail
+  const payment = detail
 
   return (
     <div className="flex h-full flex-col bg-background">
-      <PageHeader title="충전 상세" onBack={() => navigate(-1)} />
+      <PageHeader title="결제 상세" onBack={() => navigate(-1)} />
 
       <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-4 pt-5">
         <section className="rounded-2xl border border-border bg-card px-5 py-5 shadow-sm">
@@ -99,36 +100,31 @@ export function ChargeDetailPage() {
 
             <div className="min-w-0 flex-1">
               <p className="text-[16px] font-semibold leading-none text-foreground">
-                한강사랑상품권
+                {payment.itemName}
               </p>
             </div>
 
             <div className="shrink-0 text-right">
-              <p className="text-xs text-muted-foreground">충전 금액</p>
+              <p className="text-xs text-muted-foreground">결제 금액</p>
               <p className="mt-1.5 text-[24px] font-bold leading-none text-foreground">
-                {formatWon(charge.amount)}
+                -{formatWon(payment.amount)}
               </p>
             </div>
           </div>
+
           <div className="mt-4 border-t border-border/70 pt-2">
             {[
               {
-                label: '할인금액',
-                value: (
-                  <span className="text-success">{`-${formatWon(charge.discountAmount)}`}</span>
-                ),
+                label: '승인번호',
+                value: payment.approvalNumber,
               },
               {
-                label: '결제금액',
-                value: formatWon(charge.actualPaidAmount),
+                label: '결제수단',
+                value: '한강사랑상품권',
               },
               {
-                label: '결제계좌',
-                value: `${charge.bankName} ${charge.accountNumber}`,
-              },
-              {
-                label: '충전일시',
-                value: formatDateTime(charge.createdAt),
+                label: '결제일시',
+                value: formatDateTime(payment.createdAt),
               },
               {
                 label: '트랜잭션 해시',
@@ -137,10 +133,10 @@ export function ChargeDetailPage() {
                     type="button"
                     className="max-w-[230px] truncate text-right text-[14px] font-medium text-foreground"
                     onClick={() => {
-                      if (!charge.txHash) return
+                      if (!payment.txHash) return
 
                       void navigator.clipboard
-                        .writeText(charge.txHash)
+                        .writeText(payment.txHash)
                         .then(() => {
                           setToast({
                             message: '트랜잭션 해시가 복사되었습니다.',
@@ -155,7 +151,7 @@ export function ChargeDetailPage() {
                         })
                     }}
                   >
-                    {shortHash(charge.txHash)} ⧉
+                    {shortHash(payment.txHash)} ⧉
                   </button>
                 ),
               },
@@ -168,7 +164,6 @@ export function ChargeDetailPage() {
                 ].join(' ')}
               >
                 <span className="text-[13px] font-medium text-muted-foreground">{row.label}</span>
-
                 <div className="text-right text-[14px] font-semibold text-foreground">
                   {row.value}
                 </div>
@@ -177,11 +172,13 @@ export function ChargeDetailPage() {
           </div>
         </section>
       </main>
+
       <footer className="shrink-0 bg-background pt-3 pb-[calc(env(safe-area-inset-bottom)+0.25rem)]">
         <Button size="lg" onClick={() => navigate(-1)}>
           확인
         </Button>
       </footer>
+
       <Toast open={toast !== null} message={toast?.message ?? ''} variant={toast?.variant} />
     </div>
   )

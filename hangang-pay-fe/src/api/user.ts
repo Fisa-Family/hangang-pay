@@ -140,6 +140,7 @@ export function normalizeHistoryItem(raw: RawHistoryItem): HistoryListItem {
     case 'PAYMENT':
       return {
         id: raw.paymentId,
+        historyId: raw.cursorId,
         displayType: 'PAYMENT',
         counterpartName: raw.merchantName,
         amount: raw.amount,
@@ -149,6 +150,7 @@ export function normalizeHistoryItem(raw: RawHistoryItem): HistoryListItem {
     case 'CANCEL':
       return {
         id: raw.paymentId,
+        historyId: raw.cursorId,
         displayType: 'CANCEL',
         counterpartName: raw.merchantName,
         amount: raw.amount,
@@ -176,6 +178,18 @@ export function normalizeHistoryItem(raw: RawHistoryItem): HistoryListItem {
         createdAt: raw.exchangedAt,
       }
   }
+}
+
+// 홈 화면용 최근 거래 조회 — BE가 ALL 타입 미지원이라 결제, 충전, 환전 병렬 요청 후 최신순 정렬
+export async function fetchRecentTransactions(size: number): Promise<HistoryListItem[]> {
+  const [payments, charges, exchanges] = await Promise.all([
+    fetchUserHistoriesNormalized({ tab: 'PAYMENT', size }),
+    fetchUserHistoriesNormalized({ tab: 'CHARGE', size }),
+    fetchUserHistoriesNormalized({ tab: 'EXCHANGE', size }),
+  ])
+  return [...payments.items, ...charges.items, ...exchanges.items]
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, size)
 }
 
 export async function fetchUserHistoriesNormalized(
