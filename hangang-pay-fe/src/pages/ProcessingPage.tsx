@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { executePayment, recoverPayment } from '@/api/payment'
 import { ApiError } from '@/api/client'
 import { ProcessingView } from '@/components/common'
@@ -14,6 +15,7 @@ interface LocationState {
 export function ProcessingPage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const queryClient = useQueryClient() // 캐시 무효화
   const state = location.state as LocationState | null
   const calledRef = useRef(false)
 
@@ -23,6 +25,9 @@ export function ProcessingPage() {
 
     executePayment(state.transactionUuid, state.pin)
       .then((result) => {
+        // 결제 완료 후 홈 잔액, 최근 거래 캐시 무효화 → 홈 복귀 시 즉시 재조회
+        void queryClient.invalidateQueries({ queryKey: ['charge', 'init'] })
+        void queryClient.invalidateQueries({ queryKey: ['users', 'recent-histories'] })
         navigate('/pay/complete', { state: result, replace: true })
       })
       .catch(async (err) => {
@@ -38,7 +43,7 @@ export function ProcessingPage() {
           replace: true,
         })
       })
-  }, [state, navigate])
+  }, [state, navigate, queryClient])
 
   return (
     <div className="h-dvh bg-white">

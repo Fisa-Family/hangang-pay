@@ -4,8 +4,8 @@ import { useNavigate } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { useCurrentUser } from '@/auth/useCurrentUser'
 import { BalanceCard, EmptyState, ErrorBoundary, ListItem } from '@/components/common'
-import { fetchWalletBalance } from '@/api/wallet'
-import { fetchUserHistories, type HistoryType, type UserHistoryItem } from '@/api/user'
+import { fetchChargeInit } from '@/api/charge'
+import { fetchRecentTransactions, type HistoryListItem } from '@/api/user'
 import { ApiError } from '@/api/client'
 import { apiErrorMessages, isApiErrorCode } from '@/api/errorCodes'
 import { formatWon } from '@/lib/format'
@@ -27,12 +27,6 @@ function buildErrorMessage(spec: (typeof API_SPEC)[keyof typeof API_SPEC], error
 
 const HISTORY_LIMIT = 5
 
-const TYPE_LABEL: Record<string, string> = {
-  PAYMENT: '결제',
-  CHARGE: '충전',
-  EXCHANGE: '환전',
-}
-
 function formatHistoryDate(isoString: string): string {
   const d = new Date(isoString)
   const mm = String(d.getMonth() + 1).padStart(2, '0')
@@ -40,14 +34,6 @@ function formatHistoryDate(isoString: string): string {
   const hh = String(d.getHours()).padStart(2, '0')
   const min = String(d.getMinutes()).padStart(2, '0')
   return `${mm}.${dd} ${hh}:${min}`
-}
-
-function isCredit(type: HistoryType): boolean {
-  return type === 'CHARGE' || type === 'EXCHANGE'
-}
-
-function resolveTitle(tx: UserHistoryItem): string {
-  return tx.counterpartName || TYPE_LABEL[tx.type] || tx.type
 }
 
 interface QuickActionProps {
@@ -115,29 +101,30 @@ function UndoIcon() {
   )
 }
 
-function HistoryAmount({ type, amount }: { type: HistoryType; amount: number }) {
-  const credit = isCredit(type)
+// 거래 금액 표시 — 부호(+/-)에 따라 수입은 초록, 지출은 빨강으로 색상 구분
+function HistoryAmount({ sign, amount }: { sign: '+' | '-'; amount: number }) {
   return (
     <span
       className={cn(
         'shrink-0 text-right text-sm font-bold tabular-nums',
-        credit ? 'text-success' : 'text-destructive'
+        sign === '+' ? 'text-success' : 'text-destructive'
       )}
     >
-      {credit ? '+' : '-'}
+      {sign}
       {formatWon(amount)}
     </span>
   )
 }
 
+// 홈 화면 최근 거래 목록 — 결제, 충전, 환불 3종을 병렬 조회 후 최신순 5건 표시
 function RecentTransactionList() {
   const { data } = useSuspenseQuery({
     queryKey: ['users', 'recent-histories'],
-    queryFn: () => fetchUserHistories({ historyType: 'PAYMENT', size: HISTORY_LIMIT }),
+    queryFn: () => fetchRecentTransactions(HISTORY_LIMIT),
     retry: false,
   })
 
-  const histories = data.response.content
+  const histories = data
 
   if (histories.length === 0) {
     return <EmptyState message="최근 거래 내역이 없습니다." />
@@ -145,12 +132,12 @@ function RecentTransactionList() {
 
   return (
     <div className="flex flex-col gap-2">
-      {histories.map((tx) => (
+      {histories.map((tx: HistoryListItem) => (
         <ListItem
           key={tx.id}
-          title={resolveTitle(tx)}
+          title={tx.counterpartName}
           description={formatHistoryDate(tx.createdAt)}
-          rightAction={<HistoryAmount type={tx.type} amount={tx.amount} />}
+          rightAction={<HistoryAmount sign={tx.sign} amount={tx.amount} />}
         />
       ))}
     </div>
@@ -161,9 +148,11 @@ export function UserHomePage() {
   const navigate = useNavigate()
   const { currentUser } = useCurrentUser()
 
+  // TODO: EC2/온프레미스로 bank 서비스 DB 분리 운영 시
+  //       queryFn: fetchWalletBalance, queryKey: ['wallet', 'balance'] 로 변경
   const balanceQuery = useQuery({
-    queryKey: ['wallet', 'balance'],
-    queryFn: fetchWalletBalance,
+    queryKey: ['charge', 'init'],
+    queryFn: fetchChargeInit,
     retry: false,
   })
 
@@ -198,7 +187,7 @@ export function UserHomePage() {
             icon={<PlusIcon />}
             onClick={() => navigate('/charge/amount')}
           />
-          <QuickAction label="환전" icon={<UndoIcon />} onClick={() => navigate('/refund/check')} />
+          <QuickAction label="환불" icon={<UndoIcon />} onClick={() => navigate('/refund/check')} />
         </div>
       </section>
 
