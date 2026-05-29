@@ -71,10 +71,7 @@ export function ChargeCompletePage() {
 
         {/* 트랜잭션 요약 카드 */}
         <div className="w-full rounded-2xl border border-[#E5E8EB] bg-white px-5 py-1 shadow-sm">
-          <SummaryRow
-            label="충전 금액"
-            value={result ? formatWon(result.amount) : '—'}
-          />
+          <SummaryRow label="충전 금액" value={result ? formatWon(result.amount) : '—'} />
           <SummaryRow
             label="실 결제 금액"
             value={result ? formatWon(result.finalAmount) : '—'}

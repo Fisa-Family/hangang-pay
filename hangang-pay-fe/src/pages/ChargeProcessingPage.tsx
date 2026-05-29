@@ -46,8 +46,7 @@ export function ChargeProcessingPage() {
         navigate('/charge/complete', { state: apiResult.value, replace: true })
       } else {
         const err = apiResult.reason
-        const message =
-          err instanceof ApiError ? err.message : '충전 처리 중 오류가 발생했습니다.'
+        const message = err instanceof ApiError ? err.message : '충전 처리 중 오류가 발생했습니다.'
         navigate('/charge/amount', { state: { error: message }, replace: true })
       }
     })
