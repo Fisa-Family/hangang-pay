@@ -78,6 +78,7 @@ public class ExchangeStateWriter {
         AccountLedger savedAccountLedger =
                 accountLedgerRepository.save(
                         AccountLedger.builder()
+                                .bankAccount(bankAccount)
                                 .ledgerType(LedgerType.DEPOSIT)
                                 .amount(request.amount())
                                 .balanceAfter(newAccountBalance)
