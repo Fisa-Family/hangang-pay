@@ -114,7 +114,7 @@ public class LocalDataInitializer implements ApplicationRunner {
                         .username("테스트가맹점")
                         .passwordHash(passwordEncoder.encode("password"))
                         .paymentPinHash(passwordEncoder.encode("123456"))
-                        .businessNumber("123-45-67890")
+                        .businessNumber("1234567890")
                         .merchantName("한강떡볶이")
                         .ownerName("홍길동")
                         .phoneNumber("0226001234")
