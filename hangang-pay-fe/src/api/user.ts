@@ -72,6 +72,7 @@ export type DisplayHistoryType = 'PAYMENT' | 'CANCEL' | 'CHARGE' | 'EXCHANGE'
 
 export interface HistoryListItem {
   id: string
+  historyId?: number
   displayType: DisplayHistoryType
   counterpartName: string
   amount: number
@@ -157,6 +158,7 @@ export function normalizeHistoryItem(raw: RawHistoryItem): HistoryListItem {
     case 'CHARGE':
       return {
         id: `CHARGE-${raw.id}`,
+        historyId: raw.id,
         displayType: 'CHARGE',
         counterpartName: HANGANG_SYSTEM_NAME,
         amount: raw.amount,
@@ -166,6 +168,7 @@ export function normalizeHistoryItem(raw: RawHistoryItem): HistoryListItem {
     case 'EXCHANGE':
       return {
         id: `EXCHANGE-${raw.id}`,
+        historyId: raw.id,
         displayType: 'EXCHANGE',
         counterpartName: HANGANG_SYSTEM_NAME,
         amount: raw.amount,
