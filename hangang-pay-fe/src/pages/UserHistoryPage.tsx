@@ -86,7 +86,7 @@ export function UserHistoryPage() {
         cursorId: pageParam?.cursorId,
       }),
     initialPageParam: null as HistoryPage['nextCursor'],
-    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    getNextPageParam: (lastPage) => lastPage?.nextCursor ?? null,
     retry: false,
   })
 
