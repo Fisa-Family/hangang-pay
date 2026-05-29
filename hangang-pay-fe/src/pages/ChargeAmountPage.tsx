@@ -57,7 +57,8 @@ export function ChargeAmountPage() {
   const discountAmount = Math.floor(amount * discountRate)
   const finalAmount = amount - discountAmount
   const remainingLimit = data?.remainingLimit ?? 0
-  const overLimit = amount > 0 && remainingLimit > 0 && amount > remainingLimit
+  // 한도 초과 여부 — !!data: 로딩 전 오탐 방지, remainingLimit=0은 정상 감지
+  const overLimit = !!data && amount > 0 && amount > remainingLimit
 
   // 충전 버튼 활성화 조건
   const canCharge =

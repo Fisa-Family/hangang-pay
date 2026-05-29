@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { executeCharge } from '@/api/charge'
 import { ApiError } from '@/api/client'
 import { ProcessingView } from '@/components/common'
@@ -18,6 +19,7 @@ interface LocationState {
 export function ChargeProcessingPage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const queryClient = useQueryClient()
   const state = location.state as LocationState | null
   // 마운트 시 API 이중 호출 방지
   const calledRef = useRef(false)
@@ -43,6 +45,9 @@ export function ChargeProcessingPage() {
     // allSettled: API 성공, 실패와 무관하게 minDelay(2초)를 반드시 대기
     Promise.allSettled([minDelay, apiCall]).then(([, apiResult]) => {
       if (apiResult.status === 'fulfilled') {
+        // 충전 완료 후 홈 잔액, 최근 거래 캐시 무효화 → 홈 복귀 시 즉시 재조회
+        void queryClient.invalidateQueries({ queryKey: ['charge', 'init'] })
+        void queryClient.invalidateQueries({ queryKey: ['users', 'recent-histories'] })
         navigate('/charge/complete', { state: apiResult.value, replace: true })
       } else {
         const err = apiResult.reason
@@ -50,7 +55,7 @@ export function ChargeProcessingPage() {
         navigate('/charge/amount', { state: { error: message }, replace: true })
       }
     })
-  }, [state, navigate])
+  }, [state, navigate, queryClient])
 
   return (
     <div className="h-dvh bg-white">
