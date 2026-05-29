@@ -159,13 +159,13 @@ function RecentSettlementList() {
             borderBottom: idx < items.length - 1 ? '1px solid #F9FAFB' : 'none',
           }}
         >
-          <span className="w-10 shrink-0 text-[13px] text-[#9CA3AF]">
+          <span className="w-10 shrink-0 text-[13px] text-muted-foreground">
             {formatPaymentTime(item.requestedAt)}
           </span>
-          <span className="flex-1 text-[14px] font-bold text-[#111827]">
+          <span className="flex-1 text-[14px] font-bold text-foreground">
             {item.settlementStatusText || '정산'}
           </span>
-          <span className="text-[14px] font-bold text-[#111827]">{formatWon(item.amount)}</span>
+          <span className="text-[14px] font-bold text-foreground">{formatWon(item.amount)}</span>
         </div>
       ))}
     </div>
@@ -181,7 +181,7 @@ export function MerchantHomePage() {
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pb-4">
       {/* 헤더: 가맹점명 — 좌측 정렬, 상단 여백 */}
       <header className="flex items-center justify-between pt-1">
-        <h1 className="text-2xl font-bold text-[#111827]">{currentUser?.name ?? '가맹점'}</h1>
+        <h1 className="text-2xl font-bold text-foreground">{currentUser?.name ?? '가맹점'}</h1>
       </header>
 
       {/* 대시보드 카드: 흰 카드 + 우하단 블루 그라데이션 장식 / 매출·결제 건수 좌우 분할 */}
@@ -196,17 +196,17 @@ export function MerchantHomePage() {
         <div className="relative flex p-5">
           {/* 오늘 매출 */}
           <div className="flex-1 pr-5">
-            <p className="text-sm text-[#9CA3AF]">오늘 매출</p>
-            <p className="mt-1 text-[22px] font-bold leading-tight text-[#2563EB]">
+            <p className="text-sm text-muted-foreground">오늘 매출</p>
+            <p className="mt-1 text-[22px] font-bold leading-tight text-primary">
               {formatWon(0)}
             </p>
           </div>
           {/* 수직 구분선 */}
-          <div className="w-px self-stretch bg-[#F3F4F6]" />
+          <div className="w-px self-stretch bg-muted" />
           {/* 오늘 결제 건수 */}
           <div className="flex-1 pl-5">
-            <p className="text-sm text-[#9CA3AF]">오늘 결제</p>
-            <p className="mt-1 text-[22px] font-bold leading-tight text-[#111827]">0건</p>
+            <p className="text-sm text-muted-foreground">오늘 결제</p>
+            <p className="mt-1 text-[22px] font-bold leading-tight text-foreground">0건</p>
           </div>
         </div>
       </div>
@@ -216,7 +216,7 @@ export function MerchantHomePage() {
         <button
           type="button"
           onClick={() => navigate('/merchant/qr')}
-          className="flex h-[120px] flex-col justify-between rounded-2xl bg-[#2563EB] p-4 text-left transition-opacity active:opacity-90"
+          className="flex h-[120px] flex-col justify-between rounded-2xl bg-primary p-4 text-left transition-opacity active:opacity-90"
         >
           <QrCodeIcon className="h-6 w-6 text-white" />
           <div className="flex items-end justify-between">
@@ -231,7 +231,7 @@ export function MerchantHomePage() {
         <button
           type="button"
           onClick={() => navigate('/merchant/settlement')}
-          className="flex h-[120px] flex-col justify-between rounded-2xl bg-[#1E40AF] p-4 text-left transition-opacity active:opacity-90"
+          className="flex h-[120px] flex-col justify-between rounded-2xl bg-accent-foreground p-4 text-left transition-opacity active:opacity-90"
         >
           {/* 원화 기호 원형 뱃지 */}
           <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white/70">
@@ -253,9 +253,9 @@ export function MerchantHomePage() {
             onClick={() => navigate(path)}
             className="flex flex-col items-center gap-2.5 rounded-2xl bg-white p-4 shadow-sm transition-colors active:bg-muted"
           >
-            <Icon className="h-6 w-6 text-[#2563EB]" />
-            <span className="text-[13px] font-bold text-[#111827]">
-              {label} <span className="font-normal text-[#9CA3AF]">&gt;</span>
+            <Icon className="h-6 w-6 text-primary" />
+            <span className="text-[13px] font-bold text-foreground">
+              {label} <span className="font-normal text-muted-foreground">&gt;</span>
             </span>
           </button>
         ))}
@@ -264,11 +264,11 @@ export function MerchantHomePage() {
       {/* 최근 정산 내역: 흰 카드 / 헤더(제목+전체보기) + 목록 */}
       <div className="rounded-2xl bg-white p-5 shadow-sm">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-bold text-[#111827]">최근 출금 내역</h2>
+          <h2 className="text-base font-bold text-foreground">최근 출금 내역</h2>
           <button
             type="button"
             onClick={() => navigate('/merchant/settlement/history')}
-            className="text-xs font-medium text-[#9CA3AF]"
+            className="text-xs font-medium text-muted-foreground"
           >
             전체보기 &gt;
           </button>
