@@ -24,11 +24,3 @@ export const mockChargeInit = {
     },
   ],
 }
-
-export const mockChargeResult = {
-  partyId: 1,
-  chargeId: 100,
-  amount: 50000,
-  finalAmount: 55000,
-  chargedAt: new Date().toISOString(),
-}
