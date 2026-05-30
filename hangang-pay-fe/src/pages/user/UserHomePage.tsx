@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { BalanceCard, EmptyState, ErrorBoundary, ListItem } from '@/components/common'
 import { fetchChargeInit } from '@/api/charge'
-import { fetchRecentTransactions, fetchUserProfile, type HistoryListItem } from '@/api/user'
+import { fetchRecentTransactions, useUserProfile, type HistoryListItem } from '@/api/user'
 import { ApiError } from '@/api/client'
 import { apiErrorMessages, isApiErrorCode } from '@/api/errorCodes'
 import { formatWon } from '@/lib/format'
@@ -146,11 +146,7 @@ function RecentTransactionList() {
 export function UserHomePage() {
   const navigate = useNavigate()
 
-  const profileQuery = useQuery({
-    queryKey: ['user', 'profile'],
-    queryFn: fetchUserProfile,
-    retry: false,
-  })
+  const profileQuery = useUserProfile()
 
   // TODO: EC2/온프레미스로 bank 서비스 DB 분리 운영 시
   //       queryFn: fetchWalletBalance, queryKey: ['wallet', 'balance'] 로 변경
