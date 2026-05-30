@@ -2,10 +2,9 @@ import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { ReactNode } from 'react'
-import { useCurrentUser } from '@/auth/useCurrentUser'
 import { BalanceCard, EmptyState, ErrorBoundary, ListItem } from '@/components/common'
 import { fetchChargeInit } from '@/api/charge'
-import { fetchRecentTransactions, type HistoryListItem } from '@/api/user'
+import { fetchRecentTransactions, fetchUserProfile, type HistoryListItem } from '@/api/user'
 import { ApiError } from '@/api/client'
 import { apiErrorMessages, isApiErrorCode } from '@/api/errorCodes'
 import { formatWon } from '@/lib/format'
@@ -146,7 +145,12 @@ function RecentTransactionList() {
 
 export function UserHomePage() {
   const navigate = useNavigate()
-  const { currentUser } = useCurrentUser()
+
+  const profileQuery = useQuery({
+    queryKey: ['user', 'profile'],
+    queryFn: fetchUserProfile,
+    retry: false,
+  })
 
   // TODO: EC2/온프레미스로 bank 서비스 DB 분리 운영 시
   //       queryFn: fetchWalletBalance, queryKey: ['wallet', 'balance'] 로 변경
@@ -164,7 +168,7 @@ export function UserHomePage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto pb-4">
       <header className="pt-1">
-        <h1 className="text-xl font-bold text-foreground">{currentUser?.name ?? '사용자'}님</h1>
+        <h1 className="text-xl font-bold text-foreground">{profileQuery.data?.username ?? '사용자'}님</h1>
       </header>
 
       {activeErrorMessage && (
