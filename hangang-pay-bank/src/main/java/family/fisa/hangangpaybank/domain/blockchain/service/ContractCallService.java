@@ -10,6 +10,7 @@ import family.fisa.hangangpaybank.global.exception.BusinessException;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -19,9 +20,12 @@ import org.web3j.abi.datatypes.Bool;
 import org.web3j.abi.datatypes.Function;
 import org.web3j.abi.datatypes.generated.Uint256;
 import org.web3j.crypto.Credentials;
+import org.web3j.crypto.Hash;
 import org.web3j.crypto.RawTransaction;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.DefaultBlockParameterName;
+import org.web3j.protocol.core.methods.request.Transaction;
+import org.web3j.protocol.core.methods.response.EthCall;
 import org.web3j.protocol.core.methods.response.EthGetTransactionCount;
 import org.web3j.protocol.core.methods.response.EthSendTransaction;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
@@ -43,6 +47,44 @@ public class ContractCallService {
     private static final BigInteger PRIVATE_NETWORK_GAS_PRICE = BigInteger.ZERO;
     private static final int RECEIPT_POLLING_ATTEMPTS = 60;
     private static final long RECEIPT_POLLING_INTERVAL_MS = 1_000L;
+
+    // 컨트랙트 커스텀 에러를 BusinessException으로 변환하기 위한 selector -> error code 맵
+    private static final Map<String, BlockchainErrorCode> CUSTOM_ERROR_MAP =
+            Map.ofEntries(
+                    Map.entry(
+                            selector("Unauthorized()"),
+                            BlockchainErrorCode.BLOCKCHAIN_UNAUTHORIZED),
+                    Map.entry(
+                            selector("InvalidAddress()"),
+                            BlockchainErrorCode.BLOCKCHAIN_INVALID_ADDRESS),
+                    Map.entry(
+                            selector("InvalidAmount()"),
+                            BlockchainErrorCode.BLOCKCHAIN_INVALID_AMOUNT),
+                    Map.entry(
+                            selector("MerchantNotRegistered()"),
+                            BlockchainErrorCode.BLOCKCHAIN_MERCHANT_NOT_REGISTERED),
+                    Map.entry(
+                            selector("IssuanceLimitExceeded()"),
+                            BlockchainErrorCode.BLOCKCHAIN_ISSUANCE_LIMIT_EXCEEDED),
+                    Map.entry(
+                            selector("ReserveMoveFailed()"),
+                            BlockchainErrorCode.BLOCKCHAIN_RESERVE_MOVE_FAILED),
+                    Map.entry(
+                            selector("DepositTokenMintFailed()"),
+                            BlockchainErrorCode.BLOCKCHAIN_DEPOSIT_TOKEN_MINT_FAILED),
+                    Map.entry(
+                            selector("DepositTokenBurnFailed()"),
+                            BlockchainErrorCode.BLOCKCHAIN_DEPOSIT_TOKEN_BURN_FAILED),
+                    Map.entry(
+                            selector("TransferFailed()"),
+                            BlockchainErrorCode.BLOCKCHAIN_TRANSFER_FAILED),
+                    Map.entry(
+                            selector("BankNotRegistered()"),
+                            BlockchainErrorCode.BLOCKCHAIN_BANK_NOT_REGISTERED));
+
+    private static String selector(String signature) {
+        return Hash.sha3String(signature).substring(0, 10); // 0x + 4 bytes
+    }
 
     @Value("${blockchain.private-network.chain-id:1337}")
     private long privateNetworkChainId;
@@ -133,6 +175,9 @@ public class ContractCallService {
             BigInteger gasLimit,
             Function function)
             throws IOException {
+
+        simulateOrThrow(web3j, credentials.getAddress(), contractAddress, gasLimit, function);
+
         RawTransactionManager mgr =
                 new RawTransactionManager(web3j, credentials, privateNetworkChainId);
         EthGetTransactionCount nonceResponse =
@@ -152,6 +197,8 @@ public class ContractCallService {
                         FunctionEncoder.encode(function));
         EthSendTransaction sendResponse = mgr.signAndSend(tx);
         if (sendResponse.hasError()) {
+            String errorData = sendResponse.getError().getData();
+            throwCustomErrorIfMatched(errorData);
             throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
         }
         TransactionReceipt receipt = waitForReceipt(web3j, sendResponse.getTransactionHash());
@@ -169,6 +216,56 @@ public class ContractCallService {
             return processor.waitForTransactionReceipt(txHash);
         } catch (IOException | TransactionException e) {
             throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_RECEIPT_TIMEOUT);
+        }
+    }
+
+    private void simulateOrThrow(
+            Web3j web3j,
+            String from,
+            String contractAddress,
+            BigInteger gasLimit,
+            Function function)
+            throws IOException {
+        String data = FunctionEncoder.encode(function);
+
+        Transaction callTx =
+                Transaction.createFunctionCallTransaction(
+                        from,
+                        null,
+                        PRIVATE_NETWORK_GAS_PRICE,
+                        gasLimit,
+                        contractAddress,
+                        BigInteger.ZERO,
+                        data);
+
+        EthCall ethCall = web3j.ethCall(callTx, DefaultBlockParameterName.LATEST).send();
+
+        if (ethCall.hasError()) {
+            String errorData = ethCall.getError().getData();
+            throwCustomErrorIfMatched(errorData);
+            throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_TRANSACTION_REVERTED);
+        }
+
+        String value = ethCall.getValue();
+        if (value != null && value.startsWith("0x08c379a0")) {
+            throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_TRANSACTION_REVERTED);
+        }
+
+        if (value != null && value.length() >= 10) {
+            throwCustomErrorIfMatched(value);
+        }
+    }
+
+    private void throwCustomErrorIfMatched(String revertData) {
+        if (revertData == null || revertData.length() < 10) {
+            return;
+        }
+
+        String selector = revertData.substring(0, 10);
+        BlockchainErrorCode code = CUSTOM_ERROR_MAP.get(selector);
+
+        if (code != null) {
+            throw new BusinessException(code);
         }
     }
 }
