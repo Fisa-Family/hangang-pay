@@ -61,6 +61,10 @@ const FLOWS: Record<string, FlowConfig> = {
         amount: state.amount,
         paymentPin: state.pin,
       }),
+    onComplete: (queryClient) => {
+      void queryClient.invalidateQueries({ queryKey: ['charge', 'init'] })
+      void queryClient.invalidateQueries({ queryKey: ['users', 'recent-histories'] })
+    },
   },
   '/refund/processing': {
     title: '환불을 신청하고 있어요',
@@ -97,7 +101,7 @@ export function ProcessingPage() {
       })
       .catch((err) => {
         const message = err instanceof ApiError ? err.message : flow.defaultError
-        navigate(flow.errorPath, { state: { error: message }, replace: true })
+        navigate(flow.errorPath, { state: { error: message, amount: state.amount }, replace: true })
       })
   }, [state, flow, navigate, queryClient])
 

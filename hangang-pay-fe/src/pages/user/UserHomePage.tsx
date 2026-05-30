@@ -1,11 +1,10 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
-import { Suspense } from 'react'
+import { Suspense, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { ReactNode } from 'react'
-import { useCurrentUser } from '@/auth/useCurrentUser'
 import { BalanceCard, EmptyState, ErrorBoundary, ListItem } from '@/components/common'
 import { fetchChargeInit } from '@/api/charge'
-import { fetchRecentTransactions, type HistoryListItem } from '@/api/user'
+import { fetchRecentTransactions, useUserProfile, type HistoryListItem } from '@/api/user'
 import { ApiError } from '@/api/client'
 import { apiErrorMessages, isApiErrorCode } from '@/api/errorCodes'
 import { formatWon } from '@/lib/format'
@@ -25,7 +24,8 @@ function buildErrorMessage(spec: (typeof API_SPEC)[keyof typeof API_SPEC], error
   return `${spec.id} 요청에 실패했습니다. 네트워크 연결을 확인해 주세요.`
 }
 
-const HISTORY_LIMIT = 5
+const HISTORY_FETCH_LIMIT = 20
+const HISTORY_INITIAL_VISIBLE = 5
 
 function formatHistoryDate(isoString: string): string {
   const d = new Date(isoString)
@@ -116,15 +116,18 @@ function HistoryAmount({ sign, amount }: { sign: '+' | '-'; amount: number }) {
   )
 }
 
-// 홈 화면 최근 거래 목록 — 결제, 충전, 환불 3종을 병렬 조회 후 최신순 5건 표시
 function RecentTransactionList() {
+  const [expanded, setExpanded] = useState(false)
+
   const { data } = useSuspenseQuery({
     queryKey: ['users', 'recent-histories'],
-    queryFn: () => fetchRecentTransactions(HISTORY_LIMIT),
+    queryFn: () => fetchRecentTransactions(HISTORY_FETCH_LIMIT),
     retry: false,
   })
 
   const histories = data
+  const hasMore = histories.length > HISTORY_INITIAL_VISIBLE
+  const visible = expanded ? histories : histories.slice(0, HISTORY_INITIAL_VISIBLE)
 
   if (histories.length === 0) {
     return <EmptyState message="최근 거래 내역이 없습니다." />
@@ -132,7 +135,7 @@ function RecentTransactionList() {
 
   return (
     <div className="flex flex-col gap-2">
-      {histories.map((tx: HistoryListItem) => (
+      {visible.map((tx: HistoryListItem) => (
         <ListItem
           key={tx.id}
           title={tx.counterpartName}
@@ -140,13 +143,23 @@ function RecentTransactionList() {
           rightAction={<HistoryAmount sign={tx.sign} amount={tx.amount} />}
         />
       ))}
+      {hasMore && !expanded && (
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="py-2 text-sm font-semibold text-primary"
+        >
+          더보기 ›
+        </button>
+      )}
     </div>
   )
 }
 
 export function UserHomePage() {
   const navigate = useNavigate()
-  const { currentUser } = useCurrentUser()
+
+  const profileQuery = useUserProfile()
 
   // TODO: EC2/온프레미스로 bank 서비스 DB 분리 운영 시
   //       queryFn: fetchWalletBalance, queryKey: ['wallet', 'balance'] 로 변경
@@ -162,9 +175,11 @@ export function UserHomePage() {
     : null
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto pb-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-hidden pb-4">
       <header className="pt-1">
-        <h1 className="text-xl font-bold text-foreground">{currentUser?.name ?? '사용자'}님</h1>
+        <h1 className="text-xl font-bold text-foreground">
+          {profileQuery.data?.username ?? '사용자'}님
+        </h1>
       </header>
 
       {activeErrorMessage && (
@@ -191,8 +206,8 @@ export function UserHomePage() {
         </div>
       </section>
 
-      <section aria-label="최근 거래" className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
+      <section aria-label="최근 거래" className="flex min-h-0 flex-1 flex-col gap-3">
+        <div className="flex shrink-0 items-center justify-between">
           <h2 className="text-base font-bold text-foreground">최근 거래</h2>
           <button
             type="button"
@@ -203,17 +218,19 @@ export function UserHomePage() {
           </button>
         </div>
 
-        <ErrorBoundary fallback={<EmptyState message="최근 거래 내역을 불러올 수 없습니다." />}>
-          <Suspense
-            fallback={
-              <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
-                불러오는 중...
-              </div>
-            }
-          >
-            <RecentTransactionList />
-          </Suspense>
-        </ErrorBoundary>
+        <div className="min-h-0 flex-1 overflow-y-auto pb-12">
+          <ErrorBoundary fallback={<EmptyState message="최근 거래 내역을 불러올 수 없습니다." />}>
+            <Suspense
+              fallback={
+                <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
+                  불러오는 중...
+                </div>
+              }
+            >
+              <RecentTransactionList />
+            </Suspense>
+          </ErrorBoundary>
+        </div>
       </section>
     </div>
   )

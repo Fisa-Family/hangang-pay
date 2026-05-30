@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { fetchChargeInit } from '@/api/charge'
-import { BackspaceIcon, BackTitleHeader, Button } from '@/components/common'
+import { BackspaceIcon, BackTitleHeader, Button, Toast, type ToastState } from '@/components/common'
 import { formatWon } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -23,8 +23,14 @@ function formatNumber(value: number): string {
 export function ChargeAmountPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const chargeError = (location.state as { error?: string } | null)?.error ?? ''
-  const [amountStr, setAmountStr] = useState('')
+  const locationState = location.state as { error?: string; amount?: number } | null
+  const chargeError = locationState?.error ?? ''
+  const [amountStr, setAmountStr] = useState(
+    locationState?.amount ? String(locationState.amount) : ''
+  )
+  const [toast, setToast] = useState<ToastState | null>(
+    chargeError ? { message: chargeError, variant: 'error' } : null
+  )
 
   useEffect(() => {
     if (chargeError) {
@@ -32,6 +38,12 @@ export function ChargeAmountPage() {
       window.history.replaceState(null, '')
     }
   }, [chargeError])
+
+  useEffect(() => {
+    if (!toast) return
+    const id = window.setTimeout(() => setToast(null), 3000)
+    return () => window.clearTimeout(id)
+  }, [toast])
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null)
 
   const initQuery = useQuery({
@@ -170,9 +182,6 @@ export function ChargeAmountPage() {
             <p className="text-[13px] text-muted-foreground">충전 금액을 입력해주세요</p>
           )}
           {overLimit && <p className="text-[13px] text-destructive">남은 한도를 초과했습니다</p>}
-          {chargeError && !overLimit && (
-            <p className="text-[13px] text-destructive">{chargeError}</p>
-          )}
         </div>
 
         {/* 결제 금액, 계좌 - 회색 박스, 키패드보다 위 */}
@@ -239,6 +248,8 @@ export function ChargeAmountPage() {
           {initQuery.isLoading ? '불러오는 중…' : '충전하기'}
         </Button>
       </div>
+
+      <Toast open={toast !== null} message={toast?.message ?? ''} variant={toast?.variant} />
     </div>
   )
 }

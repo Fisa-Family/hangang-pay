@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import {
   ConfirmDialog,
@@ -7,7 +7,7 @@ import {
   SettingsMenuCard,
   UserProfileCard,
 } from '@/components/common'
-import { fetchUserProfile, type UserProfileResponse } from '@/api/user'
+import { useUserProfile, type UserProfileResponse } from '@/api/user'
 import { logout } from '@/api/auth'
 import { ApiError } from '@/api/client'
 import { apiErrorMessages, isApiErrorCode } from '@/api/errorCodes'
@@ -154,11 +154,7 @@ export function UserMyPage() {
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
   const [logoutError, setLogoutError] = useState<string | null>(null)
 
-  const profileQuery = useQuery({
-    queryKey: ['user', 'profile'],
-    queryFn: fetchUserProfile,
-    retry: false,
-  })
+  const profileQuery = useUserProfile()
 
   const logoutMutation = useMutation({
     mutationFn: logout,

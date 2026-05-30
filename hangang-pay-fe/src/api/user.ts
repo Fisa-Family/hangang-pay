@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from './client'
 
 // 사용자 프로필 응답
@@ -61,6 +62,15 @@ export function fetchUserHistories(
 // 사용자 프로필 조회
 export function fetchUserProfile(): Promise<UserProfileResponse> {
   return apiFetch<UserProfileResponse>('/users/profile')
+}
+
+// 사용자 프로필 조회 커스텀 훅
+export function useUserProfile() {
+  return useQuery({
+    queryKey: ['user', 'profile'],
+    queryFn: fetchUserProfile,
+    retry: false,
+  })
 }
 
 // ────────────────────────────────────────────────────────────────────────────
