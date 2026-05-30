@@ -28,13 +28,14 @@ export function ChargeAmountPage() {
   const [amountStr, setAmountStr] = useState(
     locationState?.amount ? String(locationState.amount) : ''
   )
-  const [toast, setToast] = useState<ToastState | null>(null)
+  const [toast, setToast] = useState<ToastState | null>(
+    chargeError ? { message: chargeError, variant: 'error' } : null
+  )
 
   useEffect(() => {
     if (chargeError) {
       // history.state는 F5 새로고침 후에도 유지되므로 오류 표시 후 즉시 제거
       window.history.replaceState(null, '')
-      setToast({ message: chargeError, variant: 'error' })
     }
   }, [chargeError])
 
