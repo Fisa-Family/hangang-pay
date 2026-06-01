@@ -50,6 +50,7 @@ export function ChargeAmountPage() {
     queryKey: ['charge', 'init'],
     queryFn: fetchChargeInit,
     retry: false,
+    staleTime: 0,
   })
 
   const data = initQuery.data
