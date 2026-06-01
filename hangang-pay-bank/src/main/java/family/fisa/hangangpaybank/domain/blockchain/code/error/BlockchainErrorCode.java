@@ -33,11 +33,25 @@ public enum BlockchainErrorCode implements BaseErrorCode {
     BLOCKCHAIN_INVALID_AMOUNT(
             HttpStatus.BAD_REQUEST, "BLOCKCHAIN_INVALID_AMOUNT", "유효하지 않은 금액입니다."),
 
+    BLOCKCHAIN_INVALID_INSTITUTION_ID(
+            HttpStatus.BAD_REQUEST, "BLOCKCHAIN_INVALID_INSTITUTION_ID", "유효하지 않은 기관 ID입니다."),
+
     BLOCKCHAIN_MERCHANT_NOT_REGISTERED(
             HttpStatus.BAD_REQUEST, "BLOCKCHAIN_MERCHANT_NOT_REGISTERED", "등록되지 않은 가맹점입니다."),
 
+    BLOCKCHAIN_INSUFFICIENT_TOKEN_BALANCE(
+            HttpStatus.BAD_REQUEST, "BLOCKCHAIN_INSUFFICIENT_TOKEN_BALANCE", "토큰 잔액이 부족합니다."),
+
     BLOCKCHAIN_ISSUANCE_LIMIT_EXCEEDED(
             HttpStatus.BAD_REQUEST, "BLOCKCHAIN_ISSUANCE_LIMIT_EXCEEDED", "지역화폐 발행 한도를 초과했습니다."),
+
+    BLOCKCHAIN_INSUFFICIENT_RESERVE(
+            HttpStatus.BAD_REQUEST, "BLOCKCHAIN_INSUFFICIENT_RESERVE", "지급준비금 잔액이 부족합니다."),
+
+    BLOCKCHAIN_RESERVE_EXCEEDS_LOCKED_CBDC(
+            HttpStatus.BAD_REQUEST,
+            "BLOCKCHAIN_RESERVE_EXCEEDS_LOCKED_CBDC",
+            "지급준비금이 예치된 CBDC를 초과합니다."),
 
     BLOCKCHAIN_RESERVE_MOVE_FAILED(
             HttpStatus.BAD_REQUEST, "BLOCKCHAIN_RESERVE_MOVE_FAILED", "지급준비금 이동에 실패했습니다."),

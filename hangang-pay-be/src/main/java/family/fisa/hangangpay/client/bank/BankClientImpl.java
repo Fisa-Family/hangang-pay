@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import family.fisa.hangangpay.client.bank.dto.*;
+import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
 import family.fisa.hangangpay.global.code.error.AccountErrorCode;
 import family.fisa.hangangpay.global.code.error.BaseErrorCode;
 import family.fisa.hangangpay.global.exception.BusinessException;
@@ -32,7 +33,49 @@ public class BankClientImpl implements BankClient {
             Map.ofEntries(
                     Map.entry(
                             AccountErrorCode.BANK_ACCOUNT_NOT_FOUND.getCode(),
-                            AccountErrorCode.BANK_ACCOUNT_NOT_FOUND));
+                            AccountErrorCode.BANK_ACCOUNT_NOT_FOUND),
+                    Map.entry(
+                            TransactionErrorCode.BLOCKCHAIN_UNAUTHORIZED.getCode(),
+                            TransactionErrorCode.BLOCKCHAIN_UNAUTHORIZED),
+                    Map.entry(
+                            TransactionErrorCode.BLOCKCHAIN_INVALID_ADDRESS.getCode(),
+                            TransactionErrorCode.BLOCKCHAIN_INVALID_ADDRESS),
+                    Map.entry(
+                            TransactionErrorCode.BLOCKCHAIN_INVALID_AMOUNT.getCode(),
+                            TransactionErrorCode.BLOCKCHAIN_INVALID_AMOUNT),
+                    Map.entry(
+                            TransactionErrorCode.BLOCKCHAIN_INVALID_INSTITUTION_ID.getCode(),
+                            TransactionErrorCode.BLOCKCHAIN_INVALID_INSTITUTION_ID),
+                    Map.entry(
+                            TransactionErrorCode.BLOCKCHAIN_MERCHANT_NOT_REGISTERED.getCode(),
+                            TransactionErrorCode.BLOCKCHAIN_MERCHANT_NOT_REGISTERED),
+                    Map.entry(
+                            TransactionErrorCode.BLOCKCHAIN_INSUFFICIENT_TOKEN_BALANCE.getCode(),
+                            TransactionErrorCode.BLOCKCHAIN_INSUFFICIENT_TOKEN_BALANCE),
+                    Map.entry(
+                            TransactionErrorCode.BLOCKCHAIN_ISSUANCE_LIMIT_EXCEEDED.getCode(),
+                            TransactionErrorCode.BLOCKCHAIN_ISSUANCE_LIMIT_EXCEEDED),
+                    Map.entry(
+                            TransactionErrorCode.BLOCKCHAIN_INSUFFICIENT_RESERVE.getCode(),
+                            TransactionErrorCode.BLOCKCHAIN_INSUFFICIENT_RESERVE),
+                    Map.entry(
+                            TransactionErrorCode.BLOCKCHAIN_RESERVE_EXCEEDS_LOCKED_CBDC.getCode(),
+                            TransactionErrorCode.BLOCKCHAIN_RESERVE_EXCEEDS_LOCKED_CBDC),
+                    Map.entry(
+                            TransactionErrorCode.BLOCKCHAIN_RESERVE_MOVE_FAILED.getCode(),
+                            TransactionErrorCode.BLOCKCHAIN_RESERVE_MOVE_FAILED),
+                    Map.entry(
+                            TransactionErrorCode.BLOCKCHAIN_DEPOSIT_TOKEN_MINT_FAILED.getCode(),
+                            TransactionErrorCode.BLOCKCHAIN_DEPOSIT_TOKEN_MINT_FAILED),
+                    Map.entry(
+                            TransactionErrorCode.BLOCKCHAIN_DEPOSIT_TOKEN_BURN_FAILED.getCode(),
+                            TransactionErrorCode.BLOCKCHAIN_DEPOSIT_TOKEN_BURN_FAILED),
+                    Map.entry(
+                            TransactionErrorCode.BLOCKCHAIN_TRANSFER_FAILED.getCode(),
+                            TransactionErrorCode.BLOCKCHAIN_TRANSFER_FAILED),
+                    Map.entry(
+                            TransactionErrorCode.BLOCKCHAIN_BANK_NOT_REGISTERED.getCode(),
+                            TransactionErrorCode.BLOCKCHAIN_BANK_NOT_REGISTERED));
 
     private final RestClient bankRestClient;
 

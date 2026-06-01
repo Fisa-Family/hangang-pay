@@ -73,7 +73,36 @@ public enum TransactionErrorCode implements BaseErrorCode {
     CHARGE_IDEMPOTENCY_RECORD_INVALID(
             HttpStatus.INTERNAL_SERVER_ERROR,
             "CHARGE_IDEMPOTENCY_RECORD_INVALID",
-            "충전 멱등성 기록이 올바르지 않습니다.");
+            "충전 멱등성 기록이 올바르지 않습니다."),
+    BLOCKCHAIN_UNAUTHORIZED(HttpStatus.FORBIDDEN, "BLOCKCHAIN_UNAUTHORIZED", "컨트랙트 호출 권한이 없습니다."),
+    BLOCKCHAIN_INVALID_ADDRESS(
+            HttpStatus.BAD_REQUEST, "BLOCKCHAIN_INVALID_ADDRESS", "유효하지 않은 주소입니다."),
+    BLOCKCHAIN_INVALID_AMOUNT(
+            HttpStatus.BAD_REQUEST, "BLOCKCHAIN_INVALID_AMOUNT", "유효하지 않은 금액입니다."),
+    BLOCKCHAIN_INVALID_INSTITUTION_ID(
+            HttpStatus.BAD_REQUEST, "BLOCKCHAIN_INVALID_INSTITUTION_ID", "유효하지 않은 기관 ID입니다."),
+    BLOCKCHAIN_MERCHANT_NOT_REGISTERED(
+            HttpStatus.BAD_REQUEST, "BLOCKCHAIN_MERCHANT_NOT_REGISTERED", "등록되지 않은 가맹점입니다."),
+    BLOCKCHAIN_INSUFFICIENT_TOKEN_BALANCE(
+            HttpStatus.BAD_REQUEST, "BLOCKCHAIN_INSUFFICIENT_TOKEN_BALANCE", "토큰 잔액이 부족합니다."),
+    BLOCKCHAIN_ISSUANCE_LIMIT_EXCEEDED(
+            HttpStatus.BAD_REQUEST, "BLOCKCHAIN_ISSUANCE_LIMIT_EXCEEDED", "지역화폐 발행 한도를 초과했습니다."),
+    BLOCKCHAIN_INSUFFICIENT_RESERVE(
+            HttpStatus.BAD_REQUEST, "BLOCKCHAIN_INSUFFICIENT_RESERVE", "지급준비금 잔액이 부족합니다."),
+    BLOCKCHAIN_RESERVE_EXCEEDS_LOCKED_CBDC(
+            HttpStatus.BAD_REQUEST,
+            "BLOCKCHAIN_RESERVE_EXCEEDS_LOCKED_CBDC",
+            "지급준비금이 예치된 CBDC를 초과합니다."),
+    BLOCKCHAIN_RESERVE_MOVE_FAILED(
+            HttpStatus.BAD_REQUEST, "BLOCKCHAIN_RESERVE_MOVE_FAILED", "지급준비금 이동에 실패했습니다."),
+    BLOCKCHAIN_DEPOSIT_TOKEN_MINT_FAILED(
+            HttpStatus.BAD_REQUEST, "BLOCKCHAIN_DEPOSIT_TOKEN_MINT_FAILED", "예금토큰 발행에 실패했습니다."),
+    BLOCKCHAIN_DEPOSIT_TOKEN_BURN_FAILED(
+            HttpStatus.BAD_REQUEST, "BLOCKCHAIN_DEPOSIT_TOKEN_BURN_FAILED", "예금토큰 소각에 실패했습니다."),
+    BLOCKCHAIN_TRANSFER_FAILED(
+            HttpStatus.BAD_REQUEST, "BLOCKCHAIN_TRANSFER_FAILED", "토큰 이체에 실패했습니다."),
+    BLOCKCHAIN_BANK_NOT_REGISTERED(
+            HttpStatus.BAD_REQUEST, "BLOCKCHAIN_BANK_NOT_REGISTERED", "등록되지 않은 은행입니다.");
 
     private final HttpStatus status;
     private final String code;

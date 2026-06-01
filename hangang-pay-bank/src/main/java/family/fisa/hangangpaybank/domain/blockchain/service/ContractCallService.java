@@ -61,11 +61,23 @@ public class ContractCallService {
                             selector("InvalidAmount()"),
                             BlockchainErrorCode.BLOCKCHAIN_INVALID_AMOUNT),
                     Map.entry(
+                            selector("InvalidInstitutionId()"),
+                            BlockchainErrorCode.BLOCKCHAIN_INVALID_INSTITUTION_ID),
+                    Map.entry(
                             selector("MerchantNotRegistered()"),
                             BlockchainErrorCode.BLOCKCHAIN_MERCHANT_NOT_REGISTERED),
                     Map.entry(
+                            selector("ERC20InsufficientBalance(address,uint256,uint256)"),
+                            BlockchainErrorCode.BLOCKCHAIN_INSUFFICIENT_TOKEN_BALANCE),
+                    Map.entry(
                             selector("IssuanceLimitExceeded()"),
                             BlockchainErrorCode.BLOCKCHAIN_ISSUANCE_LIMIT_EXCEEDED),
+                    Map.entry(
+                            selector("InsufficientReserve()"),
+                            BlockchainErrorCode.BLOCKCHAIN_INSUFFICIENT_RESERVE),
+                    Map.entry(
+                            selector("ReserveExceedsLockedCbdc()"),
+                            BlockchainErrorCode.BLOCKCHAIN_RESERVE_EXCEEDS_LOCKED_CBDC),
                     Map.entry(
                             selector("ReserveMoveFailed()"),
                             BlockchainErrorCode.BLOCKCHAIN_RESERVE_MOVE_FAILED),
