@@ -3,8 +3,8 @@ import { Suspense, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { BalanceCard, EmptyState, ErrorBoundary, ListItem } from '@/components/common'
-import { fetchChargeInit } from '@/api/charge'
 import { fetchRecentTransactions, useUserProfile, type HistoryListItem } from '@/api/user'
+import { fetchWalletBalance } from '@/api/wallet'
 import { ApiError } from '@/api/client'
 import { apiErrorMessages, isApiErrorCode } from '@/api/errorCodes'
 import { formatWon } from '@/lib/format'
@@ -161,11 +161,9 @@ export function UserHomePage() {
 
   const profileQuery = useUserProfile()
 
-  // TODO: EC2/온프레미스로 bank 서비스 DB 분리 운영 시
-  //       queryFn: fetchWalletBalance, queryKey: ['wallet', 'balance'] 로 변경
   const balanceQuery = useQuery({
-    queryKey: ['charge', 'init'],
-    queryFn: fetchChargeInit,
+    queryKey: ['wallet', 'balance'],
+    queryFn: fetchWalletBalance,
     retry: false,
   })
 

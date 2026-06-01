@@ -22,6 +22,12 @@ interface FlowConfig {
   onComplete?: (queryClient: QueryClient) => void
 }
 
+function invalidateUserTransactionQueries(queryClient: QueryClient) {
+  void queryClient.invalidateQueries({ queryKey: ['wallet', 'balance'] })
+  void queryClient.invalidateQueries({ queryKey: ['users', 'recent-histories'] })
+  void queryClient.invalidateQueries({ queryKey: ['users', 'histories'] })
+}
+
 const FLOWS: Record<string, FlowConfig> = {
   '/pay/processing': {
     title: '결제를 처리하고 있어요',
@@ -42,8 +48,7 @@ const FLOWS: Record<string, FlowConfig> = {
       }
     },
     onComplete: (queryClient) => {
-      void queryClient.invalidateQueries({ queryKey: ['charge', 'init'] })
-      void queryClient.invalidateQueries({ queryKey: ['users', 'recent-histories'] })
+      invalidateUserTransactionQueries(queryClient)
     },
   },
   '/charge/processing': {
@@ -60,8 +65,8 @@ const FLOWS: Record<string, FlowConfig> = {
         paymentPin: state.pin as string,
       }),
     onComplete: (queryClient) => {
+      invalidateUserTransactionQueries(queryClient)
       void queryClient.invalidateQueries({ queryKey: ['charge', 'init'] })
-      void queryClient.invalidateQueries({ queryKey: ['users', 'recent-histories'] })
     },
   },
   '/refund/processing': {
@@ -76,6 +81,9 @@ const FLOWS: Record<string, FlowConfig> = {
         paymentPin: state.pin as string,
         accountId: state.accountId as number,
       }),
+    onComplete: (queryClient) => {
+      invalidateUserTransactionQueries(queryClient)
+    },
   },
   '/register/processing': {
     title: '회원가입을 처리하고 있어요',

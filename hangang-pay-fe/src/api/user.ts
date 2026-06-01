@@ -78,7 +78,7 @@ export function useUserProfile() {
 // ────────────────────────────────────────────────────────────────────────────
 
 export type HistoryTab = 'ALL' | 'PAYMENT' | 'CHARGE' | 'EXCHANGE'
-export type DisplayHistoryType = 'PAYMENT' | 'CANCEL' | 'CHARGE' | 'EXCHANGE'
+export type DisplayHistoryType = 'PAYMENT' | 'CANCEL' | 'CHARGE' | 'EXCHANGE' | 'SETTLEMENT'
 
 export interface HistoryListItem {
   id: string
