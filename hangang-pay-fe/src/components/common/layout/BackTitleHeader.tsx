@@ -8,12 +8,12 @@ interface BackTitleHeaderProps {
 
 export function BackTitleHeader({ title, onBack, className }: BackTitleHeaderProps) {
   return (
-    <header className={cn('flex items-center gap-2 pt-2 pb-3', className)}>
+    <header className={cn('grid h-12 grid-cols-[44px_1fr_44px] items-center', className)}>
       <button
         type="button"
         aria-label="뒤로가기"
         onClick={onBack}
-        className="-ml-2 flex h-9 w-9 items-center justify-center rounded-lg text-foreground hover:bg-muted"
+        className="-ml-2 flex size-9 items-center justify-center rounded-lg text-foreground hover:bg-muted"
       >
         <svg
           viewBox="0 0 24 24"
@@ -28,7 +28,7 @@ export function BackTitleHeader({ title, onBack, className }: BackTitleHeaderPro
           <path d="m15 18-6-6 6-6" />
         </svg>
       </button>
-      <h1 className="text-2xl font-bold text-foreground">{title}</h1>
+      <h1 className="truncate text-center text-lg font-semibold">{title}</h1>
     </header>
   )
 }
