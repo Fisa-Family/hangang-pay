@@ -93,11 +93,11 @@ export function RefundCheckPage() {
         {!isLoading && !isError && data && (
           <>
             {/* 현재 잔액 카드 */}
-            <div className="rounded-2xl bg-card px-5 py-6">
-              <p className="mb-1 text-sm text-muted-foreground">현재 잔액</p>
-              <p className="text-[28px] font-bold tabular-nums text-foreground">
+            <div className="flex items-center justify-between rounded-2xl bg-card px-5 py-6">
+              <span className="text-sm text-muted-foreground">현재 잔액</span>
+              <span className="text-[28px] font-bold tabular-nums text-foreground">
                 {formatWon(data.walletBalance)}
-              </p>
+              </span>
             </div>
 
             {/* 환불 가능 여부 배너 */}
