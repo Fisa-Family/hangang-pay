@@ -54,23 +54,7 @@ function buildErrorMessage(error: unknown): string {
   return '요청에 실패했습니다. 네트워크 연결을 확인해 주세요.'
 }
 
-function ChevronDownIcon() {
-  return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="m6 9 6 6 6-6" />
-    </svg>
-  )
-}
+import { ChevronDown as ChevronDownIcon } from 'lucide-react'
 
 function onlyDigits(value: string) {
   return value.replace(/\D/g, '')

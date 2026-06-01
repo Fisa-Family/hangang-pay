@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
+import { Calendar } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { ApiError } from '@/api/client'
@@ -53,25 +54,6 @@ function buildErrorMessage(spec: (typeof API_SPEC)[keyof typeof API_SPEC], error
 
 const HISTORY_PAGE_SIZE = 20
 const SENTINEL_ROOT_MARGIN = '120px'
-
-function CalendarIcon() {
-  return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <rect x="3" y="4" width="18" height="18" rx="2" />
-      <path d="M16 2v4M8 2v4M3 10h18" />
-    </svg>
-  )
-}
 
 export function UserHistoryPage() {
   const navigate = useNavigate()
@@ -138,7 +120,7 @@ export function UserHistoryPage() {
             onClick={() => {}}
             className="flex size-11 items-center justify-center rounded-lg text-foreground hover:bg-muted"
           >
-            <CalendarIcon />
+            <Calendar size={22} aria-hidden />
           </button>
         }
       />

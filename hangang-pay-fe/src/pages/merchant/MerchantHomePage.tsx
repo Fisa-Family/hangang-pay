@@ -1,5 +1,6 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
-import { Suspense, type SVGProps } from 'react'
+import { Suspense } from 'react'
+import { QrCode, ChevronRight, FileText, PieChart, BarChart2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { EmptyState, ErrorBoundary } from '@/components/common'
 import { fetchMerchantDashboard, fetchMerchantMyPage, fetchMerchantPayments } from '@/api/merchant'
@@ -16,122 +17,11 @@ function formatPaymentTime(isoString: string): string {
 // 최근 결제 표시 건수
 const PAYMENT_LIMIT = 4
 
-// 라인 아트 SVG 아이콘
-function QrCodeIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
-    >
-      <rect width="5" height="5" x="3" y="3" rx="1" />
-      <rect width="5" height="5" x="16" y="3" rx="1" />
-      <rect width="5" height="5" x="3" y="16" rx="1" />
-      <path d="M21 16V21H16" />
-      <path d="M9 9h.01" />
-      <path d="M15 9h.01" />
-      <path d="M9 15h.01" />
-      <path d="M14 14h.01" />
-      <path d="M18 18h.01" />
-    </svg>
-  )
-}
-
-// 오른쪽 화살표 아이콘
-function ChevronRightIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
-      {...props}
-    >
-      <path d="m9 18 6-6-6-6" />
-    </svg>
-  )
-}
-
-// 문서 아이콘
-function DocumentIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
-    >
-      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-      <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-      <path d="M10 9H8" />
-      <path d="M16 13H8" />
-      <path d="M16 17H8" />
-    </svg>
-  )
-}
-
-// 파이 차트 아이콘
-function PieChartIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
-    >
-      <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
-      <path d="M22 12A10 10 0 0 0 12 2v10z" />
-    </svg>
-  )
-}
-
-// 막대 차트 아이콘
-function BarChartIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
-    >
-      <line x1="12" x2="12" y1="20" y2="10" />
-      <line x1="18" x2="18" y1="20" y2="4" />
-      <line x1="6" x2="6" y1="20" y2="16" />
-    </svg>
-  )
-}
-
 // 보조 메뉴 항목과 이동 경로
 const secondaryMenuItems = [
-  { label: '결제 내역', icon: DocumentIcon, path: '/merchant/payments' },
-  { label: '출금 내역', icon: PieChartIcon, path: '/merchant/settlements' },
-  { label: '매출 분석', icon: BarChartIcon, path: '/merchant/analytics' },
+  { label: '결제 내역', icon: FileText, path: '/merchant/payments' },
+  { label: '출금 내역', icon: PieChart, path: '/merchant/settlements' },
+  { label: '매출 분석', icon: BarChart2, path: '/merchant/analytics' },
 ] as const
 
 // 최근 결제 목록 (Suspense 전용, 오류는 상위 ErrorBoundary 위임)
@@ -243,12 +133,12 @@ export function MerchantHomePage() {
           onClick={() => navigate('/merchant/qr')}
           className="flex h-[120px] flex-col justify-between rounded-2xl bg-primary p-4 text-left transition-opacity active:opacity-90"
         >
-          <QrCodeIcon className="h-6 w-6 text-white" />
+          <QrCode className="h-6 w-6 text-white" aria-hidden />
           <div className="flex items-end justify-between">
             <span className="text-[15px] font-bold text-white">내 QR 보기</span>
             {/* 원형 배경 화살표 */}
             <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20">
-              <ChevronRightIcon className="h-4 w-4 text-white" />
+              <ChevronRight className="h-4 w-4 text-white" aria-hidden />
             </div>
           </div>
         </button>
@@ -264,7 +154,7 @@ export function MerchantHomePage() {
           </div>
           <div className="flex items-end justify-between">
             <span className="text-[15px] font-bold text-white">출금하기</span>
-            <ChevronRightIcon className="h-4 w-4 text-white" />
+            <ChevronRight className="h-4 w-4 text-white" aria-hidden />
           </div>
         </button>
       </div>

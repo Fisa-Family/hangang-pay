@@ -1,31 +1,11 @@
+import { ChevronRight, User } from 'lucide-react'
 import { formatPhoneNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { UserProfileResponse } from '@/api/user'
-import { ChevronRightIcon } from '../icons'
 
 interface UserProfileCardProps {
   profile: UserProfileResponse
   onClick?: () => void
-}
-
-// 사용자 실루엣 (얼굴 + 몸통)
-function UserAvatarIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
-    >
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
-    </svg>
-  )
 }
 
 export function UserProfileCard({ profile, onClick }: UserProfileCardProps) {
@@ -43,7 +23,7 @@ export function UserProfileCard({ profile, onClick }: UserProfileCardProps) {
     >
       {/* Avatar */}
       <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-        <UserAvatarIcon className="h-7 w-7" />
+        <User className="h-7 w-7" aria-hidden />
       </div>
 
       {/* User Info */}
@@ -54,7 +34,7 @@ export function UserProfileCard({ profile, onClick }: UserProfileCardProps) {
       </div>
 
       {/* Chevron Icon */}
-      <ChevronRightIcon className="h-5 w-5 shrink-0 text-muted-foreground" />
+      <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
     </Component>
   )
 }

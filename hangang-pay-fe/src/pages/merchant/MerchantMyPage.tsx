@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Building2, LogOut } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { ConfirmDialog, SettingsMenuCard } from '@/components/common'
@@ -38,56 +39,6 @@ const EMPTY_DATA: MerchantMyPageResponse = {
     accountNumber: '',
     accountType: '',
   },
-}
-
-// 5. 아이콘 컴포넌트 — 건물 (정산 계좌 관리)
-function BuildingIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
-    >
-      <rect width="16" height="20" x="4" y="2" rx="2" />
-      <path d="M9 22v-4h6v4" />
-      <path d="M8 6h.01" />
-      <path d="M16 6h.01" />
-      <path d="M12 6h.01" />
-      <path d="M12 10h.01" />
-      <path d="M12 14h.01" />
-      <path d="M16 10h.01" />
-      <path d="M16 14h.01" />
-      <path d="M8 10h.01" />
-      <path d="M8 14h.01" />
-    </svg>
-  )
-}
-
-// 6. 아이콘 컴포넌트 — 로그아웃 (door-exit)
-function LogoutIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
-    >
-      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-      <polyline points="16 17 21 12 16 7" />
-      <line x1="21" x2="9" y1="12" y2="12" />
-    </svg>
-  )
 }
 
 // 7. 가맹점 정보 필드 행 (label + value)
@@ -177,7 +128,7 @@ export function MerchantMyPage() {
             {
               id: 'settlement-account',
               label: '정산 계좌 관리',
-              icon: <BuildingIcon className="h-6 w-6 text-primary" />,
+              icon: <Building2 className="h-6 w-6 text-primary" aria-hidden />,
               description: accountDescription || undefined,
               // 미구현 — 추후 /merchant/mypage/accounts 연결 예정
               onClick: () => {},
@@ -192,7 +143,7 @@ export function MerchantMyPage() {
             {
               id: 'logout',
               label: '로그아웃',
-              icon: <LogoutIcon className="h-6 w-6 text-destructive" />,
+              icon: <LogOut className="h-6 w-6 text-destructive" aria-hidden />,
               variant: 'danger',
               onClick: () => setLogoutDialogOpen(true),
               disabled: logoutMutation.isPending,

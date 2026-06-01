@@ -2,6 +2,7 @@ import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { ReactNode } from 'react'
+import { QrCode, Plus, Undo2 } from 'lucide-react'
 import { BalanceCard, EmptyState, ErrorBoundary } from '@/components/common'
 import { fetchRecentTransactions, useUserProfile, type HistoryListItem } from '@/api/user'
 import { fetchWalletBalance } from '@/api/wallet'
@@ -51,50 +52,6 @@ function QuickAction({ label, icon, onClick }: QuickActionProps) {
       </span>
       <span>{label}</span>
     </button>
-  )
-}
-
-function QrIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm8-1h2v2h-2v-2zm2 2h2v2h-2v-2zm-2 2h2v2h-2v-2zm2 2h2v2h-2v-2zm-4-6h2v2h-2v-2z" />
-    </svg>
-  )
-}
-
-function PlusIcon() {
-  return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      aria-hidden
-    >
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-  )
-}
-
-function UndoIcon() {
-  return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M9 10L5 14l4 4" />
-      <path d="M5 14h9a5 5 0 000-10H3" />
-    </svg>
   )
 }
 
@@ -204,13 +161,21 @@ export function UserHomePage() {
 
       <section aria-label="빠른 실행">
         <div className="grid grid-cols-3 gap-3">
-          <QuickAction label="QR 결제" icon={<QrIcon />} onClick={() => navigate('/pay/scan')} />
+          <QuickAction
+            label="QR 결제"
+            icon={<QrCode size={22} aria-hidden />}
+            onClick={() => navigate('/pay/scan')}
+          />
           <QuickAction
             label="충전"
-            icon={<PlusIcon />}
+            icon={<Plus size={22} aria-hidden />}
             onClick={() => navigate('/charge/amount')}
           />
-          <QuickAction label="환불" icon={<UndoIcon />} onClick={() => navigate('/refund/check')} />
+          <QuickAction
+            label="환불"
+            icon={<Undo2 size={22} aria-hidden />}
+            onClick={() => navigate('/refund/check')}
+          />
         </div>
       </section>
 
