@@ -194,9 +194,9 @@ export function MerchantHomePage() {
 
   // CSS: 페이지 전체 — 세로 스크롤 flex 컨테이너
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pb-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-3 pt-5 pb-6">
       {/* 헤더: 가맹점명 — 좌측 정렬, 상단 여백 */}
-      <header className="flex items-center justify-between pt-1">
+      <header className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">{merchantName}</h1>
       </header>
 

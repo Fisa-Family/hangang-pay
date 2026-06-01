@@ -159,8 +159,8 @@ export function UserHomePage() {
     : null
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-hidden pb-4">
-      <header className="pt-1">
+    <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-hidden px-3 pt-5 pb-6">
+      <header>
         <h1 className="text-xl font-bold text-foreground">
           {profileQuery.data?.username ?? '사용자'}님
         </h1>
