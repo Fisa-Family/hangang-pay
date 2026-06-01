@@ -11,7 +11,6 @@ import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeExecuteRes
 import family.fisa.hangangpay.domain.transaction.internal.exchange.ExchangeIdempotencyDecision;
 import family.fisa.hangangpay.domain.transaction.internal.exchange.ExchangeIdempotencyStore;
 import family.fisa.hangangpay.domain.transaction.internal.exchange.ExchangeRequestHashGenerator;
-import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
 import family.fisa.hangangpay.domain.user.code.error.UserErrorCode;
 import family.fisa.hangangpay.domain.user.entity.User;
 import family.fisa.hangangpay.domain.user.repository.UserRepository;
@@ -28,14 +27,9 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class ExchangeCommandService {
 
-    /** PENDING 거래 임계 시간 - 초과 시 orphan으로 간주하고 reconcile 시도 */
-    private static final int ORPHAN_THRESHOLD_MINUTES = 5;
-
-    private final TransactionRepository transactionRepository;
     private final ExchangeQueryService exchangeQueryService;
     private final ExchangeStateWriter stateWriter;
     private final BankClient bankClient;
-    private final ExchangeReconcileService exchangeReconcileService;
     private final UserRepository userRepository;
     private final MerchantRepository merchantRepository;
     private final PasswordEncoder passwordEncoder;
