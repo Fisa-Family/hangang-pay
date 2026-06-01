@@ -115,10 +115,8 @@ export function ChargeAmountPage() {
   }
 
   return (
-    <div className="flex h-dvh flex-col bg-white">
-      <div className="px-5 pt-14">
-        <BackTitleHeader title="충전" onBack={() => navigate('/home', { replace: true })} />
-      </div>
+    <div className="flex h-dvh flex-col bg-background">
+      <BackTitleHeader title="충전" onBack={() => navigate('/home', { replace: true })} />
 
       {/* 잔액·한도 — flat 섹션 */}
       <div className="px-5 pt-2 pb-1">
@@ -227,7 +225,7 @@ export function ChargeAmountPage() {
               type="button"
               onClick={() => handleKey(key)}
               className={cn(
-                'flex h-[64px] items-center justify-center bg-white text-[22px] font-bold text-foreground',
+                'flex h-[64px] items-center justify-center bg-background text-[22px] font-bold text-foreground',
                 'transition-colors active:bg-muted',
                 !isLastCol && 'border-r border-border',
                 !isLastRow && 'border-b border-border'

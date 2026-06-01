@@ -185,7 +185,7 @@ export function MerchantHomePage() {
       </header>
 
       {/* 대시보드 카드: 흰 카드 + 우하단 블루 그라데이션 장식 / 매출·결제 건수 좌우 분할 */}
-      <div className="relative overflow-hidden rounded-2xl bg-white shadow-sm">
+      <div className="relative overflow-hidden rounded-2xl bg-card shadow-sm">
         {/* 우측 하단 블루 그라데이션 장식 */}
         <div
           className="pointer-events-none absolute -bottom-12 -right-12 h-40 w-40 rounded-full"
@@ -249,7 +249,7 @@ export function MerchantHomePage() {
             key={label}
             type="button"
             onClick={() => navigate(path)}
-            className="flex flex-col items-center gap-2.5 rounded-2xl bg-white p-4 shadow-sm transition-colors active:bg-muted"
+            className="flex flex-col items-center gap-2.5 rounded-2xl bg-card p-4 shadow-sm transition-colors active:bg-muted"
           >
             <Icon className="h-6 w-6 text-primary" />
             <span className="text-[13px] font-bold text-foreground">
@@ -260,7 +260,7 @@ export function MerchantHomePage() {
       </div>
 
       {/* 최근 정산 내역: 흰 카드 / 헤더(제목+전체보기) + 목록 */}
-      <div className="rounded-2xl bg-white p-5 shadow-sm">
+      <div className="rounded-2xl bg-card p-5 shadow-sm">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-base font-bold text-foreground">최근 출금 내역</h2>
           <button
