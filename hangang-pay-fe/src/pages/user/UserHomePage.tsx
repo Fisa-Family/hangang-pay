@@ -2,7 +2,7 @@ import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { ReactNode } from 'react'
-import { BalanceCard, EmptyState, ErrorBoundary, ListItem } from '@/components/common'
+import { BalanceCard, EmptyState, ErrorBoundary } from '@/components/common'
 import { fetchRecentTransactions, useUserProfile, type HistoryListItem } from '@/api/user'
 import { fetchWalletBalance } from '@/api/wallet'
 import { ApiError } from '@/api/client'
@@ -24,15 +24,13 @@ function buildErrorMessage(spec: (typeof API_SPEC)[keyof typeof API_SPEC], error
   return `${spec.id} 요청에 실패했습니다. 네트워크 연결을 확인해 주세요.`
 }
 
-const HISTORY_FETCH_LIMIT = 5
+const HISTORY_FETCH_LIMIT = 6
 
 function formatHistoryDate(isoString: string): string {
   const d = new Date(isoString)
   const mm = String(d.getMonth() + 1).padStart(2, '0')
   const dd = String(d.getDate()).padStart(2, '0')
-  const hh = String(d.getHours()).padStart(2, '0')
-  const min = String(d.getMinutes()).padStart(2, '0')
-  return `${mm}.${dd} ${hh}:${min}`
+  return `${mm}.${dd}`
 }
 
 interface QuickActionProps {
@@ -100,13 +98,32 @@ function UndoIcon() {
   )
 }
 
-// 거래 금액 표시 — 부호(+/-)에 따라 수입은 초록, 지출은 빨강으로 색상 구분
-function HistoryAmount({ sign, amount }: { sign: '+' | '-'; amount: number }) {
+function historyAmountColor(displayType: HistoryListItem['displayType']): string {
+  switch (displayType) {
+    case 'CHARGE':
+    case 'CANCEL':
+      return 'text-primary'
+    case 'EXCHANGE':
+      return 'text-warning'
+    default:
+      return 'text-foreground'
+  }
+}
+
+function HistoryAmount({
+  sign,
+  amount,
+  displayType,
+}: {
+  sign: '+' | '-'
+  amount: number
+  displayType: HistoryListItem['displayType']
+}) {
   return (
     <span
       className={cn(
         'shrink-0 text-right text-sm font-bold tabular-nums',
-        sign === '+' ? 'text-success' : 'text-destructive'
+        historyAmountColor(displayType)
       )}
     >
       {sign}
@@ -129,14 +146,21 @@ function RecentTransactionList() {
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      {histories.map((tx: HistoryListItem) => (
-        <ListItem
+    <div className="flex flex-col">
+      {histories.map((tx: HistoryListItem, idx) => (
+        <div
           key={tx.id}
-          title={tx.counterpartName}
-          description={formatHistoryDate(tx.createdAt)}
-          rightAction={<HistoryAmount sign={tx.sign} amount={tx.amount} />}
-        />
+          className="flex items-center gap-3 py-4.5"
+          style={{ borderBottom: idx < histories.length - 1 ? '1px solid var(--border)' : 'none' }}
+        >
+          <span className="w-10 shrink-0 text-[13px] text-muted-foreground">
+            {formatHistoryDate(tx.createdAt)}
+          </span>
+          <span className="flex-1 truncate text-[14px] font-semibold text-foreground">
+            {tx.counterpartName}
+          </span>
+          <HistoryAmount sign={tx.sign} amount={tx.amount} displayType={tx.displayType} />
+        </div>
       ))}
     </div>
   )
@@ -159,7 +183,7 @@ export function UserHomePage() {
     : null
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-hidden px-3 pt-5 pb-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-3 pt-5 pb-6">
       <header>
         <h1 className="text-2xl font-bold text-foreground">
           {profileQuery.data?.username ?? '사용자'}님
@@ -190,32 +214,28 @@ export function UserHomePage() {
         </div>
       </section>
 
-      <section aria-label="최근 거래" className="flex min-h-0 flex-1 flex-col gap-3">
-        <div className="flex shrink-0 items-center justify-between">
+      <div className="rounded-2xl bg-card p-5 shadow-sm">
+        <div className="mb-3 flex items-center justify-between">
           <h2 className="text-base font-bold text-foreground">최근 거래</h2>
           <button
             type="button"
             onClick={() => navigate('/mypage/payments')}
             className="text-xs font-medium text-muted-foreground"
           >
-            전체 보기
+            전체보기
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto pb-12">
-          <ErrorBoundary fallback={<EmptyState message="최근 거래 내역을 불러올 수 없습니다." />}>
-            <Suspense
-              fallback={
-                <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
-                  불러오는 중...
-                </div>
-              }
-            >
-              <RecentTransactionList />
-            </Suspense>
-          </ErrorBoundary>
-        </div>
-      </section>
+        <ErrorBoundary fallback={<EmptyState message="최근 거래 내역을 불러올 수 없습니다." />}>
+          <Suspense
+            fallback={
+              <div className="py-4 text-center text-sm text-muted-foreground">불러오는 중…</div>
+            }
+          >
+            <RecentTransactionList />
+          </Suspense>
+        </ErrorBoundary>
+      </div>
     </div>
   )
 }
