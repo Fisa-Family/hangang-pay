@@ -23,7 +23,8 @@ public class BusinessInfoQueryService {
                             "3456789012", "서울숲 서점", "박서울", "서울 성동구 서울숲2길 32", "소매업"));
 
     public BusinessInfoResponse getBusinessInfo(String businessNumber) {
-        BusinessInfoResponse businessInfo = MOCK_BUSINESS_INFOS.get(businessNumber);
+        String normalized = businessNumber.replace("-", "");
+        BusinessInfoResponse businessInfo = MOCK_BUSINESS_INFOS.get(normalized);
 
         if (businessInfo == null) {
             throw new BusinessException(MerchantErrorCode.BUSINESS_INFO_NOT_FOUND);

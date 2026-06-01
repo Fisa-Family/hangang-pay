@@ -15,6 +15,7 @@ import static org.mockito.BDDMockito.given;
 import family.fisa.hangangpay.auth.code.error.AuthErrorCode;
 import family.fisa.hangangpay.auth.dto.UserRegisterRequest;
 import family.fisa.hangangpay.auth.dto.UserRegisterResponse;
+import family.fisa.hangangpay.client.bank.BankClient;
 import family.fisa.hangangpay.domain.account.entity.Account;
 import family.fisa.hangangpay.domain.account.repository.AccountRepository;
 import family.fisa.hangangpay.domain.institution.entity.Institution;
@@ -55,6 +56,7 @@ class UserRegistrationServiceTest {
     @Mock private WalletCommandService walletCommandService;
     @Mock private InstitutionQueryService institutionQueryService;
     @Mock private PasswordEncoder passwordEncoder;
+    @Mock private BankClient bankClient;
 
     @InjectMocks private UserRegistrationService userRegistrationService;
 
