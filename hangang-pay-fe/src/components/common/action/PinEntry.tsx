@@ -12,21 +12,9 @@ interface PinEntryProps {
 }
 
 const PIN_PAD_ROWS = [
-  [
-    { d: '1', s: '' },
-    { d: '2', s: 'ABC' },
-    { d: '3', s: 'DEF' },
-  ],
-  [
-    { d: '4', s: 'GHI' },
-    { d: '5', s: 'JKL' },
-    { d: '6', s: 'MNO' },
-  ],
-  [
-    { d: '7', s: 'PQRS' },
-    { d: '8', s: 'TUV' },
-    { d: '9', s: 'WXYZ' },
-  ],
+  ['1', '2', '3'],
+  ['4', '5', '6'],
+  ['7', '8', '9'],
 ] as const
 
 export function PinEntry({
@@ -73,42 +61,33 @@ export function PinEntry({
         ) : null}
       </div>
 
-      <div className="border-t border-border/60">
-        {PIN_PAD_ROWS.map((row) => (
-          <div key={row[0].d} className="grid grid-cols-3">
-            {row.map(({ d, s }) => (
-              <button
-                key={d}
-                type="button"
-                onClick={() => handleDigit(d)}
-                className="flex h-16 flex-col items-center justify-center gap-0.5 border-b border-r border-border/60 active:bg-muted"
-              >
-                <span className="text-xl font-semibold text-foreground">{d}</span>
-                {s && (
-                  <span className="text-[10px] tracking-widest text-muted-foreground">{s}</span>
-                )}
-              </button>
-            ))}
-          </div>
+      <div className="grid grid-cols-3 gap-px bg-border/30">
+        {PIN_PAD_ROWS.flat().map((d) => (
+          <button
+            key={d}
+            type="button"
+            onClick={() => handleDigit(d)}
+            className="flex h-20 items-center justify-center bg-background text-xl font-semibold text-foreground active:bg-muted"
+          >
+            {d}
+          </button>
         ))}
-        <div className="grid grid-cols-3">
-          <div className="h-16 border-b border-r border-border/60" />
-          <button
-            type="button"
-            onClick={() => handleDigit('0')}
-            className="flex h-16 items-center justify-center border-b border-r border-border/60 text-xl font-semibold text-foreground active:bg-muted"
-          >
-            0
-          </button>
-          <button
-            type="button"
-            onClick={handleBackspace}
-            className="flex h-16 items-center justify-center border-b border-r border-border/60 text-foreground active:bg-muted"
-            aria-label="지우기"
-          >
-            <BackspaceIcon />
-          </button>
-        </div>
+        <div className="h-20 bg-background" />
+        <button
+          type="button"
+          onClick={() => handleDigit('0')}
+          className="flex h-20 items-center justify-center bg-background text-xl font-semibold text-foreground active:bg-muted"
+        >
+          0
+        </button>
+        <button
+          type="button"
+          onClick={handleBackspace}
+          className="flex h-20 items-center justify-center bg-background text-foreground active:bg-muted"
+          aria-label="지우기"
+        >
+          <BackspaceIcon />
+        </button>
       </div>
     </div>
   )
