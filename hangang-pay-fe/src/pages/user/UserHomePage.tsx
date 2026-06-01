@@ -38,18 +38,26 @@ interface QuickActionProps {
   label: string
   icon: ReactNode
   onClick: () => void
+  tint?: 'primary' | 'success' | 'warning'
 }
 
-function QuickAction({ label, icon, onClick }: QuickActionProps) {
+const tintClasses: Record<NonNullable<QuickActionProps['tint']>, string> = {
+  primary: 'bg-primary/15 text-primary',
+  success: 'bg-success/15 text-success',
+  warning: 'bg-warning/15 text-warning',
+}
+
+function QuickAction({ label, icon, onClick, tint = 'primary' }: QuickActionProps) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex flex-col items-center gap-2.5 rounded-xl bg-card px-2 py-4 text-sm font-semibold text-foreground shadow-sm transition-colors active:bg-muted"
+      className={cn(
+        'flex flex-col items-center gap-2 rounded-xl px-2 py-4 text-sm font-semibold shadow-sm transition-opacity active:opacity-70',
+        tintClasses[tint]
+      )}
     >
-      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground">
-        {icon}
-      </span>
+      {icon}
       <span>{label}</span>
     </button>
   )
@@ -163,18 +171,20 @@ export function UserHomePage() {
         <div className="grid grid-cols-3 gap-3">
           <QuickAction
             label="QR 결제"
-            icon={<QrCode size={22} aria-hidden />}
+            icon={<QrCode size={24} aria-hidden />}
             onClick={() => navigate('/pay/scan')}
           />
           <QuickAction
             label="충전"
-            icon={<Plus size={22} aria-hidden />}
+            icon={<Plus size={24} aria-hidden />}
             onClick={() => navigate('/charge/amount')}
+            tint="success"
           />
           <QuickAction
             label="환불"
-            icon={<Undo2 size={22} aria-hidden />}
+            icon={<Undo2 size={24} aria-hidden />}
             onClick={() => navigate('/refund/check')}
+            tint="warning"
           />
         </div>
       </section>
