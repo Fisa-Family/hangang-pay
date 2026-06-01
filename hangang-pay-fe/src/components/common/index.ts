@@ -35,7 +35,7 @@ export { HistoryListItem } from './history/HistoryListItem'
 export { HistoryDateGroupHeader } from './history/HistoryDateGroupHeader'
 export { HistoryTypeTabs } from './history/HistoryTypeTabs'
 
-export { BackspaceIcon, ChevronRightIcon } from './icons'
+export { BackspaceIcon, ChevronRightIcon, HangangPayLogo } from './icons'
 export { CheckCircleIcon } from './icons/CheckCircleIcon'
 
 export { SegmentedTabs } from './SegmentedTabs'

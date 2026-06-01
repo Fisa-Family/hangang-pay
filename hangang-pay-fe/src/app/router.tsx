@@ -37,6 +37,7 @@ import { MerchantPaymentDetailPage } from '@/pages/merchant/MerchantPaymentDetai
 import { MerchantMyPage } from '@/pages/merchant/MerchantMyPage'
 import { MerchantSettlementPage } from '@/pages/merchant/MerchantSettlementPage'
 import { AppShell } from '@/components/common'
+import { LandingPage } from '@/pages/landing/LandingPage'
 
 // 미등록 경로 접근 시 경로 기반으로 해당 영역 홈으로 교체
 function GoBack() {
@@ -49,10 +50,11 @@ function GoBack() {
   return null
 }
 
-// 진입점(/) 에서 역할에 맞는 홈으로 리다이렉트
+// 진입점(/) 에서 역할에 맞는 홈으로 리다이렉트, 미인증 시 시작화면 표시
 function RoleRedirect() {
-  const { role, isLoading } = useCurrentUser()
+  const { role, isLoading, isAuthenticated } = useCurrentUser()
   if (isLoading) return null
+  if (!isAuthenticated) return <LandingPage />
   return <Navigate to={role === 'MERCHANT' ? '/merchant/home' : '/home'} replace />
 }
 
