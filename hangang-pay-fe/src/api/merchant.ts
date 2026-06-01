@@ -19,8 +19,28 @@ export interface MerchantSettlementPage {
 }
 
 // 정산 내역 조회 → GET /api/v1/merchant/settlements
-export function fetchMerchantSettlements(size = 4): Promise<MerchantSettlementPage> {
-  return apiFetch<MerchantSettlementPage>(`/merchant/settlements?size=${size}`)
+export function fetchMerchantSettlements(
+  paramsOrSize:
+    | number
+    | {
+        size?: number
+
+        cursorCreatedAt?: string
+
+        cursorId?: number
+      } = 4
+): Promise<MerchantSettlementPage> {
+  const params = typeof paramsOrSize === 'number' ? { size: paramsOrSize } : paramsOrSize
+
+  const q = new URLSearchParams({
+    size: String(params.size ?? 20),
+  })
+
+  if (params.cursorCreatedAt) q.set('cursorCreatedAt', params.cursorCreatedAt)
+
+  if (params.cursorId != null) q.set('cursorId', String(params.cursorId))
+
+  return apiFetch<MerchantSettlementPage>(`/merchant/settlements?${q}`)
 }
 
 // 가맹점 본인 QR 응답 (BE: MerchantQrResponse)
