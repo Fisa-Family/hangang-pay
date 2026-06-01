@@ -22,7 +22,7 @@ interface BottomNavTab {
 const userTabs: BottomNavTab[] = [
   { id: 'home', label: '홈', path: '/home' },
   { id: 'payments', label: '결제내역', path: '/mypage/payments' },
-  { id: 'scan', label: 'QR 스캔', path: '/pay/scan', featured: true },
+  { id: 'scan', label: 'QR 결제', path: '/pay/scan', featured: true },
   { id: 'merchant', label: '가맹점', path: '', disabled: true },
   { id: 'mypage', label: '마이페이지', path: '/mypage' },
 ]
@@ -49,7 +49,7 @@ export function BottomNav({ type, active, onNavigate, className }: BottomNavProp
   return (
     <nav
       className={cn(
-        'absolute inset-x-0 bottom-0 z-20 border-t border-border bg-card px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2',
+        'absolute inset-x-0 bottom-0 z-20 bg-card px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-4 shadow-[0_-2px_12px_rgba(0,0,0,0.06)]',
         className
       )}
     >
@@ -68,9 +68,11 @@ export function BottomNav({ type, active, onNavigate, className }: BottomNavProp
               disabled={tab.disabled}
               onClick={() => onNavigate(tab.path)}
               className={cn(
-                'flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg px-1 text-xs font-semibold text-muted-foreground transition-colors',
+                'flex flex-col items-center gap-1 rounded-lg px-1 text-xs font-semibold text-muted-foreground transition-colors',
+                !tab.featured && 'min-h-12 justify-center',
                 isActive && !tab.featured && 'text-primary',
-                tab.featured && 'bg-primary text-primary-foreground shadow-sm shadow-primary/20',
+                tab.featured &&
+                  '-mt-4 min-h-15 justify-end rounded-2xl bg-primary pb-2 text-primary-foreground shadow-md shadow-primary/30',
                 tab.disabled && 'opacity-40'
               )}
             >
