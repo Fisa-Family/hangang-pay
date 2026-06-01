@@ -31,6 +31,7 @@ import { MerchantPaymentDetailPage } from '@/pages/merchant/MerchantPaymentDetai
 import { MerchantMyPage } from '@/pages/merchant/MerchantMyPage'
 import { MerchantSettlementPage } from '@/pages/merchant/MerchantSettlementPage'
 import { AppShell } from '@/components/common'
+import { MerchantSettlementHistoryPage } from '@/pages/merchant/MerchantSettlementHistoryPage'
 
 // 미등록 경로 접근 시 경로 기반으로 해당 영역 홈으로 교체
 function GoBack() {
@@ -142,6 +143,10 @@ export const router = createBrowserRouter([
               { path: '/merchant/qr', element: <MerchantQrPage /> },
               { path: '/merchant/payments', element: <MerchantPaymentsPage /> },
               { path: '/merchant/mypage', element: <MerchantMyPage /> },
+              {
+                path: '/merchant/settlements',
+                element: <MerchantSettlementHistoryPage />,
+              },
             ],
           },
           {

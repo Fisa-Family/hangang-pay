@@ -131,7 +131,7 @@ function BarChartIcon({ className }: { className?: string }) {
 // 보조 메뉴 항목과 이동 경로
 const secondaryMenuItems = [
   { label: '결제 내역', icon: DocumentIcon, path: '/merchant/payments' },
-  { label: '출금 내역', icon: PieChartIcon, path: '/merchant/settlement/history' },
+  { label: '출금 내역', icon: PieChartIcon, path: '/merchant/settlements' },
   { label: '매출 분석', icon: BarChartIcon, path: '/merchant/analytics' },
 ] as const
 
@@ -265,7 +265,7 @@ export function MerchantHomePage() {
           <h2 className="text-base font-bold text-foreground">최근 출금 내역</h2>
           <button
             type="button"
-            onClick={() => navigate('/merchant/settlement/history')}
+            onClick={() => navigate('/merchant/settlements')}
             className="text-xs font-medium text-muted-foreground"
           >
             전체보기 &gt;

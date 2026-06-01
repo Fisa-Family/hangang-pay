@@ -12,6 +12,7 @@ const SUBTYPE_LABEL: Record<DisplayHistoryType, string> = {
   CANCEL: '결제 취소',
   CHARGE: '충전',
   EXCHANGE: '환불',
+  SETTLEMENT: '출금',
 }
 
 function amountClass(displayType: DisplayHistoryType): string {
