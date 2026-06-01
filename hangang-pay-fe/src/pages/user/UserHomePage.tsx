@@ -46,7 +46,7 @@ function QuickAction({ label, icon, onClick }: QuickActionProps) {
     <button
       type="button"
       onClick={onClick}
-      className="flex flex-col items-center gap-2.5 rounded-xl border border-border bg-card px-2 py-4 text-sm font-semibold text-foreground transition-colors active:bg-muted"
+      className="flex flex-col items-center gap-2.5 rounded-xl bg-card px-2 py-4 text-sm font-semibold text-foreground shadow-sm transition-colors active:bg-muted"
     >
       <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground">
         {icon}
@@ -161,7 +161,7 @@ export function UserHomePage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-hidden px-3 pt-5 pb-6">
       <header>
-        <h1 className="text-xl font-bold text-foreground">
+        <h1 className="text-2xl font-bold text-foreground">
           {profileQuery.data?.username ?? '사용자'}님
         </h1>
       </header>
@@ -196,7 +196,7 @@ export function UserHomePage() {
           <button
             type="button"
             onClick={() => navigate('/mypage/payments')}
-            className="text-xs font-semibold text-primary"
+            className="text-xs font-medium text-muted-foreground"
           >
             전체 보기
           </button>
