@@ -75,8 +75,6 @@ public class VerificationService {
     public String sendAccountVerification(
             Long institutionId, String accountNumber, HttpSession session) {
 
-        // 계좌 1원 인증 발송 전 bank 서버에서 institutionId + accountNumber 존재 여부 확인
-        bankClient.getBankAccount(institutionId, accountNumber);
         String code = String.format("%06d", random.nextInt(1_000_000));
         session.setAttribute(SESSION_ACCOUNT_CODE, code);
         session.setAttribute(SESSION_ACCOUNT_INSTITUTION_ID, institutionId);

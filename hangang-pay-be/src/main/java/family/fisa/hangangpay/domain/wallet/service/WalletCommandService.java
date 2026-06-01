@@ -32,7 +32,7 @@ public class WalletCommandService {
         // 1. bank에 지갑 발급 요청 (Custodial - bank가 keypair 생성)
         BankWalletResponse bankWallet =
                 bankClient.createBankWallet(
-                        new CreateBankWalletRequest(institution.getId(), party.getId(), merchant));
+                        new CreateBankWalletRequest(institution.getId(), merchant));
 
         // 2. wallet_address 정규화
         String walletAddress = normalizeAddress(bankWallet.walletAddress());
