@@ -2,11 +2,7 @@ import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { Suspense, type SVGProps } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { EmptyState, ErrorBoundary } from '@/components/common'
-import {
-  fetchMerchantDashboard,
-  fetchMerchantMyPage,
-  fetchMerchantSettlements,
-} from '@/api/merchant'
+import { fetchMerchantDashboard, fetchMerchantMyPage, fetchMerchantPayments } from '@/api/merchant'
 import { formatWon } from '@/lib/format'
 
 // 결제 시각 포맷 HH:mm
@@ -17,8 +13,8 @@ function formatPaymentTime(isoString: string): string {
   return `${hh}:${min}`
 }
 
-// 최근 정산 표시 건수
-const SETTLEMENT_LIMIT = 4
+// 최근 결제 표시 건수
+const PAYMENT_LIMIT = 4
 
 // 라인 아트 SVG 아이콘
 function QrCodeIcon({ className }: { className?: string }) {
@@ -138,37 +134,40 @@ const secondaryMenuItems = [
   { label: '매출 분석', icon: BarChartIcon, path: '/merchant/analytics' },
 ] as const
 
-// 최근 정산 목록 (Suspense 전용, 오류는 상위 ErrorBoundary 위임)
-function RecentSettlementList() {
+// 최근 결제 목록 (Suspense 전용, 오류는 상위 ErrorBoundary 위임)
+function RecentPaymentList() {
   const { data } = useSuspenseQuery({
-    queryKey: ['merchant', 'settlements', SETTLEMENT_LIMIT],
-    queryFn: () => fetchMerchantSettlements(SETTLEMENT_LIMIT),
+    queryKey: ['merchant', 'payments', PAYMENT_LIMIT],
+    queryFn: () => fetchMerchantPayments({ size: PAYMENT_LIMIT }),
     retry: false,
   })
 
   const items = data.content
 
   if (items.length === 0) {
-    return <EmptyState message="최근 출금 내역이 없습니다." />
+    return <EmptyState message="최근 결제 내역이 없습니다." />
   }
 
   return (
     <div className="flex flex-col">
       {items.map((item, idx) => (
         <div
-          key={item.settlementId}
+          key={item.transactionId}
           className="flex items-center gap-3 py-3"
-          style={{
-            borderBottom: idx < items.length - 1 ? '1px solid #F9FAFB' : 'none',
-          }}
+          style={{ borderBottom: idx < items.length - 1 ? '1px solid var(--border)' : 'none' }}
         >
           <span className="w-10 shrink-0 text-[13px] text-muted-foreground">
-            {formatPaymentTime(item.requestedAt)}
+            {formatPaymentTime(item.createdAt)}
           </span>
-          <span className="flex-1 text-[14px] font-bold text-foreground">
-            {item.settlementStatusText || '정산'}
+          <span className="flex-1 truncate text-[14px] font-semibold text-foreground">
+            {item.payerName}
           </span>
-          <span className="text-[14px] font-bold text-foreground">{formatWon(item.amount)}</span>
+          <span
+            className={`text-[14px] font-bold tabular-nums ${item.transactionType === 'CANCEL' ? 'text-destructive' : 'text-foreground'}`}
+          >
+            {item.transactionType === 'CANCEL' ? '-' : '+'}
+            {formatWon(item.amount)}
+          </span>
         </div>
       ))}
     </div>
@@ -287,26 +286,26 @@ export function MerchantHomePage() {
         ))}
       </div>
 
-      {/* 최근 정산 내역: 흰 카드 / 헤더(제목+전체보기) + 목록 */}
+      {/* 최근 결제 내역: 흰 카드 / 헤더(제목+전체보기) + 목록 */}
       <div className="rounded-2xl bg-card p-5 shadow-sm">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-bold text-foreground">최근 출금 내역</h2>
+          <h2 className="text-base font-bold text-foreground">최근 결제 내역</h2>
           <button
             type="button"
-            onClick={() => navigate('/merchant/settlements')}
+            onClick={() => navigate('/merchant/payments')}
             className="text-xs font-medium text-muted-foreground"
           >
             전체보기 &gt;
           </button>
         </div>
 
-        <ErrorBoundary fallback={<EmptyState message="출금 내역을 불러올 수 없습니다." />}>
+        <ErrorBoundary fallback={<EmptyState message="결제 내역을 불러올 수 없습니다." />}>
           <Suspense
             fallback={
               <div className="py-4 text-center text-sm text-muted-foreground">불러오는 중…</div>
             }
           >
-            <RecentSettlementList />
+            <RecentPaymentList />
           </Suspense>
         </ErrorBoundary>
       </div>
