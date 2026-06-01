@@ -11,6 +11,11 @@ import { useCurrentUser } from '@/auth/useCurrentUser'
 import { FullscreenLayout, MainLayout } from '@/routes/layouts'
 import { RequireAuth, RequireRole, RedirectIfAuth } from '@/routes/guards'
 import { LoginPage } from '@/pages/auth/LoginPage'
+import { RegisterTermsPage } from '@/pages/register/RegisterTermsPage'
+import { RegisterVerifyPage } from '@/pages/register/RegisterVerifyPage'
+import { RegisterPasswordPage } from '@/pages/register/RegisterPasswordPage'
+import { RegisterAccountPage } from '@/pages/register/RegisterAccountPage'
+import { RegisterPinPage } from '@/pages/register/RegisterPinPage'
 import { UserHomePage } from '@/pages/user/UserHomePage'
 import { UserMyPage } from '@/pages/user/UserMyPage'
 import { UserHistoryPage } from '@/pages/history/UserHistoryPage'
@@ -78,7 +83,16 @@ export const router = createBrowserRouter([
   },
   {
     element: <RedirectIfAuth />,
-    children: [{ path: '/login', element: <LoginPage /> }],
+    children: [
+      { path: '/login', element: <LoginPage /> },
+      { path: '/register/terms', element: <RegisterTermsPage /> },
+      { path: '/register/verify', element: <RegisterVerifyPage /> },
+      { path: '/register/password', element: <RegisterPasswordPage /> },
+      { path: '/register/account', element: <RegisterAccountPage /> },
+      { path: '/register/pin', element: <RegisterPinPage /> },
+      { path: '/register/processing', element: <ProcessingPage /> },
+      { path: '/register/complete', element: <CompletePage /> },
+    ],
   },
   // /merchant 단축 진입점 (홈으로 리다이렉트)
   {

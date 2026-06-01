@@ -2,7 +2,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { formatWon, formatDateTimeDot } from '@/lib/format'
 import { Button, CheckCircleIcon } from '@/components/common'
 
-type CompleteState = Record<string, unknown> & { amount: number }
+type CompleteState = Record<string, unknown>
 
 interface ResultRow {
   label: string
@@ -12,8 +12,10 @@ interface ResultRow {
 
 interface FlowConfig {
   title: (state: CompleteState) => string
-  amountLabel: string
+  amountLabel?: string
   rows: (state: CompleteState) => ResultRow[]
+  actionLabel?: string
+  actionPath?: string
 }
 
 const FLOWS: Record<string, FlowConfig> = {
@@ -51,6 +53,12 @@ const FLOWS: Record<string, FlowConfig> = {
       },
     ],
   },
+  '/register/complete': {
+    title: () => '회원가입이 완료되었습니다',
+    rows: () => [],
+    actionLabel: '시작하기',
+    actionPath: '/home',
+  },
 }
 
 export function CompletePage() {
@@ -60,6 +68,9 @@ export function CompletePage() {
   const flow = FLOWS[location.pathname]
 
   const rows = state && flow ? flow.rows(state) : []
+  const amount = state?.amount as number | undefined
+  const actionLabel = flow?.actionLabel ?? '홈으로'
+  const actionPath = flow?.actionPath ?? '/home'
 
   return (
     <div className="flex h-dvh flex-col items-center justify-between bg-white px-5 py-14">
@@ -70,37 +81,37 @@ export function CompletePage() {
           {state && flow ? flow.title(state) : '완료'}
         </p>
 
-        <div className="w-full rounded-2xl bg-white p-5 shadow-sm ring-1 ring-border/60">
-          <p className="mb-1 text-center text-sm text-muted-foreground">
-            {flow?.amountLabel ?? '금액'}
-          </p>
-          <p className="mb-4 text-center text-[32px] font-bold tabular-nums text-foreground">
-            {state ? formatWon(state.amount) : '—'}
-          </p>
+        {flow?.amountLabel && (
+          <div className="w-full rounded-2xl bg-white p-5 shadow-sm ring-1 ring-border/60">
+            <p className="mb-1 text-center text-sm text-muted-foreground">{flow.amountLabel}</p>
+            <p className="mb-4 text-center text-[32px] font-bold tabular-nums text-foreground">
+              {amount != null ? formatWon(amount) : '—'}
+            </p>
 
-          {rows.length > 0 && (
-            <div className="border-t border-border/60 pt-4">
-              {rows.map((row) => (
-                <div key={row.label} className="flex items-center justify-between py-2.5">
-                  <span className="text-sm text-muted-foreground">{row.label}</span>
-                  <span
-                    className={`text-sm font-semibold tabular-nums ${row.accent ? 'text-primary' : 'text-foreground'}`}
-                  >
-                    {row.value}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+            {rows.length > 0 && (
+              <div className="border-t border-border/60 pt-4">
+                {rows.map((row) => (
+                  <div key={row.label} className="flex items-center justify-between py-2.5">
+                    <span className="text-sm text-muted-foreground">{row.label}</span>
+                    <span
+                      className={`text-sm font-semibold tabular-nums ${row.accent ? 'text-primary' : 'text-foreground'}`}
+                    >
+                      {row.value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <Button
         size="lg"
         className="rounded-2xl"
-        onClick={() => navigate('/home', { replace: true })}
+        onClick={() => navigate(actionPath, { replace: true })}
       >
-        홈으로
+        {actionLabel}
       </Button>
     </div>
   )

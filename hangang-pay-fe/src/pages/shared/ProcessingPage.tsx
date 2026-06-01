@@ -5,14 +5,11 @@ import type { QueryClient } from '@tanstack/react-query'
 import { executePayment, recoverPayment } from '@/api/payment'
 import { executeCharge } from '@/api/charge'
 import { executeExchange } from '@/api/exchange'
+import { registerUser } from '@/api/auth'
 import { ApiError } from '@/api/client'
 import { ProcessingView } from '@/components/common'
 
-type FlowState = Record<string, unknown> & {
-  transactionUuid: string
-  pin: string
-  amount: number
-}
+type FlowState = Record<string, unknown>
 
 interface FlowConfig {
   title: string
@@ -21,6 +18,7 @@ interface FlowConfig {
   errorPath: string
   defaultError: string
   run: (state: FlowState) => Promise<unknown>
+  buildErrorState?: (state: FlowState, message: string) => Record<string, unknown>
   onComplete?: (queryClient: QueryClient) => void
 }
 
@@ -33,10 +31,10 @@ const FLOWS: Record<string, FlowConfig> = {
     defaultError: '결제 처리 중 오류가 발생했습니다.',
     async run(state) {
       try {
-        return await executePayment(state.transactionUuid, state.pin)
+        return await executePayment(state.transactionUuid as string, state.pin as string)
       } catch (err) {
         try {
-          await recoverPayment(state.transactionUuid)
+          await recoverPayment(state.transactionUuid as string)
         } catch {
           // recover는 best-effort, 실패해도 원래 에러를 그대로 throw
         }
@@ -55,11 +53,11 @@ const FLOWS: Record<string, FlowConfig> = {
     defaultError: '충전 처리 중 오류가 발생했습니다.',
     run: (state) =>
       executeCharge({
-        transactionUuid: state.transactionUuid,
+        transactionUuid: state.transactionUuid as string,
         institutionId: state.institutionId as number,
         accountId: state.accountId as number,
-        amount: state.amount,
-        paymentPin: state.pin,
+        amount: state.amount as number,
+        paymentPin: state.pin as string,
       }),
     onComplete: (queryClient) => {
       void queryClient.invalidateQueries({ queryKey: ['charge', 'init'] })
@@ -73,11 +71,34 @@ const FLOWS: Record<string, FlowConfig> = {
     defaultError: '환불 처리 중 오류가 발생했습니다.',
     run: (state) =>
       executeExchange({
-        transactionUuid: state.transactionUuid,
-        amount: state.amount,
-        paymentPin: state.pin,
+        transactionUuid: state.transactionUuid as string,
+        amount: state.amount as number,
+        paymentPin: state.pin as string,
         accountId: state.accountId as number,
       }),
+  },
+  '/register/processing': {
+    title: '회원가입을 처리하고 있어요',
+    completePath: '/register/complete',
+    errorPath: '/register/account',
+    defaultError: '회원가입 처리 중 오류가 발생했습니다.',
+    run: (state) =>
+      registerUser({
+        name: state.name as string,
+        birthDate: `${(state.birthDate as string).slice(0, 4)}-${(state.birthDate as string).slice(4, 6)}-${(state.birthDate as string).slice(6, 8)}`,
+        phoneNumber: state.phoneNumber as string,
+        password: state.password as string,
+        paymentPin: state.paymentPin as string,
+        institutionId: state.institutionId as number,
+        accountNumber: state.accountNumber as string,
+        termsAgreed: state.termsAgreed as {
+          serviceTerms: boolean
+          privacyTerms: boolean
+          electronicFinanceTerms: boolean
+          localCurrencyTerms: boolean
+        },
+      }),
+    buildErrorState: (state, message) => ({ ...state, error: message }),
   },
 }
 
@@ -101,7 +122,10 @@ export function ProcessingPage() {
       })
       .catch((err) => {
         const message = err instanceof ApiError ? err.message : flow.defaultError
-        navigate(flow.errorPath, { state: { error: message, amount: state.amount }, replace: true })
+        const errorState = flow.buildErrorState
+          ? flow.buildErrorState(state, message)
+          : { error: message, amount: state.amount }
+        navigate(flow.errorPath, { state: errorState, replace: true })
       })
   }, [state, flow, navigate, queryClient])
 
@@ -109,7 +133,7 @@ export function ProcessingPage() {
     <div className="h-dvh bg-white">
       <ProcessingView
         title={flow?.title ?? '처리하고 있어요'}
-        amount={state?.amount}
+        amount={state?.amount as number | undefined}
         caption={state ? flow?.caption?.(state) : undefined}
       />
     </div>
