@@ -1,5 +1,5 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
-import { Suspense, useState } from 'react'
+import { Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { BalanceCard, EmptyState, ErrorBoundary, ListItem } from '@/components/common'
@@ -24,8 +24,7 @@ function buildErrorMessage(spec: (typeof API_SPEC)[keyof typeof API_SPEC], error
   return `${spec.id} 요청에 실패했습니다. 네트워크 연결을 확인해 주세요.`
 }
 
-const HISTORY_FETCH_LIMIT = 20
-const HISTORY_INITIAL_VISIBLE = 5
+const HISTORY_FETCH_LIMIT = 5
 
 function formatHistoryDate(isoString: string): string {
   const d = new Date(isoString)
@@ -117,8 +116,6 @@ function HistoryAmount({ sign, amount }: { sign: '+' | '-'; amount: number }) {
 }
 
 function RecentTransactionList() {
-  const [expanded, setExpanded] = useState(false)
-
   const { data } = useSuspenseQuery({
     queryKey: ['users', 'recent-histories'],
     queryFn: () => fetchRecentTransactions(HISTORY_FETCH_LIMIT),
@@ -126,8 +123,6 @@ function RecentTransactionList() {
   })
 
   const histories = data
-  const hasMore = histories.length > HISTORY_INITIAL_VISIBLE
-  const visible = expanded ? histories : histories.slice(0, HISTORY_INITIAL_VISIBLE)
 
   if (histories.length === 0) {
     return <EmptyState message="최근 거래 내역이 없습니다." />
@@ -135,7 +130,7 @@ function RecentTransactionList() {
 
   return (
     <div className="flex flex-col gap-2">
-      {visible.map((tx: HistoryListItem) => (
+      {histories.map((tx: HistoryListItem) => (
         <ListItem
           key={tx.id}
           title={tx.counterpartName}
@@ -143,15 +138,6 @@ function RecentTransactionList() {
           rightAction={<HistoryAmount sign={tx.sign} amount={tx.amount} />}
         />
       ))}
-      {hasMore && !expanded && (
-        <button
-          type="button"
-          onClick={() => setExpanded(true)}
-          className="py-2 text-sm font-semibold text-primary"
-        >
-          더보기 ›
-        </button>
-      )}
     </div>
   )
 }
