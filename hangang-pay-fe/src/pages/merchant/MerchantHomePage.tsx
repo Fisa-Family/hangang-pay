@@ -1,9 +1,12 @@
-import { useSuspenseQuery } from '@tanstack/react-query'
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { Suspense, type SVGProps } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useCurrentUser } from '@/auth/useCurrentUser'
 import { EmptyState, ErrorBoundary } from '@/components/common'
-import { fetchMerchantSettlements } from '@/api/merchant'
+import {
+  fetchMerchantDashboard,
+  fetchMerchantMyPage,
+  fetchMerchantSettlements,
+} from '@/api/merchant'
 import { formatWon } from '@/lib/format'
 
 // 결제 시각 포맷 HH:mm
@@ -174,14 +177,27 @@ function RecentSettlementList() {
 
 export function MerchantHomePage() {
   const navigate = useNavigate()
-  const { currentUser, isLoading } = useCurrentUser()
+
+  const mypageQuery = useQuery({
+    queryKey: ['merchant', 'mypage'],
+    queryFn: fetchMerchantMyPage,
+  })
+
+  const dashboardQuery = useQuery({
+    queryKey: ['merchant', 'dashboard'],
+    queryFn: fetchMerchantDashboard,
+  })
+
+  const merchantName = mypageQuery.data?.merchantName ?? '가맹점'
+  const todaySales = dashboardQuery.data?.todaySales ?? 0
+  const todayCount = dashboardQuery.data?.todayCount ?? 0
 
   // CSS: 페이지 전체 — 세로 스크롤 flex 컨테이너
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pb-4">
       {/* 헤더: 가맹점명 — 좌측 정렬, 상단 여백 */}
       <header className="flex items-center justify-between pt-1">
-        <h1 className="text-2xl font-bold text-foreground">{currentUser?.name ?? '가맹점'}</h1>
+        <h1 className="text-2xl font-bold text-foreground">{merchantName}</h1>
       </header>
 
       {/* 대시보드 카드: 흰 카드 + 우하단 블루 그라데이션 장식 / 매출·결제 건수 좌우 분할 */}
@@ -197,14 +213,26 @@ export function MerchantHomePage() {
           {/* 오늘 매출 */}
           <div className="flex-1 pr-5">
             <p className="text-sm text-muted-foreground">오늘 매출</p>
-            <p className="mt-1 text-[22px] font-bold leading-tight text-primary">{formatWon(0)}</p>
+            <p className="mt-1 text-[22px] font-bold leading-tight text-primary">
+              {dashboardQuery.isLoading ? (
+                <span className="inline-block h-7 w-24 animate-pulse rounded bg-muted" />
+              ) : (
+                formatWon(todaySales)
+              )}
+            </p>
           </div>
           {/* 수직 구분선 */}
           <div className="w-px self-stretch bg-muted" />
           {/* 오늘 결제 건수 */}
           <div className="flex-1 pl-5">
             <p className="text-sm text-muted-foreground">오늘 결제</p>
-            <p className="mt-1 text-[22px] font-bold leading-tight text-foreground">0건</p>
+            <p className="mt-1 text-[22px] font-bold leading-tight text-foreground">
+              {dashboardQuery.isLoading ? (
+                <span className="inline-block h-7 w-16 animate-pulse rounded bg-muted" />
+              ) : (
+                `${todayCount}건`
+              )}
+            </p>
           </div>
         </div>
       </div>
@@ -272,19 +300,15 @@ export function MerchantHomePage() {
           </button>
         </div>
 
-        {isLoading ? (
-          <div className="py-4 text-center text-sm text-muted-foreground">불러오는 중…</div>
-        ) : (
-          <ErrorBoundary fallback={<EmptyState message="출금 내역을 불러올 수 없습니다." />}>
-            <Suspense
-              fallback={
-                <div className="py-4 text-center text-sm text-muted-foreground">불러오는 중…</div>
-              }
-            >
-              <RecentSettlementList />
-            </Suspense>
-          </ErrorBoundary>
-        )}
+        <ErrorBoundary fallback={<EmptyState message="출금 내역을 불러올 수 없습니다." />}>
+          <Suspense
+            fallback={
+              <div className="py-4 text-center text-sm text-muted-foreground">불러오는 중…</div>
+            }
+          >
+            <RecentSettlementList />
+          </Suspense>
+        </ErrorBoundary>
       </div>
     </div>
   )

@@ -17,6 +17,13 @@ export const mockMerchantMyPage = {
   },
 }
 
+export const mockMerchantDashboard = {
+  todaySales: 125000,
+  todayCount: 8,
+  pendingSettlement: 205000,
+  monthlyTotalSales: 1340000,
+}
+
 export const mockMerchantQr = {
   qrImageBase64:
     'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',

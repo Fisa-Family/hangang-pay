@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw'
 import {
+  mockMerchantDashboard,
   mockMerchantMyPage,
   mockMerchantQr,
   mockMerchantPayments,
@@ -15,6 +16,8 @@ const ok = <T>(result: T) => HttpResponse.json({ isSuccess: true, result })
 const BASE = '/api/v1'
 
 export const merchantHandlers = [
+  http.get(`${BASE}/merchant/dashboard`, () => ok(mockMerchantDashboard)),
+
   http.get(`${BASE}/merchant/mypage`, () => ok(mockMerchantMyPage)),
 
   http.get(`${BASE}/merchant/qr`, () => ok(mockMerchantQr)),
