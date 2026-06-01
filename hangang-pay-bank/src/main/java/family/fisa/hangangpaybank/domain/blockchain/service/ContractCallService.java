@@ -231,6 +231,15 @@ public class ContractCallService {
         }
     }
 
+    /**
+     * 실제 트랜잭션 전송 전에 eth_call로 컨트랙트 함수를 시뮬레이션 실행한다.
+     *
+     * <p>트랜잭션을 블록에 포함시키기 전에 컨트랙트 실행 결과를 미리 확인하여 revert 여부와 custom error를 감지하기 위한 용도이다.
+     *
+     * <p>컨트랙트에서 custom error가 발생하면 selector를 추출하여 대응되는 BlockchainErrorCode로 변환한다.
+     *
+     * <p>일반 revert(Error(string)) 발생 시 BLOCKCHAIN_TRANSACTION_REVERTED 예외를 발생시킨다.
+     */
     private void simulateOrThrow(
             Web3j web3j,
             String from,
@@ -238,8 +247,11 @@ public class ContractCallService {
             BigInteger gasLimit,
             Function function)
             throws IOException {
+
+        // 컨트랙트 함수 호출 데이터를 ABI 인코딩
         String data = FunctionEncoder.encode(function);
 
+        // 상태 변경 없이 실행되는 eth_call 트랜잭션 생성
         Transaction callTx =
                 Transaction.createFunctionCallTransaction(
                         from,
@@ -250,30 +262,44 @@ public class ContractCallService {
                         BigInteger.ZERO,
                         data);
 
+        // 최신 블록 상태 기준으로 함수 시뮬레이션 실행
         EthCall ethCall = web3j.ethCall(callTx, DefaultBlockParameterName.LATEST).send();
 
+        // RPC 레벨 에러 발생 시 custom error 매핑 시도
         if (ethCall.hasError()) {
             String errorData = ethCall.getError().getData();
             throwCustomErrorIfMatched(errorData);
+
             throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_TRANSACTION_REVERTED);
         }
 
         String value = ethCall.getValue();
+
+        // Error(string) 형태의 일반 revert
+        // 0x08c379a0 = Error(string) selector
         if (value != null && value.startsWith("0x08c379a0")) {
             throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_TRANSACTION_REVERTED);
         }
 
+        // Custom Error selector 검사
         if (value != null && value.length() >= 10) {
             throwCustomErrorIfMatched(value);
         }
     }
 
+    /**
+     * revert 데이터의 selector를 추출하여 등록된 컨트랙트 custom error와 매칭되는 경우 대응되는 BusinessException을 발생시킨다.
+     *
+     * <p>예: MerchantNotRegistered() → BLOCKCHAIN_MERCHANT_NOT_REGISTERED
+     */
     private void throwCustomErrorIfMatched(String revertData) {
         if (revertData == null || revertData.length() < 10) {
             return;
         }
 
+        // 0x + 4byte selector
         String selector = revertData.substring(0, 10);
+
         BlockchainErrorCode code = CUSTOM_ERROR_MAP.get(selector);
 
         if (code != null) {

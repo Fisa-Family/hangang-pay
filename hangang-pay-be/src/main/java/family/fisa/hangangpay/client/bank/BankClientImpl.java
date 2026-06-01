@@ -3,8 +3,22 @@ package family.fisa.hangangpay.client.bank;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import family.fisa.hangangpay.client.bank.dto.*;
-import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
+import family.fisa.hangangpay.client.bank.code.ExternalBankErrorCode;
+import family.fisa.hangangpay.client.bank.dto.BankAccountResponse;
+import family.fisa.hangangpay.client.bank.dto.BankTransactionStatusResponse;
+import family.fisa.hangangpay.client.bank.dto.BankWalletResponse;
+import family.fisa.hangangpay.client.bank.dto.BlockchainLedgerResponse;
+import family.fisa.hangangpay.client.bank.dto.CancelRequest;
+import family.fisa.hangangpay.client.bank.dto.CancelResponse;
+import family.fisa.hangangpay.client.bank.dto.ChargeRequest;
+import family.fisa.hangangpay.client.bank.dto.ChargeResponse;
+import family.fisa.hangangpay.client.bank.dto.CreateBankAccountRequest;
+import family.fisa.hangangpay.client.bank.dto.CreateBankWalletRequest;
+import family.fisa.hangangpay.client.bank.dto.ExchangeRequest;
+import family.fisa.hangangpay.client.bank.dto.ExchangeResponse;
+import family.fisa.hangangpay.client.bank.dto.ExchangeStatusResponse;
+import family.fisa.hangangpay.client.bank.dto.PaymentRequest;
+import family.fisa.hangangpay.client.bank.dto.PaymentResponse;
 import family.fisa.hangangpay.global.code.error.AccountErrorCode;
 import family.fisa.hangangpay.global.code.error.BaseErrorCode;
 import family.fisa.hangangpay.global.exception.BusinessException;
@@ -30,52 +44,9 @@ public class BankClientImpl implements BankClient {
 
     /** Bank 서버의 에러 코드를 비즈니스 에러 코드로 매핑 */
     private static final Map<String, BaseErrorCode> BANK_ERROR_MAPPINGS =
-            Map.ofEntries(
-                    Map.entry(
-                            AccountErrorCode.BANK_ACCOUNT_NOT_FOUND.getCode(),
-                            AccountErrorCode.BANK_ACCOUNT_NOT_FOUND),
-                    Map.entry(
-                            TransactionErrorCode.BLOCKCHAIN_UNAUTHORIZED.getCode(),
-                            TransactionErrorCode.BLOCKCHAIN_UNAUTHORIZED),
-                    Map.entry(
-                            TransactionErrorCode.BLOCKCHAIN_INVALID_ADDRESS.getCode(),
-                            TransactionErrorCode.BLOCKCHAIN_INVALID_ADDRESS),
-                    Map.entry(
-                            TransactionErrorCode.BLOCKCHAIN_INVALID_AMOUNT.getCode(),
-                            TransactionErrorCode.BLOCKCHAIN_INVALID_AMOUNT),
-                    Map.entry(
-                            TransactionErrorCode.BLOCKCHAIN_INVALID_INSTITUTION_ID.getCode(),
-                            TransactionErrorCode.BLOCKCHAIN_INVALID_INSTITUTION_ID),
-                    Map.entry(
-                            TransactionErrorCode.BLOCKCHAIN_MERCHANT_NOT_REGISTERED.getCode(),
-                            TransactionErrorCode.BLOCKCHAIN_MERCHANT_NOT_REGISTERED),
-                    Map.entry(
-                            TransactionErrorCode.BLOCKCHAIN_INSUFFICIENT_TOKEN_BALANCE.getCode(),
-                            TransactionErrorCode.BLOCKCHAIN_INSUFFICIENT_TOKEN_BALANCE),
-                    Map.entry(
-                            TransactionErrorCode.BLOCKCHAIN_ISSUANCE_LIMIT_EXCEEDED.getCode(),
-                            TransactionErrorCode.BLOCKCHAIN_ISSUANCE_LIMIT_EXCEEDED),
-                    Map.entry(
-                            TransactionErrorCode.BLOCKCHAIN_INSUFFICIENT_RESERVE.getCode(),
-                            TransactionErrorCode.BLOCKCHAIN_INSUFFICIENT_RESERVE),
-                    Map.entry(
-                            TransactionErrorCode.BLOCKCHAIN_RESERVE_EXCEEDS_LOCKED_CBDC.getCode(),
-                            TransactionErrorCode.BLOCKCHAIN_RESERVE_EXCEEDS_LOCKED_CBDC),
-                    Map.entry(
-                            TransactionErrorCode.BLOCKCHAIN_RESERVE_MOVE_FAILED.getCode(),
-                            TransactionErrorCode.BLOCKCHAIN_RESERVE_MOVE_FAILED),
-                    Map.entry(
-                            TransactionErrorCode.BLOCKCHAIN_DEPOSIT_TOKEN_MINT_FAILED.getCode(),
-                            TransactionErrorCode.BLOCKCHAIN_DEPOSIT_TOKEN_MINT_FAILED),
-                    Map.entry(
-                            TransactionErrorCode.BLOCKCHAIN_DEPOSIT_TOKEN_BURN_FAILED.getCode(),
-                            TransactionErrorCode.BLOCKCHAIN_DEPOSIT_TOKEN_BURN_FAILED),
-                    Map.entry(
-                            TransactionErrorCode.BLOCKCHAIN_TRANSFER_FAILED.getCode(),
-                            TransactionErrorCode.BLOCKCHAIN_TRANSFER_FAILED),
-                    Map.entry(
-                            TransactionErrorCode.BLOCKCHAIN_BANK_NOT_REGISTERED.getCode(),
-                            TransactionErrorCode.BLOCKCHAIN_BANK_NOT_REGISTERED));
+            Map.of(
+                    AccountErrorCode.BANK_ACCOUNT_NOT_FOUND.getCode(),
+                    AccountErrorCode.BANK_ACCOUNT_NOT_FOUND);
 
     private final RestClient bankRestClient;
 
@@ -313,8 +284,21 @@ public class BankClientImpl implements BankClient {
         try {
             BankErrorResponse response =
                     OBJECT_MAPPER.readValue(ex.getResponseBodyAsString(), BankErrorResponse.class);
-            // Bank 서버의 모든 에러를 노출하지 않고, BE가 공개 API로 인정한 코드만 변환한다.
-            return Optional.ofNullable(BANK_ERROR_MAPPINGS.get(response.code()));
+
+            BaseErrorCode mapped = BANK_ERROR_MAPPINGS.get(response.code());
+            if (mapped != null) {
+                return Optional.of(mapped);
+            }
+
+            if (response.code() != null && response.code().startsWith("BLOCKCHAIN_")) {
+                return Optional.of(
+                        new ExternalBankErrorCode(
+                                HttpStatus.valueOf(ex.getStatusCode().value()),
+                                response.code(),
+                                response.message()));
+            }
+
+            return Optional.empty();
         } catch (JsonProcessingException parseException) {
             log.warn("Failed to parse bank error response. body={}", ex.getResponseBodyAsString());
             return Optional.empty();
@@ -322,5 +306,5 @@ public class BankClientImpl implements BankClient {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    private record BankErrorResponse(String code) {}
+    private record BankErrorResponse(String code, String message) {}
 }
