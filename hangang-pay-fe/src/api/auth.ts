@@ -70,3 +70,47 @@ export function registerUser(request: UserRegisterRequest): Promise<UserRegister
     body: JSON.stringify(request),
   })
 }
+
+export interface BusinessInfoResult {
+  businessNumber: string
+  merchantName: string
+  ownerName: string
+  address: string
+  businessType: string
+}
+
+export interface MerchantRegisterRequest {
+  businessNumber: string
+  username: string
+  password: string
+  paymentPin: string
+  institutionId: number
+  accountNumber: string
+  termsAgreed: {
+    serviceTerms: boolean
+    privacyTerms: boolean
+    electronicFinanceTerms: boolean
+    localCurrencyTerms: boolean
+  }
+}
+
+export interface MerchantRegisterResult {
+  partyId: number
+  merchantId: number
+  merchantName: string
+}
+
+export function getBusinessInfo(businessNumber: string): Promise<BusinessInfoResult> {
+  return apiFetch<BusinessInfoResult>(
+    `/auth/merchants/business-info?businessNumber=${encodeURIComponent(businessNumber)}`
+  )
+}
+
+export function registerMerchant(
+  request: MerchantRegisterRequest
+): Promise<MerchantRegisterResult> {
+  return apiFetch<MerchantRegisterResult>('/auth/merchants/register', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  })
+}

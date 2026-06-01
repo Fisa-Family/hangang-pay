@@ -3,13 +3,14 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { PinEntry } from '@/components/common'
 
 const PIN_LENGTH = 6
-const STEPS = 7
 
 type Step = 'enter' | 'confirm'
 
 export function RegisterPinPage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const isMerchant = location.pathname.startsWith('/merchant/')
+  const steps = isMerchant ? 8 : 7
   const state = location.state as Record<string, unknown> | null
 
   const [step, setStep] = useState<Step>('enter')
@@ -30,9 +31,8 @@ export function RegisterPinPage() {
     setConfirmPin(pin)
     if (pin.length === PIN_LENGTH) {
       if (pin === firstPin) {
-        navigate('/register/processing', {
-          state: { ...state, paymentPin: pin },
-        })
+        const nextPath = isMerchant ? '/merchant/register/processing' : '/register/processing'
+        navigate(nextPath, { state: { ...state, paymentPin: pin } })
       } else {
         setErrorMessage('PIN 번호가 일치하지 않습니다. 다시 입력해주세요.')
         setStep('enter')
@@ -49,12 +49,13 @@ export function RegisterPinPage() {
       setConfirmPin('')
       setErrorMessage('')
     } else {
-      navigate('/register/account', { state })
+      const backPath = isMerchant ? '/merchant/register/account' : '/register/account'
+      navigate(backPath, { state })
     }
   }
 
   const currentPin = step === 'enter' ? firstPin : confirmPin
-  const stepIndex = step === 'enter' ? 5 : 6
+  const stepIndex = step === 'enter' ? (isMerchant ? 6 : 5) : isMerchant ? 7 : 6
 
   return (
     <div className="flex h-dvh flex-col bg-white">
@@ -79,11 +80,13 @@ export function RegisterPinPage() {
               <path d="m15 18-6-6 6-6" />
             </svg>
           </button>
-          <h1 className="text-2xl font-bold text-foreground">사용자 회원가입</h1>
+          <h1 className="text-2xl font-bold text-foreground">
+            {isMerchant ? '가맹점 회원가입' : '사용자 회원가입'}
+          </h1>
         </div>
 
         <div className="mb-2 flex gap-1">
-          {Array.from({ length: STEPS }).map((_, i) => (
+          {Array.from({ length: steps }).map((_, i) => (
             <div
               key={i}
               className={`h-1 flex-1 rounded-full ${i < stepIndex ? 'bg-primary' : 'bg-muted'}`}

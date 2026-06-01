@@ -22,7 +22,6 @@ const BANK_OPTIONS = [
 ]
 
 const VERIFICATION_CODE_LENGTH = 6
-const STEPS = 7
 
 function onlyDigits(value: string) {
   return value.replace(/\D/g, '')
@@ -37,6 +36,9 @@ function buildErrorMessage(error: unknown): string {
 export function RegisterAccountPage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const isMerchant = location.pathname.startsWith('/merchant/')
+  const steps = isMerchant ? 8 : 7
+  const stepFilled = isMerchant ? 5 : 4
   const state = location.state as Record<string, unknown> | null
 
   const [selectedBank, setSelectedBank] = useState('')
@@ -63,6 +65,7 @@ export function RegisterAccountPage() {
       }),
     onSuccess: (res) => {
       setVerificationRequested(true)
+      setVerificationCode(res.code)
       setToast({
         message: `인증번호가 발송되었습니다. 테스트 코드: ${res.code}`,
         variant: 'success',
@@ -82,7 +85,8 @@ export function RegisterAccountPage() {
         code: verificationCode,
       }),
     onSuccess: () => {
-      navigate('/register/pin', {
+      const nextPath = isMerchant ? '/merchant/register/pin' : '/register/pin'
+      navigate(nextPath, {
         state: {
           ...state,
           institutionId: selectedBankOption!.institutionId,
@@ -129,15 +133,17 @@ export function RegisterAccountPage() {
     <AppShell className="bg-card">
       <form className="flex h-full flex-col" onSubmit={handleSubmit}>
         <BackTitleHeader
-          title="사용자 회원가입"
-          onBack={() => navigate('/register/password', { state })}
+          title={isMerchant ? '가맹점 회원가입' : '사용자 회원가입'}
+          onBack={() =>
+            navigate(isMerchant ? '/merchant/register/business' : '/register/password', { state })
+          }
         />
 
         <div className="mb-4 flex gap-1">
-          {Array.from({ length: STEPS }).map((_, i) => (
+          {Array.from({ length: steps }).map((_, i) => (
             <div
               key={i}
-              className={`h-1 flex-1 rounded-full ${i < 4 ? 'bg-primary' : 'bg-muted'}`}
+              className={`h-1 flex-1 rounded-full ${i < stepFilled ? 'bg-primary' : 'bg-muted'}`}
             />
           ))}
         </div>
@@ -146,7 +152,9 @@ export function RegisterAccountPage() {
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-foreground">계좌 입력 및 1원 인증</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              충전/환불에 사용할 계좌를 입력하고 1원 인증을 완료해주세요.
+              {isMerchant
+                ? '정산 계좌를 입력하고 1원 인증을 완료해주세요.'
+                : '충전/환불에 사용할 계좌를 입력하고 1원 인증을 완료해주세요.'}
             </p>
           </div>
 

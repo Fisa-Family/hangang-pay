@@ -59,6 +59,12 @@ const FLOWS: Record<string, FlowConfig> = {
     actionLabel: '시작하기',
     actionPath: '/home',
   },
+  '/merchant/register/complete': {
+    title: () => '가맹점 회원가입이 완료되었습니다',
+    rows: () => [],
+    actionLabel: '시작하기',
+    actionPath: '/merchant/home',
+  },
 }
 
 export function CompletePage() {

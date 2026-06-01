@@ -13,7 +13,6 @@ import {
 } from '@/components/common'
 
 const CODE_LENGTH = 6
-const STEPS = 7
 
 interface LocationState {
   termsAgreed: {
@@ -40,6 +39,8 @@ function getBirthDateError(value: string): string | undefined {
 export function RegisterVerifyPage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const isMerchant = location.pathname.startsWith('/merchant/')
+  const steps = isMerchant ? 8 : 7
   const state = location.state as LocationState | null
 
   const [name, setName] = useState('')
@@ -54,7 +55,7 @@ export function RegisterVerifyPage() {
     mutationFn: () => sendSms(phoneNumber),
     onSuccess: (data) => {
       setCodeSent(true)
-      setCode('')
+      setCode(data.code)
       setErrorMessage('')
       setToast({
         message: `인증번호가 발송되었습니다. 테스트 코드: ${data.code}`,
@@ -69,7 +70,8 @@ export function RegisterVerifyPage() {
   const verifyMutation = useMutation({
     mutationFn: () => verifySms(phoneNumber, code),
     onSuccess: () => {
-      navigate('/register/password', {
+      const nextPath = isMerchant ? '/merchant/register/password' : '/register/password'
+      navigate(nextPath, {
         state: {
           ...state,
           name,
@@ -115,12 +117,14 @@ export function RegisterVerifyPage() {
     <AppShell>
       <div className="flex h-full flex-col">
         <BackTitleHeader
-          title="사용자 회원가입"
-          onBack={() => navigate('/register/terms', { state })}
+          title={isMerchant ? '가맹점 회원가입' : '사용자 회원가입'}
+          onBack={() =>
+            navigate(isMerchant ? '/merchant/register/terms' : '/register/terms', { state })
+          }
         />
 
         <div className="mb-4 flex gap-1">
-          {Array.from({ length: STEPS }).map((_, i) => (
+          {Array.from({ length: steps }).map((_, i) => (
             <div
               key={i}
               className={`h-1 flex-1 rounded-full ${i < 2 ? 'bg-primary' : 'bg-muted'}`}

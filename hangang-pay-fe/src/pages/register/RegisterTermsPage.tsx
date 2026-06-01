@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { AppShell, BackTitleHeader, Button, CheckboxGroup } from '@/components/common'
 
 const TERMS_ITEMS = [
@@ -14,13 +14,16 @@ const REQUIRED_IDS = TERMS_ITEMS.filter((t) => t.required).map((t) => t.id)
 
 export function RegisterTermsPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const isMerchant = location.pathname.startsWith('/merchant/')
   const [checkedIds, setCheckedIds] = useState<string[]>([])
 
   const allRequiredChecked = REQUIRED_IDS.every((id) => checkedIds.includes(id))
 
   function handleNext() {
     if (!allRequiredChecked) return
-    navigate('/register/verify', {
+    const nextPath = isMerchant ? '/merchant/register/verify' : '/register/verify'
+    navigate(nextPath, {
       state: {
         termsAgreed: {
           serviceTerms: checkedIds.includes('serviceTerms'),
@@ -41,7 +44,9 @@ export function RegisterTermsPage() {
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-foreground">서비스 이용에 동의해주세요</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              사용자 회원가입을 위해 아래 약관에 동의해주세요.
+              {isMerchant
+                ? '가맹점 회원가입을 위해 아래 약관에 동의해주세요.'
+                : '사용자 회원가입을 위해 아래 약관에 동의해주세요.'}
             </p>
           </div>
 

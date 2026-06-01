@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { AppShell, BackTitleHeader, Button, TextField } from '@/components/common'
 
-const STEPS = 7
 const PASSWORD_RULES = [
   { label: '영문 포함', test: (pw: string) => /[a-zA-Z]/.test(pw) },
   { label: '숫자 포함', test: (pw: string) => /\d/.test(pw) },
@@ -13,6 +12,8 @@ const PASSWORD_RULES = [
 export function RegisterPasswordPage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const isMerchant = location.pathname.startsWith('/merchant/')
+  const steps = isMerchant ? 8 : 7
   const state = location.state as Record<string, unknown> | null
 
   const [password, setPassword] = useState('')
@@ -24,21 +25,22 @@ export function RegisterPasswordPage() {
   const canNext = allRulesMet && confirm.length > 0 && confirmError === ''
 
   function handleNext() {
-    navigate('/register/account', {
-      state: { ...state, password },
-    })
+    const nextPath = isMerchant ? '/merchant/register/business' : '/register/account'
+    navigate(nextPath, { state: { ...state, password } })
   }
 
   return (
     <AppShell>
       <div className="flex h-full flex-col">
         <BackTitleHeader
-          title="사용자 회원가입"
-          onBack={() => navigate('/register/verify', { state })}
+          title={isMerchant ? '가맹점 회원가입' : '사용자 회원가입'}
+          onBack={() =>
+            navigate(isMerchant ? '/merchant/register/verify' : '/register/verify', { state })
+          }
         />
 
         <div className="mb-4 flex gap-1">
-          {Array.from({ length: STEPS }).map((_, i) => (
+          {Array.from({ length: steps }).map((_, i) => (
             <div
               key={i}
               className={`h-1 flex-1 rounded-full ${i < 3 ? 'bg-primary' : 'bg-muted'}`}

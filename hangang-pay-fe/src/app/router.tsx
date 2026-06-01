@@ -16,6 +16,7 @@ import { RegisterVerifyPage } from '@/pages/register/RegisterVerifyPage'
 import { RegisterPasswordPage } from '@/pages/register/RegisterPasswordPage'
 import { RegisterAccountPage } from '@/pages/register/RegisterAccountPage'
 import { RegisterPinPage } from '@/pages/register/RegisterPinPage'
+import { MerchantRegisterBusinessPage } from '@/pages/register/MerchantRegisterBusinessPage'
 import { UserHomePage } from '@/pages/user/UserHomePage'
 import { UserMyPage } from '@/pages/user/UserMyPage'
 import { UserHistoryPage } from '@/pages/history/UserHistoryPage'
@@ -92,6 +93,14 @@ export const router = createBrowserRouter([
       { path: '/register/pin', element: <RegisterPinPage /> },
       { path: '/register/processing', element: <ProcessingPage /> },
       { path: '/register/complete', element: <CompletePage /> },
+      { path: '/merchant/register/terms', element: <RegisterTermsPage /> },
+      { path: '/merchant/register/verify', element: <RegisterVerifyPage /> },
+      { path: '/merchant/register/password', element: <RegisterPasswordPage /> },
+      { path: '/merchant/register/business', element: <MerchantRegisterBusinessPage /> },
+      { path: '/merchant/register/account', element: <RegisterAccountPage /> },
+      { path: '/merchant/register/pin', element: <RegisterPinPage /> },
+      { path: '/merchant/register/processing', element: <ProcessingPage /> },
+      { path: '/merchant/register/complete', element: <CompletePage /> },
     ],
   },
   // /merchant 단축 진입점 (홈으로 리다이렉트)
