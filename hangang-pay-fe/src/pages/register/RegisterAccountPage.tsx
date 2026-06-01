@@ -130,7 +130,7 @@ export function RegisterAccountPage() {
   }
 
   return (
-    <AppShell className="bg-card">
+    <AppShell>
       <form className="flex h-full flex-col" onSubmit={handleSubmit}>
         <BackTitleHeader
           title={isMerchant ? '가맹점 회원가입' : '사용자 회원가입'}

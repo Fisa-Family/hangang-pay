@@ -160,7 +160,7 @@ export function ProcessingPage() {
   }, [state, flow, navigate, queryClient])
 
   return (
-    <div className="h-dvh bg-white">
+    <div className="h-dvh bg-background">
       <ProcessingView
         title={flow?.title ?? '처리하고 있어요'}
         amount={state?.amount as number | undefined}

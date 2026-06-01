@@ -224,7 +224,7 @@ export function AddAccountPage({ onBack, onRequestVerification, onSubmit }: AddA
   }
 
   return (
-    <AppShell className="bg-card">
+    <AppShell>
       <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
         <PageHeader title="계좌 추가" onBack={handleBack} />
 
@@ -299,7 +299,7 @@ export function AddAccountPage({ onBack, onRequestVerification, onSubmit }: AddA
           </section>
         </div>
 
-        <footer className="shrink-0 bg-card pt-3 pb-[calc(env(safe-area-inset-bottom)+0.25rem)]">
+        <footer className="shrink-0 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.25rem)]">
           <Button type="submit" size="lg" disabled={!canSubmit || isSubmitting}>
             {addAccountMutation.isPending ? '등록 중' : '확인'}
           </Button>

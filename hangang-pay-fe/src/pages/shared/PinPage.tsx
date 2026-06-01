@@ -34,7 +34,7 @@ export function PinPage() {
   }
 
   return (
-    <div className="flex h-dvh flex-col bg-white">
+    <div className="flex h-dvh flex-col bg-background">
       <PageHeader
         title="PIN번호 입력"
         className="px-5 pt-14"
