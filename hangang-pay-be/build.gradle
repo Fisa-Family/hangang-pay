@@ -46,6 +46,10 @@ tasks.named('test') {
 	useJUnitPlatform()
 }
 
+jar {
+	enabled = false
+}
+
 spotless {
 	java {
 		googleJavaFormat('1.25.2').aosp()
