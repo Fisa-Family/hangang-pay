@@ -80,12 +80,12 @@ export function PayConfirmPage() {
   const merchantInitial = merchant?.merchantName?.[0] ?? 'M'
 
   return (
-    <div className="flex h-dvh flex-col bg-white">
+    <div className="flex h-dvh flex-col bg-background">
       {/* 헤더 */}
       <PageHeader title="결제" onBack={() => navigate(-1)} className="px-4 pt-14" />
 
       {/* 가맹점 카드 */}
-      <div className="mx-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/6">
+      <div className="mx-4 rounded-2xl bg-card p-4 shadow-sm ring-1 ring-black/6">
         {merchantQuery.isLoading ? (
           <div className="h-14 animate-pulse rounded-lg bg-muted/40" />
         ) : merchant ? (

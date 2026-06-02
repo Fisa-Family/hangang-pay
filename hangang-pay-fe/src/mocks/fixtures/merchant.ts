@@ -17,6 +17,13 @@ export const mockMerchantMyPage = {
   },
 }
 
+export const mockMerchantDashboard = {
+  todaySales: 125000,
+  todayCount: 8,
+  pendingSettlement: 205000,
+  monthlyTotalSales: 1340000,
+}
+
 export const mockMerchantQr = {
   qrImageBase64:
     'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
@@ -71,20 +78,36 @@ export const mockMerchantPaymentDetail = {
 export const mockMerchantSettlements = {
   content: [
     {
+      settlementId: 404,
+      amount: 205000,
+      settlementStatus: 'PENDING',
+      settlementStatusText: '정산 대기',
+      requestedAt: daysAgo(0),
+      completedAt: null,
+    },
+    {
+      settlementId: 403,
+      amount: 97000,
+      settlementStatus: 'COMPLETED',
+      settlementStatusText: '정산 완료',
+      requestedAt: daysAgo(3),
+      completedAt: daysAgo(2),
+    },
+    {
+      settlementId: 402,
+      amount: 85000,
+      settlementStatus: 'COMPLETED',
+      settlementStatusText: '정산 완료',
+      requestedAt: daysAgo(5),
+      completedAt: daysAgo(4),
+    },
+    {
       settlementId: 401,
       amount: 120000,
       settlementStatus: 'COMPLETED',
       settlementStatusText: '정산 완료',
       requestedAt: daysAgo(7),
-      completedAt: daysAgo(5),
-    },
-    {
-      settlementId: 402,
-      amount: 85000,
-      settlementStatus: 'PENDING',
-      settlementStatusText: '정산 대기',
-      requestedAt: daysAgo(1),
-      completedAt: null,
+      completedAt: daysAgo(6),
     },
   ],
   nextCursorCreatedAt: null,

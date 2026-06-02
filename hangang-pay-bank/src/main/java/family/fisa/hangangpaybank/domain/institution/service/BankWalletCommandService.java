@@ -65,7 +65,6 @@ public class BankWalletCommandService {
                 BankWallet.builder()
                         .institution(institution)
                         .walletAddress(walletAddress)
-                        .balance(BigDecimal.ZERO)
                         .encryptedPrivateKey(encryptedPrivateKey)
                         .build();
         BankWallet saved = bankWalletRepository.save(bankWallet);
@@ -80,6 +79,6 @@ public class BankWalletCommandService {
             }
         }
 
-        return BankWalletResponse.from(saved);
+        return BankWalletResponse.from(saved, BigDecimal.ZERO);
     }
 }

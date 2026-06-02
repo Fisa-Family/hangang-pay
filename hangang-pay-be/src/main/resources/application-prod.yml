@@ -1,19 +1,47 @@
 spring:
   datasource:
-    url: ${DB_URL}
+    url: ${DB_URL}                          # RDS 등 운영 DB 접속 정보. 환경변수 주입(커밋 금지)
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
-    driver-class-name: com.mysql.cj.jdbc.Driver
-
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: validate                    # 운영은 스키마 검증만. create/update 금지(데이터 보호)
+    open-in-view: false                     # 영속성 컨텍스트를 뷰까지 끌고 가지 않음(커넥션 점유 방지)
+  session: # HTTP 세션을 Redis로 외부화. Green/Blue 다중 EC2 간 세션 공유 목적
+    store-type: redis
+  data:
+    redis:
+      host: ${REDIS_HOST}                   # 공유 세션 저장소. 환경변수 주입
+      port: ${REDIS_PORT}
+
+server:
+  forward-headers-strategy: framework       # ALB 뒤에 위치. X-Forwarded-* 신뢰해 https/secure 판별
+  servlet:
+    session:
+      cookie:
+        secure: true                        # HTTPS 전용 쿠키
+        same-site: none                     # FE(Vercel)·BE(ALB) 도메인이 달라 cross-site 허용. None은 secure 동반 필수
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus   # 운영 모니터링용 최소 엔드포인트만 노출
+
+springdoc: # 운영에서는 API 문서 비활성(공격 표면 축소)
+  swagger-ui:
+    enabled: false
+  api-docs:
+    enabled: false
 
 logging:
   level:
-    root: WARN
+    family.fisa.hangangpay: INFO            # 우리 애플리케이션 패키지만 INFO 유지
+
+bank:
+  base-url: ${BANK_BASE_URL}                # hangang-pay-bank API 베이스 URL(블록체인 처리 위임 대상)
 
 app:
   cors:
     allowed-origins:
-      - # CloudFront 주소 확정 후 작성
+      - ${VERCEL_PRODUCTION_URL}            # CorsConfig에서 읽어 허용 출처로 등록(FE 운영 도메인)

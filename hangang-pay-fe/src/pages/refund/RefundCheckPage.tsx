@@ -79,13 +79,13 @@ export function RefundCheckPage() {
         )}
 
         {processingError && (
-          <div className="rounded-2xl bg-white p-5">
+          <div className="rounded-2xl bg-card p-5">
             <p className="text-sm text-destructive">{processingError}</p>
           </div>
         )}
 
         {isError && (
-          <div className="rounded-2xl bg-white p-5">
+          <div className="rounded-2xl bg-card p-5">
             <p className="text-sm text-destructive">{buildErrorMessage(error)}</p>
           </div>
         )}
@@ -93,11 +93,11 @@ export function RefundCheckPage() {
         {!isLoading && !isError && data && (
           <>
             {/* 현재 잔액 카드 */}
-            <div className="rounded-2xl bg-white px-5 py-6">
-              <p className="mb-1 text-sm text-muted-foreground">현재 잔액</p>
-              <p className="text-[28px] font-bold tabular-nums text-foreground">
+            <div className="flex items-center justify-between rounded-2xl bg-card px-5 py-6">
+              <span className="text-sm text-muted-foreground">현재 잔액</span>
+              <span className="text-[28px] font-bold tabular-nums text-foreground">
                 {formatWon(data.walletBalance)}
-              </p>
+              </span>
             </div>
 
             {/* 환불 가능 여부 배너 */}
@@ -120,7 +120,7 @@ export function RefundCheckPage() {
 
             {/* 입금 계좌 선택 */}
             {accounts.length > 0 && (
-              <div className="rounded-2xl bg-white px-5 py-5">
+              <div className="rounded-2xl bg-card px-5 py-5">
                 <p className="mb-4 text-base font-bold text-foreground">입금 계좌</p>
                 <div className="flex flex-col gap-3">
                   {accounts.map((account) => (

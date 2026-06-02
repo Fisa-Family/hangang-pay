@@ -196,6 +196,19 @@ export interface MerchantRedeemResult {
   exchangedAt: string
 }
 
+// MERCHANT-001: 가맹점 매출 요약 (BE: MerchantDashboardResponse)
+export interface MerchantDashboardResponse {
+  todaySales: number
+  todayCount: number
+  pendingSettlement: number
+  monthlyTotalSales: number
+}
+
+// GET /api/v1/merchant/dashboard
+export function fetchMerchantDashboard(): Promise<MerchantDashboardResponse> {
+  return apiFetch<MerchantDashboardResponse>('/merchant/dashboard')
+}
+
 // GET /api/v1/merchant/redeem
 export function fetchMerchantRedeemInit(): Promise<MerchantRedeemInit> {
   return apiFetch<MerchantRedeemInit>('/merchant/redeem')

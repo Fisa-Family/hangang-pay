@@ -17,7 +17,7 @@ const SUBTYPE_LABEL: Record<DisplayHistoryType, string> = {
 
 function amountClass(displayType: DisplayHistoryType): string {
   if (displayType === 'CHARGE' || displayType === 'CANCEL') return 'text-primary'
-  if (displayType === 'EXCHANGE') return 'text-destructive'
+  if (displayType === 'EXCHANGE') return 'text-warning'
   return 'text-foreground'
 }
 
