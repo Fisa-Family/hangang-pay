@@ -74,7 +74,6 @@ public class ExchangeStateWriter {
                                         new BusinessException(
                                                 TransactionErrorCode.BLOCKCHAIN_LEDGER_NOT_FOUND));
 
-        BankWallet bankWallet = findBankWallet(request.walletAddress());
         BankAccount bankAccount = findBankAccount(request.institutionId(), request.accountNumber());
         ledger.markSuccess(receipt);
 

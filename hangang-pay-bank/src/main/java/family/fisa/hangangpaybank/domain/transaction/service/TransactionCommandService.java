@@ -337,20 +337,6 @@ public class TransactionCommandService {
 
     /** TransactionReceipt에서 핵심 정보를 추출해 blockchain_ledger row 저장 */
     private BlockchainLedger saveBlockchainLedger(
-            Institution institution, TransactionReceipt receipt) {
-        Long blockNumber =
-                receipt.getBlockNumber() != null ? receipt.getBlockNumber().longValueExact() : null;
-        return blockchainLedgerRepository.save(
-                BlockchainLedger.builder()
-                        .institution(institution)
-                        .txHash(receipt.getTransactionHash())
-                        .blockNumber(blockNumber)
-                        .status(BlockchainTxStatus.SUCCESS)
-                        .confirmedAt(LocalDateTime.now())
-                        .build());
-    }
-
-    private BlockchainLedger saveBlockchainLedger(
             Institution institution, TransactionReceipt receipt, String idempotentKey) {
         Long blockNumber =
                 receipt.getBlockNumber() != null ? receipt.getBlockNumber().longValueExact() : null;
