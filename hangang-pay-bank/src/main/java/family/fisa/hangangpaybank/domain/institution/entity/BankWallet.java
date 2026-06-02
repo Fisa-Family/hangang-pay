@@ -2,7 +2,6 @@ package family.fisa.hangangpaybank.domain.institution.entity;
 
 import family.fisa.hangangpaybank.global.entity.BaseEntity;
 import jakarta.persistence.*;
-import java.math.BigDecimal;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -28,14 +27,6 @@ public class BankWallet extends BaseEntity {
     @Column(nullable = false)
     private String walletAddress;
 
-    @Column(nullable = false, precision = 20, scale = 4)
-    private BigDecimal balance;
-
     @Column(nullable = false, columnDefinition = "TEXT")
     private String encryptedPrivateKey;
-
-    /** 잔액 변경 메서드, JPA 변경 감지로 자동 반영 */
-    public void updateBalance(BigDecimal balance) {
-        this.balance = balance;
-    }
 }
