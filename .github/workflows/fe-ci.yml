@@ -86,7 +86,7 @@ jobs:
             StrictHostKeyChecking no
 
           Host onprem-fe
-            HostName ${{ secrets.ONPREM_FE_HOST }}
+            HostName ${{ vars.ONPREM_FE_HOST }}
             User ubuntu
             IdentityFile $HOME/.ssh/fe.pem
             ProxyJump onprem-bastion
