@@ -167,7 +167,10 @@ class ContractCallServiceTest {
         assertThatThrownBy(
                         () ->
                                 contractCallService.readBalance(
-                                        web3j, WALLET_ADDRESS, LOCAL_CURRENCY_ADDRESS, USER_ADDRESS))
+                                        web3j,
+                                        WALLET_ADDRESS,
+                                        LOCAL_CURRENCY_ADDRESS,
+                                        USER_ADDRESS))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
                 .isEqualTo(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
@@ -189,7 +192,10 @@ class ContractCallServiceTest {
         assertThatThrownBy(
                         () ->
                                 contractCallService.readBalance(
-                                        web3j, WALLET_ADDRESS, LOCAL_CURRENCY_ADDRESS, USER_ADDRESS))
+                                        web3j,
+                                        WALLET_ADDRESS,
+                                        LOCAL_CURRENCY_ADDRESS,
+                                        USER_ADDRESS))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
                 .isEqualTo(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
