@@ -3,7 +3,22 @@ package family.fisa.hangangpay.client.bank;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import family.fisa.hangangpay.client.bank.dto.*;
+import family.fisa.hangangpay.client.bank.code.ExternalBankErrorCode;
+import family.fisa.hangangpay.client.bank.dto.BankAccountResponse;
+import family.fisa.hangangpay.client.bank.dto.BankTransactionStatusResponse;
+import family.fisa.hangangpay.client.bank.dto.BankWalletResponse;
+import family.fisa.hangangpay.client.bank.dto.BlockchainLedgerResponse;
+import family.fisa.hangangpay.client.bank.dto.CancelRequest;
+import family.fisa.hangangpay.client.bank.dto.CancelResponse;
+import family.fisa.hangangpay.client.bank.dto.ChargeRequest;
+import family.fisa.hangangpay.client.bank.dto.ChargeResponse;
+import family.fisa.hangangpay.client.bank.dto.CreateBankAccountRequest;
+import family.fisa.hangangpay.client.bank.dto.CreateBankWalletRequest;
+import family.fisa.hangangpay.client.bank.dto.ExchangeRequest;
+import family.fisa.hangangpay.client.bank.dto.ExchangeResponse;
+import family.fisa.hangangpay.client.bank.dto.ExchangeStatusResponse;
+import family.fisa.hangangpay.client.bank.dto.PaymentRequest;
+import family.fisa.hangangpay.client.bank.dto.PaymentResponse;
 import family.fisa.hangangpay.global.code.error.AccountErrorCode;
 import family.fisa.hangangpay.global.code.error.BaseErrorCode;
 import family.fisa.hangangpay.global.exception.BusinessException;
@@ -29,10 +44,9 @@ public class BankClientImpl implements BankClient {
 
     /** Bank 서버의 에러 코드를 비즈니스 에러 코드로 매핑 */
     private static final Map<String, BaseErrorCode> BANK_ERROR_MAPPINGS =
-            Map.ofEntries(
-                    Map.entry(
-                            AccountErrorCode.BANK_ACCOUNT_NOT_FOUND.getCode(),
-                            AccountErrorCode.BANK_ACCOUNT_NOT_FOUND));
+            Map.of(
+                    AccountErrorCode.BANK_ACCOUNT_NOT_FOUND.getCode(),
+                    AccountErrorCode.BANK_ACCOUNT_NOT_FOUND);
 
     private final RestClient bankRestClient;
 
@@ -270,8 +284,21 @@ public class BankClientImpl implements BankClient {
         try {
             BankErrorResponse response =
                     OBJECT_MAPPER.readValue(ex.getResponseBodyAsString(), BankErrorResponse.class);
-            // Bank 서버의 모든 에러를 노출하지 않고, BE가 공개 API로 인정한 코드만 변환한다.
-            return Optional.ofNullable(BANK_ERROR_MAPPINGS.get(response.code()));
+
+            BaseErrorCode mapped = BANK_ERROR_MAPPINGS.get(response.code());
+            if (mapped != null) {
+                return Optional.of(mapped);
+            }
+
+            if (response.code() != null && response.code().startsWith("BLOCKCHAIN_")) {
+                return Optional.of(
+                        new ExternalBankErrorCode(
+                                HttpStatus.valueOf(ex.getStatusCode().value()),
+                                response.code(),
+                                response.message()));
+            }
+
+            return Optional.empty();
         } catch (JsonProcessingException parseException) {
             log.warn("Failed to parse bank error response. body={}", ex.getResponseBodyAsString());
             return Optional.empty();
@@ -279,5 +306,5 @@ public class BankClientImpl implements BankClient {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    private record BankErrorResponse(String code) {}
+    private record BankErrorResponse(String code, String message) {}
 }

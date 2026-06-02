@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import family.fisa.hangangpaybank.domain.blockchain.code.error.BlockchainErrorCode;
@@ -16,10 +17,13 @@ import family.fisa.hangangpaybank.domain.institution.repository.ContractReposito
 import family.fisa.hangangpaybank.domain.institution.service.WalletKeyCipher;
 import family.fisa.hangangpaybank.global.exception.BusinessException;
 import java.math.BigInteger;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -27,7 +31,13 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.web3j.abi.datatypes.Function;
 import org.web3j.crypto.Credentials;
+import org.web3j.crypto.Hash;
 import org.web3j.protocol.Web3j;
+import org.web3j.protocol.core.DefaultBlockParameterName;
+import org.web3j.protocol.core.Request;
+import org.web3j.protocol.core.Response;
+import org.web3j.protocol.core.methods.request.Transaction;
+import org.web3j.protocol.core.methods.response.EthCall;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 
 @ExtendWith(MockitoExtension.class)
@@ -103,6 +113,94 @@ class ContractCallServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
                 .isEqualTo(BlockchainErrorCode.BLOCKCHAIN_CONTRACT_NOT_FOUND);
+    }
+
+    @ParameterizedTest(name = "{0} -> {1}")
+    @CsvSource({
+        "Unauthorized(), BLOCKCHAIN_UNAUTHORIZED",
+        "InvalidAddress(), BLOCKCHAIN_INVALID_ADDRESS",
+        "InvalidAmount(), BLOCKCHAIN_INVALID_AMOUNT",
+        "InvalidInstitutionId(), BLOCKCHAIN_INVALID_INSTITUTION_ID",
+        "MerchantNotRegistered(), BLOCKCHAIN_MERCHANT_NOT_REGISTERED",
+        "'ERC20InsufficientBalance(address,uint256,uint256)', BLOCKCHAIN_INSUFFICIENT_TOKEN_BALANCE",
+        "IssuanceLimitExceeded(), BLOCKCHAIN_ISSUANCE_LIMIT_EXCEEDED",
+        "InsufficientReserve(), BLOCKCHAIN_INSUFFICIENT_RESERVE",
+        "ReserveExceedsLockedCbdc(), BLOCKCHAIN_RESERVE_EXCEEDS_LOCKED_CBDC",
+        "ReserveMoveFailed(), BLOCKCHAIN_RESERVE_MOVE_FAILED",
+        "DepositTokenMintFailed(), BLOCKCHAIN_DEPOSIT_TOKEN_MINT_FAILED",
+        "DepositTokenBurnFailed(), BLOCKCHAIN_DEPOSIT_TOKEN_BURN_FAILED",
+        "TransferFailed(), BLOCKCHAIN_TRANSFER_FAILED",
+        "BankNotRegistered(), BLOCKCHAIN_BANK_NOT_REGISTERED"
+    })
+    @DisplayName("eth_call에서 컨트랙트 커스텀 에러 selector가 오면 도메인 에러 코드로 매핑한다")
+    void mapsCustomContractErrorFromEthCall(String errorSignature, BlockchainErrorCode expectedCode)
+            throws Exception {
+        Web3j web3j = mock(Web3j.class);
+        Credentials credentials = Credentials.create(PRIVATE_KEY);
+        Request<?, EthCall> ethCallRequest = mockEthCallRequest();
+        EthCall ethCall = new EthCall();
+        Response.Error error = new Response.Error(-32000, "execution reverted");
+        error.setData(selector(errorSignature));
+        ethCall.setError(error);
+
+        doReturn(ethCallRequest)
+                .when(web3j)
+                .ethCall(any(Transaction.class), eq(DefaultBlockParameterName.LATEST));
+        given(ethCallRequest.send()).willReturn(ethCall);
+
+        assertThatThrownBy(
+                        () ->
+                                contractCallService.sendFunctionTransaction(
+                                        web3j,
+                                        credentials,
+                                        LOCAL_CURRENCY_ADDRESS,
+                                        BigInteger.valueOf(300_000),
+                                        emptyFunction()))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(expectedCode);
+    }
+
+    @Test
+    @DisplayName("eth_call 에러가 알 수 없는 selector면 일반 트랜잭션 실패로 매핑한다")
+    void mapsUnknownEthCallErrorToTransactionReverted() throws Exception {
+        Web3j web3j = mock(Web3j.class);
+        Credentials credentials = Credentials.create(PRIVATE_KEY);
+        Request<?, EthCall> ethCallRequest = mockEthCallRequest();
+        EthCall ethCall = new EthCall();
+        Response.Error error = new Response.Error(-32000, "execution reverted");
+        error.setData("0xdeadbeef");
+        ethCall.setError(error);
+
+        doReturn(ethCallRequest)
+                .when(web3j)
+                .ethCall(any(Transaction.class), eq(DefaultBlockParameterName.LATEST));
+        given(ethCallRequest.send()).willReturn(ethCall);
+
+        assertThatThrownBy(
+                        () ->
+                                contractCallService.sendFunctionTransaction(
+                                        web3j,
+                                        credentials,
+                                        LOCAL_CURRENCY_ADDRESS,
+                                        BigInteger.valueOf(300_000),
+                                        emptyFunction()))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(BlockchainErrorCode.BLOCKCHAIN_TRANSACTION_REVERTED);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Request<?, EthCall> mockEthCallRequest() {
+        return mock(Request.class);
+    }
+
+    private static String selector(String signature) {
+        return Hash.sha3String(signature).substring(0, 10);
+    }
+
+    private static Function emptyFunction() {
+        return new Function("test", List.of(), List.of());
     }
 
     private static Institution ownerInstitution() {
