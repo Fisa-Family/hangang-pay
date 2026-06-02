@@ -2,18 +2,15 @@ package family.fisa.hangangpay.global.config;
 
 import family.fisa.hangangpay.global.security.SessionAuthenticationFilter;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.util.matcher.IpAddressMatcher;
 import org.springframework.security.web.util.matcher.RegexRequestMatcher;
 import org.springframework.web.cors.CorsConfigurationSource;
 
@@ -25,9 +22,9 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(
             HttpSecurity http,
             CorsConfigurationSource corsConfigurationSource,
-            SessionAuthenticationFilter sessionAuthenticationFilter,
-            @Value("${management.prometheus.allowed-cidr}") String prometheusCidr)
-            throws Exception {
+            SessionAuthenticationFilter sessionAuthenticationFilter
+            //            @Value("${management.prometheus.allowed-cidr}") String prometheusCidr
+            ) throws Exception {
         http.cors(c -> c.configurationSource(corsConfigurationSource));
 
         // CSRF 예외 경로, 새 도메인 POST 개발 시 경로 추가 필요
@@ -55,12 +52,17 @@ public class SecurityConfig {
                                 // Actuator health check
                                 .requestMatchers("/actuator/health")
                                 .permitAll()
-                                .requestMatchers("/actuator/prometheus")
-                                .access(
-                                        (authentication, context) ->
-                                                new AuthorizationDecision(
-                                                        new IpAddressMatcher(prometheusCidr)
-                                                                .matches(context.getRequest())))
+                                //
+                                // .requestMatchers("/actuator/prometheus")
+                                //                                .access(
+                                //                                        (authentication, context)
+                                // ->
+                                //                                                new
+                                // AuthorizationDecision(
+                                //                                                        new
+                                // IpAddressMatcher(prometheusCidr)
+                                //
+                                // .matches(context.getRequest())))
                                 // 인증 도메인
                                 .requestMatchers("/api/v1/auth/**")
                                 .permitAll()
