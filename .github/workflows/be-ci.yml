@@ -55,10 +55,11 @@ jobs:
       - name: Test
         run: ./gradlew test --no-daemon
 
-      # - name: Analyze with SonarCloud
-      #   env:
-      #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      #   run: ./gradlew sonar --no-daemon
+      - name: Analyze with SonarCloud
+        continue-on-error: true
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: ./gradlew sonar --no-daemon
 
       - name: Build jar
         run: ./gradlew bootJar --no-daemon
