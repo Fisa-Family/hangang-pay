@@ -11,6 +11,12 @@ import { useCurrentUser } from '@/auth/useCurrentUser'
 import { FullscreenLayout, MainLayout } from '@/routes/layouts'
 import { RequireAuth, RequireRole, RedirectIfAuth } from '@/routes/guards'
 import { LoginPage } from '@/pages/auth/LoginPage'
+import { RegisterTermsPage } from '@/pages/register/RegisterTermsPage'
+import { RegisterVerifyPage } from '@/pages/register/RegisterVerifyPage'
+import { RegisterPasswordPage } from '@/pages/register/RegisterPasswordPage'
+import { RegisterAccountPage } from '@/pages/register/RegisterAccountPage'
+import { RegisterPinPage } from '@/pages/register/RegisterPinPage'
+import { MerchantRegisterBusinessPage } from '@/pages/register/MerchantRegisterBusinessPage'
 import { UserHomePage } from '@/pages/user/UserHomePage'
 import { UserMyPage } from '@/pages/user/UserMyPage'
 import { UserHistoryPage } from '@/pages/history/UserHistoryPage'
@@ -31,6 +37,7 @@ import { MerchantPaymentDetailPage } from '@/pages/merchant/MerchantPaymentDetai
 import { MerchantMyPage } from '@/pages/merchant/MerchantMyPage'
 import { MerchantSettlementPage } from '@/pages/merchant/MerchantSettlementPage'
 import { AppShell } from '@/components/common'
+import { LandingPage } from '@/pages/landing/LandingPage'
 import { MerchantSettlementHistoryPage } from '@/pages/merchant/MerchantSettlementHistoryPage'
 
 // 미등록 경로 접근 시 경로 기반으로 해당 영역 홈으로 교체
@@ -44,10 +51,11 @@ function GoBack() {
   return null
 }
 
-// 진입점(/) 에서 역할에 맞는 홈으로 리다이렉트
+// 진입점(/) 에서 역할에 맞는 홈으로 리다이렉트, 미인증 시 시작화면 표시
 function RoleRedirect() {
-  const { role, isLoading } = useCurrentUser()
+  const { role, isLoading, isAuthenticated } = useCurrentUser()
   if (isLoading) return null
+  if (!isAuthenticated) return <LandingPage />
   return <Navigate to={role === 'MERCHANT' ? '/merchant/home' : '/home'} replace />
 }
 
@@ -79,7 +87,24 @@ export const router = createBrowserRouter([
   },
   {
     element: <RedirectIfAuth />,
-    children: [{ path: '/login', element: <LoginPage /> }],
+    children: [
+      { path: '/login', element: <LoginPage /> },
+      { path: '/register/terms', element: <RegisterTermsPage /> },
+      { path: '/register/verify', element: <RegisterVerifyPage /> },
+      { path: '/register/password', element: <RegisterPasswordPage /> },
+      { path: '/register/account', element: <RegisterAccountPage /> },
+      { path: '/register/pin', element: <RegisterPinPage /> },
+      { path: '/register/processing', element: <ProcessingPage /> },
+      { path: '/register/complete', element: <CompletePage /> },
+      { path: '/merchant/register/terms', element: <RegisterTermsPage /> },
+      { path: '/merchant/register/verify', element: <RegisterVerifyPage /> },
+      { path: '/merchant/register/password', element: <RegisterPasswordPage /> },
+      { path: '/merchant/register/business', element: <MerchantRegisterBusinessPage /> },
+      { path: '/merchant/register/account', element: <RegisterAccountPage /> },
+      { path: '/merchant/register/pin', element: <RegisterPinPage /> },
+      { path: '/merchant/register/processing', element: <ProcessingPage /> },
+      { path: '/merchant/register/complete', element: <CompletePage /> },
+    ],
   },
   // /merchant 단축 진입점 (홈으로 리다이렉트)
   {

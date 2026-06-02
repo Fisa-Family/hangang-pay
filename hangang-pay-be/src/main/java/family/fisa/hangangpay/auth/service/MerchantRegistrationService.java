@@ -1,6 +1,8 @@
 package family.fisa.hangangpay.auth.service;
 
 import family.fisa.hangangpay.auth.code.error.AuthErrorCode;
+import family.fisa.hangangpay.client.bank.BankClient;
+import family.fisa.hangangpay.client.bank.dto.CreateBankAccountRequest;
 import family.fisa.hangangpay.domain.account.entity.Account;
 import family.fisa.hangangpay.domain.account.entity.AccountType;
 import family.fisa.hangangpay.domain.account.repository.AccountRepository;
@@ -18,6 +20,7 @@ import family.fisa.hangangpay.domain.wallet.service.WalletCommandService;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import family.fisa.hangangpay.global.session.SessionAttributeNames;
 import jakarta.servlet.http.HttpSession;
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +44,7 @@ public class MerchantRegistrationService {
     private final InstitutionQueryService institutionQueryService;
     private final BusinessInfoQueryService businessInfoQueryService;
     private final PasswordEncoder passwordEncoder;
+    private final BankClient bankClient;
 
     public MerchantRegisterResponse register(MerchantRegisterRequest request, HttpSession session) {
         validateTerms(request.termsAgreed());
@@ -76,6 +80,12 @@ public class MerchantRegistrationService {
                         .accountType(AccountType.SETTLEMENT)
                         .accountNumber(request.accountNumber())
                         .build());
+        bankClient.createBankAccount(
+                new CreateBankAccountRequest(
+                        institution.getId(),
+                        request.accountNumber(),
+                        businessInfo.ownerName(),
+                        BigDecimal.ZERO));
         walletCommandService.createWallet(party, institution);
 
         clearSignupSession(session);

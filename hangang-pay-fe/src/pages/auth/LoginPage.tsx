@@ -112,7 +112,9 @@ export function LoginPage() {
             <span className="mx-2 text-border">|</span>
             <button
               type="button"
-              onClick={() => navigate('/')}
+              onClick={() =>
+                navigate(tab == 'user' ? '/register/terms' : '/merchant/register/terms')
+              }
               className="font-medium text-foreground"
             >
               회원가입

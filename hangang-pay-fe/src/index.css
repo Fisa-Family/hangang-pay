@@ -147,6 +147,25 @@
     background: var(--primary);
   }
 
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-14px);
+    }
+  }
+
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(200%);
+    }
+  }
+
   /* 모바일 웹 컨테이너: 데스크톱에서는 폰 화면처럼 중앙 정렬 */
   #root {
     width: 100%;
