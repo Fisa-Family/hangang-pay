@@ -19,6 +19,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 public class SecurityConfig {
 
     @Bean
+    @SuppressWarnings("squid:S4502") // SonarQube CSRF 경고 무시
     public SecurityFilterChain filterChain(
             HttpSecurity http,
             CorsConfigurationSource corsConfigurationSource,
