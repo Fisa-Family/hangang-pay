@@ -19,11 +19,13 @@ import org.springframework.web.cors.CorsConfigurationSource;
 public class SecurityConfig {
 
     @Bean
+    @SuppressWarnings("squid:S4502") // SonarQube CSRF 경고 무시
     public SecurityFilterChain filterChain(
             HttpSecurity http,
             CorsConfigurationSource corsConfigurationSource,
-            SessionAuthenticationFilter sessionAuthenticationFilter)
-            throws Exception {
+            SessionAuthenticationFilter sessionAuthenticationFilter
+            //            @Value("${management.prometheus.allowed-cidr}") String prometheusCidr
+            ) throws Exception {
         http.cors(c -> c.configurationSource(corsConfigurationSource));
 
         // CSRF 예외 경로, 새 도메인 POST 개발 시 경로 추가 필요
@@ -51,6 +53,17 @@ public class SecurityConfig {
                                 // Actuator health check
                                 .requestMatchers("/actuator/health")
                                 .permitAll()
+                                //
+                                // .requestMatchers("/actuator/prometheus")
+                                //                                .access(
+                                //                                        (authentication, context)
+                                // ->
+                                //                                                new
+                                // AuthorizationDecision(
+                                //                                                        new
+                                // IpAddressMatcher(prometheusCidr)
+                                //
+                                // .matches(context.getRequest())))
                                 // 인증 도메인
                                 .requestMatchers("/api/v1/auth/**")
                                 .permitAll()
