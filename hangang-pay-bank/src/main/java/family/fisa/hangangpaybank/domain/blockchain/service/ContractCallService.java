@@ -15,6 +15,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.web3j.abi.FunctionEncoder;
+import org.web3j.abi.FunctionReturnDecoder;
+import org.web3j.abi.TypeReference;
 import org.web3j.abi.datatypes.Address;
 import org.web3j.abi.datatypes.Bool;
 import org.web3j.abi.datatypes.Function;
@@ -144,6 +146,50 @@ public class ContractCallService {
                         List.of(new Address(from), new Address(to), new Uint256(amount)),
                         List.of());
         return sendContractFunction(ContractType.LOCAL_CURRENCY, DEFAULT_GAS_LIMIT, function);
+    }
+
+    public BigInteger getBalance(String walletAddress) {
+        Function function =
+                new Function(
+                        "balanceOf",
+                        List.of(new Address(walletAddress)),
+                        List.of(new TypeReference<Uint256>() {}));
+
+        Contract contract =
+                contractRepository
+                        .findFirstByNameOrderByIdAsc(ContractType.LOCAL_CURRENCY)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                BlockchainErrorCode.BLOCKCHAIN_CONTRACT_NOT_FOUND));
+        Institution owner = contract.getInstitution();
+        Web3j web3j = Web3j.build(new HttpService(owner.getRpcEndpoint()));
+
+        try {
+            Transaction callTx =
+                    Transaction.createEthCallTransaction(
+                            owner.getWalletAddress(),
+                            contract.getAddress(),
+                            FunctionEncoder.encode(function));
+            EthCall ethCall = web3j.ethCall(callTx, DefaultBlockParameterName.LATEST).send();
+
+            if (ethCall.hasError()) {
+                throwCustomErrorIfMatched(ethCall.getError().getData());
+                throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
+            }
+
+            List<org.web3j.abi.datatypes.Type> decoded =
+                    FunctionReturnDecoder.decode(
+                            ethCall.getValue(), function.getOutputParameters());
+            if (decoded.isEmpty()) {
+                throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
+            }
+            return (BigInteger) decoded.get(0).getValue();
+        } catch (IOException e) {
+            throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
+        } finally {
+            web3j.shutdown();
+        }
     }
 
     /** 가맹점 화이트리스트 등록 */
