@@ -117,6 +117,18 @@ class ContractCallServiceTest {
     }
 
     @Test
+    @DisplayName("잔액 조회 시 대상 컨트랙트가 배포되지 않았으면 예외를 던진다")
+    void getBalanceThrowsWhenContractNotDeployed() {
+        given(contractRepository.findFirstByNameOrderByIdAsc(ContractType.LOCAL_CURRENCY))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> contractCallService.getBalance(USER_ADDRESS))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(BlockchainErrorCode.BLOCKCHAIN_CONTRACT_NOT_FOUND);
+    }
+
+    @Test
     @DisplayName("balanceOf eth_call 결과를 컨트랙트 최소 단위 잔액으로 디코딩한다")
     void readsBalanceFromContract() throws Exception {
         Web3j web3j = mock(Web3j.class);
@@ -135,6 +147,52 @@ class ContractCallServiceTest {
                         web3j, WALLET_ADDRESS, LOCAL_CURRENCY_ADDRESS, USER_ADDRESS);
 
         assertThat(result).isEqualTo(expectedBalance);
+    }
+
+    @Test
+    @DisplayName("balanceOf eth_call이 RPC 에러를 반환하면 RPC 실패 예외로 매핑한다")
+    void readBalanceMapsEthCallErrorToRpcFailed() throws Exception {
+        Web3j web3j = mock(Web3j.class);
+        Request<?, EthCall> ethCallRequest = mockEthCallRequest();
+        EthCall ethCall = new EthCall();
+        Response.Error error = new Response.Error(-32000, "execution failed");
+        error.setData("0xdeadbeef");
+        ethCall.setError(error);
+
+        doReturn(ethCallRequest)
+                .when(web3j)
+                .ethCall(any(Transaction.class), eq(DefaultBlockParameterName.LATEST));
+        given(ethCallRequest.send()).willReturn(ethCall);
+
+        assertThatThrownBy(
+                        () ->
+                                contractCallService.readBalance(
+                                        web3j, WALLET_ADDRESS, LOCAL_CURRENCY_ADDRESS, USER_ADDRESS))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
+    }
+
+    @Test
+    @DisplayName("balanceOf eth_call 응답을 디코딩할 수 없으면 RPC 실패 예외로 매핑한다")
+    void readBalanceMapsEmptyDecodeResultToRpcFailed() throws Exception {
+        Web3j web3j = mock(Web3j.class);
+        Request<?, EthCall> ethCallRequest = mockEthCallRequest();
+        EthCall ethCall = new EthCall();
+        ethCall.setResult("0x");
+
+        doReturn(ethCallRequest)
+                .when(web3j)
+                .ethCall(any(Transaction.class), eq(DefaultBlockParameterName.LATEST));
+        given(ethCallRequest.send()).willReturn(ethCall);
+
+        assertThatThrownBy(
+                        () ->
+                                contractCallService.readBalance(
+                                        web3j, WALLET_ADDRESS, LOCAL_CURRENCY_ADDRESS, USER_ADDRESS))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
     }
 
     @ParameterizedTest(name = "{0} -> {1}")
