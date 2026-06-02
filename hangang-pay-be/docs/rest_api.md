@@ -49,9 +49,12 @@ sequenceDiagram
   U->>U: QR scan
   U->>API: GET /api/v1/merchant/{merchantId}
   API-->>U: merchant payment target
-  U->>API: POST /api/v1/payment
+  U->>API: POST /api/v1/payment/intents
+  API-->>U: transactionUuid
+  U->>API: POST /api/v1/payment/execute
   API->>Bank: payment/transfer
   API-->>U: payment result
+  Note over U,API: 실패 시 POST /api/v1/payment/{transactionUuid}/recover
 ```
 
 결제 취소는 시간 제한 없이 가능하다. 요청 주체는 가맹점이다.
@@ -85,21 +88,23 @@ SMS 인증과 계좌 1원 인증은 mock으로 처리한다. 백엔드는 인증
 | `LOGIN-002` | 로그인 (가맹점) | `POST` | `/auth/merchants/login` | `X` | `PUBLIC` | 세션 생성 |
 | `LOGOUT-001` | 로그아웃 | `POST` | `/auth/logout` | `O` | `USER \| MERCHANT` | 현재 세션 삭제 |
 | `REG-001` | 소비자 회원가입 | `POST` | `/auth/users/register` | `X` | `PUBLIC` | 휴대폰·계좌 인증 세션 확인 후 회원/주계좌/지갑 생성 |
-| `REG-002` | 사업자 정보 조회 | `GET` | `/merchant/business-info` | `X` | `PUBLIC` | 쿼리 파라미터: `businessNumber` |
+| `REG-002` | 사업자 정보 조회 | `GET` | `/auth/merchants/business-info` | `X` | `PUBLIC` | 쿼리 파라미터: `businessNumber` |
 | `REG-003` | 가맹점 회원가입 | `POST` | `/auth/merchants/register` | `X` | `PUBLIC` | |
 | `ACCOUNT-001` | 등록 계좌 목록 조회 | `GET` | `/accounts` | `O` | `USER \| MERCHANT` | 현재 세션의 `partyId` 기준 |
 | `ACCOUNT-002` | 계좌 추가 | `POST` | `/accounts` | `O` | `USER \| MERCHANT` | 현재 세션의 `partyId` 기준 |
 | `ACCOUNT-003` | 계좌 삭제 | `DELETE` | `/accounts/{accountId}` | `O` | `USER \| MERCHANT` | 본인 계좌만 삭제 |
 | `ACCOUNT-004` | 주거래 계좌 변경 | `PATCH` | `/accounts/{accountId}/primary` | `O` | `USER \| MERCHANT` | 본인 계좌만 변경 |
 | `PAY-001` | QR 가맹점 정보 조회 | `GET` | `/merchant/{merchantId}` | `O` | `USER` | QR 스캔 후 결제 플로우 진입 |
-| `PAY-002` | 결제 실행 | `POST` | `/payment` | `O` | `USER` | 소비자 전용 |
-| `CHARGE-001` | 충전 정보 조회 | `GET` | `/charge/{partyId}/init` | `O` | `USER` | 충전 한도·할인 계산 포함 |
+| `PAY-002` | 결제 의도 생성 | `POST` | `/payment/intents` | `O` | `USER` | 금액·가맹점 정보 전달; transactionUuid 반환 |
+| `PAY-003` | 결제 실행 | `POST` | `/payment/execute` | `O` | `USER` | 소비자 전용 |
+| `PAY-004` | 결제 상태 복구 | `POST` | `/payment/{transactionUuid}/recover` | `O` | `USER` | 결제 실패·중단 시 상태 복구 |
+| `CHARGE-001` | 충전 정보 조회 | `GET` | `/charge/init` | `O` | `USER` | 충전 한도·할인 계산 포함 |
 | `CHARGE-002` | 충전 실행 | `POST` | `/charge` | `O` | `USER` | 소비자 전용 |
-| `EXCHANGE-001` | 환전 정보 조회 | `GET` | `/exchange/{partyId}/init` | `O` | `USER \| MERCHANT` | 환전 가능 여부·예정 금액 포함 |
+| `EXCHANGE-001` | 환전 정보 조회 | `GET` | `/exchange/init` | `O` | `USER \| MERCHANT` | 환전 가능 여부·예정 금액 포함 |
 | `EXCHANGE-002` | 환전 실행 | `POST` | `/exchange/execute` | `O` | `USER \| MERCHANT` | 현재 컨트롤러는 소비자 환전 실행만 노출 |
 | `MERCHANT-001` | 가맹점 매출 요약 조회 | `GET` | `/merchant/dashboard` | `O` | `MERCHANT` | 가맹점 전용 |
-| `MERCHANT-002` | 가맹점 결제 내역 조회 | `GET` | `/merchant/payments` | `O` | `MERCHANT` | 가맹점 전용 |
-| `MERCHANT-003` | 가맹점 결제 상세 조회 | `GET` | `/merchant/payments/{paymentId}` | `O` | `MERCHANT` | |
+| `MERCHANT-002` | 가맹점 결제 내역 조회 | `GET` | `/merchant/payments` | `O` | `MERCHANT` | 가맹점 전용; item의 `transactionId`를 상세조회 path에 사용 |
+| `MERCHANT-003` | 가맹점 결제 상세 조회 | `GET` | `/merchant/payments/{transactionId}` | `O` | `MERCHANT` | `transactionId`는 `transaction.id`; 응답에 `PAYMENT`/`CANCEL` 타입 포함 |
 | `MERCHANT-004` | 결제 취소 | `POST` | `/merchant/payments/{paymentId}/cancel` | `O` | `MERCHANT` | 시간 제한 없음 |
 | `MERCHANT-005` | 가맹점 정산 내역 조회 | `GET` | `/merchant/settlements` | `O` | `MERCHANT` | 현재 가맹점의 `EXCHANGE` 거래 조회 (`transaction.from_party_id = partyId`) |
 | `MERCHANT-006` | 가맹점 정산 신청 조회 | `GET` | `/merchant/redeem` | `O` | `MERCHANT` | 토큰→현금 |

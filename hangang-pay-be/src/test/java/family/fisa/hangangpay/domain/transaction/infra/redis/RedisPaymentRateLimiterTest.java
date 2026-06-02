@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 
 import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
+import family.fisa.hangangpay.domain.transaction.infra.redis.payment.RedisPaymentRateLimiter;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;

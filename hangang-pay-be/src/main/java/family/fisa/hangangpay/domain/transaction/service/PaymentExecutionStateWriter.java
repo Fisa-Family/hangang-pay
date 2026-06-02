@@ -6,7 +6,7 @@ import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
 import family.fisa.hangangpay.domain.transaction.dto.response.PaymentExecutionResponse;
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
-import family.fisa.hangangpay.domain.transaction.internal.*;
+import family.fisa.hangangpay.domain.transaction.internal.payment.*;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
 import family.fisa.hangangpay.domain.user.code.error.UserErrorCode;
 import family.fisa.hangangpay.domain.user.entity.User;
@@ -86,10 +86,15 @@ public class PaymentExecutionStateWriter {
             String txHash,
             String bankTransactionId,
             LocalDateTime confirmedAt) {
+        // 1. PROCESSING 상태 거래 조회
         Transaction transaction = getPaymentTransaction(transactionUuid);
         Merchant merchant = getMerchant(transaction.getToParty().getId());
 
+        // 2. txHash, bankTransactionId 기록 후 SUCCESS 전환
         transaction.completeWithBankResponse(txHash, bankTransactionId);
+
+        // 3. 승인번호 생성 — id는 createPaymentIntent 시점에 이미 채번됨
+        transaction.assignApprovalNumber(makeApvNumber(transaction.getId()));
 
         return PaymentExecutionResponse.from(transaction, merchant.getMerchantName(), confirmedAt);
     }
@@ -111,5 +116,9 @@ public class PaymentExecutionStateWriter {
         return merchantRepository
                 .findByParty_Id(partyId)
                 .orElseThrow(() -> new BusinessException(MerchantErrorCode.MERCHANT_NOT_FOUND));
+    }
+
+    private String makeApvNumber(Long id) {
+        return "APV-" + LocalDateTime.now().getYear() + "-" + String.format("%08d", id);
     }
 }

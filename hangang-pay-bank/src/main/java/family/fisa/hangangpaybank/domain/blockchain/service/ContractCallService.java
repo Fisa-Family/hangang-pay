@@ -10,17 +10,22 @@ import family.fisa.hangangpaybank.global.exception.BusinessException;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.web3j.abi.FunctionEncoder;
 import org.web3j.abi.datatypes.Address;
+import org.web3j.abi.datatypes.Bool;
 import org.web3j.abi.datatypes.Function;
 import org.web3j.abi.datatypes.generated.Uint256;
 import org.web3j.crypto.Credentials;
+import org.web3j.crypto.Hash;
 import org.web3j.crypto.RawTransaction;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.DefaultBlockParameterName;
+import org.web3j.protocol.core.methods.request.Transaction;
+import org.web3j.protocol.core.methods.response.EthCall;
 import org.web3j.protocol.core.methods.response.EthGetTransactionCount;
 import org.web3j.protocol.core.methods.response.EthSendTransaction;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
@@ -42,6 +47,56 @@ public class ContractCallService {
     private static final BigInteger PRIVATE_NETWORK_GAS_PRICE = BigInteger.ZERO;
     private static final int RECEIPT_POLLING_ATTEMPTS = 60;
     private static final long RECEIPT_POLLING_INTERVAL_MS = 1_000L;
+
+    // 컨트랙트 커스텀 에러를 BusinessException으로 변환하기 위한 selector -> error code 맵
+    private static final Map<String, BlockchainErrorCode> CUSTOM_ERROR_MAP =
+            Map.ofEntries(
+                    Map.entry(
+                            selector("Unauthorized()"),
+                            BlockchainErrorCode.BLOCKCHAIN_UNAUTHORIZED),
+                    Map.entry(
+                            selector("InvalidAddress()"),
+                            BlockchainErrorCode.BLOCKCHAIN_INVALID_ADDRESS),
+                    Map.entry(
+                            selector("InvalidAmount()"),
+                            BlockchainErrorCode.BLOCKCHAIN_INVALID_AMOUNT),
+                    Map.entry(
+                            selector("InvalidInstitutionId()"),
+                            BlockchainErrorCode.BLOCKCHAIN_INVALID_INSTITUTION_ID),
+                    Map.entry(
+                            selector("MerchantNotRegistered()"),
+                            BlockchainErrorCode.BLOCKCHAIN_MERCHANT_NOT_REGISTERED),
+                    Map.entry(
+                            selector("ERC20InsufficientBalance(address,uint256,uint256)"),
+                            BlockchainErrorCode.BLOCKCHAIN_INSUFFICIENT_TOKEN_BALANCE),
+                    Map.entry(
+                            selector("IssuanceLimitExceeded()"),
+                            BlockchainErrorCode.BLOCKCHAIN_ISSUANCE_LIMIT_EXCEEDED),
+                    Map.entry(
+                            selector("InsufficientReserve()"),
+                            BlockchainErrorCode.BLOCKCHAIN_INSUFFICIENT_RESERVE),
+                    Map.entry(
+                            selector("ReserveExceedsLockedCbdc()"),
+                            BlockchainErrorCode.BLOCKCHAIN_RESERVE_EXCEEDS_LOCKED_CBDC),
+                    Map.entry(
+                            selector("ReserveMoveFailed()"),
+                            BlockchainErrorCode.BLOCKCHAIN_RESERVE_MOVE_FAILED),
+                    Map.entry(
+                            selector("DepositTokenMintFailed()"),
+                            BlockchainErrorCode.BLOCKCHAIN_DEPOSIT_TOKEN_MINT_FAILED),
+                    Map.entry(
+                            selector("DepositTokenBurnFailed()"),
+                            BlockchainErrorCode.BLOCKCHAIN_DEPOSIT_TOKEN_BURN_FAILED),
+                    Map.entry(
+                            selector("TransferFailed()"),
+                            BlockchainErrorCode.BLOCKCHAIN_TRANSFER_FAILED),
+                    Map.entry(
+                            selector("BankNotRegistered()"),
+                            BlockchainErrorCode.BLOCKCHAIN_BANK_NOT_REGISTERED));
+
+    private static String selector(String signature) {
+        return Hash.sha3String(signature).substring(0, 10); // 0x + 4 bytes
+    }
 
     @Value("${blockchain.private-network.chain-id:1337}")
     private long privateNetworkChainId;
@@ -91,6 +146,17 @@ public class ContractCallService {
         return sendContractFunction(ContractType.LOCAL_CURRENCY, DEFAULT_GAS_LIMIT, function);
     }
 
+    /** 가맹점 화이트리스트 등록 */
+    public TransactionReceipt setMerchant(String merchantAddress) {
+        Function function =
+                new Function(
+                        "setMerchant",
+                        List.of(new Address(merchantAddress), new Bool(true)),
+                        List.of());
+
+        return sendContractFunction(ContractType.LOCAL_CURRENCY, DEFAULT_GAS_LIMIT, function);
+    }
+
     private TransactionReceipt sendContractFunction(
             ContractType contractType, BigInteger gasLimit, Function function) {
         Contract contract =
@@ -121,6 +187,9 @@ public class ContractCallService {
             BigInteger gasLimit,
             Function function)
             throws IOException {
+
+        simulateOrThrow(web3j, credentials.getAddress(), contractAddress, gasLimit, function);
+
         RawTransactionManager mgr =
                 new RawTransactionManager(web3j, credentials, privateNetworkChainId);
         EthGetTransactionCount nonceResponse =
@@ -140,6 +209,8 @@ public class ContractCallService {
                         FunctionEncoder.encode(function));
         EthSendTransaction sendResponse = mgr.signAndSend(tx);
         if (sendResponse.hasError()) {
+            String errorData = sendResponse.getError().getData();
+            throwCustomErrorIfMatched(errorData);
             throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
         }
         TransactionReceipt receipt = waitForReceipt(web3j, sendResponse.getTransactionHash());
@@ -157,6 +228,82 @@ public class ContractCallService {
             return processor.waitForTransactionReceipt(txHash);
         } catch (IOException | TransactionException e) {
             throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_RECEIPT_TIMEOUT);
+        }
+    }
+
+    /**
+     * 실제 트랜잭션 전송 전에 eth_call로 컨트랙트 함수를 시뮬레이션 실행한다.
+     *
+     * <p>트랜잭션을 블록에 포함시키기 전에 컨트랙트 실행 결과를 미리 확인하여 revert 여부와 custom error를 감지하기 위한 용도이다.
+     *
+     * <p>컨트랙트에서 custom error가 발생하면 selector를 추출하여 대응되는 BlockchainErrorCode로 변환한다.
+     *
+     * <p>일반 revert(Error(string)) 발생 시 BLOCKCHAIN_TRANSACTION_REVERTED 예외를 발생시킨다.
+     */
+    private void simulateOrThrow(
+            Web3j web3j,
+            String from,
+            String contractAddress,
+            BigInteger gasLimit,
+            Function function)
+            throws IOException {
+
+        // 컨트랙트 함수 호출 데이터를 ABI 인코딩
+        String data = FunctionEncoder.encode(function);
+
+        // 상태 변경 없이 실행되는 eth_call 트랜잭션 생성
+        Transaction callTx =
+                Transaction.createFunctionCallTransaction(
+                        from,
+                        null,
+                        PRIVATE_NETWORK_GAS_PRICE,
+                        gasLimit,
+                        contractAddress,
+                        BigInteger.ZERO,
+                        data);
+
+        // 최신 블록 상태 기준으로 함수 시뮬레이션 실행
+        EthCall ethCall = web3j.ethCall(callTx, DefaultBlockParameterName.LATEST).send();
+
+        // RPC 레벨 에러 발생 시 custom error 매핑 시도
+        if (ethCall.hasError()) {
+            String errorData = ethCall.getError().getData();
+            throwCustomErrorIfMatched(errorData);
+
+            throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_TRANSACTION_REVERTED);
+        }
+
+        String value = ethCall.getValue();
+
+        // Error(string) 형태의 일반 revert
+        // 0x08c379a0 = Error(string) selector
+        if (value != null && value.startsWith("0x08c379a0")) {
+            throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_TRANSACTION_REVERTED);
+        }
+
+        // Custom Error selector 검사
+        if (value != null && value.length() >= 10) {
+            throwCustomErrorIfMatched(value);
+        }
+    }
+
+    /**
+     * revert 데이터의 selector를 추출하여 등록된 컨트랙트 custom error와 매칭되는 경우 대응되는 BusinessException을 발생시킨다.
+     *
+     * <p>예: MerchantNotRegistered() → BLOCKCHAIN_MERCHANT_NOT_REGISTERED
+     */
+    private void throwCustomErrorIfMatched(String revertData) {
+        if (revertData == null || revertData.length() < 10) {
+            return;
+        }
+
+        // 0x + 4byte selector
+        String selector = revertData.substring(0, 10);
+
+        BlockchainErrorCode code = CUSTOM_ERROR_MAP.get(selector);
+
+        if (code != null) {
+            throw new BusinessException(code);
         }
     }
 }

@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 public record CancelResponse(
         String transactionUuid,
         String originalTransactionUuid,
+        Long bankTransactionId,
         String txHash,
         Long blockNumber,
         LocalDateTime confirmedAt,

@@ -108,5 +108,12 @@ af76516babce4af41dd3c23fdaf0d6@172.16.239.14:30303',
                         .ownerName("한강떡볶이")
                         .balance(BigDecimal.ZERO.setScale(4))
                         .build());
+        bankAccountRepository.save(
+                BankAccount.builder()
+                        .institution(shinhan)
+                        .accountNumber("110-111-222333")
+                        .ownerName("환불가능유저")
+                        .balance(new BigDecimal("1000000.0000"))
+                        .build());
     }
 }

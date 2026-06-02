@@ -8,33 +8,22 @@ interface CurrentUserSnapshot {
   role?: UserRole
 }
 
-const isAuthMockEnabled = import.meta.env.VITE_AUTH_MOCK === 'true'
-
-function getMockCurrentUser(): CurrentUser | undefined {
-  if (import.meta.env.VITE_AUTH_MOCK_AUTHENTICATED === 'false') {
-    return undefined
-  }
-
-  const role = import.meta.env.VITE_AUTH_MOCK_ROLE ?? 'USER'
-
-  return {
-    id: role === 'MERCHANT' ? 2 : 1,
-    name: role === 'MERCHANT' ? '한강상점' : '김한강',
-    role,
-  }
-}
-
-async function fetchCurrentUser(): Promise<CurrentUser | undefined> {
-  // TODO: replace this with the BE current-user endpoint after auth API is finalized.
-  return undefined
+// localStorage의 role 값으로 인증 상태를 복원한다.
+// 로그인 성공 시 localStorage.setItem('role', ...), 로그아웃·401 시 removeItem('role').
+// id/name은 현재 FE에서 사용하지 않아 빈 값으로 채운다.
+// TODO: GET /auth/me 구현 후 이 함수를 apiFetch('/auth/me') 호출로 교체하고 localStorage 의존 제거
+function fetchCurrentUser(): CurrentUser | undefined {
+  const role = localStorage.getItem('role') as UserRole | null
+  if (role !== 'USER' && role !== 'MERCHANT') return undefined
+  return { id: 0, name: '', role }
 }
 
 export function useCurrentUser(): CurrentUserSnapshot {
   const query = useQuery({
     queryKey: ['currentUser'],
-    queryFn: isAuthMockEnabled ? getMockCurrentUser : fetchCurrentUser,
+    queryFn: fetchCurrentUser,
     retry: false,
-    staleTime: 1000 * 30,
+    staleTime: Infinity,
   })
 
   return {

@@ -4,16 +4,23 @@ import family.fisa.hangangpay.client.bank.dto.MerchantRedeemInitResponse;
 import family.fisa.hangangpay.domain.account.dto.MerchantAccountUpdateRequest;
 import family.fisa.hangangpay.domain.account.dto.MerchantAccountUpdateResponse;
 import family.fisa.hangangpay.domain.account.service.AccountCommandService;
+import family.fisa.hangangpay.domain.merchant.dto.MerchantDashboardResponse;
 import family.fisa.hangangpay.domain.merchant.dto.MerchantInfoResponse;
 import family.fisa.hangangpay.domain.merchant.dto.MerchantMyPageResponse;
+import family.fisa.hangangpay.domain.merchant.dto.MerchantPaymentDetailResponse;
 import family.fisa.hangangpay.domain.merchant.dto.MerchantQrResponse;
 import family.fisa.hangangpay.domain.merchant.dto.MerchantSettlementHistoryItem;
 import family.fisa.hangangpay.domain.merchant.service.MerchantQrService;
 import family.fisa.hangangpay.domain.merchant.service.MerchantQueryService;
 import family.fisa.hangangpay.domain.transaction.code.TransactionSuccessCode;
 import family.fisa.hangangpay.domain.transaction.dto.request.ExchangeExecuteRequest;
+import family.fisa.hangangpay.domain.transaction.dto.request.PaymentCancelRequest;
 import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeExecuteResponse;
+import family.fisa.hangangpay.domain.transaction.dto.response.MerchantPaymentDetail;
+import family.fisa.hangangpay.domain.transaction.dto.response.MerchantPaymentHistoryItem;
+import family.fisa.hangangpay.domain.transaction.dto.response.PaymentCancelResponse;
 import family.fisa.hangangpay.domain.transaction.service.ExchangeCommandService;
+import family.fisa.hangangpay.domain.transaction.service.TransactionCommandService;
 import family.fisa.hangangpay.domain.transaction.service.TransactionQueryService;
 import family.fisa.hangangpay.global.code.success.GeneralSuccessCode;
 import family.fisa.hangangpay.global.pagination.CursorPageRequest;
@@ -46,6 +53,7 @@ public class MerchantController {
     private final AccountCommandService accountCommandService;
     private final TransactionQueryService transactionQueryService;
     private final ExchangeCommandService exchangeCommandService;
+    private final TransactionCommandService transactionCommandService;
 
     /** QR에서 추출한 merchantId로 결제 진입에 필요한 가맹점 정보를 조회한다. */
     @Operation(
@@ -70,6 +78,42 @@ public class MerchantController {
         CursorPageResponse<MerchantSettlementHistoryItem> page =
                 transactionQueryService.getMerchantSettlementHistory(partyId, cursor, size);
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, page));
+    }
+
+    /** 가맹점 대시보드용 매출 요약을 조회한다. */
+    @Operation(summary = "가맹점 매출 요약 조회 (MERCHANT-001)")
+    @GetMapping("/dashboard")
+    public ResponseEntity<ApiResponse<MerchantDashboardResponse>> getDashboard(
+            @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId) {
+        MerchantDashboardResponse response = merchantQueryService.getDashboard(partyId);
+        return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
+    }
+
+    /** 가맹점의 결제 내역을 조회한다. */
+    @Operation(summary = "가맹점 결제 내역 조회 (MERCHANT-002)")
+    @GetMapping("/payments")
+    public ResponseEntity<ApiResponse<CursorPageResponse<MerchantPaymentHistoryItem>>>
+            getMerchantPayments(
+                    @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId,
+                    CursorPageRequest cursor,
+                    @RequestParam(defaultValue = "20") int size) {
+
+        CursorPageResponse<MerchantPaymentHistoryItem> page =
+                transactionQueryService.getMerchantPaymentHistory(partyId, cursor, size);
+        return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, page));
+    }
+
+    /** 가맹점의 결제 상세 내역을 조회한다. */
+    @Operation(summary = "가맹점 결제 상세 조회 (MERCHANT-003)")
+    @GetMapping("/payments/{transactionId}")
+    public ResponseEntity<ApiResponse<MerchantPaymentDetailResponse<MerchantPaymentDetail>>>
+            getMerchantPaymentDetail(
+                    @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId,
+                    @PathVariable Long transactionId) {
+
+        MerchantPaymentDetailResponse<MerchantPaymentDetail> response =
+                transactionQueryService.getMerchantPaymentDetail(partyId, transactionId);
+        return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
     }
 
     @Operation(
@@ -127,5 +171,32 @@ public class MerchantController {
                 accountCommandService.updateMerchantSettlementAccount(partyId, request);
 
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
+    }
+
+    @Operation(
+            summary = "결제 취소 (MERCHANT-004)",
+            description = "가맹점이 본인 결제 건을 PIN 인증 후 취소한다. 시간 제한 없음.")
+    @PostMapping("/payments/{transactionId}/cancel")
+    public ResponseEntity<ApiResponse<PaymentCancelResponse>> cancelPayment(
+            @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId,
+            @PathVariable Long transactionId,
+            @Valid @RequestBody PaymentCancelRequest request) {
+        PaymentCancelResponse response =
+                transactionCommandService.cancelPayment(partyId, transactionId, request);
+        return ResponseEntity.ok(
+                ApiResponse.onSuccess(TransactionSuccessCode.PAYMENT_CANCELLED, response));
+    }
+
+    @Operation(
+            summary = "결제 취소 복구 (MERCHANT-004-R)",
+            description = "UNKNOWN 상태의 취소 건을 Bank 상태 조회로 복구한다.")
+    @PostMapping("/payments/{transactionId}/cancel/recover")
+    public ResponseEntity<ApiResponse<PaymentCancelResponse>> recoverCancel(
+            @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId,
+            @PathVariable Long transactionId) {
+        PaymentCancelResponse response =
+                transactionCommandService.recoverCancel(partyId, transactionId);
+        return ResponseEntity.ok(
+                ApiResponse.onSuccess(TransactionSuccessCode.CANCEL_RECOVERED, response));
     }
 }

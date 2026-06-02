@@ -2,6 +2,7 @@ package family.fisa.hangangpay.domain.user.repository;
 
 import family.fisa.hangangpay.domain.user.entity.User;
 import family.fisa.hangangpay.domain.user.repository.jpa.UserJpaRepository;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.repository.query.Param;
@@ -26,6 +27,11 @@ public class UserRepositoryImpl implements UserRepository {
     @Override
     public Optional<User> findByPhoneNumberWithParty(String phoneNumber) {
         return userJpaRepository.findByPhoneNumberWithParty(phoneNumber);
+    }
+
+    @Override
+    public List<User> findByParty_IdIn(List<Long> partyIds) {
+        return userJpaRepository.findByParty_IdIn(partyIds);
     }
 
     @Override

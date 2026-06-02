@@ -15,6 +15,8 @@ public interface TransactionRepository {
 
     Transaction save(Transaction transaction);
 
+    Transaction saveAndFlush(Transaction transaction);
+
     Optional<Transaction> findById(Long id);
 
     /** 비즈니스 식별자(transaction_uuid)로 단건 조회 - CANCEL 시 원본 PAYMENT 조회용 */
@@ -28,11 +30,15 @@ public interface TransactionRepository {
             ScrollPosition position,
             Limit limit);
 
+    /** 가맹점 수취 결제/취소 이력 페이징 */
+    Window<Transaction> findPaymentTransactionsByMerchantPartyId(
+            Long partyId, TransactionStatus status, ScrollPosition position, Limit limit);
+
     /** 거래 상세 - id + type IN, fromParty/fromAccount/toAccount/fromWallet/toWallet fetch join */
     Optional<Transaction> findDetailByIdAndTypes(Long id, List<TransactionType> types);
 
     /** 스케줄러용 - UNKNOWN 상태 PAYMENT 트랜잭션 전체 조회 */
-    List<Transaction> findAllUnknownPayments();
+    List<Transaction> findAllUnknownByType(TransactionType type);
 
     /** 파티 식별자 기준 특정 월의 거래 유형별 누적 금액 조회 */
     BigDecimal sumMonthlyAmount(
@@ -58,4 +64,26 @@ public interface TransactionRepository {
      * 배치 reconcile 대상 id 조회 - PENDING + EXCHANGE + createdAt < threshold && attempt < maxAttempts
      */
     List<Long> findPendingExchangeIdsForReconcile(LocalDateTime threshold, int maxAttempts);
+
+    /** 원거래 UUID를 참조하는 SUCCESS CANCEL 거래 존재 여부 */
+    boolean existsSuccessCancelByOriginalTransactionUuid(String originalTransactionUuid);
+
+    /** 가장 최근 PENDING CHARGE 1건 - 충전 init 중복 방지용 */
+    Optional<Transaction> findLatestPendingCharge(Long partyId);
+
+    /** 특정 거래 유형의 SUCCESS 누적 금액 (전체 기간) */
+    BigDecimal sumAllSuccessByType(Long partyId, TransactionType type);
+
+    /** 원본 PAYMENT의 SUCCESS + CANCEL 존재 여부 확인 - 재취소 방지용 */
+    boolean existsSuccessCancelFor(String originalTransactionUuid);
+
+    /** 복구 가능한 CANCEL 조회 - CANCEL + status = UNKNOWN */
+    Optional<Transaction> findRecoverableCancelByOriginalTransactionUuid(
+            String originalTransactionUuid);
+
+    List<Transaction> findMerchantPaymentsBetween(
+            Long merchantPartyId,
+            TransactionStatus status,
+            LocalDateTime startInclusive,
+            LocalDateTime endExclusive);
 }

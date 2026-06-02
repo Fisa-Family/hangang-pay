@@ -3,6 +3,7 @@ package family.fisa.hangangpay.domain.merchant.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import family.fisa.hangangpay.auth.service.BusinessInfoQueryService;
 import family.fisa.hangangpay.domain.merchant.code.MerchantErrorCode;
 import family.fisa.hangangpay.domain.merchant.dto.BusinessInfoResponse;
 import family.fisa.hangangpay.global.exception.BusinessException;
@@ -19,7 +20,7 @@ class BusinessInfoQueryServiceTest {
     void getBusinessInfo() {
         BusinessInfoResponse response = businessInfoQueryService.getBusinessInfo("123-45-67890");
 
-        assertThat(response.businessNumber()).isEqualTo("123-45-67890");
+        assertThat(response.businessNumber()).isEqualTo("1234567890");
         assertThat(response.merchantName()).isEqualTo("성수 한강카페");
         assertThat(response.ownerName()).isEqualTo("김한강");
         assertThat(response.address()).isEqualTo("서울 성동구 왕십리로 125");

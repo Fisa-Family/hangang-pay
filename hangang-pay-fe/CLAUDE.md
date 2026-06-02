@@ -1,198 +1,169 @@
-# blockchain-fe
+# hangang-pay-fe
 
-React + Vite 기반 대시보드. `blockchain-be`의 REST API를 호출하여 시나리오 실행 + 거래 추적 시각화.
+한강페이 지역화폐 거래를 위한 모바일 웹 SPA. 사용자는 지역화폐 잔액 조회, QR 결제, 거래 내역 조회, 계좌 관리를 수행하고, 가맹점은 홈 대시보드와 결제 QR을 확인한다.
 
-루트 `CLAUDE.md`도 함께 참조.
+## 작업 원칙
 
-## 모듈 책임
-
-1. 사용자/은행 드롭다운 선택 (로그인 없음)
-2. CBDC 발급, 자행이체, 타행이체 시나리오 실행 UI
-3. 거래 리스트 + 단일 거래 상세 페이지 (단계별 타임라인)
-4. 잔액 실시간 조회
+- 화면 구현 전 `docs/dev-specs`의 디자인 시스템과 화면 명세를 확인한다.
+- API 연동 전 `../hangang-pay-be/docs/rest_api.md`와 실제 백엔드 코드를 확인한다.
+- 모바일 웹 기준으로 구현한다.
+- 데스크톱 브라우저에서는 앱을 모바일 최대 폭으로 중앙 정렬해 폰 화면처럼 보여준다.
+- 요청 범위를 벗어난 리팩터링, 디자인 변경, 라우트 변경은 하지 않는다.
+- `hangang-pay-bc` 또는 블록체인 모듈 코드를 FE 작업 중 생성하거나 수정하지 않는다.
 
 ## 기술 스택
 
-- React (Vite 기본 버전)
-- JavaScript (TypeScript 아님)
-- Vite dev server (포트 5173)
-- Flat ESLint config (`eslint.config.js`)
+- React 19
+- TypeScript
+- Vite
+- React Router
+- TanStack Query
+- Tailwind CSS v4
+- Zustand
+- Vitest 설정은 존재하지만 현재는 새 테스트를 작성하지 않는다.
 
-## 디자인 톤
-
-**깔끔한 모노톤 (monochrome).**
-
-- 흰 배경 또는 매우 옅은 회색
-- 검은색/짙은 회색 텍스트
-- 강조는 회색 단계로만 (회색 톤 차이)
-- 컬러는 최소화 (상태 표시 시에만 미세하게)
-- 폰트는 sans-serif 시스템 폰트
-- 카드/박스는 옅은 회색 테두리 또는 그림자 한 줄
-- 둥근 모서리는 작게 (4-6px)
-- 여백은 충분히 (학습용 데모, 가독성 우선)
-
-CSS 라이브러리는 별도 도입 X. CSS Modules 또는 인라인 스타일.
-
-## 페이지 구조
+## 주요 디렉터리
 
 ```
 src/
-├── App.jsx                       # 라우터 + 레이아웃
-├── main.jsx
-│
-├── pages/
-│   ├── Dashboard.jsx             # 전체 현황 (사용자 잔액, 최근 거래)
-│   ├── CBDCIssuance.jsx          # 한국은행 CBDC 발급 시나리오
-│   ├── IntraBankTransfer.jsx     # 자행이체 시나리오
-│   ├── InterBankTransfer.jsx     # 타행이체 시나리오
-│   ├── TransactionList.jsx       # 거래 리스트 (필터, 페이징)
-│   ├── TransactionDetail.jsx     # 단일 거래 상세 (타임라인 시각화)
-│   └── Users.jsx                 # 사용자 목록 + 잔액
-│
-├── components/
-│   ├── Layout.jsx                # 사이드바 + 헤더 + 본문
-│   ├── BankSelector.jsx          # 은행 드롭다운
-│   ├── UserSelector.jsx          # 사용자 드롭다운
-│   ├── BalanceCard.jsx           # 잔액 카드
-│   ├── TimelineView.jsx          # 단계별 타임라인 (수평 막대 차트)
-│   ├── TxHashCopy.jsx            # 트랜잭션 해시 복사 컴포넌트
-│   └── StatusBadge.jsx           # 거래 상태 뱃지
-│
-├── api/
-│   ├── client.js                 # fetch 또는 axios 기본 설정
-│   ├── cbdc.js
-│   ├── transfer.js
-│   ├── tracking.js
-│   ├── users.js
-│   └── banks.js
-│
-├── hooks/
-│   ├── useUsers.js               # 사용자 목록 조회
-│   ├── useBanks.js
-│   └── useTransactions.js
-│
-└── styles/
-    ├── global.css
-    └── tokens.css                # 디자인 토큰 (색상, 여백)
+├── App.tsx                  # RouterProvider 연결
+├── main.tsx                 # 앱 엔트리
+├── app/                     # router, provider, root error
+├── routes/                  # layout, auth/role guard
+├── auth/                    # 현재 사용자 조회 및 인증 타입
+├── api/                     # API client, endpoint 함수, 응답 타입
+├── pages/                   # route 단위 화면
+├── components/common/       # 재사용 공통 컴포넌트
+├── lib/                     # 순수 유틸
+└── test/                    # 테스트 설정
 ```
+
+문서:
+
+- `docs/dev-specs/design-system.md`: 색상, 타이포그래피, 레이아웃 기준
+- `docs/dev-specs/screens/*.md`: 화면별 route, 액션, 상태 분기 기준
+- `../hangang-pay-be/docs/rest_api.md`: API 목록과 endpoint 1차 확인
 
 ## 라우팅
 
-`react-router-dom` 사용 권장. 또는 단순 상태 기반 화면 전환.
+라우트 정의는 `src/app/router.tsx`가 소유한다.
 
-```
-/                      → Dashboard
-/cbdc                  → CBDCIssuance
-/transfer/intra        → IntraBankTransfer
-/transfer/inter        → InterBankTransfer
-/transactions          → TransactionList
-/transactions/:id      → TransactionDetail
-/users                 → Users
-```
+현재 주요 화면:
 
-## 페이지별 핵심 UI
+- Public: `/login`
+- User: `/home`, `/mypage`, `/mypage/payments`, `/mypage/accounts`, `/mypage/accounts/add`
+- User payment flow: `/pay/scan`, `/pay/amount/:merchantId`, `/pay/confirm`, `/pay/pin`, `/pay/processing`, `/pay/complete`
+- Merchant: `/merchant/home`, `/merchant/qr`, `/merchant/payments`, `/merchant/mypage`
 
-### Dashboard
+인증과 권한 가드는 `src/routes/guards.tsx`에서 관리한다. 개발 중 인증 우회 로직은 임시 코드이므로 실제 인증 API가 확정되면 제거한다.
 
-- 전체 은행 CBDC 잔액 카드 4개 (한국은행, 우리, 신한, 하나)
-- 최근 거래 5개 (간단한 테이블)
-- 사용자별 예금토큰 잔액 요약
+## 화면 구현 지침
 
-### CBDCIssuance
+- page 컴포넌트는 route 진입, API 호출, 상태 분기, 화면 이동을 담당한다.
+- 공통 컴포넌트는 표시, 입력, 피드백처럼 재사용 가능한 UI 역할만 담당한다.
+- loading, empty, error 상태를 명시적으로 처리한다.
+- 결제, 계좌, 인증 등 민감 플로우에서는 PIN, 인증번호, 세션 정보 등 민감 값을 URL에 노출하지 않는다.
+- 처리중 화면은 서버 요청 대기 상태만 표시한다. 실패 시 처리중 화면에 머무르지 말고 직전 입력/확인 화면으로 돌아가 실패 사유를 표시한다.
+- 화면 UX와 상태 분기는 `docs/dev-specs/screens/*.md`를 우선한다.
 
-- 입력: 대상 은행 (드롭다운), 금액
-- 버튼: 발급
-- 결과: 트랜잭션 해시 표시 + 시간 + correlationId
-- 발급 완료 후 자동으로 잔액 갱신
+## 컴포넌트 재사용 규칙
 
-### IntraBankTransfer
+새 UI를 구현하기 전에 반드시 `src/components/common`을 먼저 확인한다.
 
-- 입력: 은행 선택 → 보내는 사용자 + 받는 사용자 (같은 은행) + 금액
-- 버튼: 이체
-- 결과: 트랜잭션 해시, 단계별 시간
+- 이미 존재하는 공통 컴포넌트가 있으면 새로 만들지 않고 재사용한다.
+- 동일하거나 유사한 UI 패턴을 2곳 이상에서 인라인으로 구현하지 않는다. 반복되면 공통 컴포넌트로 추출한다.
+- 공통 컴포넌트는 API endpoint, DTO, query key, route 경로를 직접 알지 않는다.
+- 화면 이동과 서버 요청은 page 컴포넌트가 담당한다.
+- 공통 컴포넌트를 수정할 때는 모든 사용처가 깨지지 않는지 확인한다.
 
-### InterBankTransfer
+### 구현 전 공통 컴포넌트 확인 절차
 
-- 입력: 보내는 은행 + 사용자, 받는 은행 + 사용자, 금액
-- 버튼: 이체
-- 결과: 3단계 트랜잭션 해시 모두 표시 + 단계별 시간 + 총 소요시간
-- 진행 중에는 단계별 진행 상태 시각화
+새 화면 또는 UI를 구현하기 전에는 반드시 다음 순서로 진행한다.
 
-### TransactionList
+1. `src/components/common/index.ts`를 확인한다.
+2. 구현하려는 UI 요소를 기존 공통 컴포넌트와 매핑한다.
+3. 코드 수정 전, 사용할 공통 컴포넌트를 짧게 명시한다.
+   - 예: "이 화면은 `AppShell`, `PageHeader`, `TextField`, `Button`을 사용한다."
+4. 기존 공통 컴포넌트로 표현 가능한 UI는 직접 `<button>`, `<input>`, `<header>` 등을 새로 만들지 않는다.
+5. 공통 컴포넌트의 props가 부족해 화면 요구사항을 맞추기 어렵다면, 먼저 공통 컴포넌트 확장을 검토한다.
+6. 탭, 링크성 텍스트 버튼처럼 아직 공통 컴포넌트가 없는 패턴은 page 내부에 구현할 수 있다. 같은 패턴이 2회 이상 반복되면 공통 컴포넌트로 추출한다.
 
-- 컬럼: correlationId(짧게), 타입, From, To, 금액, 상태, 소요시간, 시각
-- 필터: 거래 타입, 날짜, 은행, 상태
-- 페이징
-- 행 클릭 → TransactionDetail로
+### 화면 구현 체크리스트
 
-### TransactionDetail
+코드 수정 전 확인한다.
 
-- 거래 기본 정보 (correlationId, 타입, 금액, 상태)
-- **TimelineView**: 단계별 막대 차트 (수평 Gantt 스타일)
-  - 각 단계: REQUEST_RECEIVED → VALIDATION_DONE → BURN_SUBMITTED → BURN_FINALIZED → ... → RESPONSE_SENT
-  - 시간 길이로 막대 표시
-  - 각 단계의 tx_hash, block_number, gas_used 표시
-- 트랜잭션 해시 복사 가능
+- `src/components/common/index.ts`의 export 목록을 확인했는가?
+- 구현하려는 UI 요소를 기존 공통 컴포넌트와 매핑했는가?
+- 사용할 공통 컴포넌트를 작업 전 명시했는가?
+- 기존 공통 컴포넌트로 가능한 UI를 직접 `<button>`, `<input>`, `<header>` 등으로 새로 만들고 있지 않은가?
+- 공통 컴포넌트 props가 부족하다면 page에서 우회 구현하기 전에 공통 컴포넌트 확장을 검토했는가?
+- 새 공통 컴포넌트를 추가했다면 `src/components/common/index.ts`에서 export했는가?
+- 공통 컴포넌트를 추가, 삭제, 이름 변경했다면 이 문서의 빠른 목록을 업데이트했는가?
+- 공통 컴포넌트의 사용법이 바뀌었다면 관련 사용처를 함께 확인했는가?
 
-### Users
+### 공통 컴포넌트 빠른 목록
 
-- 9명 사용자 카드/리스트
-- 각각: 이름, 소속 은행, 주소(짧게), 예금토큰 잔액
-- 검색/필터 (은행별)
+정확한 전체 목록, props, 동작은 `src/components/common/index.ts`와 실제 구현(`src/components/common`)을 기준으로 확인한다. 이 목록은 빠른 탐색용이므로 공통 컴포넌트를 추가, 삭제, 이름 변경할 때 함께 갱신한다.
 
-## API 호출 패턴
+- Layout: `AppShell`, `PageHeader`, `BackTitleHeader`, `BottomNav`
+- Action/Input: `Button`, `TextField`, `SelectField`, `CheckboxGroup`, `AmountInput`, `NumberPad`, `PinCodeInput`
+- Feedback: `ConfirmDialog`, `Toast`, `EmptyState`, `ErrorBoundary`, `ProcessingState`, `ResultState`, `StatusBadge`
+- List/Card: `ListItem`, `AccountRow`, `BalanceCard`, `SummaryCard`, `SettingsMenuCard`, `UserProfileCard`
+- History: `HistoryEntryCard`, `HistoryListItem`, `HistoryDateGroupHeader`, `HistoryTypeTabs`
+- Icons: `BackspaceIcon`, `ChevronRightIcon`
 
-`api/client.js`:
+## API 연동 지침
 
-```
-const BASE_URL = 'http://localhost:8080/api';
-// fetch 기반 헬퍼 (인증 없음)
-// 응답 헤더 X-Correlation-Id 추적용으로 저장 가능
-```
+- API 호출 함수는 `src/api`에 작성한다.
+- page 컴포넌트에서 endpoint 문자열, request/response 변환 로직을 직접 작성하지 않는다.
+- 공통 fetch 처리는 `src/api/client.ts`의 `apiFetch`와 `ApiError` 방식을 따른다.
+- API 목록과 endpoint는 `../hangang-pay-be/docs/rest_api.md`를 1차로 확인한다.
+- 단, `rest_api.md`에는 요청/응답 DTO와 에러 코드가 최신 상태로 모두 명시되어 있지 않을 수 있다.
+- 실제 request/response 구조, enum, success code, error code는 반드시 `../hangang-pay-be/src/main/java`의 Controller, Request/Response DTO, Service, exception/code 정의를 확인한 뒤 맞춘다.
+- BE 명세 문서와 실제 백엔드 코드가 충돌하면 실제 백엔드 코드를 우선한다.
 
-상태 관리는 별도 라이브러리 없이 React `useState`, `useEffect`로 충분. 필요 시 가벼운 store 도입.
+### 백엔드 확인 위치
 
-## 디자인 토큰 (tokens.css)
+- Controller: endpoint, method, path variable, query param 확인
+- Request DTO: request body 필드명과 타입 확인
+- Response DTO: `result` 내부 응답 구조 확인
+- Enum: 상태값, 거래유형, 역할 등 문자열 값 확인
+- Exception/ErrorCode/SuccessCode: FE에 표시할 code/message 분기 확인
 
-```css
-:root {
-  --color-bg: #ffffff;
-  --color-surface: #fafafa;
-  --color-border: #e5e5e5;
-  --color-text-primary: #1a1a1a;
-  --color-text-secondary: #6b6b6b;
-  --color-text-tertiary: #999999;
-  --color-accent: #333333; /* 강조도 회색 톤 */
-  --color-success: #4a4a4a; /* 성공도 짙은 회색 */
-  --color-error: #2a2a2a; /* 에러도 회색 */
+## 상태 관리
 
-  --radius-sm: 4px;
-  --radius-md: 6px;
+- 서버에서 읽어오는 데이터와 서버 변경 요청은 TanStack Query로 관리한다.
+- 클라이언트 전용 공유 상태는 Zustand로 관리한다.
+- 한 화면 안에서만 쓰는 단순 입력값은 `useState`를 사용한다.
+- 서버 응답 데이터를 Zustand에 복제하지 않는다.
+- URL에 노출되면 안 되는 PIN, 인증번호, 민감 정보는 query param에 넣지 않는다.
 
-  --spacing-xs: 4px;
-  --spacing-sm: 8px;
-  --spacing-md: 16px;
-  --spacing-lg: 24px;
-  --spacing-xl: 32px;
+## 디자인 지침
 
-  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'SF Mono', Menlo, monospace;
-}
-```
+- 디자인 기준은 `docs/dev-specs/design-system.md`와 `src/index.css`의 토큰을 따른다.
+- 모바일 터치 영역을 우선한다.
+- 데스크톱 전용 레이아웃을 새로 만들지 않는다.
+- Tailwind CSS v4를 사용한다. CSS Modules나 인라인 스타일은 기존 패턴상 필요한 경우에만 제한적으로 사용한다.
+- 화면별 예외는 `docs/dev-specs/screens/*.md`를 우선한다.
+- 색상은 반드시 `src/index.css`에 정의된 CSS 변수 토큰(`bg-background`, `bg-card`, `text-foreground` 등)을 사용한다. `#rrggbb` 또는 `rgb()` 형태의 임의 색상값은 사용하지 않는다. 토큰에 없는 색이 필요하다면 먼저 `src/index.css`를 확인해 가장 가까운 토큰을 찾는다.
 
-## 실행
+## 테스트 방침
+
+현재 FE 작업에서는 테스트 코드를 새로 작성하지 않는다.
+
+- 기능 구현 및 수정 시 화면 동작 확인, 타입 체크, 빌드 확인을 우선한다.
+- 기존 테스트 파일이 있더라도 새 기능에 맞춰 테스트를 추가하지 않는다.
+- 테스트 코드 작성이 꼭 필요하다고 판단되는 경우에는 먼저 팀과 논의한 뒤 진행한다.
+- PR 전 검증은 기본적으로 `npm run build`와 수동 화면 확인을 기준으로 한다.
+
+## 커밋 전 확인
+
+커밋 전에는 반드시 다음을 실행한다.
 
 ```bash
-npm run dev       # :5173
+npm run fix
 npm run build
-npm run preview
-npm run lint
 ```
 
-`blockchain-be`가 `:8080`에서 먼저 실행되어야 동작.
-
-## 트러블슈팅 메모
-
-- CORS 이슈: BE에서 `localhost:5173` 허용 (Phase 2에서 설정)
-- 잔액이 즉시 갱신 안 됨: 트랜잭션 finality 대기 시간(~2초) 고려
-- 트랜잭션 해시는 길어서 UI에선 앞 6자 + ... + 뒤 4자로 단축 표시, 복사는 전체
+- `npm run fix`: Prettier 포맷팅과 자동 수정 가능한 ESLint 이슈 정리
+- `npm run build`: TypeScript 타입 체크와 프로덕션 빌드 확인

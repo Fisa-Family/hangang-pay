@@ -15,6 +15,11 @@ export const ApiErrorCode = {
   ACCOUNT_NOT_FOUND: 'ACCOUNT_NOT_FOUND',
 
   USER_NOT_FOUND: 'USER_NOT_FOUND',
+
+  EXCHANGE_NOT_ELIGIBLE: 'EXCHANGE_NOT_ELIGIBLE',
+  EXCHANGE_IN_PROGRESS: 'EXCHANGE_IN_PROGRESS',
+  EXCHANGE_ALREADY_FAILED: 'EXCHANGE_ALREADY_FAILED',
+  INVALID_PAYMENT_PIN: 'INVALID_PAYMENT_PIN',
 } as const
 
 export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode]
@@ -36,6 +41,11 @@ export const apiErrorMessages: Record<ApiErrorCode, string> = {
   [ApiErrorCode.ACCOUNT_NOT_FOUND]: '계좌를 찾을 수 없습니다.',
 
   [ApiErrorCode.USER_NOT_FOUND]: '사용자를 찾을 수 없습니다',
+
+  [ApiErrorCode.EXCHANGE_NOT_ELIGIBLE]: '충전금의 60% 이상 사용 후 환불 가능합니다',
+  [ApiErrorCode.EXCHANGE_IN_PROGRESS]: '이미 진행 중인 환불이 있습니다',
+  [ApiErrorCode.EXCHANGE_ALREADY_FAILED]: '이미 실패한 환불입니다. 다시 시도해 주세요',
+  [ApiErrorCode.INVALID_PAYMENT_PIN]: 'PIN이 올바르지 않습니다',
 }
 
 // 타입 가드
@@ -43,24 +53,4 @@ const knownApiErrorCodes = new Set<string>(Object.values(ApiErrorCode))
 
 export function isApiErrorCode(code: string): code is ApiErrorCode {
   return knownApiErrorCodes.has(code)
-}
-
-// HTTP 상태 코드 기반 화면별 오류 메시지
-export const apiUserErrorMessages: Record<string, Record<number, string>> = {
-  'WALLET-001': {
-    0: '잔액 정보를 불러올 수 없습니다. 네트워크 연결을 확인해 주세요.',
-    400: '잔액 조회 요청에 문제가 있습니다.',
-    401: '잔액을 조회하려면 로그인이 필요합니다.',
-    403: '잔액 조회 권한이 없습니다.',
-    404: '잔액 조회 서비스를 현재 이용할 수 없습니다.',
-    500: '잠시 후 다시 시도해 주세요.',
-  },
-  'MY-002': {
-    0: '거래 내역을 불러올 수 없습니다. 네트워크 연결을 확인해 주세요.',
-    400: '거래 내역 조회 요청에 문제가 있습니다.',
-    401: '거래 내역을 조회하려면 로그인이 필요합니다.',
-    403: '거래 내역 조회 권한이 없습니다.',
-    404: '거래 내역 서비스를 현재 이용할 수 없습니다.',
-    500: '잠시 후 다시 시도해 주세요.',
-  },
 }
