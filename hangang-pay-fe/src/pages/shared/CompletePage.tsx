@@ -79,7 +79,7 @@ export function CompletePage() {
   const actionPath = flow?.actionPath ?? '/home'
 
   return (
-    <div className="flex h-dvh flex-col items-center justify-between bg-white px-5 py-14">
+    <div className="flex h-dvh flex-col items-center justify-between bg-background px-5 py-14">
       <div className="flex w-full flex-1 flex-col items-center justify-center gap-5">
         <CheckCircleIcon />
 
@@ -88,7 +88,7 @@ export function CompletePage() {
         </p>
 
         {flow?.amountLabel && (
-          <div className="w-full rounded-2xl bg-white p-5 shadow-sm ring-1 ring-border/60">
+          <div className="w-full rounded-2xl bg-card p-5 shadow-sm ring-1 ring-border/60">
             <p className="mb-1 text-center text-sm text-muted-foreground">{flow.amountLabel}</p>
             <p className="mb-4 text-center text-[32px] font-bold tabular-nums text-foreground">
               {amount != null ? formatWon(amount) : '—'}

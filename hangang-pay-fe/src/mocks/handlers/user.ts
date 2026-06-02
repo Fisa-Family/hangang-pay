@@ -23,16 +23,27 @@ export const userHandlers = [
   http.get(`${BASE}/users/histories`, ({ request }) => {
     const url = new URL(request.url)
     const type = url.searchParams.get('type')
+    const size = Number(url.searchParams.get('size') ?? 20)
+
+    let base
     switch (type) {
       case 'PAYMENT':
-        return ok(mockPaymentHistoryPage)
+        base = mockPaymentHistoryPage
+        break
       case 'CHARGE':
-        return ok(mockChargeHistoryPage)
+        base = mockChargeHistoryPage
+        break
       case 'EXCHANGE':
-        return ok(mockExchangeHistoryPage)
+        base = mockExchangeHistoryPage
+        break
       default:
-        return ok(mockAllHistoryPage)
+        base = mockAllHistoryPage
     }
+
+    return ok({
+      ...base,
+      response: { ...base.response, content: base.response.content.slice(0, size) },
+    })
   }),
 
   http.get(`${BASE}/users/histories/:id`, ({ request }) => {

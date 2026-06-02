@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { ChevronLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface PageHeaderProps {
@@ -17,13 +18,13 @@ export function PageHeader({ title, onBack, rightAction, className }: PageHeader
             type="button"
             aria-label="뒤로가기"
             onClick={onBack}
-            className="flex size-11 items-center justify-center rounded-lg text-2xl text-foreground hover:bg-muted"
+            className="-ml-2 flex size-9 items-center justify-center rounded-lg text-foreground hover:bg-muted"
           >
-            ‹
+            <ChevronLeft className="h-6 w-6" aria-hidden />
           </button>
         ) : null}
       </div>
-      <h1 className="truncate text-center text-base font-semibold">{title}</h1>
+      <h1 className="truncate text-center text-lg font-semibold">{title}</h1>
       <div className="flex justify-end">{rightAction}</div>
     </header>
   )

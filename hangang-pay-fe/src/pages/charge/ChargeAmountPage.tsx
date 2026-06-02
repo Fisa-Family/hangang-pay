@@ -115,104 +115,98 @@ export function ChargeAmountPage() {
   }
 
   return (
-    <div className="flex h-dvh flex-col bg-white">
-      <div className="px-5 pt-14">
-        <BackTitleHeader title="충전" onBack={() => navigate('/home', { replace: true })} />
-      </div>
+    <div className="flex h-dvh flex-col bg-background">
+      <BackTitleHeader title="충전" onBack={() => navigate('/home', { replace: true })} />
 
-      {/* 잔액·한도 — flat 섹션 */}
-      <div className="px-5 pt-2 pb-1">
-        <div className="flex items-center justify-between py-1.5">
+      {/* 잔액·한도 카드 */}
+      <div className="mx-5 mt-2 rounded-2xl bg-card p-5">
+        <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">현재 잔액</span>
           {initQuery.isLoading ? (
-            <div className="h-4 w-20 animate-pulse rounded bg-muted" />
+            <div className="h-5 w-24 animate-pulse rounded bg-muted" />
           ) : (
-            <span className="text-[15px] font-bold tabular-nums text-foreground">
+            <span className="text-[18px] font-bold tabular-nums text-foreground">
               {formatWon(data?.balance ?? 0)}
             </span>
           )}
         </div>
-        <div className="flex items-center justify-between py-1">
-          <span className="text-xs text-muted-foreground">월 충전 한도</span>
-          {initQuery.isLoading ? (
-            <div className="h-3.5 w-16 animate-pulse rounded bg-muted" />
-          ) : (
-            <span className="text-xs tabular-nums text-muted-foreground">
-              {formatWon(data?.monthlyLimit ?? 0)}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center justify-between py-1">
-          <span className="text-xs text-muted-foreground">남은 한도</span>
-          {initQuery.isLoading ? (
-            <div className="h-3.5 w-16 animate-pulse rounded bg-muted" />
-          ) : (
-            <span
-              className={`text-xs font-semibold tabular-nums ${
-                overLimit ? 'text-destructive' : 'text-primary'
-              }`}
-            >
-              {formatWon(remainingLimit)}
-            </span>
-          )}
+        <div className="mt-3 flex flex-col gap-1 border-t border-border/40 pt-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">월 충전 한도</span>
+            {initQuery.isLoading ? (
+              <div className="h-3.5 w-16 animate-pulse rounded bg-muted" />
+            ) : (
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {formatWon(data?.monthlyLimit ?? 0)}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">남은 한도</span>
+            {initQuery.isLoading ? (
+              <div className="h-3.5 w-16 animate-pulse rounded bg-muted" />
+            ) : (
+              <span
+                className={`text-xs font-semibold tabular-nums ${overLimit ? 'text-destructive' : 'text-primary'}`}
+              >
+                {formatWon(remainingLimit)}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="mx-5 h-px bg-border/50" />
-
-      {/* 충전 금액 + 결제 박스 — flex-1 */}
-      <div className="flex flex-1 flex-col px-5">
-        <div className="flex flex-1 flex-col justify-center gap-1.5">
-          <p className="text-sm text-muted-foreground">충전 금액</p>
-          <p className="text-[44px] font-bold leading-none">
-            <span className={`tabular-nums ${overLimit ? 'text-destructive' : 'text-foreground'}`}>
-              {amount > 0 ? formatNumber(amount) : '0'}
+      {/* 충전 금액 — 우측 정렬, flex-1 */}
+      <div className="flex flex-1 flex-col items-end justify-center gap-1.5 px-5">
+        <p className="text-sm text-muted-foreground">충전 금액</p>
+        <p className="text-[44px] font-bold leading-none">
+          <span className={`tabular-nums ${overLimit ? 'text-destructive' : 'text-foreground'}`}>
+            {amount > 0 ? formatNumber(amount) : '0'}
+          </span>
+          <span className="text-muted-foreground">원</span>
+        </p>
+        {amount > 0 ? (
+          <div className="flex items-center gap-2">
+            <span className="text-[13px] text-muted-foreground">
+              할인 ({Math.round(discountRate * 100)}%)
             </span>
-            <span className="text-muted-foreground">원</span>
-          </p>
-          {amount > 0 ? (
-            <div className="flex items-center justify-between">
-              <span className="text-[13px] text-muted-foreground">
-                할인 금액 ({Math.round(discountRate * 100)}%)
-              </span>
-              <span className="text-[13px] font-semibold tabular-nums text-success">
-                -{formatWon(discountAmount)}
-              </span>
-            </div>
-          ) : (
-            <p className="text-[13px] text-muted-foreground">충전 금액을 입력해주세요</p>
-          )}
-          {overLimit && <p className="text-[13px] text-destructive">남은 한도를 초과했습니다</p>}
-        </div>
-
-        {/* 결제 금액, 계좌 - 회색 박스, 키패드보다 위 */}
-        <div className="mb-5 rounded-2xl bg-muted px-4 py-3.5">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex min-w-0 flex-col gap-1">
-              <span className="text-[13px] font-medium text-foreground">결제 금액</span>
-              {initQuery.isLoading ? (
-                <div className="h-4 w-28 animate-pulse rounded bg-muted/60" />
-              ) : selectedAccount ? (
-                <button
-                  type="button"
-                  onClick={cycleAccount}
-                  className="flex items-center gap-1 text-left"
-                >
-                  <span className="text-xs text-muted-foreground">
-                    {selectedAccount.institutionName} {maskAccount(selectedAccount.accountNumber)}
-                  </span>
-                  {accounts.length > 1 && (
-                    <span className="shrink-0 text-[10px] font-semibold text-primary">변경 ›</span>
-                  )}
-                </button>
-              ) : (
-                <span className="text-xs text-muted-foreground">계좌를 먼저 연결해 주세요</span>
-              )}
-            </div>
-            <p className="shrink-0 text-[17px] font-bold tabular-nums text-foreground">
-              {amount > 0 ? formatWon(finalAmount) : '0원'}
-            </p>
+            <span className="text-[13px] font-semibold tabular-nums text-success">
+              -{formatWon(discountAmount)}
+            </span>
           </div>
+        ) : (
+          <p className="text-[13px] text-muted-foreground">충전 금액을 입력해주세요</p>
+        )}
+        {overLimit && <p className="text-[13px] text-destructive">남은 한도를 초과했습니다</p>}
+      </div>
+
+      {/* 결제 금액, 계좌 카드 */}
+      <div className="mx-5 mb-4 rounded-2xl bg-muted px-5 py-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-col gap-1">
+            <span className="text-sm font-medium text-foreground">결제 금액</span>
+            {initQuery.isLoading ? (
+              <div className="h-4 w-28 animate-pulse rounded bg-muted/60" />
+            ) : selectedAccount ? (
+              <button
+                type="button"
+                onClick={cycleAccount}
+                className="flex items-center gap-1 text-left"
+              >
+                <span className="text-xs text-muted-foreground">
+                  {selectedAccount.institutionName} {maskAccount(selectedAccount.accountNumber)}
+                </span>
+                {accounts.length > 1 && (
+                  <span className="shrink-0 text-[10px] font-semibold text-primary">변경 ›</span>
+                )}
+              </button>
+            ) : (
+              <span className="text-xs text-muted-foreground">계좌를 먼저 연결해 주세요</span>
+            )}
+          </div>
+          <p className="shrink-0 text-[22px] font-bold tabular-nums text-foreground">
+            {amount > 0 ? formatWon(finalAmount) : '0원'}
+          </p>
         </div>
       </div>
 
@@ -227,7 +221,7 @@ export function ChargeAmountPage() {
               type="button"
               onClick={() => handleKey(key)}
               className={cn(
-                'flex h-[64px] items-center justify-center bg-white text-[22px] font-bold text-foreground',
+                'flex h-[64px] items-center justify-center bg-background text-[22px] font-bold text-foreground',
                 'transition-colors active:bg-muted',
                 !isLastCol && 'border-r border-border',
                 !isLastRow && 'border-b border-border'

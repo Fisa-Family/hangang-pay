@@ -1,3 +1,4 @@
+import { RefreshCw } from 'lucide-react'
 import { formatWon } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -11,27 +12,30 @@ interface BalanceCardProps {
 
 export function BalanceCard({
   balance,
-  label = '현재 잔액',
+  label = '잔액',
   refreshing = false,
   onRefresh,
   className,
 }: BalanceCardProps) {
   return (
-    <section className={cn('rounded-lg border border-border bg-card p-4', className)}>
+    <section className={cn('rounded-2xl bg-card p-5 shadow-sm', className)}>
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-medium text-muted-foreground">{label}</p>
-        {onRefresh ? (
-          <button
-            type="button"
-            onClick={onRefresh}
-            disabled={refreshing}
-            className="rounded-md px-2 py-1 text-xs font-semibold text-primary hover:bg-accent disabled:opacity-45"
-          >
-            {refreshing ? '새로고침 중' : '새로고침'}
-          </button>
-        ) : null}
+        <div className="flex items-center gap-1.5">
+          <p className="text-sm font-medium text-muted-foreground">{label}</p>
+          {onRefresh ? (
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={refreshing}
+              className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground hover:bg-muted disabled:opacity-45"
+              aria-label="새로고침"
+            >
+              <RefreshCw className={cn('h-3.5 w-3.5', refreshing && 'animate-spin')} aria-hidden />
+            </button>
+          ) : null}
+        </div>
+        <p className="text-2xl font-bold tabular-nums">{formatWon(balance)}</p>
       </div>
-      <p className="mt-2 text-right text-2xl font-bold tabular-nums">{formatWon(balance)}</p>
     </section>
   )
 }

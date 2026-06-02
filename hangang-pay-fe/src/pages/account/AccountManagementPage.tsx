@@ -43,7 +43,7 @@ export function AccountManagementPage() {
   }
 
   return (
-    <AppShell className="bg-surface">
+    <AppShell>
       <div className="flex min-h-0 flex-1 flex-col">
         <PageHeader title="계좌 관리" onBack={handleBack} />
 

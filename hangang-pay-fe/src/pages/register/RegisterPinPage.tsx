@@ -58,7 +58,7 @@ export function RegisterPinPage() {
   const stepIndex = step === 'enter' ? (isMerchant ? 6 : 5) : isMerchant ? 7 : 6
 
   return (
-    <div className="flex h-dvh flex-col bg-white">
+    <div className="flex h-dvh flex-col bg-background">
       <div className="px-5 pt-2">
         <div className="flex items-center gap-2 pb-3">
           <button
