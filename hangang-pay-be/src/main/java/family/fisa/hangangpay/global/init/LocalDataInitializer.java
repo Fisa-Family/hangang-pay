@@ -32,7 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Component
-@Profile("local")
+@Profile({"local", "onprem-test"})
 @RequiredArgsConstructor
 public class LocalDataInitializer implements ApplicationRunner {
 
@@ -156,7 +156,8 @@ public class LocalDataInitializer implements ApplicationRunner {
 
         seedHistoryTransactions(
                 userParty, userAccount, userWallet, merchantParty, merchantAccount, merchantWallet);
-        // seedEligibleUserTransactions(user2Party, user2Account, user2Wallet, merchantParty,
+        // seedEligibleUserTransactions(user2Party, user2Account, user2Wallet,
+        // merchantParty,
         // merchantWallet);
 
         log.info("[be-local-seed] done");
