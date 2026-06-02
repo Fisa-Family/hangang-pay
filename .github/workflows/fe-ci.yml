@@ -45,3 +45,60 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Upload dist artifact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/test'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fe-dist
+          path: hangang-pay-fe/dist/
+          retention-days: 1
+
+  deploy:
+    name: Deploy to on-prem nginx
+    runs-on: ubuntu-latest
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/test'
+    environment: test
+
+    steps:
+      - name: Download dist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: fe-dist
+          path: dist/
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s\n' "${{ secrets.ONPREM_BASTION_SSH_KEY }}" > ~/.ssh/bastion_key
+          printf '%s\n' "${{ secrets.ONPREM_INSTANCE_SSH_KEY }}" > ~/.ssh/fe.pem
+          chmod 600 ~/.ssh/bastion_key ~/.ssh/fe.pem
+
+          cat > ~/.ssh/config <<EOF
+          Host onprem-bastion
+            HostName ${{ secrets.ONPREM_BASTION_HOST }}
+            User ${{ secrets.ONPREM_BASTION_USER }}
+            Port ${{ secrets.ONPREM_BASTION_PORT }}
+            IdentityFile ~/.ssh/bastion_key
+            StrictHostKeyChecking no
+
+          Host onprem-fe
+            HostName ${{ secrets.ONPREM_FE_HOST }}
+            User ubuntu
+            IdentityFile ~/.ssh/fe.pem
+            ProxyJump onprem-bastion
+            StrictHostKeyChecking no
+          EOF
+
+      - name: Sync dist to nginx root
+        run: |
+          rsync -az --delete \
+            -e "ssh -F ~/.ssh/config" \
+            dist/ \
+            onprem-fe:/var/www/hangang-pay/
+
+      - name: Reload nginx
+        run: ssh onprem-fe 'sudo nginx -s reload'
