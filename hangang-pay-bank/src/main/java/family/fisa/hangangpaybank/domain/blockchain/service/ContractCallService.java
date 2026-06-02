@@ -149,12 +149,6 @@ public class ContractCallService {
     }
 
     public BigInteger getBalance(String walletAddress) {
-        Function function =
-                new Function(
-                        "balanceOf",
-                        List.of(new Address(walletAddress)),
-                        List.of(new TypeReference<Uint256>() {}));
-
         Contract contract =
                 contractRepository
                         .findFirstByNameOrderByIdAsc(ContractType.LOCAL_CURRENCY)
@@ -166,30 +160,40 @@ public class ContractCallService {
         Web3j web3j = Web3j.build(new HttpService(owner.getRpcEndpoint()));
 
         try {
-            Transaction callTx =
-                    Transaction.createEthCallTransaction(
-                            owner.getWalletAddress(),
-                            contract.getAddress(),
-                            FunctionEncoder.encode(function));
-            EthCall ethCall = web3j.ethCall(callTx, DefaultBlockParameterName.LATEST).send();
-
-            if (ethCall.hasError()) {
-                throwCustomErrorIfMatched(ethCall.getError().getData());
-                throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
-            }
-
-            List<org.web3j.abi.datatypes.Type> decoded =
-                    FunctionReturnDecoder.decode(
-                            ethCall.getValue(), function.getOutputParameters());
-            if (decoded.isEmpty()) {
-                throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
-            }
-            return (BigInteger) decoded.get(0).getValue();
+            return readBalance(
+                    web3j, owner.getWalletAddress(), contract.getAddress(), walletAddress);
         } catch (IOException e) {
             throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
         } finally {
             web3j.shutdown();
         }
+    }
+
+    BigInteger readBalance(
+            Web3j web3j, String fromAddress, String contractAddress, String walletAddress)
+            throws IOException {
+        Function function =
+                new Function(
+                        "balanceOf",
+                        List.of(new Address(walletAddress)),
+                        List.of(new TypeReference<Uint256>() {}));
+
+        Transaction callTx =
+                Transaction.createEthCallTransaction(
+                        fromAddress, contractAddress, FunctionEncoder.encode(function));
+        EthCall ethCall = web3j.ethCall(callTx, DefaultBlockParameterName.LATEST).send();
+
+        if (ethCall.hasError()) {
+            throwCustomErrorIfMatched(ethCall.getError().getData());
+            throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
+        }
+
+        List<org.web3j.abi.datatypes.Type> decoded =
+                FunctionReturnDecoder.decode(ethCall.getValue(), function.getOutputParameters());
+        if (decoded.isEmpty()) {
+            throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
+        }
+        return (BigInteger) decoded.get(0).getValue();
     }
 
     /** 가맹점 화이트리스트 등록 */

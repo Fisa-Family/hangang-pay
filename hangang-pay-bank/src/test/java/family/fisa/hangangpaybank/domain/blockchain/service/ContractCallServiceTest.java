@@ -39,6 +39,7 @@ import org.web3j.protocol.core.Response;
 import org.web3j.protocol.core.methods.request.Transaction;
 import org.web3j.protocol.core.methods.response.EthCall;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
+import org.web3j.utils.Numeric;
 
 @ExtendWith(MockitoExtension.class)
 class ContractCallServiceTest {
@@ -113,6 +114,27 @@ class ContractCallServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
                 .isEqualTo(BlockchainErrorCode.BLOCKCHAIN_CONTRACT_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("balanceOf eth_call 결과를 컨트랙트 최소 단위 잔액으로 디코딩한다")
+    void readsBalanceFromContract() throws Exception {
+        Web3j web3j = mock(Web3j.class);
+        Request<?, EthCall> ethCallRequest = mockEthCallRequest();
+        EthCall ethCall = new EthCall();
+        BigInteger expectedBalance = new BigInteger("12345000000000000000000");
+        ethCall.setResult(Numeric.toHexStringWithPrefixZeroPadded(expectedBalance, 64));
+
+        doReturn(ethCallRequest)
+                .when(web3j)
+                .ethCall(any(Transaction.class), eq(DefaultBlockParameterName.LATEST));
+        given(ethCallRequest.send()).willReturn(ethCall);
+
+        BigInteger result =
+                contractCallService.readBalance(
+                        web3j, WALLET_ADDRESS, LOCAL_CURRENCY_ADDRESS, USER_ADDRESS);
+
+        assertThat(result).isEqualTo(expectedBalance);
     }
 
     @ParameterizedTest(name = "{0} -> {1}")
