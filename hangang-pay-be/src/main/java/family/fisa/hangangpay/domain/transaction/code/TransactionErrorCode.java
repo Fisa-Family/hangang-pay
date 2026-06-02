@@ -60,10 +60,6 @@ public enum TransactionErrorCode implements BaseErrorCode {
     CANCEL_NOT_RECOVERABLE(HttpStatus.BAD_REQUEST, "CANCEL_NOT_RECOVERABLE", "복구할 수 없는 취소 상태입니다."),
     EXCHANGE_CONTRACT_FAILED(
             HttpStatus.BAD_GATEWAY, "EXCHANGE_CONTRACT_FAILED", "환전 컨트렉트 호출에 실패했습니다."),
-    BLOCKCHAIN_LEDGER_NOT_FOUND(
-            HttpStatus.INTERNAL_SERVER_ERROR,
-            "BLOCKCHAIN_LEDGER_NOT_FOUND",
-            "블록체인 ledger를 찾을 수 없습니다."),
     CHARGE_ALREADY_PROCESSING(
             HttpStatus.CONFLICT, "CHARGE_ALREADY_PROCESSING", "이미 처리 중인 충전 요청입니다."),
     CHARGE_IDEMPOTENCY_RECORD_NOT_FOUND(
