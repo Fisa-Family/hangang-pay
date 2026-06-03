@@ -28,7 +28,7 @@ concurrency:
 env:
   AWS_REGION: ap-northeast-2
   ECR_REPO: hangang-pay-be
-  S3_BUCKET: arn:aws:s3:::hangang-pay-codedeploy-857291404781-ap-northeast-2-an      # 배포 번들(zip) 보관 버킷
+  S3_BUCKET: hangang-pay-codedeploy-857291404781-ap-northeast-2-an      # 배포 번들(zip) 보관 버킷
   CD_APP: hangang-pay-be-codedeploy                   # CodeDeploy 애플리케이션
   CD_GROUP: hangang-pay-be-dg-prod                    # CodeDeploy 배포 그룹
   ROLE_ARN: arn:aws:iam::857291404781:role/hangang-pay-github-actions-role
