@@ -19,4 +19,5 @@ logging:
 app:
   cors:
     allowed-origins:
-      - ${VERCEL_PRODUCTION_URL}
+      - https://hangang-pay.vercel.app
+      - https://hangang-pay-sene03s-projects.vercel.app

@@ -1,5 +1,7 @@
 name: BE CI
 
+# BE 코드나 BE CI 워크플로우가 바뀔 때만 실행한다.
+# dev/test 브랜치 PR은 검증만, test 브랜치 push는 Docker 이미지 배포까지 진행한다.
 on:
   push:
     branches: [dev, test]
@@ -16,6 +18,7 @@ permissions:
   contents: read
 
 jobs:
+  # Gradle 기반 정적 포맷 검사, 단위 테스트, SonarCloud 분석, jar 빌드를 수행한다.
   test:
     name: Test
     runs-on: ubuntu-latest
@@ -23,6 +26,7 @@ jobs:
       run:
         working-directory: hangang-pay-be
     services:
+      # 테스트 프로필에서 Redis 의존성이 필요하므로 GitHub Actions 서비스 컨테이너로 띄운다.
       redis:
         image: redis:7-alpine
         ports:
@@ -37,6 +41,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
+          # SonarCloud 분석에서 브랜치/히스토리 정보가 필요할 수 있어 전체 히스토리를 받는다.
           fetch-depth: 0
 
       - name: Set up JDK 17
@@ -55,6 +60,7 @@ jobs:
       - name: Test
         run: ./gradlew test --no-daemon
 
+      # SonarCloud 문제로 CI/CD 전체가 막히지 않도록 분석 실패는 허용한다.
       - name: Analyze with SonarCloud
         continue-on-error: true
         env:
@@ -64,6 +70,7 @@ jobs:
       - name: Build jar
         run: ./gradlew bootJar --no-daemon
 
+  # test 브랜치 push에서만 Docker Hub에 테스트용 BE 이미지를 올린다.
   docker:
     name: Docker Hub
     runs-on: ubuntu-latest
@@ -89,6 +96,7 @@ jobs:
         uses: docker/metadata-action@v6
         with:
           images: ${{ secrets.DOCKERHUB_USERNAME }}/hangang-pay-be
+          # test-latest는 배포용 고정 태그, sha 태그는 특정 커밋 이미지 추적용이다.
           tags: |
             type=raw,value=test-latest
             type=sha,prefix=test-
@@ -102,6 +110,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
+  # Docker 이미지 빌드가 끝나면 온프레미스 BE 인스턴스에 접속해 컨테이너를 교체한다.
   deploy:
     name: Deploy to on-prem BE
     runs-on: ubuntu-latest
@@ -110,6 +119,7 @@ jobs:
     environment: test
 
     steps:
+      # Bastion을 경유해 온프레미스 BE 인스턴스에 접속할 SSH 설정을 준비한다.
       - name: Configure SSH
         run: |
           mkdir -p ~/.ssh
@@ -135,6 +145,7 @@ jobs:
             StrictHostKeyChecking no
           EOF
 
+      # 최신 Docker 이미지를 pull 한 뒤 기존 컨테이너를 교체하고 Redis 연결 및 Actuator health를 검증한다.
       - name: Pull image and restart container
         run: |
           ssh onprem-be 'bash -s' <<'EOF'
@@ -149,6 +160,20 @@ jobs:
           sudo docker stop hangang-pay-be || true
           sudo docker rm hangang-pay-be || true
 
+          REDIS_HOST='${{ vars.ONPREM_REDIS_HOST }}'
+          REDIS_PORT='${{ vars.ONPREM_REDIS_PORT || '6379' }}'
+
+          if [ -z "$REDIS_HOST" ]; then
+            echo "ONPREM_REDIS_HOST is empty. Set it in the test environment variables."
+            exit 1
+          fi
+
+          echo "Checking Redis TCP connectivity from onprem-be to ${REDIS_HOST}:${REDIS_PORT}..."
+          if ! timeout 5 bash -c "</dev/tcp/${REDIS_HOST}/${REDIS_PORT}"; then
+            echo "Cannot reach Redis from onprem-be at ${REDIS_HOST}:${REDIS_PORT}."
+            exit 1
+          fi
+
           sudo docker run -d \
             --name hangang-pay-be \
             --restart unless-stopped \
@@ -158,23 +183,29 @@ jobs:
             -e DB_USERNAME='${{ secrets.ONPREM_BE_DB_USERNAME }}' \
             -e DB_PASSWORD='${{ secrets.ONPREM_BE_DB_PASSWORD }}' \
             -e BANK_BASE_URL='${{ secrets.ONPREM_BANK_BASE_URL }}' \
-            -e REDIS_HOST='${{ vars.ONPREM_REDIS_HOST }}' \
+            -e REDIS_HOST="$REDIS_HOST" \
+            -e REDIS_PORT="$REDIS_PORT" \
             -e VERCEL_PRODUCTION_URL='${{ vars.VERCEL_PRODUCTION_URL }}' \
             '${{ secrets.DOCKERHUB_USERNAME }}/hangang-pay-be:test-latest'
 
-          HEALTH_MAX_ATTEMPTS=30
+          HEALTH_MAX_ATTEMPTS=10
           HEALTH_RETRY_SECONDS=5
           healthy=false
 
           echo "Waiting for actuator health check..."
           for attempt in $(seq 1 "$HEALTH_MAX_ATTEMPTS"); do
-            if curl -fsS http://127.0.0.1:8080/actuator/health > /tmp/hangang-pay-be-health.json; then
+            http_status=$(curl -sS -o /tmp/hangang-pay-be-health.json -w '%{http_code}' http://127.0.0.1:8080/actuator/health || true)
+            if [ "$http_status" = "200" ]; then
               cat /tmp/hangang-pay-be-health.json
               echo
               echo "hangang-pay-be is healthy."
               healthy=true
               break
             fi
+
+            echo "Actuator health returned HTTP ${http_status}."
+            cat /tmp/hangang-pay-be-health.json || true
+            echo
 
             if ! sudo docker inspect -f '{{.State.Running}}' hangang-pay-be | grep -q true; then
               echo "hangang-pay-be container stopped during startup."

@@ -77,18 +77,18 @@ jobs:
           printf '%s\n' "${{ secrets.ONPREM_INSTANCE_SSH_KEY }}" > ~/.ssh/fe.pem
           chmod 600 ~/.ssh/bastion_key ~/.ssh/fe.pem
 
-          cat > ~/.ssh/config <<EOF
+          cat > "$HOME/.ssh/config" <<EOF
           Host onprem-bastion
             HostName ${{ secrets.ONPREM_BASTION_HOST }}
             User ${{ secrets.ONPREM_BASTION_USER }}
             Port ${{ secrets.ONPREM_BASTION_PORT }}
-            IdentityFile ~/.ssh/bastion_key
+            IdentityFile $HOME/.ssh/bastion_key
             StrictHostKeyChecking no
 
           Host onprem-fe
-            HostName ${{ secrets.ONPREM_FE_HOST }}
+            HostName ${{ vars.ONPREM_FE_HOST }}
             User ubuntu
-            IdentityFile ~/.ssh/fe.pem
+            IdentityFile $HOME/.ssh/fe.pem
             ProxyJump onprem-bastion
             StrictHostKeyChecking no
           EOF
@@ -96,9 +96,9 @@ jobs:
       - name: Sync dist to nginx root
         run: |
           rsync -az --delete \
-            -e "ssh -F ~/.ssh/config" \
+            -e "ssh -F $HOME/.ssh/config" \
             dist/ \
             onprem-fe:/var/www/hangang-pay/
 
       - name: Reload nginx
-        run: ssh onprem-fe 'sudo nginx -s reload'
+        run: ssh -F "$HOME/.ssh/config" onprem-fe 'sudo nginx -s reload'
