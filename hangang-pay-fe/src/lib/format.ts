@@ -60,10 +60,9 @@ export function formatMaskedAccount(institutionName: string, accountNumber: stri
   return `${institutionName} ****${accountNumber.slice(-4)}`
 }
 
-// MerchantRegisterRequest에 phoneNumber가 없어 신규 가입 가맹점은 null
-export function formatPhoneNumber(raw: string | null | undefined): string {
-  if (!raw || raw.length !== 11) {
-    return raw ?? ''
+export function formatPhoneNumber(raw: string): string {
+  if (raw.length !== 11) {
+    return raw
   }
 
   const part1 = raw.substring(0, 3)
