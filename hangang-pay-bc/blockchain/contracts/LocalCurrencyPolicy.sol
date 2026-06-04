@@ -65,10 +65,10 @@ contract LocalCurrencyPolicy is Initializable, UUPSUpgradeable {
   event Refunded(uint256 indexed toInstitutionId, address indexed user, uint256 amount);
 
   // 결제 이벤트
-  event Paid(address indexed from, address indexed to, uint256 amount);
+  event Paid(bytes32 indexed transactionUuid, address indexed from, address indexed to, uint256 amount);
 
   // 결제 취소 이벤트
-  event PaymentCanceled(address indexed from, address indexed to, uint256 amount);
+  event PaymentCanceled(bytes32 indexed transactionUuid, address indexed from, address indexed to, uint256 amount);
 
   // owner만 실행 가능
   modifier onlyOwner() {
@@ -168,7 +168,7 @@ contract LocalCurrencyPolicy is Initializable, UUPSUpgradeable {
 
   // 결제 함수
   // 사용자 -> 가맹점 방향으로 예금토큰을 이동
-  function pay(address from, address to, uint256 amount) external onlyOwner returns (bool) {
+  function pay(bytes32 transactionUuid, address from, address to, uint256 amount) external onlyOwner returns (bool) {
     // 주소 검증
     if (from == address(0) || to == address(0)) {
       revert InvalidAddress();
@@ -189,13 +189,14 @@ contract LocalCurrencyPolicy is Initializable, UUPSUpgradeable {
       revert TransferFailed();
     }
 
-    emit Paid(from, to, amount);
+    emit Paid(transactionUuid, from, to, amount);
     return true;
   }
 
   // 결제 취소 함수
   // 가맹점 -> 사용자 방향으로 예금토큰을 반환
   function cancelPayment(
+    bytes32 transactionUuid,
     address from,
     address to,
     uint256 amount
@@ -220,7 +221,7 @@ contract LocalCurrencyPolicy is Initializable, UUPSUpgradeable {
     if (!ILocalDepositToken(depositToken).forceTransfer(from, to, amount)) {
       revert TransferFailed();
     }
-    emit PaymentCanceled(from, to, amount);
+    emit PaymentCanceled(transactionUuid, from, to, amount);
     return true;
   }
 
