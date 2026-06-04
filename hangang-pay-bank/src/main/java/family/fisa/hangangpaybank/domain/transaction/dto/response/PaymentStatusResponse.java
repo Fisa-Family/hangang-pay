@@ -26,7 +26,7 @@ public record PaymentStatusResponse(
         return switch (status) {
             case SUCCESS -> "SUCCESS";
             case FAILED -> "FAILED";
-            case PENDING -> "PROCESSING";
+            case PENDING, SUBMITTED -> "PROCESSING";
         };
     }
 }

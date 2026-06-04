@@ -41,8 +41,7 @@ class BlockchainSyncHandlerRegistryTest {
     @Test
     @DisplayName("등록되지 않은 타입 조회 시 BusinessException을 던진다")
     void throwsBusinessExceptionForUnregisteredType() {
-        BlockchainSyncHandlerRegistry registry =
-                new BlockchainSyncHandlerRegistry(List.of());
+        BlockchainSyncHandlerRegistry registry = new BlockchainSyncHandlerRegistry(List.of());
 
         assertThatThrownBy(() -> registry.get(BlockchainSyncType.PAYMENT))
                 .isInstanceOf(BusinessException.class)

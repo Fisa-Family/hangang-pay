@@ -84,6 +84,12 @@ family.fisa.hangangpaybank
 - `application-local.yml`: DB 연결 정보 등 secrets. **커밋 금지** (.gitignore).
 - `application-dev.yml`, `application-prod.yml`: 환경별 ddl-auto 등 override.
 
+## ERD
+
+`hangang-pay-bank/docs/bank-erd.md` — 테이블/컬럼 설계의 단일 진실 공급원.
+
+엔티티 추가·변경 시 ERD를 먼저 확인하고, 컬럼 구성을 ERD에 맞춘다. 설계 변경이 필요하면 엔티티와 ERD를 함께 수정한다.
+
 ## Async Payment Phase Work
 
 `dev-docs/bank-blockchain-async-payment-plan.md`에 Phase 0–10 구현 계획이 있다.

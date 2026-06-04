@@ -89,6 +89,7 @@ Table blockchain_outbox {
   id bigint [pk, increment, note: '식별자']
   blockchain_ledger_id bigint [not null, ref: > blockchain_ledger.id, note: '연결된 BlockchainLedger']
   message_id varchar(36) [not null, unique, note: '안정적 메시지 식별자 (재시도해도 동일)']
+  transaction_uuid varchar(36) [not null, note: '거래 식별자 (BE transactionUuid) — 메시지 빌드·로깅 편의용 역정규화']
   type varchar(20) [not null, note: 'PAYMENT / CANCEL / CHARGE / EXCHANGE']
   payload text [not null, note: '컨트랙트 호출 인자 JSON (from/to address, amount 등)']
   status varchar(20) [not null, note: 'NEW / SENT / FAILED']

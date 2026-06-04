@@ -38,8 +38,9 @@ class BlockchainSyncMessageTest {
     @Test
     @DisplayName("BlockchainSyncMessage는 Jackson 직렬화/역직렬화가 가능하다")
     void serializesAndDeserializesWithJackson() throws Exception {
-        JsonNode payload = objectMapper.valueToTree(
-                new PaymentBlockchainPayload("0xABCD", "0x1234", new BigDecimal("100.00")));
+        JsonNode payload =
+                objectMapper.valueToTree(
+                        new PaymentBlockchainPayload("0xABCD", "0x1234", new BigDecimal("100.00")));
 
         BlockchainSyncMessage message =
                 new BlockchainSyncMessage(
@@ -70,8 +71,7 @@ class BlockchainSyncMessageTest {
                 new PaymentBlockchainPayload("0xA", "0xB", new BigDecimal("50"));
         CancelBlockchainPayload cancel =
                 new CancelBlockchainPayload("orig-uuid", "0xA", "0xB", new BigDecimal("50"));
-        ChargeBlockchainPayload charge =
-                new ChargeBlockchainPayload("0xC", new BigDecimal("10"));
+        ChargeBlockchainPayload charge = new ChargeBlockchainPayload("0xC", new BigDecimal("10"));
         ExchangeBlockchainPayload exchange =
                 new ExchangeBlockchainPayload("0xD", new BigDecimal("20"));
 
