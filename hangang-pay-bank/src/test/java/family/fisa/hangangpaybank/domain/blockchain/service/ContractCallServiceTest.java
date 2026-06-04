@@ -276,6 +276,138 @@ class ContractCallServiceTest {
                 .isEqualTo(BlockchainErrorCode.BLOCKCHAIN_TRANSACTION_REVERTED);
     }
 
+    @Test
+    @DisplayName("isMerchant - merchants eth_call이 true를 반환하면 true를 리턴한다")
+    void isMerchantReturnsTrueWhenEthCallDecodesTrue() throws Exception {
+        Web3j web3j = mock(Web3j.class);
+        Request<?, EthCall> ethCallRequest = mockEthCallRequest();
+        EthCall ethCall = new EthCall();
+        ethCall.setResult(Numeric.toHexStringWithPrefixZeroPadded(BigInteger.ONE, 64));
+
+        doReturn(ethCallRequest)
+                .when(web3j)
+                .ethCall(any(Transaction.class), eq(DefaultBlockParameterName.LATEST));
+        given(ethCallRequest.send()).willReturn(ethCall);
+
+        boolean result =
+                contractCallService.readMerchant(
+                        web3j, WALLET_ADDRESS, LOCAL_CURRENCY_ADDRESS, USER_ADDRESS);
+
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    @DisplayName("isMerchant - merchants eth_call이 false를 반환하면 false를 리턴한다")
+    void isMerchantReturnsFalseWhenEthCallDecodesFalse() throws Exception {
+        Web3j web3j = mock(Web3j.class);
+        Request<?, EthCall> ethCallRequest = mockEthCallRequest();
+        EthCall ethCall = new EthCall();
+        ethCall.setResult(Numeric.toHexStringWithPrefixZeroPadded(BigInteger.ZERO, 64));
+
+        doReturn(ethCallRequest)
+                .when(web3j)
+                .ethCall(any(Transaction.class), eq(DefaultBlockParameterName.LATEST));
+        given(ethCallRequest.send()).willReturn(ethCall);
+
+        boolean result =
+                contractCallService.readMerchant(
+                        web3j, WALLET_ADDRESS, LOCAL_CURRENCY_ADDRESS, USER_ADDRESS);
+
+        assertThat(result).isFalse();
+    }
+
+    @Test
+    @DisplayName("isMerchant - merchants eth_call이 RPC 에러를 반환하면 RPC 실패 예외로 매핑한다")
+    void readMerchantMapsEthCallErrorToRpcFailed() throws Exception {
+        Web3j web3j = mock(Web3j.class);
+        Request<?, EthCall> ethCallRequest = mockEthCallRequest();
+        EthCall ethCall = new EthCall();
+        Response.Error error = new Response.Error(-32000, "execution failed");
+        error.setData("0xdeadbeef");
+        ethCall.setError(error);
+
+        doReturn(ethCallRequest)
+                .when(web3j)
+                .ethCall(any(Transaction.class), eq(DefaultBlockParameterName.LATEST));
+        given(ethCallRequest.send()).willReturn(ethCall);
+
+        assertThatThrownBy(
+                        () ->
+                                contractCallService.readMerchant(
+                                        web3j,
+                                        WALLET_ADDRESS,
+                                        LOCAL_CURRENCY_ADDRESS,
+                                        USER_ADDRESS))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
+    }
+
+    @Test
+    @DisplayName("isMerchant - merchants eth_call 응답을 디코딩할 수 없으면 RPC 실패 예외로 매핑한다")
+    void readMerchantMapsEmptyDecodeToRpcFailed() throws Exception {
+        Web3j web3j = mock(Web3j.class);
+        Request<?, EthCall> ethCallRequest = mockEthCallRequest();
+        EthCall ethCall = new EthCall();
+        ethCall.setResult("0x");
+
+        doReturn(ethCallRequest)
+                .when(web3j)
+                .ethCall(any(Transaction.class), eq(DefaultBlockParameterName.LATEST));
+        given(ethCallRequest.send()).willReturn(ethCall);
+
+        assertThatThrownBy(
+                        () ->
+                                contractCallService.readMerchant(
+                                        web3j,
+                                        WALLET_ADDRESS,
+                                        LOCAL_CURRENCY_ADDRESS,
+                                        USER_ADDRESS))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
+    }
+
+    @Test
+    @DisplayName("isMerchant - 컨트랙트가 배포되지 않았으면 예외를 던진다")
+    void isMerchantThrowsWhenContractNotDeployed() {
+        given(contractRepository.findFirstByNameOrderByIdAsc(ContractType.LOCAL_CURRENCY))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> contractCallService.isMerchant(USER_ADDRESS))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(BlockchainErrorCode.BLOCKCHAIN_CONTRACT_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("isMerchant - sendFunctionTransaction을 호출하지 않는다 (simulateOrThrow 경로 진입 없음)")
+    void isMerchantDoesNotCallSendFunctionTransaction() throws Exception {
+        Institution ownerInstitution = ownerInstitution();
+        Contract localCurrency =
+                Contract.builder()
+                        .name(ContractType.LOCAL_CURRENCY)
+                        .address(LOCAL_CURRENCY_ADDRESS)
+                        .institution(ownerInstitution)
+                        .build();
+
+        given(contractRepository.findFirstByNameOrderByIdAsc(ContractType.LOCAL_CURRENCY))
+                .willReturn(Optional.of(localCurrency));
+        doReturn(true)
+                .when(contractCallService)
+                .readMerchant(any(Web3j.class), any(), eq(LOCAL_CURRENCY_ADDRESS), eq(USER_ADDRESS));
+
+        contractCallService.isMerchant(USER_ADDRESS);
+
+        verify(contractCallService, org.mockito.Mockito.never())
+                .sendFunctionTransaction(
+                        any(Web3j.class),
+                        any(org.web3j.crypto.Credentials.class),
+                        any(),
+                        any(),
+                        any(Function.class));
+    }
+
     @SuppressWarnings("unchecked")
     private static Request<?, EthCall> mockEthCallRequest() {
         return mock(Request.class);

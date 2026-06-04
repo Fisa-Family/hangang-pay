@@ -84,6 +84,17 @@ family.fisa.hangangpaybank
 - `application-local.yml`: DB 연결 정보 등 secrets. **커밋 금지** (.gitignore).
 - `application-dev.yml`, `application-prod.yml`: 환경별 ddl-auto 등 override.
 
+## Async Payment Phase Work
+
+`dev-docs/bank-blockchain-async-payment-plan.md`에 Phase 0–10 구현 계획이 있다.
+
+**각 Phase 완료 후 반드시:**
+
+1. 해당 Phase의 Verification Command로 테스트 통과 확인
+2. 계획 문서에 `#### 구현 결과` 섹션 추가 (변경 내용 요약, 테스트 결과)
+3. Phase Checklist의 해당 항목을 `[x]`로 체크
+4. 구현 파일과 계획 문서를 함께 커밋
+
 ## What NOT to Do
 
 - 컨트롤러에 비즈니스 로직 작성 금지
