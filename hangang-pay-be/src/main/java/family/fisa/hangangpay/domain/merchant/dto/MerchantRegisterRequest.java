@@ -13,7 +13,6 @@ public record MerchantRegisterRequest(
         @NotBlank @Pattern(regexp = "\\d{6}") String paymentPin,
         @NotNull Long institutionId,
         @NotBlank @Pattern(regexp = "\\d{8,20}") String accountNumber,
-        @NotBlank String phoneNumber,
         @Valid @NotNull TermsAgreed termsAgreed) {
 
     public record TermsAgreed(

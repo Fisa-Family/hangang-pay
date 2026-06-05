@@ -119,7 +119,7 @@ class ContractCallServiceTest {
     @Test
     @DisplayName("잔액 조회 시 대상 컨트랙트가 배포되지 않았으면 예외를 던진다")
     void getBalanceThrowsWhenContractNotDeployed() {
-        given(contractRepository.findFirstByNameOrderByIdAsc(ContractType.DEPOSIT_TOKEN))
+        given(contractRepository.findFirstByNameOrderByIdAsc(ContractType.LOCAL_CURRENCY))
                 .willReturn(Optional.empty());
 
         assertThatThrownBy(() -> contractCallService.getBalance(USER_ADDRESS))

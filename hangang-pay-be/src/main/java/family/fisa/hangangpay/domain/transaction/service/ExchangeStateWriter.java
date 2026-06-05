@@ -17,6 +17,7 @@ import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -34,45 +35,66 @@ public class ExchangeStateWriter {
     private final AccountRepository accountRepository;
 
     /** 사용자 환전 슬롯 선점 — PRIMARY 계좌로 입금 */
-    public Transaction claimExchange(Long partyId, ExchangeExecuteRequest request) {
-        return buildExchange(partyId, request, AccountType.PRIMARY);
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Long claimExchange(Long partyId, ExchangeExecuteRequest request) {
+        return claim(partyId, request, AccountType.PRIMARY);
     }
 
     /** 가맹점 환전 슬롯 선점 - SETTLEMENT 계좌로 입금 */
-    public Transaction claimSettlementExchange(Long partyId, ExchangeExecuteRequest request) {
-        return buildExchange(partyId, request, AccountType.SETTLEMENT);
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Long claimSettlementExchange(Long partyId, ExchangeExecuteRequest request) {
+        return claim(partyId, request, AccountType.SETTLEMENT);
     }
 
-    /** 환전 거래 생성 선점 */
-    public Transaction buildExchange(
-            Long partyId, ExchangeExecuteRequest request, AccountType depositType) {
-        // 1. wallet 조회
+    /** 환전 슬롯 선점 */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Long claim(Long partyId, ExchangeExecuteRequest request, AccountType depositType) {
+        // 1. wallet 행 락 - 동일 사용자의 동시 환전 요청을 직렬화
         Wallet fromWallet =
                 walletRepository
-                        .findByParty_Id(partyId)
+                        .findByParty_IdForUpdate(partyId)
                         .orElseThrow(
                                 () -> new BusinessException(TransactionErrorCode.WALLET_NOT_FOUND));
 
-        // 2. 입금대상: 계좌 찾아오기
+        // 2. single-flight 가드: 진행 중인 환전이 있으면 거절
+        if (transactionRepository.existsInflightExchange(partyId)) {
+            log.warn("환전 중복 요청 차단. partyId={}", partyId);
+            throw new BusinessException(TransactionErrorCode.EXCHANGE_IN_PROGRESS);
+        }
+
+        // 3. 입금대상: 계좌 찾아오기
         Account toAccount =
                 accountRepository
                         .findByParty_IdAndAccountType(partyId, depositType)
                         .orElseThrow(
                                 () -> new BusinessException(AccountErrorCode.ACCOUNT_NOT_FOUND));
 
-        // 3. 거래 엔티티 생성
-        return Transaction.forExchange(
-                request.transactionUuid(),
-                fromWallet.getParty(),
-                fromWallet,
-                toAccount,
-                request.amount(),
-                BigDecimal.ZERO,
-                BigDecimal.ZERO);
+        // 4. PENDING transaction 저장
+        Transaction transaction =
+                transactionRepository.save(
+                        Transaction.forExchange(
+                                request.transactionUuid(),
+                                fromWallet.getParty(),
+                                fromWallet,
+                                toAccount,
+                                request.amount(),
+                                BigDecimal.ZERO,
+                                BigDecimal.ZERO));
+
+        return transaction.getId();
     }
 
     /** Bank 호출용 요청 객체 빌드 */
-    public ExchangeRequest buildBankRequest(Transaction tx, ExchangeExecuteRequest request) {
+    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
+    public ExchangeRequest buildBankRequest(Long transactionId, ExchangeExecuteRequest request) {
+        Transaction tx =
+                transactionRepository
+                        .findById(transactionId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                TransactionErrorCode.EXCHANGE_NOT_FOUND));
+
         return new ExchangeRequest(
                 request.transactionUuid(),
                 tx.getToAccount().getInstitution().getId(),
@@ -81,19 +103,11 @@ public class ExchangeStateWriter {
                 request.amount());
     }
 
-    /** 미저장 거래를 SUCCESS로 확정하며 저장 + 응답 빌드 */
-    public ExchangeExecuteResponse completeExchange(
-            Transaction tx, String txHash, String bankTransactionId) {
-
-        tx.completeWithBankResponse(txHash, bankTransactionId);
-        Transaction saved = transactionRepository.save(tx);
-        return ExchangeExecuteResponse.from(saved);
-    }
-
-    /** id로 로드한 UNKNOWN 거래를 SUCCESS로 확정 + 응답 빌드 */
-    @Transactional
+    /** 성공 마킹 + 응답 DTO 빌드 */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public ExchangeExecuteResponse completeExchange(
             Long transactionId, String txHash, String bankTransactionId) {
+
         Transaction tx =
                 transactionRepository
                         .findById(transactionId)
@@ -106,22 +120,14 @@ public class ExchangeStateWriter {
         return ExchangeExecuteResponse.from(tx);
     }
 
-    /** 실패 마킹. bank에 거래가 없을 때 UNKNOWN -> FAILED 확정 */
-    @Transactional
+    /** 실패 마킹 */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void failExchange(Long transactionId) {
         transactionRepository.findById(transactionId).ifPresent(Transaction::markFailed);
     }
 
-    /** 응답 불확실 -> UNKNOWN으로 저장 */
-    @Transactional
-    public ExchangeExecuteResponse markUnknownExchange(Transaction tx) {
-        tx.markUnknown();
-        Transaction saved = transactionRepository.save(tx);
-        return ExchangeExecuteResponse.from(saved);
-    }
-
     /** reconcile 시도 횟수 1 증가 후 새 값 반환 */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public int incrementReconcileAttempt(Long transactionId) {
         Transaction tx =
                 transactionRepository

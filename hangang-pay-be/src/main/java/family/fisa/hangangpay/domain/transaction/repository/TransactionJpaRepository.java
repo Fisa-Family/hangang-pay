@@ -127,6 +127,10 @@ public interface TransactionJpaRepository extends JpaRepository<Transaction, Lon
             @Param("type") TransactionType type,
             @Param("since") LocalDateTime since);
 
+    /** 진행 중인 EXCHANGE 존재 여부 */
+    boolean existsByFromParty_IdAndTransactionTypeAndStatus(
+            Long fromPartyId, TransactionType transactionType, TransactionStatus status);
+
     /** 배치 reconcile 대상 id 조회 */
     @Query(
             "SELECT t.id FROM Transaction t "

@@ -121,7 +121,6 @@ const FLOWS: Record<string, FlowConfig> = {
         paymentPin: state.paymentPin as string,
         institutionId: state.institutionId as number,
         accountNumber: state.accountNumber as string,
-        phoneNumber: state.phoneNumber as string,
         termsAgreed: state.termsAgreed as {
           serviceTerms: boolean
           privacyTerms: boolean

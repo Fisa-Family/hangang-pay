@@ -123,7 +123,6 @@ class RegistrationControllerTest {
                       "paymentPin": "123456",
                       "institutionId": 1,
                       "accountNumber": "1002123456789",
-                      "phoneNumber": "01012345678",
                       "termsAgreed": {
                         "serviceTerms": true,
                         "privacyTerms": true,

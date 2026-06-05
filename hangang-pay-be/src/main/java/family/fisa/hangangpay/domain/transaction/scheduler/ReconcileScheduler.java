@@ -3,6 +3,7 @@ package family.fisa.hangangpay.domain.transaction.scheduler;
 import family.fisa.hangangpay.domain.transaction.dto.ReconcileResult;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
 import family.fisa.hangangpay.domain.transaction.service.ExchangeReconcileService;
+import java.time.LocalDateTime;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -11,26 +12,31 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/** UNKNOWN으로 남은 환전을 일괄 reconcile 하는 배치 */
+/** Orphan PENDING 환전 일괄 reconcile 배치. */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class ReconcileScheduler {
+    /** 배치 주기 (5분) */
+    private static final long BATCH_INTERVAL_MS = 300_000L;
 
+    /** PENDING이 orphan으로 간주되는 임계 시간 */
+    private static final int ORPHAN_THRESHOLD_MINUTES = 5;
+
+    /** reconcile 시도 횟수 임계값 - 이상은 배치 대상에서 제외 */
     private static final int MAX_RECONCILE_ATTEMPTS = 10;
-
-    /** 배치 주기 (1분) */
-    private static final long BATCH_INTERVAL_MS = 60_000L;
 
     private final TransactionRepository transactionRepository;
     private final ExchangeReconcileService exchangeReconcileService;
 
     /** 주적으로 orphan PENDING을 reconcile 한다. */
     @Scheduled(fixedDelay = BATCH_INTERVAL_MS)
-    public void reconcileUnknownExchanges() {
-        // 1. UNKNOWN + EXCHANGE + attempt < max 대상 id 조회
+    public void reconcileOrphanPendings() {
+        // 1. 임계 시간 + 시도 횟수 조건으로 대상 transaction id 조회
+        LocalDateTime threshold = LocalDateTime.now().minusMinutes(ORPHAN_THRESHOLD_MINUTES);
         List<Long> targets =
-                transactionRepository.findPendingExchangeIdsForReconcile(MAX_RECONCILE_ATTEMPTS);
+                transactionRepository.findPendingExchangeIdsForReconcile(
+                        threshold, MAX_RECONCILE_ATTEMPTS);
 
         if (targets.isEmpty()) {
             return;

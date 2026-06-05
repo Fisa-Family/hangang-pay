@@ -71,7 +71,6 @@ public class MerchantRegistrationService {
                                 .merchantName(businessInfo.merchantName())
                                 .ownerName(businessInfo.ownerName())
                                 .address(businessInfo.address())
-                                .phoneNumber(request.phoneNumber())
                                 .build());
 
         accountRepository.save(

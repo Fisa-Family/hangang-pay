@@ -34,6 +34,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class ExchangeStateWriterTest {
@@ -88,7 +89,6 @@ class ExchangeStateWriterTest {
                 .build();
     }
 
-    /** 저장된 상태를 가정한 EXCHANGE 거래 (reconcile/complete 계열 테스트용) */
     private Transaction pendingExchange() {
         return Transaction.builder()
                 .id(TRANSACTION_ID)
@@ -103,31 +103,41 @@ class ExchangeStateWriterTest {
     }
 
     @Nested
-    @DisplayName("claimExchange (미저장 엔티티 생성)")
+    @DisplayName("claimExchange")
     class ClaimExchange {
 
         @Test
-        @DisplayName("정상: wallet/주거래계좌 조회 후 미저장 PENDING 엔티티 반환 (save 호출 안 함)")
-        void 정상_생성() {
-            when(walletRepository.findByParty_Id(PARTY_ID)).thenReturn(Optional.of(wallet()));
+        @DisplayName("정상: wallet 락 -> inflight 미존재 -> 주거래 계좌 -> PENDING 저장 후 id 반환")
+        void 정상_저장() {
+            // given
+            when(walletRepository.findByParty_IdForUpdate(PARTY_ID))
+                    .thenReturn(Optional.of(wallet()));
+            when(transactionRepository.existsInflightExchange(PARTY_ID)).thenReturn(false);
             when(accountRepository.findByParty_IdAndAccountType(PARTY_ID, AccountType.PRIMARY))
                     .thenReturn(Optional.of(primaryAccount()));
+            when(transactionRepository.save(any(Transaction.class)))
+                    .thenAnswer(
+                            invocation -> {
+                                Transaction tx = invocation.getArgument(0);
+                                ReflectionTestUtils.setField(tx, "id", TRANSACTION_ID);
+                                return tx;
+                            });
 
-            Transaction result = stateWriter.claimExchange(PARTY_ID, request());
+            // when
+            Long id = stateWriter.claimExchange(PARTY_ID, request());
 
-            assertThat(result.getStatus()).isEqualTo(TransactionStatus.PENDING);
-            assertThat(result.getTransactionType()).isEqualTo(TransactionType.EXCHANGE);
-            assertThat(result.getTransactionUuid()).isEqualTo(UUID);
-            assertThat(result.getToAccount().getAccountType()).isEqualTo(AccountType.PRIMARY);
-            assertThat(result.getAmount()).isEqualByComparingTo(new BigDecimal("50000"));
-            verify(transactionRepository, never()).save(any());
+            // then
+            assertThat(id).isEqualTo(TRANSACTION_ID);
+            verify(transactionRepository).save(any(Transaction.class));
         }
 
         @Test
         @DisplayName("wallet 없음 -> WALLET_NOT_FOUND")
         void wallet_없음() {
-            when(walletRepository.findByParty_Id(PARTY_ID)).thenReturn(Optional.empty());
+            // given
+            when(walletRepository.findByParty_IdForUpdate(PARTY_ID)).thenReturn(Optional.empty());
 
+            // when, then
             assertThatThrownBy(() -> stateWriter.claimExchange(PARTY_ID, request()))
                     .isInstanceOf(BusinessException.class)
                     .extracting("code")
@@ -137,12 +147,33 @@ class ExchangeStateWriterTest {
         }
 
         @Test
+        @DisplayName("inflight EXCHANGE 존재 -> EXCHANGE_IN_PROGRESS")
+        void inflight_존재() {
+            // given
+            when(walletRepository.findByParty_IdForUpdate(PARTY_ID))
+                    .thenReturn(Optional.of(wallet()));
+            when(transactionRepository.existsInflightExchange(PARTY_ID)).thenReturn(true);
+
+            // when, then
+            assertThatThrownBy(() -> stateWriter.claimExchange(PARTY_ID, request()))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("code")
+                    .isEqualTo(TransactionErrorCode.EXCHANGE_IN_PROGRESS);
+
+            verify(transactionRepository, never()).save(any());
+        }
+
+        @Test
         @DisplayName("주거래 계좌 없음 -> ACCOUNT_NOT_FOUND")
         void 주거래계좌_없음() {
-            when(walletRepository.findByParty_Id(PARTY_ID)).thenReturn(Optional.of(wallet()));
+            // given
+            when(walletRepository.findByParty_IdForUpdate(PARTY_ID))
+                    .thenReturn(Optional.of(wallet()));
+            when(transactionRepository.existsInflightExchange(PARTY_ID)).thenReturn(false);
             when(accountRepository.findByParty_IdAndAccountType(PARTY_ID, AccountType.PRIMARY))
                     .thenReturn(Optional.empty());
 
+            // when, then
             assertThatThrownBy(() -> stateWriter.claimExchange(PARTY_ID, request()))
                     .isInstanceOf(BusinessException.class)
                     .extracting("code")
@@ -153,21 +184,38 @@ class ExchangeStateWriterTest {
     }
 
     @Nested
-    @DisplayName("buildBankRequest (엔티티 기반)")
+    @DisplayName("buildBankRequest")
     class BuildBankRequest {
 
         @Test
-        @DisplayName("정상: 전달된 엔티티에서 institution/wallet/account 추출")
+        @DisplayName("정상: tx에서 institution/wallet/account 추출")
         void 정상_빌드() {
-            Transaction tx = pendingExchange();
+            // given
+            when(transactionRepository.findById(TRANSACTION_ID))
+                    .thenReturn(Optional.of(pendingExchange()));
 
-            ExchangeRequest result = stateWriter.buildBankRequest(tx, request());
+            // when
+            ExchangeRequest result = stateWriter.buildBankRequest(TRANSACTION_ID, request());
 
+            // then
             assertThat(result.transactionUuid()).isEqualTo(UUID);
             assertThat(result.institutionId()).isEqualTo(INSTITUTION_ID);
             assertThat(result.walletAddress()).isEqualTo(WALLET_ADDRESS);
             assertThat(result.accountNumber()).isEqualTo(ACCOUNT_NUMBER);
             assertThat(result.amount()).isEqualByComparingTo(new BigDecimal("50000"));
+        }
+
+        @Test
+        @DisplayName("tx 없음 -> EXCHANGE_NOT_FOUND")
+        void tx_없음() {
+            // given
+            when(transactionRepository.findById(TRANSACTION_ID)).thenReturn(Optional.empty());
+
+            // when, then
+            assertThatThrownBy(() -> stateWriter.buildBankRequest(TRANSACTION_ID, request()))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("code")
+                    .isEqualTo(TransactionErrorCode.EXCHANGE_NOT_FOUND);
         }
     }
 
@@ -176,40 +224,31 @@ class ExchangeStateWriterTest {
     class CompleteExchange {
 
         @Test
-        @DisplayName("[execute] 엔티티 기반: SUCCESS 전환 + save + 응답 반환")
-        void execute_정상_완료() {
+        @DisplayName("정상: PENDING -> SUCCESS 전환 + txHash/bankTransactionId 저장 + 응답 반환")
+        void 정상_완료() {
+            // given
             Transaction tx = pendingExchange();
-            when(transactionRepository.save(tx)).thenReturn(tx);
+            when(transactionRepository.findById(TRANSACTION_ID)).thenReturn(Optional.of(tx));
 
+            // when
             ExchangeExecuteResponse response =
-                    stateWriter.completeExchange(tx, TX_HASH, BANK_TX_ID_STR);
+                    stateWriter.completeExchange(TRANSACTION_ID, TX_HASH, BANK_TX_ID_STR);
 
+            // then
             assertThat(tx.getStatus()).isEqualTo(TransactionStatus.SUCCESS);
             assertThat(tx.getTxHash()).isEqualTo(TX_HASH);
             assertThat(tx.getBankTransactionId()).isEqualTo(BANK_TX_ID_STR);
             assertThat(response.transactionId()).isEqualTo(TRANSACTION_ID);
             assertThat(response.txHash()).isEqualTo(TX_HASH);
-            verify(transactionRepository).save(tx);
         }
 
         @Test
-        @DisplayName("[reconcile] id 기반: 조회 후 SUCCESS 전환 + 응답 반환")
-        void reconcile_정상_완료() {
-            Transaction tx = pendingExchange();
-            when(transactionRepository.findById(TRANSACTION_ID)).thenReturn(Optional.of(tx));
-
-            ExchangeExecuteResponse response =
-                    stateWriter.completeExchange(TRANSACTION_ID, TX_HASH, BANK_TX_ID_STR);
-
-            assertThat(tx.getStatus()).isEqualTo(TransactionStatus.SUCCESS);
-            assertThat(response.txHash()).isEqualTo(TX_HASH);
-        }
-
-        @Test
-        @DisplayName("[reconcile] tx 없음 -> EXCHANGE_NOT_FOUND")
-        void reconcile_tx_없음() {
+        @DisplayName("tx 없음 -> EXCHANGE_NOT_FOUND")
+        void tx_없음() {
+            // given
             when(transactionRepository.findById(TRANSACTION_ID)).thenReturn(Optional.empty());
 
+            // when, then
             assertThatThrownBy(
                             () ->
                                     stateWriter.completeExchange(
@@ -221,45 +260,33 @@ class ExchangeStateWriterTest {
     }
 
     @Nested
-    @DisplayName("markUnknownExchange (엔티티 기반)")
-    class MarkUnknownExchange {
-
-        @Test
-        @DisplayName("정상: UNKNOWN 전환 + save + 응답 반환")
-        void 정상_unknown() {
-            Transaction tx = pendingExchange();
-            when(transactionRepository.save(tx)).thenReturn(tx);
-
-            ExchangeExecuteResponse response = stateWriter.markUnknownExchange(tx);
-
-            assertThat(tx.getStatus()).isEqualTo(TransactionStatus.UNKNOWN);
-            assertThat(response.status()).isEqualTo(TransactionStatus.UNKNOWN);
-            verify(transactionRepository).save(tx);
-        }
-    }
-
-    @Nested
-    @DisplayName("failExchange (id 기반)")
+    @DisplayName("failExchange")
     class FailExchange {
 
         @Test
-        @DisplayName("정상: 조회 후 FAILED 전환")
+        @DisplayName("정상: PENDING -> FAILED 전환")
         void 정상_실패_마킹() {
+            // given
             Transaction tx = pendingExchange();
             when(transactionRepository.findById(TRANSACTION_ID)).thenReturn(Optional.of(tx));
 
+            // when
             stateWriter.failExchange(TRANSACTION_ID);
 
+            // then
             assertThat(tx.getStatus()).isEqualTo(TransactionStatus.FAILED);
         }
 
         @Test
         @DisplayName("tx 없음 -> 조용히 통과 (예외 없음)")
         void tx_없음_무시() {
+            // given
             when(transactionRepository.findById(TRANSACTION_ID)).thenReturn(Optional.empty());
 
+            // when (예외 발생 없음)
             stateWriter.failExchange(TRANSACTION_ID);
-            // 예외 안 던지면 통과
+
+            // then - 별도 검증 없음. 예외 안 던지면 통과
         }
     }
 
@@ -270,18 +297,21 @@ class ExchangeStateWriterTest {
         @Test
         @DisplayName("정상이면 count 1 증가 후 새 값 반환")
         void increment_정상() {
+            // given
             Transaction tx =
                     Transaction.builder()
                             .id(TRANSACTION_ID)
                             .transactionUuid(UUID)
                             .transactionType(TransactionType.EXCHANGE)
-                            .status(TransactionStatus.UNKNOWN)
+                            .status(TransactionStatus.PENDING)
                             .reconcileAttemptCount(3)
                             .build();
             when(transactionRepository.findById(TRANSACTION_ID)).thenReturn(Optional.of(tx));
 
+            // when
             int newCount = stateWriter.incrementReconcileAttempt(TRANSACTION_ID);
 
+            // then
             assertThat(newCount).isEqualTo(4);
             assertThat(tx.getReconcileAttemptCount()).isEqualTo(4);
         }
@@ -289,8 +319,10 @@ class ExchangeStateWriterTest {
         @Test
         @DisplayName("존재하지 않는 transactionId면 EXCHANGE_NOT_FOUND")
         void increment_없는_트랜잭션() {
+            // given
             when(transactionRepository.findById(TRANSACTION_ID)).thenReturn(Optional.empty());
 
+            // when, then
             assertThatThrownBy(() -> stateWriter.incrementReconcileAttempt(TRANSACTION_ID))
                     .isInstanceOf(BusinessException.class)
                     .extracting("code")
@@ -299,7 +331,7 @@ class ExchangeStateWriterTest {
     }
 
     @Nested
-    @DisplayName("claimSettlementExchange (미저장 엔티티 생성)")
+    @DisplayName("claimSettlementExchange")
     class ClaimSettlementExchange {
 
         private Account settlementAccount() {
@@ -313,25 +345,52 @@ class ExchangeStateWriterTest {
         }
 
         @Test
-        @DisplayName("정상: SETTLEMENT 계좌로 미저장 PENDING 엔티티 반환 (save 호출 안 함)")
-        void 정상_생성() {
-            when(walletRepository.findByParty_Id(PARTY_ID)).thenReturn(Optional.of(wallet()));
+        @DisplayName("정상: wallet 락 -> inflight 미존재 -> SETTLEMENT 계좌 -> PENDING 저장 후 id 반환")
+        void 정상_저장() {
+            when(walletRepository.findByParty_IdForUpdate(PARTY_ID))
+                    .thenReturn(Optional.of(wallet()));
+            when(transactionRepository.existsInflightExchange(PARTY_ID)).thenReturn(false);
             when(accountRepository.findByParty_IdAndAccountType(PARTY_ID, AccountType.SETTLEMENT))
                     .thenReturn(Optional.of(settlementAccount()));
+            when(transactionRepository.save(any(Transaction.class)))
+                    .thenAnswer(
+                            invocation -> {
+                                Transaction tx = invocation.getArgument(0);
+                                ReflectionTestUtils.setField(tx, "id", TRANSACTION_ID);
+                                return tx;
+                            });
 
-            Transaction result = stateWriter.claimSettlementExchange(PARTY_ID, request());
+            Long id = stateWriter.claimSettlementExchange(PARTY_ID, request());
 
-            assertThat(result.getToAccount().getAccountType()).isEqualTo(AccountType.SETTLEMENT);
-            assertThat(result.getStatus()).isEqualTo(TransactionStatus.PENDING);
+            assertThat(id).isEqualTo(TRANSACTION_ID);
             verify(accountRepository)
                     .findByParty_IdAndAccountType(PARTY_ID, AccountType.SETTLEMENT);
+            verify(accountRepository, never())
+                    .findByParty_IdAndAccountType(PARTY_ID, AccountType.PRIMARY);
+            verify(transactionRepository).save(any(Transaction.class));
+        }
+
+        @Test
+        @DisplayName("inflight EXCHANGE 존재 -> EXCHANGE_IN_PROGRESS")
+        void inflight_존재() {
+            when(walletRepository.findByParty_IdForUpdate(PARTY_ID))
+                    .thenReturn(Optional.of(wallet()));
+            when(transactionRepository.existsInflightExchange(PARTY_ID)).thenReturn(true);
+
+            assertThatThrownBy(() -> stateWriter.claimSettlementExchange(PARTY_ID, request()))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("code")
+                    .isEqualTo(TransactionErrorCode.EXCHANGE_IN_PROGRESS);
+
             verify(transactionRepository, never()).save(any());
         }
 
         @Test
         @DisplayName("SETTLEMENT 계좌 없음 -> ACCOUNT_NOT_FOUND")
         void 정산계좌_없음() {
-            when(walletRepository.findByParty_Id(PARTY_ID)).thenReturn(Optional.of(wallet()));
+            when(walletRepository.findByParty_IdForUpdate(PARTY_ID))
+                    .thenReturn(Optional.of(wallet()));
+            when(transactionRepository.existsInflightExchange(PARTY_ID)).thenReturn(false);
             when(accountRepository.findByParty_IdAndAccountType(PARTY_ID, AccountType.SETTLEMENT))
                     .thenReturn(Optional.empty());
 

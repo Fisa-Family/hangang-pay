@@ -151,7 +151,7 @@ public class ContractCallService {
     public BigInteger getBalance(String walletAddress) {
         Contract contract =
                 contractRepository
-                        .findFirstByNameOrderByIdAsc(ContractType.DEPOSIT_TOKEN)
+                        .findFirstByNameOrderByIdAsc(ContractType.LOCAL_CURRENCY)
                         .orElseThrow(
                                 () ->
                                         new BusinessException(
