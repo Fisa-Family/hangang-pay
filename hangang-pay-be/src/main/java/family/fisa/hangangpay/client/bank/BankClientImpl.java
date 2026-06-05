@@ -23,6 +23,8 @@ import family.fisa.hangangpay.global.code.error.AccountErrorCode;
 import family.fisa.hangangpay.global.code.error.BaseErrorCode;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import family.fisa.hangangpay.global.response.ApiResponse;
+import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -249,6 +251,21 @@ public class BankClientImpl implements BankClient {
             }
             throw ex;
         }
+    }
+
+    @Override
+    public void localMint(Long institutionId, String walletAddress, BigDecimal amount) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("institutionId", institutionId);
+        body.put("walletAddress", walletAddress);
+        body.put("amount", amount);
+        bankRestClient
+                .post()
+                .uri("/api/v1/internal/local/mint")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .toBodilessEntity();
     }
 
     @Override
