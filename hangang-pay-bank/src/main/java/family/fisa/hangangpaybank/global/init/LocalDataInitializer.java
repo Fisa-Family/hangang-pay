@@ -7,6 +7,7 @@ import family.fisa.hangangpaybank.domain.institution.repository.InstitutionRepos
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
@@ -23,6 +24,18 @@ public class LocalDataInitializer implements ApplicationRunner {
     private final JdbcTemplate jdbcTemplate;
     private final InstitutionRepository institutionRepository;
     private final BankAccountRepository bankAccountRepository;
+
+    @Value("${blockchain.rpc-endpoint.bok:${BOK_RPC_ENDPOINT:http://localhost:8545}}")
+    private String bokRpcEndpoint;
+
+    @Value("${blockchain.rpc-endpoint.wr:${WR_RPC_ENDPOINT:http://localhost:8547}}")
+    private String wrRpcEndpoint;
+
+    @Value("${blockchain.rpc-endpoint.sh:${SH_RPC_ENDPOINT:http://localhost:8549}}")
+    private String shRpcEndpoint;
+
+    @Value("${blockchain.rpc-endpoint.hn:${HN_RPC_ENDPOINT:http://localhost:8551}}")
+    private String hnRpcEndpoint;
 
     @Override
     @Transactional
@@ -61,7 +74,7 @@ public class LocalDataInitializer implements ApplicationRunner {
                                          '8f2a55949038a9610f50fb23b5883af3b4ecb3c3bb792cbcefbd1542c692be63',
                                          'enode://7fa5133d55c65f610f8a75a69a6dcd35e5a3bf26b23c070e4ce43e578daea0e2689b1b1938a44c32bd1cd71b143b420a00
                         7052ddb5048428ddaf99a21e75632f@172.16.239.11:30303',
-                                         'http://localhost:8545',
+                                         ?,
                                          NOW(6), NOW(6)),
                                         (2, 'WR', 'Woori Bank',
                                          '200-000-000001',
@@ -69,7 +82,7 @@ public class LocalDataInitializer implements ApplicationRunner {
                                          'c87509a1c067bbde78beb793e6fa76530b6382a4c0241e5e4a9ec0a0f44dc0d3',
                                          'enode://2b48a77f024713797162d9257b3824cf32cb232d57c243b27deab4e6715917d594b0a666ac639f096be1eea5b195369eb5
                         803b89bf7343c2d419fa0bf50e724b@172.16.239.12:30303',
-                                         'http://localhost:8547',
+                                         ?,
                                          NOW(6), NOW(6)),
                                         (3, 'SH', 'Shinhan Bank',
                                          '300-000-000001',
@@ -77,7 +90,7 @@ public class LocalDataInitializer implements ApplicationRunner {
                                          'ae6ae8e5ccbfb04590405997ee2d52d2b330726137b875053c36d94e974d162f',
                                          'enode://939642618c06dac18b0028d795a1b5181c6de8364bb133dff49e5da2baf113bb4ea61c741fd726526d49292b67bdca3599
                         f886223d8870beca6d497ad2f9641c@172.16.239.13:30303',
-                                         'http://localhost:8549',
+                                         ?,
                                          NOW(6), NOW(6)),
                                         (4, 'HN', 'Hana Bank',
                                          '400-000-000001',
@@ -85,9 +98,13 @@ public class LocalDataInitializer implements ApplicationRunner {
                                          'fdad4ce4c7c8382ea0357ad12071156ba54963cabed82f415e24c43f537fe784',
                                          'enode://29c55b7ab10d198407fb2338e1f8634f93189caab3a4447cf71bf7f2bfedac92820afc0849f996847255d4e2da6a755486
                         af76516babce4af41dd3c23fdaf0d6@172.16.239.14:30303',
-                                         'http://localhost:8551',
+                                         ?,
                                          NOW(6), NOW(6))
-                                    """);
+                                    """,
+                bokRpcEndpoint,
+                wrRpcEndpoint,
+                shRpcEndpoint,
+                hnRpcEndpoint);
     }
 
     private void seedBankAccounts() {
