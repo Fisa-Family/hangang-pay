@@ -127,6 +127,7 @@ services:
     networks:
       besu-network:
         ipv4_address: 172.16.239.14
+        
 networks:
   besu-network:
     driver: bridge
