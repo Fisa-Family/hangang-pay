@@ -252,6 +252,22 @@ public class BankClientImpl implements BankClient {
     }
 
     @Override
+    public void localMint(Long institutionId, String walletAddress, java.math.BigDecimal amount) {
+        bankRestClient
+                .post()
+                .uri("/api/v1/internal/local/mint")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(
+                        new java.util.HashMap<>(
+                                java.util.Map.of(
+                                        "institutionId", institutionId,
+                                        "walletAddress", walletAddress,
+                                        "amount", amount)))
+                .retrieve()
+                .toBodilessEntity();
+    }
+
+    @Override
     public BlockchainLedgerResponse getBlockchainLedgerByTxHash(String txHash) {
         // 1. 은행에서 블록체인 거래 정보 조회
         ApiResponse<BlockchainLedgerResponse> response =
