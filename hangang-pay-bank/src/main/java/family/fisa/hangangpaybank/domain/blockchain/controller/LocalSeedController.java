@@ -27,6 +27,13 @@ public class LocalSeedController {
 
     @PostMapping("/mint")
     public ResponseEntity<Void> mint(@RequestBody LocalMintRequest request) {
+        // 간단한 유효성 검사
+        if (!request.walletAddress().matches("^0x[0-9a-fA-F]{40}$")) {
+            return ResponseEntity.badRequest().build();
+        }
+        if (request.amount().compareTo(BigDecimal.ZERO) <= 0) {
+            return ResponseEntity.badRequest().build();
+        }
         BigInteger tokenUnits = request.amount().multiply(TOKEN_DECIMALS).toBigInteger();
         contractCallService.charge(request.institutionId(), request.walletAddress(), tokenUnits);
         log.info(
