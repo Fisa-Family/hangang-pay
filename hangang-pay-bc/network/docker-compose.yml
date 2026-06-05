@@ -128,6 +128,52 @@ services:
       besu-network:
         ipv4_address: 172.16.239.14
 
+  postgres:
+    image: postgres:13
+    container_name: blockscout-postgres
+    env_file:
+      - ../.env
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-blockscout_prod}
+    restart: unless-stopped
+    healthcheck:
+      # Use $$ to avoid docker-compose variable substitution at parse time
+      # so the variables are expanded inside the container at runtime.
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+    networks:
+      besu-network:
+        ipv4_address: 172.16.239.20
+
+  blockscout:
+    image: blockscout/blockscout:latest
+    container_name: blockscout
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - ETHEREUM_JSONRPC_HTTP_URL=${ETHEREUM_JSONRPC_HTTP_URL:-http://node1:8545}
+      - MIX_ENV=${MIX_ENV:-prod}
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE}
+      - SERVER=${SERVER:-true}
+      - PORT=${PORT:-4000}
+    env_file:
+      - ../.env
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    depends_on:
+      - postgres
+      - node1
+    networks:
+      besu-network:
+        ipv4_address: 172.16.239.21
+
 networks:
   besu-network:
     driver: bridge
