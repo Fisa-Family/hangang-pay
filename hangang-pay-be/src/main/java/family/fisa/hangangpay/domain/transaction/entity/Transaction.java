@@ -261,6 +261,11 @@ public class Transaction extends BaseEntity {
         this.status = TransactionStatus.PROCESSING;
     }
 
+    /** intent가 TTL 내 실행되지 않아 만료됨 */
+    public void markExpired() {
+        this.status = TransactionStatus.EXPIRED;
+    }
+
     /** 결제 가능한 상태인지 검증 */
     public void validateExecutableBy(Long partyId) {
         validateOwner(partyId);

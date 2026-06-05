@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
 import { executePayment, recoverPayment } from '@/api/payment'
 import { executeCharge } from '@/api/charge'
-import { executeExchange } from '@/api/exchange'
+import { createExchangeIntent, executeExchange } from '@/api/exchange'
 import { registerUser, registerMerchant } from '@/api/auth'
 import { ApiError } from '@/api/client'
 import { ProcessingView } from '@/components/common'
@@ -74,13 +74,14 @@ const FLOWS: Record<string, FlowConfig> = {
     completePath: '/refund/complete',
     errorPath: '/refund/check',
     defaultError: '환불 처리 중 오류가 발생했습니다.',
-    run: (state) =>
-      executeExchange({
+    async run(state) {
+      // 1) intent 생성(PENDING 커밋, PIN 없음) → 2) 실행(PIN). bank 실패 시 intent가 남아 복구된다.
+      await createExchangeIntent({
         transactionUuid: state.transactionUuid as string,
         amount: state.amount as number,
-        paymentPin: state.pin as string,
-        accountId: state.accountId as number,
-      }),
+      })
+      return executeExchange(state.transactionUuid as string, state.pin as string)
+    },
     onComplete: (queryClient) => {
       invalidateUserTransactionQueries(queryClient)
     },

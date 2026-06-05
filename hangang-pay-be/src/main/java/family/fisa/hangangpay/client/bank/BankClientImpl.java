@@ -5,6 +5,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import family.fisa.hangangpay.client.bank.code.ExternalBankErrorCode;
 import family.fisa.hangangpay.client.bank.dto.BankAccountResponse;
+import family.fisa.hangangpay.client.bank.dto.BankActResult;
+import family.fisa.hangangpay.client.bank.dto.BankExchangeStatus;
 import family.fisa.hangangpay.client.bank.dto.BankTransactionStatusResponse;
 import family.fisa.hangangpay.client.bank.dto.BankWalletResponse;
 import family.fisa.hangangpay.client.bank.dto.BlockchainLedgerResponse;
@@ -16,7 +18,6 @@ import family.fisa.hangangpay.client.bank.dto.CreateBankAccountRequest;
 import family.fisa.hangangpay.client.bank.dto.CreateBankWalletRequest;
 import family.fisa.hangangpay.client.bank.dto.ExchangeRequest;
 import family.fisa.hangangpay.client.bank.dto.ExchangeResponse;
-import family.fisa.hangangpay.client.bank.dto.ExchangeStatusResponse;
 import family.fisa.hangangpay.client.bank.dto.PaymentRequest;
 import family.fisa.hangangpay.client.bank.dto.PaymentResponse;
 import family.fisa.hangangpay.global.code.error.AccountErrorCode;
@@ -34,6 +35,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
@@ -164,22 +166,84 @@ public class BankClientImpl implements BankClient {
         return response.getResult();
     }
 
+    /**
+     * 환전 실행. error mapping/throw 대신 HTTP 상태로 결과를 분류 2xx=SUCCESS, 4xx=FAILURE(명시적 실패),
+     * 5xx/타임아웃/IO=UNKNOWN
+     */
     @Override
-    public ExchangeResponse exchange(ExchangeRequest request) {
-        // 1. 은행에 환전 요청 (토큰 burn → 계좌 입금)
-        ApiResponse<ExchangeResponse> response =
-                callBank(
-                        () ->
-                                bankRestClient
-                                        .post()
-                                        .uri("/api/v1/transactions/exchange")
-                                        .contentType(MediaType.APPLICATION_JSON)
-                                        .body(request)
-                                        .retrieve()
-                                        .body(new ParameterizedTypeReference<>() {}));
+    public BankActResult exchange(ExchangeRequest request) {
+        log.info(
+                "bank 환전 호출. transactionUuid={}, amount={}",
+                request.transactionUuid(),
+                request.amount());
 
-        // 2. 응답에서 결과 추출
-        return response.getResult();
+        try {
+            ApiResponse<ExchangeResponse> response =
+                    bankRestClient
+                            .post()
+                            .uri("/api/v1/transactions/exchange")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .body(request)
+                            .retrieve()
+                            .body(new ParameterizedTypeReference<>() {});
+
+            ExchangeResponse body = response.getResult();
+            log.info(
+                    "bank 환전 성공(SUCCESS). transactionUuid={}, txHash={}",
+                    request.transactionUuid(),
+                    body.txHash());
+
+            return BankActResult.success(body);
+        } catch (RestClientResponseException ex) {
+            // 4xx = 은행이 명확히 거절한 실패
+            if (ex.getStatusCode().is4xxClientError()) {
+                log.warn(
+                        "bank 환전 명시적 실패(FAILURE, 4xx). transactionUuid={}, status={}",
+                        request.transactionUuid(),
+                        ex.getStatusCode());
+                return BankActResult.failure();
+            }
+
+            // 5xx = 서버 오류 -> 차감 여부 불확실
+            log.error(
+                    "bank 환전 불확실(UNKNOWN, 5xx). transactionUuid={}, status={}",
+                    request.transactionUuid(),
+                    ex.getStatusCode(),
+                    ex);
+            return BankActResult.unknown();
+        } catch (ResourceAccessException ex) {
+            // 타임아웃/커넥션 등 IO 오류 -> 응답을 못 받음 = 불확실
+            log.error(
+                    "bank 환전 불확실(UNKNOWN, 타임아웃/IO). transactionUuid={}",
+                    request.transactionUuid(),
+                    ex);
+            return BankActResult.unknown();
+        }
+    }
+
+    /**
+     * 환전 상태 조회. 404 -> NOT_FOUND, 2xx body 의 status -> SUCCESS/FAILED/PENDING. 5xx/타임아웃은 그대로 전파
+     * (reconcile이 다음 기회에 재시도)
+     */
+    @Override
+    public BankExchangeStatus getStatus(String transactionUuid) {
+        log.info("bank 환전 상태 조회. transactionUuid={}", transactionUuid);
+        try {
+            ApiResponse<BankTransactionStatusResponse> response =
+                    bankRestClient
+                            .get()
+                            .uri("/api/v1/transactions/{transactionUuid}/status", transactionUuid)
+                            .retrieve()
+                            .body(new ParameterizedTypeReference<>() {});
+
+            return BankExchangeStatus.from(response.getResult());
+        } catch (RestClientResponseException ex) {
+            if (ex.getStatusCode() == HttpStatus.NOT_FOUND) {
+                log.info("bank 환전 상태: 거래 없음(NOT_FOUND). transactionUuid={}", transactionUuid);
+                return BankExchangeStatus.notFound();
+            }
+            throw ex; // 5xx 등은 reconcile 재시도 대상
+        }
     }
 
     @Override
@@ -216,41 +280,6 @@ public class BankClientImpl implements BankClient {
 
         // 2. 응답에서 결과 추출
         return response.getResult();
-    }
-
-    @Override
-    public Optional<ExchangeStatusResponse> queryExchangeStatus(String transactionUuid) {
-        log.info("bank 환전 상태 조회 호출. transactionUuid={}", transactionUuid);
-
-        // 1. bank /api/v1/transactions/{uuid}/status 호출. 404는 Optional.empty()
-        try {
-            ApiResponse<ExchangeStatusResponse> response =
-                    callBank(
-                            () ->
-                                    bankRestClient
-                                            .get()
-                                            .uri(
-                                                    "/api/v1/transactions/{transactionUuid}/status",
-                                                    transactionUuid)
-                                            .retrieve()
-                                            .body(new ParameterizedTypeReference<>() {}));
-
-            // 2. 응답이 있으면 두 ledger 모두 있다는 의미
-            ExchangeStatusResponse result = response.getResult();
-            log.info(
-                    "bank 환전 상태 조회 완료(존재). transactionUuid={}, bankTransactionId={}, txHash={}",
-                    transactionUuid,
-                    result.bankTransactionId(),
-                    result.txHash());
-            return Optional.of(result);
-        } catch (RestClientResponseException ex) {
-            // 3. 404만 빈 응답으로 흡수. 그 외 5xx 등은 그대로 전파 (reconcile에서 재시도 대상)
-            if (ex.getStatusCode() == HttpStatus.NOT_FOUND) {
-                log.info("bank 환전 상태 조회: 거래 없음(NOT_FOUND). transactionUuid={}", transactionUuid);
-                return Optional.empty();
-            }
-            throw ex;
-        }
     }
 
     @Override

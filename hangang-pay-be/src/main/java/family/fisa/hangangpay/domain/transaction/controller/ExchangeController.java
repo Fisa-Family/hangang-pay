@@ -2,8 +2,10 @@ package family.fisa.hangangpay.domain.transaction.controller;
 
 import family.fisa.hangangpay.domain.transaction.code.TransactionSuccessCode;
 import family.fisa.hangangpay.domain.transaction.dto.request.ExchangeExecuteRequest;
+import family.fisa.hangangpay.domain.transaction.dto.request.ExchangeIntentCreateRequest;
 import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeExecuteResponse;
 import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeInitResponse;
+import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeIntentResponse;
 import family.fisa.hangangpay.domain.transaction.service.ExchangeCommandService;
 import family.fisa.hangangpay.domain.transaction.service.ExchangeQueryService;
 import family.fisa.hangangpay.global.response.ApiResponse;
@@ -24,10 +26,8 @@ public class ExchangeController {
     private final ExchangeCommandService exchangeCommandService;
     private final ExchangeQueryService exchangeQueryService;
 
-    /** 사용자의 환전 가능 여부를 조회한다. */
-    @Operation(
-            summary = "환전 정보 조회 (EXCHANGE-001)",
-            description = "환전 가능 여부와 현재 지갑 잔액을 반환한다. 최근 충전액의 60% 이상 사용 여부로 자격을 판단.")
+    /** 환전 가능 여부/잔액 조회 */
+    @Operation(summary = "환전 정보 조회 (EXCHANGE-001)", description = "환전 가능 여부와 지갑 잔액을 반환한다.")
     @GetMapping("/init")
     public ResponseEntity<ApiResponse<ExchangeInitResponse>> getExchangeInit(
             @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId) {
@@ -36,16 +36,28 @@ public class ExchangeController {
                 ApiResponse.onSuccess(TransactionSuccessCode.EXCHANGE_INFO_RETRIEVED, response));
     }
 
-    /** 사용자가 사용하지 않은 금액에 대한 환전을 진행한다. */
+    /** 환전 intent 생성 (PIN 없음) */
     @Operation(
-            summary = "사용자 환전 진행 (EXCHANGE-002)",
-            description = "최근 충전액의 60% 이상을 사용한 소비자가 보유한 토큰은 1:1 비율로 계좌에 환전한다.")
-    @PostMapping("/execute")
+            summary = "환전 의도 생성 (EXCHANGE-002)",
+            description = "PENDING 환전 의도를 생성한다. 자격(60%) 검증 포함.")
+    @PostMapping("/intents")
+    public ResponseEntity<ApiResponse<ExchangeIntentResponse>> createIntent(
+            @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId,
+            @Valid @RequestBody ExchangeIntentCreateRequest request) {
+        ExchangeIntentResponse response = exchangeCommandService.createUserIntent(partyId, request);
+        return ResponseEntity.ok(
+                ApiResponse.onSuccess(TransactionSuccessCode.EXCHANGE_INTENT_CREATED, response));
+    }
+
+    /** 환전 실행 (PIN) */
+    @Operation(summary = "환전 실행 (EXCHANGE-003)", description = "PIN 검증 후 생성된 의도를 1:1로 계좌 환전한다.")
+    @PostMapping("/{transactionUuid}/execute")
     public ResponseEntity<ApiResponse<ExchangeExecuteResponse>> executeUserExchange(
             @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId,
+            @PathVariable String transactionUuid,
             @Valid @RequestBody ExchangeExecuteRequest request) {
         ExchangeExecuteResponse response =
-                exchangeCommandService.executeUserExchange(partyId, request);
+                exchangeCommandService.executeUserExchange(partyId, transactionUuid, request);
         return ResponseEntity.ok(
                 ApiResponse.onSuccess(TransactionSuccessCode.EXCHANGE_EXECUTED, response));
     }

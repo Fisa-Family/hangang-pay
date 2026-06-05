@@ -174,4 +174,24 @@ public interface TransactionJpaRepository extends JpaRepository<Transaction, Lon
             @Param("status") TransactionStatus status,
             @Param("startInclusive") LocalDateTime startInclusive,
             @Param("endExclusive") LocalDateTime endExclusive);
+
+    @Query(
+            "SELECT t FROM Transaction t "
+                    + "WHERE t.transactionType = :type "
+                    + "AND t.status IN :statuses "
+                    + "AND t.reconcileAttemptCount < :maxRetry")
+    List<Transaction> findExchangeReconcileTargets(
+            @Param("type") TransactionType type,
+            @Param("statuses") List<TransactionStatus> statuses,
+            @Param("maxRetry") int maxRetry);
+
+    @Query(
+            "SELECT t FROM Transaction t "
+                    + "WHERE t.transactionType = :type "
+                    + "AND t.status = :status "
+                    + "AND t.createdAt < :threshold")
+    List<Transaction> findStalePendingExchangeIntents(
+            @Param("type") TransactionType type,
+            @Param("status") TransactionStatus status,
+            @Param("threshold") LocalDateTime threshold);
 }

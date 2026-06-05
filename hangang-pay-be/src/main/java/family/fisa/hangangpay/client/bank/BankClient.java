@@ -1,7 +1,6 @@
 package family.fisa.hangangpay.client.bank;
 
 import family.fisa.hangangpay.client.bank.dto.*;
-import java.util.Optional;
 
 public interface BankClient {
 
@@ -21,14 +20,15 @@ public interface BankClient {
     // 거래
     ChargeResponse charge(ChargeRequest request);
 
-    ExchangeResponse exchange(ExchangeRequest request);
+    /** 환전 실행. 결과를 SUCCESS/FAILURE/UNKNOWN으로 분류해 반환한다. */
+    BankActResult exchange(ExchangeRequest request);
+
+    /** 환전 상태 조회. SUCCESS/FAILED/PENDING/NOT_FOUND reconcile에서 사용 */
+    BankExchangeStatus getStatus(String transactionUuid);
 
     PaymentResponse payment(PaymentRequest request);
 
     CancelResponse cancel(CancelRequest request);
-
-    // 환전 상태 조회
-    Optional<ExchangeStatusResponse> queryExchangeStatus(String transactionUuid);
 
     // blockchain
     BlockchainLedgerResponse getBlockchainLedgerByTxHash(String txHash);

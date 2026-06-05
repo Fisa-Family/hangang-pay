@@ -83,4 +83,9 @@ public interface TransactionRepository {
             TransactionStatus status,
             LocalDateTime startInclusive,
             LocalDateTime endExclusive);
+
+    List<Transaction> findExchangeReconcileTargets(int maxRetry);
+
+    /** 만료 대상 - EXCHANGE + PENDING + createdAt < threshold */
+    List<Transaction> findStalePendingExchangeIntents(LocalDateTime threshold);
 }

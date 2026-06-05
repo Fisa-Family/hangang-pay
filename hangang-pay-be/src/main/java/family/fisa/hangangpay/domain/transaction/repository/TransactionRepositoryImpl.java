@@ -171,4 +171,18 @@ public class TransactionRepositoryImpl implements TransactionRepository {
         return jpaRepository.findMerchantPaymentsBetween(
                 merchantPartyId, status, startInclusive, endExclusive);
     }
+
+    @Override
+    public List<Transaction> findExchangeReconcileTargets(int maxRetry) {
+        return jpaRepository.findExchangeReconcileTargets(
+                TransactionType.EXCHANGE,
+                List.of(TransactionStatus.PENDING, TransactionStatus.UNKNOWN),
+                maxRetry);
+    }
+
+    @Override
+    public List<Transaction> findStalePendingExchangeIntents(LocalDateTime threshold) {
+        return jpaRepository.findStalePendingExchangeIntents(
+                TransactionType.EXCHANGE, TransactionStatus.PENDING, threshold);
+    }
 }
