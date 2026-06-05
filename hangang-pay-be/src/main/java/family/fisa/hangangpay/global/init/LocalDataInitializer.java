@@ -35,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 @Profile({"local", "onprem-test"})
 @RequiredArgsConstructor
+@SuppressWarnings("java:S2068") // 로컬 전용 시드 테스트 계정, 운영 환경에 배포되지 않음
 public class LocalDataInitializer implements ApplicationRunner {
 
     private final PartyRepository partyRepository;
