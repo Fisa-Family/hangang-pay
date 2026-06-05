@@ -112,7 +112,7 @@ export function UserHistoryPage() {
     <div className="flex h-full flex-col bg-card -mx-5 -my-5 px-5 py-5">
       <PageHeader
         title="내역 조회"
-        onBack={() => navigate(-1)}
+        onBack={() => navigate('/home')}
         rightAction={
           <button
             type="button"

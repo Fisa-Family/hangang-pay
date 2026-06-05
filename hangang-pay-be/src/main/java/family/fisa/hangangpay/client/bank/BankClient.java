@@ -32,4 +32,7 @@ public interface BankClient {
 
     // blockchain
     BlockchainLedgerResponse getBlockchainLedgerByTxHash(String txHash);
+
+    // 로컬 seed 데이터 온체인 동기화
+    void localMint(Long institutionId, String walletAddress, java.math.BigDecimal amount);
 }
