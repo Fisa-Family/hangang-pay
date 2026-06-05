@@ -119,18 +119,14 @@ public class TransactionRepositoryImpl implements TransactionRepository {
         return jpaRepository.sumSuccessByTypeSince(partyId, type, since);
     }
 
-    /** 진행 중인 EXCHANGE 존재 여부 확인 */
-    @Override
-    public boolean existsInflightExchange(Long partyId) {
-        return jpaRepository.existsByFromParty_IdAndTransactionTypeAndStatus(
-                partyId, TransactionType.EXCHANGE, TransactionStatus.PENDING);
-    }
-
     /** 배치 reconcile 대상 PENDING EXCHANGE ID 목록 조회 */
     @Override
-    public List<Long> findPendingExchangeIdsForReconcile(LocalDateTime threshold, int maxAttempts) {
+    public List<Long> findPendingExchangeIdsForReconcile(int maxAttempts) {
         return jpaRepository.findIdsForReconcile(
-                TransactionStatus.PENDING, TransactionType.EXCHANGE, threshold, maxAttempts);
+                TransactionStatus.PENDING,
+                TransactionType.EXCHANGE,
+                LocalDateTime.now(),
+                maxAttempts);
     }
 
     @Override
