@@ -2,8 +2,10 @@ package family.fisa.hangangpaybank;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
+@EnableScheduling
 public class HangangPayBankApplication {
 
     public static void main(String[] args) {
