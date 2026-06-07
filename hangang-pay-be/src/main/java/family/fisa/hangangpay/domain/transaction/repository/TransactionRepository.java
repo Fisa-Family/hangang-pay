@@ -57,13 +57,10 @@ public interface TransactionRepository {
     /** 특정 시점 이후(inclusive)의 SUCCESS 거래 타입별 누적 금액 - 사용액 산정용 */
     BigDecimal sumSuccessByTypeSince(Long partyId, TransactionType type, LocalDateTime since);
 
-    /** 진행 중인 EXCHANGE 존재 여부 - single-flight 가드용 */
-    boolean existsInflightExchange(Long partyId);
-
     /**
      * 배치 reconcile 대상 id 조회 - PENDING + EXCHANGE + createdAt < threshold && attempt < maxAttempts
      */
-    List<Long> findPendingExchangeIdsForReconcile(LocalDateTime threshold, int maxAttempts);
+    List<Long> findPendingExchangeIdsForReconcile(int maxAttempts);
 
     /** 원거래 UUID를 참조하는 SUCCESS CANCEL 거래 존재 여부 */
     boolean existsSuccessCancelByOriginalTransactionUuid(String originalTransactionUuid);

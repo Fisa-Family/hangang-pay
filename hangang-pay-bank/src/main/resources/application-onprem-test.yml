@@ -9,6 +9,13 @@ spring:
     hibernate:
       ddl-auto: create-drop
 
+blockchain:
+  rpc-endpoint:
+    bok: ${BOK_RPC_ENDPOINT:http://10.10.1.35:8545}
+    wr: ${WR_RPC_ENDPOINT:http://10.10.1.91:8545}
+    sh: ${SH_RPC_ENDPOINT:http://10.10.1.122:8545}
+    hn: ${HN_RPC_ENDPOINT:http://10.10.1.49:8545}
+
 logging:
   level:
     root: WARN
