@@ -69,10 +69,20 @@ contract LocalCurrencyPolicy is Initializable, UUPSUpgradeable {
   event Refunded(uint256 indexed toInstitutionId, address indexed user, uint256 amount);
 
   // 결제 이벤트
-  event Paid(bytes32 indexed transactionUuid, address indexed from, address indexed to, uint256 amount);
+  event Paid(
+    bytes32 indexed transactionUuid,
+    address indexed from,
+    address indexed to,
+    uint256 amount
+  );
 
   // 결제 취소 이벤트
-  event PaymentCanceled(bytes32 indexed transactionUuid, address indexed from, address indexed to, uint256 amount);
+  event PaymentCanceled(
+    bytes32 indexed transactionUuid,
+    address indexed from,
+    address indexed to,
+    uint256 amount
+  );
 
   // owner만 실행 가능
   modifier onlyOwner() {
@@ -172,7 +182,12 @@ contract LocalCurrencyPolicy is Initializable, UUPSUpgradeable {
 
   // 결제 함수
   // 사용자 -> 가맹점 방향으로 예금토큰을 이동
-  function pay(bytes32 transactionUuid, address from, address to, uint256 amount) external onlyOwner returns (bool) {
+  function pay(
+    bytes32 transactionUuid,
+    address from,
+    address to,
+    uint256 amount
+  ) external onlyOwner returns (bool) {
     // 중복 실행 방지
     if (processedTx[transactionUuid]) revert AlreadyProcessed();
 
