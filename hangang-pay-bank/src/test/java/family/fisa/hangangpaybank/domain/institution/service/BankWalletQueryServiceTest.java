@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 
-import family.fisa.hangangpaybank.domain.blockchain.service.ContractCallService;
 import family.fisa.hangangpaybank.domain.institution.code.error.InstitutionErrorCode;
 import family.fisa.hangangpaybank.domain.institution.dto.response.BankWalletResponse;
 import family.fisa.hangangpaybank.domain.institution.entity.BankWallet;
@@ -12,7 +11,6 @@ import family.fisa.hangangpaybank.domain.institution.entity.Institution;
 import family.fisa.hangangpaybank.domain.institution.repository.BankWalletRepository;
 import family.fisa.hangangpaybank.global.exception.BusinessException;
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,18 +25,15 @@ class BankWalletQueryServiceTest {
     private static final String WALLET_ADDRESS = "0x0000000000000000000000000000000000000001";
 
     @Mock private BankWalletRepository bankWalletRepository;
-    @Mock private ContractCallService contractCallService;
 
     @InjectMocks private BankWalletQueryService bankWalletQueryService;
 
     @Test
-    @DisplayName("지갑 단건 조회 시 컨트랙트 balanceOf 기준 잔액을 반환한다")
-    void getByWalletAddressReturnsContractBalance() {
+    @DisplayName("지갑 단건 조회 시 DB 잔액을 반환한다")
+    void getByWalletAddressReturnsDbBalance() {
         BankWallet bankWallet = bankWallet();
         given(bankWalletRepository.findByWalletAddress(WALLET_ADDRESS))
                 .willReturn(Optional.of(bankWallet));
-        given(contractCallService.getBalance(WALLET_ADDRESS))
-                .willReturn(new BigInteger("12345000000000000000000"));
 
         BankWalletResponse response = bankWalletQueryService.getByWalletAddress(WALLET_ADDRESS);
 
@@ -66,11 +61,14 @@ class BankWalletQueryServiceTest {
                         .institutionName("Woori Bank")
                         .build();
 
-        return BankWallet.builder()
-                .id(10L)
-                .institution(institution)
-                .walletAddress(WALLET_ADDRESS)
-                .encryptedPrivateKey("encrypted")
-                .build();
+        BankWallet wallet =
+                BankWallet.builder()
+                        .id(10L)
+                        .institution(institution)
+                        .walletAddress(WALLET_ADDRESS)
+                        .encryptedPrivateKey("encrypted")
+                        .build();
+        wallet.updateBalance(new BigDecimal("12345"));
+        return wallet;
     }
 }
