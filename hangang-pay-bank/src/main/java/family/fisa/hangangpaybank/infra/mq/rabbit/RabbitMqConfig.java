@@ -6,6 +6,7 @@ import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
+import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
@@ -71,5 +72,25 @@ public class RabbitMqConfig {
         RabbitTemplate template = new RabbitTemplate(connectionFactory);
         template.setMessageConverter(converter);
         return template;
+    }
+
+    /**
+     * NACK 발생 시 메시지를 즉시 DLQ로 이동한다.
+     *
+     * <p>Spring AMQP 기본값(defaultRequeueRejected=true)은 NACK 시 원래 큐로 재투입하는데, retryable 오류(RPC 장애 등)가
+     * 해소되기 전까지 같은 메시지를 무한 반복 처리하는 문제가 생긴다.
+     *
+     * <p>로컬 재시도(RetryInterceptor)를 두지 않는 이유: RPC 장애는 수십 초~수 분 단위 장애라 컨슈머 스레드를 블로킹하며 재시도해도 회복 가능성이
+     * 낮고, concurrency=1 구조에서 재시도 대기 중 다른 메시지를 처리하지 못하는 비용이 크다. DLQ에서 운영팀이 상황 확인 후 수동 재투입하는 방식이 더
+     * 안전하다.
+     */
+    @Bean
+    SimpleRabbitListenerContainerFactory rabbitListenerContainerFactory(
+            ConnectionFactory connectionFactory, MessageConverter converter) {
+        SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
+        factory.setConnectionFactory(connectionFactory);
+        factory.setMessageConverter(converter);
+        factory.setDefaultRequeueRejected(false);
+        return factory;
     }
 }

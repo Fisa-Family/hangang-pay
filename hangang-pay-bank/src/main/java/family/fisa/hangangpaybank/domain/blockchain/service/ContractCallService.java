@@ -331,6 +331,23 @@ public class ContractCallService {
         }
     }
 
+    /** txHash값을 통해 receipt를 조회. 비동기 호출 시에 사용 */
+    public TransactionReceipt waitForReceiptByHash(String txHash) {
+        Contract contract =
+                contractRepository
+                        .findFirstByNameOrderByIdAsc(ContractType.LOCAL_CURRENCY)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                BlockchainErrorCode.BLOCKCHAIN_CONTRACT_NOT_FOUND));
+        Web3j web3j = Web3j.build(new HttpService(contract.getInstitution().getRpcEndpoint()));
+        try {
+            return waitForReceipt(web3j, txHash);
+        } finally {
+            web3j.shutdown();
+        }
+    }
+
     /** submit* : 블록체인에 요청 제출 후 txHash 반환, receipt를 기다리지 않음. */
     public SubmittedBlockchainTx submitPayment(
             String transactionUuid, String from, String to, BigInteger amount) {
