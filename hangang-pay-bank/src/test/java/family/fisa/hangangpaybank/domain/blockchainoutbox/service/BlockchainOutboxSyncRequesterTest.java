@@ -100,7 +100,8 @@ class BlockchainOutboxSyncRequesterTest {
         given(blockchainOutboxRepository.save(any())).willReturn(outboxWithId(21L));
 
         CancelBlockchainPayload cancelPayload =
-                new CancelBlockchainPayload("orig-uuid", "0xMERCHANT", "0xUSER", new BigDecimal("50"));
+                new CancelBlockchainPayload(
+                        "orig-uuid", "0xMERCHANT", "0xUSER", new BigDecimal("50"));
         BlockchainSyncRequest request =
                 syncRequest(BlockchainSyncType.CANCEL, "uuid-2", cancelPayload);
 

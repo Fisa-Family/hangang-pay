@@ -395,7 +395,8 @@ class ContractCallServiceTest {
                 .willReturn(Optional.of(localCurrency));
         doReturn(true)
                 .when(contractCallService)
-                .readMerchant(any(Web3j.class), any(), eq(LOCAL_CURRENCY_ADDRESS), eq(USER_ADDRESS));
+                .readMerchant(
+                        any(Web3j.class), any(), eq(LOCAL_CURRENCY_ADDRESS), eq(USER_ADDRESS));
 
         contractCallService.isMerchant(USER_ADDRESS);
 
