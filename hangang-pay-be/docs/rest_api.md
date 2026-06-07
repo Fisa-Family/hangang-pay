@@ -78,6 +78,8 @@ FAILED 시 내려가는 정규화 에러 코드:
 | `PAYMENT_INSUFFICIENT_BALANCE` | `400` | `TRANSACTION_INSUFFICIENT_BALANCE` |
 | `PAYMENT_ALREADY_FAILED` | `422` | `TRANSACTION_ALREADY_FAILED` |
 | `PAYMENT_FAILED` | `502` | 매핑되지 않은 그 외 Bank 실패(폴백) |
+| `CANCEL_ALREADY_FAILED` | `422` | `TRANSACTION_ALREADY_FAILED` |
+| `CANCEL_FAILED` | `502` | 매핑되지 않은 그 외 Bank 취소 실패(폴백) |
 
 ## Settlement and Exchange
 

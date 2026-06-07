@@ -856,7 +856,7 @@ class TransactionCommandServiceTest {
                                         TRANSACTION_ID,
                                         new PaymentCancelRequest("123456")))
                 .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("code", TransactionErrorCode.PAYMENT_ALREADY_FAILED);
+                .hasFieldOrPropertyWithValue("code", TransactionErrorCode.CANCEL_ALREADY_FAILED);
 
         verify(bankClient).cancel(prepared.toBankCancelRequest()); // 재시도 없음(종단)
         verify(cancelExecutionStateWriter).completeFailed(CANCEL_UUID);

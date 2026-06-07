@@ -60,6 +60,8 @@ public class TransactionCommandService {
                     "TRANSACTION_INSUFFICIENT_BALANCE",
                             TransactionErrorCode.PAYMENT_INSUFFICIENT_BALANCE,
                     "TRANSACTION_ALREADY_FAILED", TransactionErrorCode.PAYMENT_ALREADY_FAILED);
+    private static final Map<String, BaseErrorCode> CANCEL_BANK_FAIL_CODE_MAP =
+            Map.of("TRANSACTION_ALREADY_FAILED", TransactionErrorCode.CANCEL_ALREADY_FAILED);
 
     private static final ObjectMapper BANK_ERROR_MAPPER = new ObjectMapper();
 
@@ -168,7 +170,10 @@ public class TransactionCommandService {
 
         /** 2. Bank 외부 호출 */
         BankOutcome<PaymentResponse> outcome =
-                callBankWithRetry(() -> bankClient.payment(prepared.toBankPaymentRequest()));
+                callBankWithRetry(
+                        () -> bankClient.payment(prepared.toBankPaymentRequest()),
+                        BANK_FAIL_CODE_MAP,
+                        TransactionErrorCode.PAYMENT_FAILED);
 
         /** 3. 결과 분류 및 상태 반영 */
         PaymentExecutionResponse response =
@@ -270,7 +275,10 @@ public class TransactionCommandService {
 
         /** 3. BANK 취소 호출 - DB 트랜잭션 밖에서 실행 */
         BankOutcome<CancelResponse> outcome =
-                callBankWithRetry(() -> bankClient.cancel(prepared.toBankCancelRequest()));
+                callBankWithRetry(
+                        () -> bankClient.cancel(prepared.toBankCancelRequest()),
+                        CANCEL_BANK_FAIL_CODE_MAP,
+                        TransactionErrorCode.CANCEL_FAILED);
 
         /** 4. 결과 분류 및 상태 반영 */
         PaymentCancelResponse response =
@@ -366,14 +374,20 @@ public class TransactionCommandService {
     }
 
     /** Bank 쓰기 호출 + 일시적 오류 1회 재시도를 한다. bank가 transactionUuid로 멱등 처리를 하므로 재호출은 안전하다. */
-    private <T> BankOutcome<T> callBankWithRetry(Supplier<T> bankCall) {
+    private <T> BankOutcome<T> callBankWithRetry(
+            Supplier<T> bankCall,
+            Map<String, BaseErrorCode> failCodeMap,
+            BaseErrorCode fallbackCode) {
         // 1. 1차 시도
         try {
             return BankOutcome.success(bankCall.get()); // Supplier 로 제네릭하게 호출
         } catch (RuntimeException first) {
             if (!isRetryable(first)) {
                 return BankOutcome.failed(
-                        resolveErrorCode(first)); // 비지니스 로직상 불가능한 것들은 FAILED 처리 (ex: 잔액부족)
+                        resolveErrorCode(
+                                first,
+                                failCodeMap,
+                                fallbackCode)); // 비지니스 로직상 불가능한 것들은 FAILED 처리 (ex: 잔액부족)
             }
             log.warn("Bank 호출 일시적 오류, 1회 재시도. reason={}", first.getMessage());
 
@@ -391,7 +405,9 @@ public class TransactionCommandService {
             if (isRetryable(retry)) {
                 return BankOutcome.unknown(); // 여전히 불확실한 것들은 UNKNOWN 처리 후 스케줄러에게 위임
             }
-            return BankOutcome.failed(resolveErrorCode(retry)); // 재시도 중 종단 실패로 확정 (보상의 보상을 하지않기 위함)
+            return BankOutcome.failed(
+                    resolveErrorCode(
+                            retry, failCodeMap, fallbackCode)); // 재시도 중 종단 실패로 확정 (보상의 보상을 하지않기 위함)
         }
     }
 
@@ -426,15 +442,18 @@ public class TransactionCommandService {
     }
 
     /** 종단 실패의 정규화 코드 결정. */
-    private BaseErrorCode resolveErrorCode(RuntimeException ex) {
+    private BaseErrorCode resolveErrorCode(
+            RuntimeException ex,
+            Map<String, BaseErrorCode> failCodeMap,
+            BaseErrorCode fallbackCode) {
         if (ex instanceof BusinessException be) {
             return be.getCode();
         }
         if (ex instanceof RestClientResponseException rcre) {
             String bankCode = parseBankErrorCode(rcre).orElse(null);
-            return BANK_FAIL_CODE_MAP.getOrDefault(bankCode, TransactionErrorCode.PAYMENT_FAILED);
+            return failCodeMap.getOrDefault(bankCode, fallbackCode);
         }
-        return TransactionErrorCode.PAYMENT_FAILED;
+        return fallbackCode;
     }
 
     private Optional<String> parseBankErrorCode(RestClientResponseException rcre) {

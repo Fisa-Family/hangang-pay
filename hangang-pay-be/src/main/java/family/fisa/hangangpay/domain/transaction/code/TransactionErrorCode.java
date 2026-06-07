@@ -91,6 +91,7 @@ public enum TransactionErrorCode implements BaseErrorCode {
             "취소 멱등성 기록을 찾을 수 없습니다."),
     CANCEL_ALREADY_FAILED(
             HttpStatus.UNPROCESSABLE_ENTITY, "CANCEL_ALREADY_FAILED", "이미 실패한 취소입니다."),
+    CANCEL_FAILED(HttpStatus.BAD_GATEWAY, "CANCEL_FAILED", "결제 취소 처리에 실패했습니다."),
     CANCEL_IDEMPOTENCY_RECORD_INVALID(
             HttpStatus.INTERNAL_SERVER_ERROR,
             "CANCEL_IDEMPOTENCY_RECORD_INVALID",
