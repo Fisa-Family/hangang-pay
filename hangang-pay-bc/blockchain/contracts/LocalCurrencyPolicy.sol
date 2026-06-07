@@ -43,6 +43,9 @@ contract LocalCurrencyPolicy is Initializable, UUPSUpgradeable {
   // 등록된 가맹점 여부
   mapping(address => bool) public merchants;
 
+  // 처리된 transactionUuid 중복 실행 방지
+  mapping(bytes32 => bool) public processedTx;
+
   // BE ErrorCode 매핑을 위한 custom error
   error Unauthorized();
   error InvalidAddress();
@@ -54,6 +57,7 @@ contract LocalCurrencyPolicy is Initializable, UUPSUpgradeable {
   error DepositTokenBurnFailed();
   error TransferFailed();
   error BankNotRegistered();
+  error AlreadyProcessed();
 
   // 가맹점 등록 이벤트
   event MerchantUpdated(address indexed merchant, bool approved);
@@ -169,6 +173,9 @@ contract LocalCurrencyPolicy is Initializable, UUPSUpgradeable {
   // 결제 함수
   // 사용자 -> 가맹점 방향으로 예금토큰을 이동
   function pay(bytes32 transactionUuid, address from, address to, uint256 amount) external onlyOwner returns (bool) {
+    // 중복 실행 방지
+    if (processedTx[transactionUuid]) revert AlreadyProcessed();
+
     // 주소 검증
     if (from == address(0) || to == address(0)) {
       revert InvalidAddress();
@@ -189,6 +196,7 @@ contract LocalCurrencyPolicy is Initializable, UUPSUpgradeable {
       revert TransferFailed();
     }
 
+    processedTx[transactionUuid] = true;
     emit Paid(transactionUuid, from, to, amount);
     return true;
   }
@@ -201,6 +209,9 @@ contract LocalCurrencyPolicy is Initializable, UUPSUpgradeable {
     address to,
     uint256 amount
   ) external onlyOwner returns (bool) {
+    // 중복 실행 방지
+    if (processedTx[transactionUuid]) revert AlreadyProcessed();
+
     // 주소 검증
     if (from == address(0) || to == address(0)) {
       revert InvalidAddress();
@@ -221,6 +232,8 @@ contract LocalCurrencyPolicy is Initializable, UUPSUpgradeable {
     if (!ILocalDepositToken(depositToken).forceTransfer(from, to, amount)) {
       revert TransferFailed();
     }
+
+    processedTx[transactionUuid] = true;
     emit PaymentCanceled(transactionUuid, from, to, amount);
     return true;
   }
@@ -228,7 +241,7 @@ contract LocalCurrencyPolicy is Initializable, UUPSUpgradeable {
   // UUPS 업그레이드는 owner만 허용
   function _authorizeUpgrade(address) internal override onlyOwner {}
 
-  uint256[50] private __gap;
+  uint256[49] private __gap;
 
   function versionV5() external pure returns (string memory) {
     return "v5";
