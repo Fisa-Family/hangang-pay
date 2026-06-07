@@ -86,4 +86,12 @@ public interface TransactionRepository {
             TransactionStatus status,
             LocalDateTime startInclusive,
             LocalDateTime endExclusive);
+
+    /** 복구 대상 - 오래된 PROCESSING, 시도 한도 미만 */
+    List<Transaction> findStaleProcessingByType(
+            TransactionType type, LocalDateTime threshold, int maxAttempts);
+
+    /** 포기 대상 - 오래된 PROCESSING, 시도 횟수 정확히 한도(원샷 알림용) */
+    List<Transaction> findAbandonedProcessingByType(
+            TransactionType type, LocalDateTime threshold, int maxAttempts);
 }

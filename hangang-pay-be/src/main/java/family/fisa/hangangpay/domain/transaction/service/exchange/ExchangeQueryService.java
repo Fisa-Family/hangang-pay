@@ -1,4 +1,4 @@
-package family.fisa.hangangpay.domain.transaction.service;
+package family.fisa.hangangpay.domain.transaction.service.exchange;
 
 import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeInitResponse;
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;

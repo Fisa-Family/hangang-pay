@@ -8,4 +8,10 @@ public record BankTransactionStatusResponse(
         Long bankTransactionId,
         TransactionStatus status,
         String txHash,
-        LocalDateTime confirmedAt) {}
+        LocalDateTime confirmedAt) {
+
+    public static BankTransactionStatusResponse failed(String recoveryUuid) {
+        return new BankTransactionStatusResponse(
+                recoveryUuid, null, TransactionStatus.FAILED, null, null);
+    }
+}

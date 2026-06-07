@@ -59,6 +59,26 @@ sequenceDiagram
 
 결제 취소는 시간 제한 없이 가능하다. 요청 주체는 가맹점이다.
 
+### 결제·취소 실행 결과와 재시도
+
+결제 실행(`PAY-003`)과 결제 취소(`MERCHANT-004`)는 Bank 호출 결과에 따라 세 가지로 분기한다.
+
+| 결과 | HTTP | 응답 형태 | 의미 |
+| --- | --- | --- | --- |
+| `SUCCESS` | `200` | 공통 래퍼 `result`에 거래 결과 | 정상 완료 |
+| `UNKNOWN` | `200` | `result.status = UNKNOWN` | 은행 처리 확정 불가. 복구 API(`PAY-004`)와 스케줄러가 이후 정산 |
+| `FAILED` | `4xx` | `BusinessException` 에러 응답(`isSuccess=false`) | 은행이 결정적으로 거부. 성공 응답이 아니라 에러로 내려간다 |
+
+Bank 호출은 일시적 오류(연결/타임아웃, `5xx`, `409 DUPLICATE_PROCESSING`)에 한해 짧은 지연 후 **1회 동기 재시도**한다. 재시도 후에도 미해결이면 `UNKNOWN`으로 저장하고 복구 경로에 위임한다. 결정적 실패(`4xx` 등)는 재시도 없이 즉시 `FAILED`로 확정하고 정규화된 에러 코드를 던진다. Bank가 `transactionUuid`로 멱등 처리하므로 재시도가 이중 결제를 일으키지 않는다.
+
+FAILED 시 내려가는 정규화 에러 코드:
+
+| code | HTTP | 매핑 원천(Bank) |
+| --- | --- | --- |
+| `PAYMENT_INSUFFICIENT_BALANCE` | `400` | `TRANSACTION_INSUFFICIENT_BALANCE` |
+| `PAYMENT_ALREADY_FAILED` | `422` | `TRANSACTION_ALREADY_FAILED` |
+| `PAYMENT_FAILED` | `502` | 매핑되지 않은 그 외 Bank 실패(폴백) |
+
 ## Settlement and Exchange
 
 정산은 가맹점이 보유한 토큰을 1:1 비율로 계좌 환전 신청한 기록을 의미한다.
@@ -96,7 +116,7 @@ SMS 인증과 계좌 1원 인증은 mock으로 처리한다. 백엔드는 인증
 | `ACCOUNT-004` | 주거래 계좌 변경 | `PATCH` | `/accounts/{accountId}/primary` | `O` | `USER \| MERCHANT` | 본인 계좌만 변경 |
 | `PAY-001` | QR 가맹점 정보 조회 | `GET` | `/merchant/{merchantId}` | `O` | `USER` | QR 스캔 후 결제 플로우 진입 |
 | `PAY-002` | 결제 의도 생성 | `POST` | `/payment/intents` | `O` | `USER` | 금액·가맹점 정보 전달; transactionUuid 반환 |
-| `PAY-003` | 결제 실행 | `POST` | `/payment/execute` | `O` | `USER` | 소비자 전용 |
+| `PAY-003` | 결제 실행 | `POST` | `/payment/execute` | `O` | `USER` | 소비자 전용; 결과 SUCCESS/UNKNOWN=200, FAILED=4xx (상세는 Payment Flow) |
 | `PAY-004` | 결제 상태 복구 | `POST` | `/payment/{transactionUuid}/recover` | `O` | `USER` | 결제 실패·중단 시 상태 복구 |
 | `CHARGE-001` | 충전 정보 조회 | `GET` | `/charge/init` | `O` | `USER` | 충전 한도·할인 계산 포함 |
 | `CHARGE-002` | 충전 실행 | `POST` | `/charge` | `O` | `USER` | 소비자 전용 |
@@ -105,7 +125,7 @@ SMS 인증과 계좌 1원 인증은 mock으로 처리한다. 백엔드는 인증
 | `MERCHANT-001` | 가맹점 매출 요약 조회 | `GET` | `/merchant/dashboard` | `O` | `MERCHANT` | 가맹점 전용 |
 | `MERCHANT-002` | 가맹점 결제 내역 조회 | `GET` | `/merchant/payments` | `O` | `MERCHANT` | 가맹점 전용; item의 `transactionId`를 상세조회 path에 사용 |
 | `MERCHANT-003` | 가맹점 결제 상세 조회 | `GET` | `/merchant/payments/{transactionId}` | `O` | `MERCHANT` | `transactionId`는 `transaction.id`; 응답에 `PAYMENT`/`CANCEL` 타입 포함 |
-| `MERCHANT-004` | 결제 취소 | `POST` | `/merchant/payments/{paymentId}/cancel` | `O` | `MERCHANT` | 시간 제한 없음 |
+| `MERCHANT-004` | 결제 취소 | `POST` | `/merchant/payments/{paymentId}/cancel` | `O` | `MERCHANT` | 시간 제한 없음; 결과 SUCCESS/UNKNOWN=200, FAILED=4xx (상세는 Payment Flow) |
 | `MERCHANT-005` | 가맹점 정산 내역 조회 | `GET` | `/merchant/settlements` | `O` | `MERCHANT` | 현재 가맹점의 `EXCHANGE` 거래 조회 (`transaction.from_party_id = partyId`) |
 | `MERCHANT-006` | 가맹점 정산 신청 조회 | `GET` | `/merchant/redeem` | `O` | `MERCHANT` | 토큰→현금 |
 | `MERCHANT-007` | 가맹점 정산 신청 실행 | `POST` | `/merchant/redeem` | `O` | `MERCHANT` | 토큰→현금 |
