@@ -45,6 +45,3 @@ app:
   cors:
     allowed-origins:
       - ${VERCEL_PRODUCTION_URL}            # CorsConfig에서 읽어 허용 출처로 등록(FE 운영 도메인)
-
-session:
-  store-type: redis
