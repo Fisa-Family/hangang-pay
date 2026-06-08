@@ -66,7 +66,12 @@ public enum BlockchainErrorCode implements BaseErrorCode {
             HttpStatus.BAD_REQUEST, "BLOCKCHAIN_TRANSFER_FAILED", "토큰 이체에 실패했습니다."),
 
     BLOCKCHAIN_BANK_NOT_REGISTERED(
-            HttpStatus.BAD_REQUEST, "BLOCKCHAIN_BANK_NOT_REGISTERED", "등록되지 않은 은행입니다.");
+            HttpStatus.BAD_REQUEST, "BLOCKCHAIN_BANK_NOT_REGISTERED", "등록되지 않은 은행입니다."),
+
+    BLOCKCHAIN_SYNC_HANDLER_NOT_FOUND(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "BLOCKCHAIN_SYNC_HANDLER_NOT_FOUND",
+            "처리할 수 없는 블록체인 동기화 타입입니다.");
 
     private final HttpStatus status;
     private final String code;

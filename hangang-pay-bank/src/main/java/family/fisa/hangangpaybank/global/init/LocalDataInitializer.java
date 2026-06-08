@@ -114,21 +114,21 @@ public class LocalDataInitializer implements ApplicationRunner {
         bankAccountRepository.save(
                 BankAccount.builder()
                         .institution(woori)
-                        .accountNumber("1002-123-456789")
+                        .accountNumber("1002123456789")
                         .ownerName("테스트유저")
                         .balance(new BigDecimal("1000000.0000"))
                         .build());
         bankAccountRepository.save(
                 BankAccount.builder()
                         .institution(shinhan)
-                        .accountNumber("110-987-654321")
+                        .accountNumber("110987654321")
                         .ownerName("한강떡볶이")
                         .balance(BigDecimal.ZERO.setScale(4))
                         .build());
         bankAccountRepository.save(
                 BankAccount.builder()
                         .institution(shinhan)
-                        .accountNumber("110-111-222333")
+                        .accountNumber("110111222333")
                         .ownerName("환불가능유저")
                         .balance(new BigDecimal("1000000.0000"))
                         .build());

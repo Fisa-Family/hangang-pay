@@ -15,7 +15,6 @@ import family.fisa.hangangpaybank.domain.ledger.entity.AccountLedger;
 import family.fisa.hangangpaybank.domain.ledger.entity.LedgerStatus;
 import family.fisa.hangangpaybank.domain.ledger.entity.LedgerType;
 import family.fisa.hangangpaybank.domain.ledger.repository.AccountLedgerRepository;
-import family.fisa.hangangpaybank.domain.transaction.code.error.TransactionErrorCode;
 import family.fisa.hangangpaybank.domain.transaction.dto.request.CancelRequest;
 import family.fisa.hangangpaybank.domain.transaction.dto.request.ChargeRequest;
 import family.fisa.hangangpaybank.domain.transaction.dto.request.PaymentRequest;
@@ -32,13 +31,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 
+/**
+ * 결제/취소/충전 트랜잭션을 처리하는 커맨드 서비스.
+ *
+ * <p>payment/cancel은 오케스트레이터 역할만 담당한다. 메인 DB 트랜잭션은 PaymentExecutionService가 수행하고, 실패 ledger 저장은
+ * rollback 이후 REQUIRES_NEW로 남긴다. charge는 기존 동기 방식을 유지한다.
+ */
 @Service
 @RequiredArgsConstructor
-@Transactional
 @Slf4j
 public class TransactionCommandService {
 
-    /** ERC20 기본 decimals (1e18) - BigDecimal 금액을 컨트랙트 단위로 변환할 때 사용 */
+    /** ERC20 기본 decimals (1e18) — BigDecimal 금액을 컨트랙트 단위로 변환할 때 사용 */
     private static final BigInteger TOKEN_DECIMALS = BigInteger.TEN.pow(18);
 
     private final BankAccountRepository bankAccountRepository;
@@ -48,8 +52,10 @@ public class TransactionCommandService {
     private final AccountLedgerRepository accountLedgerRepository;
     private final ContractCallService contractCallService;
     private final PaymentStateWriter paymentStateWriter;
+    private final PaymentExecutionService paymentExecutionService;
 
-    /** 충전: 계좌 → 토큰 mint */
+    /** 충전: 계좌 → 토큰 mint. 동기 블록체인 호출을 유지한다. */
+    @Transactional
     public ChargeResponse charge(ChargeRequest request) {
         log.info(
                 "[bank] charge 시작. transactionUuid={}, institutionId={}, amount={}",
@@ -71,7 +77,7 @@ public class TransactionCommandService {
         BigDecimal newAccountBalance = bankAccount.getBalance().subtract(request.amount());
         bankAccount.updateBalance(newAccountBalance);
 
-        // 5. account_ledger WITHDRAWAL 기록 (저장 후 채번된 id를 응답에 사용)
+        // 5. account_ledger WITHDRAWAL 기록
         AccountLedger savedAccountLedger =
                 accountLedgerRepository.save(
                         AccountLedger.builder()
@@ -83,20 +89,20 @@ public class TransactionCommandService {
                                 .idempotentKey(request.transactionUuid())
                                 .build());
 
-        // 6. 블록체인 mint 호출 (충전가 mint, 컨트랙트에서 실제로는 amount 단위로 mint하지만, BE에서는 할인율 적용된 finalAmount 단위로
-        // 멱등성 판단)
+        // 6. 블록체인 mint 호출
         TransactionReceipt receipt =
                 contractCallService.charge(
                         request.institutionId(),
                         bankWallet.getWalletAddress(),
                         toTokenUnit(request.mintAmount()));
 
-        // 7. blockchain_ledger 기록 (idempotent_key = BE의 transactionUuid)
+        // 7. blockchain_ledger 기록
         BlockchainLedger ledger =
                 saveBlockchainLedger(institution, receipt, request.transactionUuid());
 
         // 8. 지갑 잔액은 컨트랙트 balanceOf 기준으로 조회한다.
-        BigDecimal walletBalance = getTokenBalance(bankWallet);
+        BigDecimal walletBalance =
+                fromTokenUnit(contractCallService.getBalance(bankWallet.getWalletAddress()));
 
         // 9. Response 반환
         return new ChargeResponse(
@@ -108,169 +114,44 @@ public class TransactionCommandService {
                 walletBalance);
     }
 
-    /** 결제: 지갑 → 지갑 transfer */
     public PaymentResponse payment(PaymentRequest request) {
-        log.info(
-                "[bank] payment 시작. transactionUuid={}, amount={}",
-                request.transactionUuid(),
-                request.amount());
-
-        // 1. 송신/수신 지갑 조회
-        BankWallet fromWallet = findBankWallet(request.fromWalletAddress());
-        BankWallet toWallet = findBankWallet(request.toWalletAddress());
-
-        // 2. 멱등성 확인 (기존 ledger가 있으면 분기 처리)
-        return paymentStateWriter
-                .findExisting(request.transactionUuid())
-                .map(
-                        existing -> {
-                            switch (existing.getStatus()) {
-                                case SUCCESS -> {
-                                    // 이미 완료된 거래 → 기존 결과를 그대로 반환 (컨트랙트 재호출 없음)
-                                    log.info(
-                                            "[bank] 멱등성: CONFIRMED 재요청 감지. transactionUuid={}",
-                                            request.transactionUuid());
-                                    return paymentStateWriter.buildResponseFromConfirmed(
-                                            existing,
-                                            request.transactionUuid(),
-                                            getTokenBalance(fromWallet),
-                                            getTokenBalance(toWallet));
-                                }
-                                case PENDING -> {
-                                    // 처리 중인 거래 → 중복 요청 에러
-                                    paymentStateWriter.throwDuplicateProcessing(
-                                            request.transactionUuid());
-                                    return null; // throwDuplicateProcessing이 예외를 던지므로 도달 불가
-                                }
-                                default -> {
-                                    // FAILED → 재시도 불가 에러
-                                    paymentStateWriter.throwAlreadyFailed(
-                                            request.transactionUuid());
-                                    return null; // throwAlreadyFailed가 예외를 던지므로 도달 불가
-                                }
-                            }
-                        })
-                .orElseGet(
-                        () -> {
-                            // 3. 컨트랙트 잔액 검증
-                            ensureSufficientTokenBalance(
-                                    getTokenBalanceUnit(fromWallet), toTokenUnit(request.amount()));
-
-                            // 4. PENDING blockchain_ledger 먼저 저장 (멱등성 키 확보)
-                            BlockchainLedger ledger =
-                                    paymentStateWriter.preparePending(
-                                            request.transactionUuid(), fromWallet.getInstitution());
-
-                            // 5. 블록체인 transfer 호출
-                            try {
-                                TransactionReceipt receipt =
-                                        contractCallService.pay(
-                                                fromWallet.getWalletAddress(),
-                                                toWallet.getWalletAddress(),
-                                                toTokenUnit(request.amount()));
-
-                                // 6. 지갑 잔액은 컨트랙트 balanceOf 기준으로 조회한다.
-                                BigDecimal fromBalance = getTokenBalance(fromWallet);
-                                BigDecimal toBalance = getTokenBalance(toWallet);
-
-                                // 7. CONFIRMED 전환 후 응답 반환
-                                return paymentStateWriter.completePayment(
-                                        ledger.getId(),
-                                        receipt,
-                                        request.transactionUuid(),
-                                        fromBalance,
-                                        toBalance);
-
-                            } catch (Exception e) {
-                                // 8. 컨트랙트 실패 → FAILED 전환
-                                paymentStateWriter.markFailed(
-                                        ledger.getId(), request.transactionUuid());
-                                throw e;
-                            }
-                        });
+        try {
+            // 결제 실행을 paymentExecutionService에게 위임
+            return paymentExecutionService.payment(request);
+        } catch (BusinessException e) {
+            log.warn(
+                    "[bank] payment 비즈니스 실패. transactionUuid={}, message={}",
+                    request.transactionUuid(),
+                    e.getMessage());
+            // 실패 시 에러 반환 -> 이후 wallet ledger failed 기록
+            paymentStateWriter.saveFailedWalletLedgersByAddress(
+                    request.fromWalletAddress(),
+                    request.toWalletAddress(),
+                    request.transactionUuid(),
+                    request.amount());
+            throw e;
+        }
     }
 
-    /** 결제 취소: PAYMENT 역방향 transfer */
     public CancelResponse cancel(CancelRequest request) {
-        log.info(
-                "[bank] cancel 시작. transactionUuid={}, originalTransactionUuid={}",
-                request.transactionUuid(),
-                request.originalTransactionUuid());
-
-        // 1. 송신/수신 지갑 조회 (BE에서 이미 역방향으로 들어옴)
-        BankWallet fromWallet = findBankWallet(request.fromWalletAddress());
-        BankWallet toWallet = findBankWallet(request.toWalletAddress());
-
-        // 2. 멱등성 확인 (기존 ledger가 있으면 분기 처리)
-        return paymentStateWriter
-                .findExisting(request.transactionUuid())
-                .map(
-                        existing -> {
-                            switch (existing.getStatus()) {
-                                case SUCCESS -> {
-                                    // 이미 완료된 취소 → 기존 결과를 그대로 반환
-                                    log.info(
-                                            "[bank] 멱등성: 취소 CONFIRMED 재요청 감지. transactionUuid={}",
-                                            request.transactionUuid());
-                                    return paymentStateWriter.buildCancelResponseFromConfirmed(
-                                            existing,
-                                            request.transactionUuid(),
-                                            request.originalTransactionUuid(),
-                                            getTokenBalance(fromWallet),
-                                            getTokenBalance(toWallet));
-                                }
-                                case PENDING -> {
-                                    paymentStateWriter.throwDuplicateProcessing(
-                                            request.transactionUuid());
-                                    return null;
-                                }
-                                default -> {
-                                    paymentStateWriter.throwAlreadyFailed(
-                                            request.transactionUuid());
-                                    return null;
-                                }
-                            }
-                        })
-                .orElseGet(
-                        () -> {
-                            // 3. 컨트랙트 잔액 검증
-                            ensureSufficientTokenBalance(
-                                    getTokenBalanceUnit(fromWallet), toTokenUnit(request.amount()));
-
-                            // 4. PENDING blockchain_ledger 먼저 저장 (멱등성 키 확보)
-                            BlockchainLedger ledger =
-                                    paymentStateWriter.preparePending(
-                                            request.transactionUuid(), fromWallet.getInstitution());
-
-                            // 5. 블록체인 cancelPayment 호출
-                            try {
-                                TransactionReceipt receipt =
-                                        contractCallService.cancelPayment(
-                                                fromWallet.getWalletAddress(),
-                                                toWallet.getWalletAddress(),
-                                                toTokenUnit(request.amount()));
-
-                                // 6. 지갑 잔액은 컨트랙트 balanceOf 기준으로 조회한다.
-                                BigDecimal fromBalance = getTokenBalance(fromWallet);
-                                BigDecimal toBalance = getTokenBalance(toWallet);
-
-                                // 7. CONFIRMED 전환 후 응답 반환
-                                return paymentStateWriter.completeCancel(
-                                        ledger.getId(),
-                                        receipt,
-                                        request.transactionUuid(),
-                                        request.originalTransactionUuid(),
-                                        fromBalance,
-                                        toBalance);
-
-                            } catch (Exception e) {
-                                // 8. 컨트랙트 실패 → FAILED 전환
-                                paymentStateWriter.markFailed(
-                                        ledger.getId(), request.transactionUuid());
-                                throw e;
-                            }
-                        });
+        try {
+            return paymentExecutionService.cancel(request);
+        } catch (BusinessException e) {
+            log.warn(
+                    "[bank] cancel 비즈니스 실패. transactionUuid={}, originalTransactionUuid={}, message={}",
+                    request.transactionUuid(),
+                    request.originalTransactionUuid(),
+                    e.getMessage());
+            paymentStateWriter.saveFailedWalletLedgersByAddress(
+                    request.fromWalletAddress(),
+                    request.toWalletAddress(),
+                    request.transactionUuid(),
+                    request.amount());
+            throw e;
+        }
     }
+
+    // ── 공통 헬퍼 ─────────────────────────────────────────────────────────────
 
     private Institution findInstitution(Long institutionId) {
         return institutionRepository
@@ -295,18 +176,12 @@ public class TransactionCommandService {
 
     private static void ensureSufficientBalance(BigDecimal balance, BigDecimal amount) {
         if (balance.compareTo(amount) < 0) {
-            throw new BusinessException(TransactionErrorCode.TRANSACTION_INSUFFICIENT_BALANCE);
+            throw new BusinessException(
+                    family.fisa.hangangpaybank.domain.transaction.code.error.TransactionErrorCode
+                            .TRANSACTION_INSUFFICIENT_BALANCE);
         }
     }
 
-    private static void ensureSufficientTokenBalance(
-            BigInteger tokenBalance, BigInteger tokenAmount) {
-        if (tokenBalance.compareTo(tokenAmount) < 0) {
-            throw new BusinessException(TransactionErrorCode.TRANSACTION_INSUFFICIENT_BALANCE);
-        }
-    }
-
-    /** wallet_address 정규화: 0x prefix + 소문자 */
     private static String normalizeAddress(String address) {
         if (address == null) {
             return null;
@@ -315,27 +190,15 @@ public class TransactionCommandService {
         return lower.startsWith("0x") ? lower : "0x" + lower;
     }
 
-    /** BigDecimal 금액을 컨트랙트 단위(1e18 wei)로 변환 */
     private static BigInteger toTokenUnit(BigDecimal amount) {
         return amount.multiply(new BigDecimal(TOKEN_DECIMALS)).toBigInteger();
     }
 
     private static BigDecimal fromTokenUnit(BigInteger amount) {
-        // 컨트랙트 balanceOf 결과(ERC20 최소 단위)를 서비스 응답용 금액으로 변환한다.
         return new BigDecimal(amount).divide(new BigDecimal(TOKEN_DECIMALS));
     }
 
-    private BigInteger getTokenBalanceUnit(BankWallet bankWallet) {
-        // 지갑 잔액은 DB가 아니라 컨트랙트 balanceOf를 source of truth로 조회한다.
-        return contractCallService.getBalance(bankWallet.getWalletAddress());
-    }
-
-    private BigDecimal getTokenBalance(BankWallet bankWallet) {
-        // 컨트랙트 잔액을 조회한 뒤 사용자/응답에서 쓰는 금액 단위로 변환한다.
-        return fromTokenUnit(getTokenBalanceUnit(bankWallet));
-    }
-
-    /** TransactionReceipt에서 핵심 정보를 추출해 blockchain_ledger row 저장 */
+    /** TransactionReceipt에서 핵심 정보를 추출해 blockchain_ledger row 저장 (charge 전용) */
     private BlockchainLedger saveBlockchainLedger(
             Institution institution, TransactionReceipt receipt, String idempotentKey) {
         Long blockNumber =
