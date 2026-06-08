@@ -77,6 +77,7 @@ public class TransactionCommandService {
     private final CancelLockManager cancelLockManager;
     private final PaymentExecutionStateWriter paymentExecutionStateWriter;
     private final CancelExecutionStateWriter cancelExecutionStateWriter;
+    private final CancelRequestHashGenerator cancelRequestHashGenerator;
 
     @Transactional
     public PaymentIntentResponse createPaymentIntent(
@@ -248,7 +249,8 @@ public class TransactionCommandService {
             String originalTransactionUuid,
             PaymentCancelRequest request) {
         /** 1. 멱등성 판정 */
-        String requestHash = String.valueOf(merchantPartyId);
+        String requestHash =
+                cancelRequestHashGenerator.generate(originalTransactionUuid, merchantPartyId);
 
         CancelIdempotencyDecision decision =
                 cancelIdempotencyStore.beginCancel(originalTransactionUuid, requestHash);
