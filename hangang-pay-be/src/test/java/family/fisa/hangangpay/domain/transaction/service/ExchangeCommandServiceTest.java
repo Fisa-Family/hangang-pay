@@ -7,19 +7,22 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import family.fisa.hangangpay.client.bank.BankClient;
+import family.fisa.hangangpay.client.bank.dto.BankActResult;
 import family.fisa.hangangpay.client.bank.dto.ExchangeRequest;
 import family.fisa.hangangpay.client.bank.dto.ExchangeResponse;
-import family.fisa.hangangpay.domain.merchant.code.MerchantErrorCode;
+import family.fisa.hangangpay.domain.account.entity.AccountType;
 import family.fisa.hangangpay.domain.merchant.entity.Merchant;
 import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
 import family.fisa.hangangpay.domain.transaction.dto.request.ExchangeExecuteRequest;
+import family.fisa.hangangpay.domain.transaction.dto.request.ExchangeIntentCreateRequest;
 import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeExecuteResponse;
-import family.fisa.hangangpay.domain.transaction.entity.Transaction;
+import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeIntentResponse;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.internal.exchange.ExchangeIdempotencyDecision;
 import family.fisa.hangangpay.domain.transaction.internal.exchange.ExchangeIdempotencyStore;
@@ -42,7 +45,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.client.ResourceAccessException;
 
 @ExtendWith(MockitoExtension.class)
 class ExchangeCommandServiceTest {
@@ -66,49 +68,45 @@ class ExchangeCommandServiceTest {
     private static final String BANK_TX_ID_STR = "999";
     private static final String PIN = "123456";
 
-    private ExchangeExecuteRequest request(String amount) {
-        return new ExchangeExecuteRequest(UUID, new BigDecimal(amount), PIN);
+    private ExchangeIntentCreateRequest intentRequest() {
+        return new ExchangeIntentCreateRequest(UUID, new BigDecimal("50000"));
     }
 
-    /** stateWriter가 mock이라 필드는 거의 무의미. 오케스트레이터가 들고 다닐 비저장 엔티티 역할만 한다. */
-    private Transaction exchangeTransaction() {
-        return Transaction.builder().transactionUuid(UUID).build();
+    private ExchangeExecuteRequest executeRequest() {
+        return new ExchangeExecuteRequest(PIN);
     }
 
-    /** 성공 snapshot (RETURN_SNAPSHOT / 정상 완료 응답 공용) */
-    private ExchangeExecuteResponse successResponse() {
+    private ExchangeIntentResponse intentResponse() {
+        return new ExchangeIntentResponse(
+                UUID,
+                TransactionStatus.PENDING,
+                new BigDecimal("50000"),
+                "110-1234-5678",
+                "우리은행",
+                LocalDateTime.now());
+    }
+
+    private ExchangeExecuteResponse response(TransactionStatus status) {
         return ExchangeExecuteResponse.builder()
                 .transactionId(TRANSACTION_ID)
                 .transactionUuid(UUID)
                 .amount(new BigDecimal("50000"))
                 .accountNumber("110-1234-5678")
                 .bankName("우리은행")
-                .txHash(TX_HASH)
-                .status(TransactionStatus.SUCCESS)
+                .txHash(status == TransactionStatus.SUCCESS ? TX_HASH : null)
+                .status(status)
                 .exchangedAt(LocalDateTime.now())
                 .build();
     }
 
-    /** "확인 중"(UNKNOWN) 응답 */
-    private ExchangeExecuteResponse unknownResponse() {
-        return ExchangeExecuteResponse.builder()
-                .transactionId(TRANSACTION_ID)
-                .transactionUuid(UUID)
-                .amount(new BigDecimal("50000"))
-                .accountNumber("110-1234-5678")
-                .bankName("우리은행")
-                .txHash(null)
-                .status(TransactionStatus.UNKNOWN)
-                .exchangedAt(LocalDateTime.now())
-                .build();
+    private ExchangeRequest bankRequest() {
+        return new ExchangeRequest(UUID, 1L, "0xabc", "110-1234", new BigDecimal("50000"));
     }
 
     private ExchangeResponse bankResponse() {
         return new ExchangeResponse(
                 UUID, BANK_TX_ID, TX_HASH, 12345L, LocalDateTime.now(), new BigDecimal("50000"));
     }
-
-    // ── 공통 stub ──────────────────────────────────────────────────────────
 
     private void stubUserPinPass() {
         User user = mock(User.class);
@@ -126,369 +124,251 @@ class ExchangeCommandServiceTest {
         when(idempotencyStore.beginExecution(eq(UUID), any())).thenReturn(decision);
     }
 
-    /** 사용자 정상 흐름: 게이트 NEW + 자격 통과 + claim → bank → complete stub */
-    private ExchangeExecuteResponse stubUserHappyPath() {
-        ExchangeRequest bankReq =
-                new ExchangeRequest(UUID, 1L, "0xabc", "110-1234", new BigDecimal("50000"));
-        ExchangeExecuteResponse expected = successResponse();
-
-        stubGate(ExchangeIdempotencyDecision.newRequest());
-        when(exchangeQueryService.checkEligibility(PARTY_ID)).thenReturn(true);
-        when(stateWriter.claimExchange(eq(PARTY_ID), any(ExchangeExecuteRequest.class)))
-                .thenReturn(exchangeTransaction());
-        when(stateWriter.buildBankRequest(
-                        any(Transaction.class), any(ExchangeExecuteRequest.class)))
-                .thenReturn(bankReq);
-        when(bankClient.exchange(bankReq)).thenReturn(bankResponse());
-        when(stateWriter.completeExchange(any(Transaction.class), eq(TX_HASH), eq(BANK_TX_ID_STR)))
-                .thenReturn(expected);
-        return expected;
-    }
-
-    // ── 멱등 게이트 분기 ────────────────────────────────────────────────────
+    // ── intent 생성 ────────────────────────────────────────────────────────
 
     @Nested
-    @DisplayName("멱등 게이트")
-    class Idempotency {
+    @DisplayName("intent 생성")
+    class CreateIntent {
 
         @Test
-        @DisplayName("RETURN_SNAPSHOT -> 저장된 응답 반환, claim/bank 호출 안 함")
-        void 멱등_성공_재요청() {
+        @DisplayName("user: 자격 통과 -> createIntent(PRIMARY) 호출")
+        void user_정상() {
+            when(exchangeQueryService.checkEligibility(PARTY_ID)).thenReturn(true);
+            ExchangeIntentResponse expected = intentResponse();
+            when(stateWriter.createIntent(
+                            eq(PARTY_ID),
+                            any(ExchangeIntentCreateRequest.class),
+                            eq(AccountType.PRIMARY),
+                            any(LocalDateTime.class)))
+                    .thenReturn(expected);
+
+            ExchangeIntentResponse out =
+                    exchangeCommandService.createUserIntent(PARTY_ID, intentRequest());
+
+            assertThat(out).isSameAs(expected);
+        }
+
+        @Test
+        @DisplayName("user: 자격 미달 -> EXCHANGE_NOT_ELIGIBLE, createIntent 호출 안 함")
+        void user_자격미달() {
+            when(exchangeQueryService.checkEligibility(PARTY_ID)).thenReturn(false);
+
+            assertThatThrownBy(
+                            () ->
+                                    exchangeCommandService.createUserIntent(
+                                            PARTY_ID, intentRequest()))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("code")
+                    .isEqualTo(TransactionErrorCode.EXCHANGE_NOT_ELIGIBLE);
+
+            verify(stateWriter, never()).createIntent(any(), any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("merchant: 자격 검증 없이 createIntent(SETTLEMENT)")
+        void merchant_정상() {
+            ExchangeIntentResponse expected = intentResponse();
+            when(stateWriter.createIntent(
+                            eq(PARTY_ID),
+                            any(ExchangeIntentCreateRequest.class),
+                            eq(AccountType.SETTLEMENT),
+                            any(LocalDateTime.class)))
+                    .thenReturn(expected);
+
+            ExchangeIntentResponse out =
+                    exchangeCommandService.createMerchantIntent(PARTY_ID, intentRequest());
+
+            assertThat(out).isSameAs(expected);
+            verify(exchangeQueryService, never()).checkEligibility(any());
+        }
+    }
+
+    // ── 실행: 게이트 분기 ───────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("실행 - 멱등 게이트")
+    class Gate {
+
+        @Test
+        @DisplayName("RETURN_SNAPSHOT -> 스냅샷 반환, claim/bank 호출 안 함")
+        void 스냅샷() {
             stubUserPinPass();
-            ExchangeExecuteResponse snapshot = successResponse();
+            ExchangeExecuteResponse snapshot = response(TransactionStatus.SUCCESS);
             stubGate(ExchangeIdempotencyDecision.returnSnapshot(snapshot));
 
-            ExchangeExecuteResponse response =
-                    exchangeCommandService.executeUserExchange(PARTY_ID, request("50000"));
+            ExchangeExecuteResponse out =
+                    exchangeCommandService.executeUserExchange(PARTY_ID, UUID, executeRequest());
 
-            assertThat(response).isSameAs(snapshot);
-            verify(exchangeQueryService, never()).checkEligibility(any());
-            verify(stateWriter, never()).claimExchange(any(), any());
+            assertThat(out).isSameAs(snapshot);
+            verify(stateWriter, never()).claimForExecution(any());
             verify(bankClient, never()).exchange(any());
         }
 
         @Test
         @DisplayName("ALREADY_FAILED -> EXCHANGE_ALREADY_FAILED")
-        void 멱등_이미_실패() {
+        void 이미_실패() {
             stubUserPinPass();
             stubGate(ExchangeIdempotencyDecision.alreadyFailed());
 
             assertThatThrownBy(
                             () ->
                                     exchangeCommandService.executeUserExchange(
-                                            PARTY_ID, request("50000")))
+                                            PARTY_ID, UUID, executeRequest()))
                     .isInstanceOf(BusinessException.class)
                     .extracting("code")
                     .isEqualTo(TransactionErrorCode.EXCHANGE_ALREADY_FAILED);
-
-            verify(stateWriter, never()).claimExchange(any(), any());
         }
 
         @Test
         @DisplayName("PROCESSING -> EXCHANGE_IN_PROGRESS")
-        void 멱등_진행중() {
+        void 진행중() {
             stubUserPinPass();
             stubGate(ExchangeIdempotencyDecision.processing());
 
             assertThatThrownBy(
                             () ->
                                     exchangeCommandService.executeUserExchange(
-                                            PARTY_ID, request("50000")))
+                                            PARTY_ID, UUID, executeRequest()))
                     .isInstanceOf(BusinessException.class)
                     .extracting("code")
                     .isEqualTo(TransactionErrorCode.EXCHANGE_IN_PROGRESS);
-
-            verify(stateWriter, never()).claimExchange(any(), any());
-        }
-
-        @Test
-        @DisplayName("CONFLICT -> IDEMPOTENCY_CONFLICT")
-        void 멱등_충돌() {
-            stubUserPinPass();
-            stubGate(ExchangeIdempotencyDecision.conflict());
-
-            assertThatThrownBy(
-                            () ->
-                                    exchangeCommandService.executeUserExchange(
-                                            PARTY_ID, request("50000")))
-                    .isInstanceOf(BusinessException.class)
-                    .extracting("code")
-                    .isEqualTo(TransactionErrorCode.IDEMPOTENCY_CONFLICT);
-
-            verify(stateWriter, never()).claimExchange(any(), any());
         }
     }
 
-    // ── 환전 자격 ──────────────────────────────────────────────────────────
+    // ── 실행: 본 흐름 ───────────────────────────────────────────────────────
 
     @Nested
-    @DisplayName("환전 자격 (60% 룰)")
-    class Eligibility {
+    @DisplayName("실행 - 본 흐름")
+    class Execute {
 
         @Test
-        @DisplayName("자격 미달 -> EXCHANGE_NOT_ELIGIBLE, claim 호출 안 함")
-        void 자격_미달() {
+        @DisplayName("PENDING 선점 + bank SUCCESS -> markSuccess + completeExecution")
+        void 정상_성공() {
             stubUserPinPass();
             stubGate(ExchangeIdempotencyDecision.newRequest());
-            when(exchangeQueryService.checkEligibility(PARTY_ID)).thenReturn(false);
+            when(stateWriter.claimForExecution(UUID)).thenReturn(TransactionStatus.PROCESSING);
+            ExchangeRequest req = bankRequest();
+            when(stateWriter.getBankRequest(UUID)).thenReturn(req);
+            when(bankClient.exchange(req)).thenReturn(BankActResult.success(bankResponse()));
+            ExchangeExecuteResponse resp = response(TransactionStatus.SUCCESS);
+            when(stateWriter.markSuccess(UUID, TX_HASH, BANK_TX_ID_STR)).thenReturn(resp);
 
-            assertThatThrownBy(
-                            () ->
-                                    exchangeCommandService.executeUserExchange(
-                                            PARTY_ID, request("50000")))
-                    .isInstanceOf(BusinessException.class)
-                    .extracting("code")
-                    .isEqualTo(TransactionErrorCode.EXCHANGE_NOT_ELIGIBLE);
+            ExchangeExecuteResponse out =
+                    exchangeCommandService.executeUserExchange(PARTY_ID, UUID, executeRequest());
 
-            verify(stateWriter, never()).claimExchange(any(), any());
-        }
-
-        @Test
-        @DisplayName("자격 통과 -> 정상 실행")
-        void 자격_통과() {
-            stubUserPinPass();
-            ExchangeExecuteResponse expected = stubUserHappyPath();
-
-            ExchangeExecuteResponse response =
-                    exchangeCommandService.executeUserExchange(PARTY_ID, request("50000"));
-
-            assertThat(response).isSameAs(expected);
-        }
-    }
-
-    // ── 정상 흐름 ──────────────────────────────────────────────────────────
-
-    @Nested
-    @DisplayName("정상 흐름")
-    class HappyPath {
-
-        @Test
-        @DisplayName("게이트 NEW + 자격 통과 -> claim -> bank -> complete -> 멱등snapshot 저장")
-        void 정상_호출_순서() {
-            stubUserPinPass();
-            ExchangeExecuteResponse expected = stubUserHappyPath();
-
-            ExchangeExecuteResponse response =
-                    exchangeCommandService.executeUserExchange(PARTY_ID, request("50000"));
-
-            assertThat(response).isSameAs(expected);
-            verify(stateWriter).claimExchange(eq(PARTY_ID), any(ExchangeExecuteRequest.class));
-            verify(bankClient).exchange(any(ExchangeRequest.class));
-            verify(stateWriter)
-                    .completeExchange(any(Transaction.class), eq(TX_HASH), eq(BANK_TX_ID_STR));
-            verify(idempotencyStore).completeExecution(UUID, expected);
-            verify(stateWriter, never()).markUnknownExchange(any(Transaction.class));
+            assertThat(out).isSameAs(resp);
+            verify(idempotencyStore).completeExecution(UUID, resp);
             verify(idempotencyStore, never()).failExecution(any());
         }
-    }
-
-    // ── 응답 불확실(타임아웃) → UNKNOWN ──────────────────────────────────────
-
-    @Nested
-    @DisplayName("응답 불확실 → UNKNOWN")
-    class UnknownHandling {
 
         @Test
-        @DisplayName("ResourceAccessException -> markUnknownExchange 반환, 재던짐/failExecution 안 함")
-        void 타임아웃_UNKNOWN() {
+        @DisplayName("bank FAILURE -> markFailed + failExecution")
+        void 실패() {
             stubUserPinPass();
             stubGate(ExchangeIdempotencyDecision.newRequest());
-            when(exchangeQueryService.checkEligibility(PARTY_ID)).thenReturn(true);
+            when(stateWriter.claimForExecution(UUID)).thenReturn(TransactionStatus.PROCESSING);
+            ExchangeRequest req = bankRequest();
+            when(stateWriter.getBankRequest(UUID)).thenReturn(req);
+            when(bankClient.exchange(req)).thenReturn(BankActResult.failure());
+            ExchangeExecuteResponse resp = response(TransactionStatus.FAILED);
+            when(stateWriter.markFailed(UUID)).thenReturn(resp);
 
-            ExchangeRequest bankReq =
-                    new ExchangeRequest(UUID, 1L, "0xabc", "110-1234", new BigDecimal("50000"));
-            when(stateWriter.claimExchange(eq(PARTY_ID), any(ExchangeExecuteRequest.class)))
-                    .thenReturn(exchangeTransaction());
-            when(stateWriter.buildBankRequest(
-                            any(Transaction.class), any(ExchangeExecuteRequest.class)))
-                    .thenReturn(bankReq);
-            when(bankClient.exchange(bankReq)).thenThrow(new ResourceAccessException("timeout"));
-            ExchangeExecuteResponse unknown = unknownResponse();
-            when(stateWriter.markUnknownExchange(any(Transaction.class))).thenReturn(unknown);
+            ExchangeExecuteResponse out =
+                    exchangeCommandService.executeUserExchange(PARTY_ID, UUID, executeRequest());
 
-            ExchangeExecuteResponse response =
-                    exchangeCommandService.executeUserExchange(PARTY_ID, request("50000"));
-
-            assertThat(response).isSameAs(unknown);
-            verify(stateWriter).markUnknownExchange(any(Transaction.class));
-            verify(idempotencyStore, never()).failExecution(any());
-            verify(idempotencyStore, never()).completeExecution(any(), any());
-            verify(stateWriter, never()).completeExchange(any(Transaction.class), any(), any());
-        }
-    }
-
-    // ── 실패 처리 ──────────────────────────────────────────────────────────
-
-    @Nested
-    @DisplayName("실패 처리")
-    class FailureHandling {
-
-        @Test
-        @DisplayName("bank 명확 거절(RuntimeException) -> 멱등 failExecution + 원 예외 재던짐, 저장 안 함")
-        void bank_거절() {
-            stubUserPinPass();
-            stubGate(ExchangeIdempotencyDecision.newRequest());
-            when(exchangeQueryService.checkEligibility(PARTY_ID)).thenReturn(true);
-
-            ExchangeRequest bankReq =
-                    new ExchangeRequest(UUID, 1L, "0xabc", "110-1234", new BigDecimal("50000"));
-            when(stateWriter.claimExchange(eq(PARTY_ID), any(ExchangeExecuteRequest.class)))
-                    .thenReturn(exchangeTransaction());
-            when(stateWriter.buildBankRequest(
-                            any(Transaction.class), any(ExchangeExecuteRequest.class)))
-                    .thenReturn(bankReq);
-            RuntimeException bankEx = new RuntimeException("bank rejected");
-            when(bankClient.exchange(bankReq)).thenThrow(bankEx);
-
-            assertThatThrownBy(
-                            () ->
-                                    exchangeCommandService.executeUserExchange(
-                                            PARTY_ID, request("50000")))
-                    .isSameAs(bankEx);
-
+            assertThat(out).isSameAs(resp);
             verify(idempotencyStore).failExecution(UUID);
-            verify(stateWriter, never()).markUnknownExchange(any(Transaction.class));
-            verify(stateWriter, never()).completeExchange(any(Transaction.class), any(), any());
-            verify(idempotencyStore, never()).completeExecution(any(), any());
         }
 
         @Test
-        @DisplayName("claim 단계 예외 -> bank/complete/markUnknown/failExecution 미호출")
-        void claim_실패() {
+        @DisplayName("bank UNKNOWN -> 재시도 SUCCESS")
+        void 불확실_재시도_성공() {
             stubUserPinPass();
             stubGate(ExchangeIdempotencyDecision.newRequest());
-            when(exchangeQueryService.checkEligibility(PARTY_ID)).thenReturn(true);
+            when(stateWriter.claimForExecution(UUID)).thenReturn(TransactionStatus.PROCESSING);
+            ExchangeRequest req = bankRequest();
+            when(stateWriter.getBankRequest(UUID)).thenReturn(req);
+            when(bankClient.exchange(req))
+                    .thenReturn(BankActResult.unknown())
+                    .thenReturn(BankActResult.success(bankResponse()));
+            ExchangeExecuteResponse resp = response(TransactionStatus.SUCCESS);
+            when(stateWriter.markSuccess(UUID, TX_HASH, BANK_TX_ID_STR)).thenReturn(resp);
 
-            BusinessException claimEx =
-                    new BusinessException(TransactionErrorCode.WALLET_NOT_FOUND);
-            when(stateWriter.claimExchange(eq(PARTY_ID), any(ExchangeExecuteRequest.class)))
-                    .thenThrow(claimEx);
+            ExchangeExecuteResponse out =
+                    exchangeCommandService.executeUserExchange(PARTY_ID, UUID, executeRequest());
 
-            assertThatThrownBy(
-                            () ->
-                                    exchangeCommandService.executeUserExchange(
-                                            PARTY_ID, request("50000")))
-                    .isSameAs(claimEx);
+            assertThat(out).isSameAs(resp);
+            verify(bankClient, times(2)).exchange(req);
+            verify(idempotencyStore).completeExecution(UUID, resp);
+        }
 
-            verify(bankClient, never()).exchange(any());
-            verify(stateWriter, never()).completeExchange(any(Transaction.class), any(), any());
-            verify(stateWriter, never()).markUnknownExchange(any(Transaction.class));
+        @Test
+        @DisplayName("bank UNKNOWN 2회 -> markUnknown, Redis 동기화 안 함")
+        void 불확실_둘다() {
+            stubUserPinPass();
+            stubGate(ExchangeIdempotencyDecision.newRequest());
+            when(stateWriter.claimForExecution(UUID)).thenReturn(TransactionStatus.PROCESSING);
+            ExchangeRequest req = bankRequest();
+            when(stateWriter.getBankRequest(UUID)).thenReturn(req);
+            when(bankClient.exchange(req)).thenReturn(BankActResult.unknown());
+            ExchangeExecuteResponse resp = response(TransactionStatus.UNKNOWN);
+            when(stateWriter.markUnknown(UUID)).thenReturn(resp);
+
+            ExchangeExecuteResponse out =
+                    exchangeCommandService.executeUserExchange(PARTY_ID, UUID, executeRequest());
+
+            assertThat(out).isSameAs(resp);
+            verify(bankClient, times(2)).exchange(req);
+            verify(idempotencyStore, never()).completeExecution(any(), any());
             verify(idempotencyStore, never()).failExecution(any());
         }
-    }
 
-    // ── 가맹점 환전 ────────────────────────────────────────────────────────
-
-    @Nested
-    @DisplayName("가맹점 환전 (executeMerchantExchange)")
-    class MerchantExchange {
-
-        private ExchangeExecuteResponse stubMerchantHappyPath() {
-            ExchangeRequest bankReq =
-                    new ExchangeRequest(UUID, 1L, "0xabc", "110-1234", new BigDecimal("50000"));
-            ExchangeExecuteResponse expected = successResponse();
-
+        @Test
+        @DisplayName("claim이 종단(SUCCESS) 반환 -> getResponse + Redis 동기화, bank 미호출")
+        void 이미_종단() {
+            stubUserPinPass();
             stubGate(ExchangeIdempotencyDecision.newRequest());
-            when(stateWriter.claimSettlementExchange(
-                            eq(PARTY_ID), any(ExchangeExecuteRequest.class)))
-                    .thenReturn(exchangeTransaction());
-            when(stateWriter.buildBankRequest(
-                            any(Transaction.class), any(ExchangeExecuteRequest.class)))
-                    .thenReturn(bankReq);
-            when(bankClient.exchange(bankReq)).thenReturn(bankResponse());
-            when(stateWriter.completeExchange(
-                            any(Transaction.class), eq(TX_HASH), eq(BANK_TX_ID_STR)))
-                    .thenReturn(expected);
-            return expected;
-        }
+            when(stateWriter.claimForExecution(UUID)).thenReturn(TransactionStatus.SUCCESS);
+            ExchangeExecuteResponse resp = response(TransactionStatus.SUCCESS);
+            when(stateWriter.getResponse(UUID)).thenReturn(resp);
 
-        @Test
-        @DisplayName("정상: 자격 검증 없이 claimSettlementExchange -> bank -> complete")
-        void 정상_흐름() {
-            stubMerchantPinPass();
-            ExchangeExecuteResponse expected = stubMerchantHappyPath();
+            ExchangeExecuteResponse out =
+                    exchangeCommandService.executeUserExchange(PARTY_ID, UUID, executeRequest());
 
-            ExchangeExecuteResponse response =
-                    exchangeCommandService.executeMerchantExchange(PARTY_ID, request("50000"));
-
-            assertThat(response).isSameAs(expected);
-            verify(stateWriter)
-                    .claimSettlementExchange(eq(PARTY_ID), any(ExchangeExecuteRequest.class));
-            verify(stateWriter, never()).claimExchange(any(), any());
-            verify(exchangeQueryService, never()).checkEligibility(any());
-            verify(bankClient).exchange(any(ExchangeRequest.class));
-            verify(idempotencyStore).completeExecution(UUID, expected);
-        }
-
-        @Test
-        @DisplayName("RETURN_SNAPSHOT -> claim/bank 없이 기존 결과 반환")
-        void 멱등_성공_재요청() {
-            stubMerchantPinPass();
-            ExchangeExecuteResponse snapshot = successResponse();
-            stubGate(ExchangeIdempotencyDecision.returnSnapshot(snapshot));
-
-            ExchangeExecuteResponse response =
-                    exchangeCommandService.executeMerchantExchange(PARTY_ID, request("50000"));
-
-            assertThat(response).isSameAs(snapshot);
-            verify(stateWriter, never()).claimSettlementExchange(any(), any());
+            assertThat(out).isSameAs(resp);
             verify(bankClient, never()).exchange(any());
+            verify(idempotencyStore).completeExecution(UUID, resp);
         }
 
         @Test
-        @DisplayName("ALREADY_FAILED -> EXCHANGE_ALREADY_FAILED")
-        void 멱등_이미_실패() {
-            stubMerchantPinPass();
-            stubGate(ExchangeIdempotencyDecision.alreadyFailed());
-
-            assertThatThrownBy(
-                            () ->
-                                    exchangeCommandService.executeMerchantExchange(
-                                            PARTY_ID, request("50000")))
-                    .isInstanceOf(BusinessException.class)
-                    .extracting("code")
-                    .isEqualTo(TransactionErrorCode.EXCHANGE_ALREADY_FAILED);
-
-            verify(stateWriter, never()).claimSettlementExchange(any(), any());
-        }
-
-        @Test
-        @DisplayName("bank 거절 -> failExecution + 원 예외 재던짐")
-        void bank_거절() {
+        @DisplayName("merchant 실행: merchant PIN 검증 후 동일 흐름")
+        void merchant_실행() {
             stubMerchantPinPass();
             stubGate(ExchangeIdempotencyDecision.newRequest());
+            when(stateWriter.claimForExecution(UUID)).thenReturn(TransactionStatus.PROCESSING);
+            ExchangeRequest req = bankRequest();
+            when(stateWriter.getBankRequest(UUID)).thenReturn(req);
+            when(bankClient.exchange(req)).thenReturn(BankActResult.success(bankResponse()));
+            ExchangeExecuteResponse resp = response(TransactionStatus.SUCCESS);
+            when(stateWriter.markSuccess(UUID, TX_HASH, BANK_TX_ID_STR)).thenReturn(resp);
 
-            ExchangeRequest bankReq =
-                    new ExchangeRequest(UUID, 1L, "0xabc", "110-1234", new BigDecimal("50000"));
-            when(stateWriter.claimSettlementExchange(
-                            eq(PARTY_ID), any(ExchangeExecuteRequest.class)))
-                    .thenReturn(exchangeTransaction());
-            when(stateWriter.buildBankRequest(
-                            any(Transaction.class), any(ExchangeExecuteRequest.class)))
-                    .thenReturn(bankReq);
-            RuntimeException bankEx = new RuntimeException("bank rejected");
-            when(bankClient.exchange(bankReq)).thenThrow(bankEx);
+            ExchangeExecuteResponse out =
+                    exchangeCommandService.executeMerchantExchange(
+                            PARTY_ID, UUID, executeRequest());
 
-            assertThatThrownBy(
-                            () ->
-                                    exchangeCommandService.executeMerchantExchange(
-                                            PARTY_ID, request("50000")))
-                    .isSameAs(bankEx);
-
-            verify(idempotencyStore).failExecution(UUID);
-            verify(stateWriter, never()).completeExchange(any(Transaction.class), any(), any());
+            assertThat(out).isSameAs(resp);
         }
     }
 
-    // ── PIN 검증 (게이트보다 먼저) ─────────────────────────────────────────
+    // ── PIN ────────────────────────────────────────────────────────────────
 
     @Nested
     @DisplayName("PIN 검증")
-    class PinVerification {
+    class Pin {
 
         @Test
         @DisplayName("user PIN 불일치 -> INVALID_PAYMENT_PIN, 게이트 미진입")
-        void user_pin_불일치() {
+        void user_불일치() {
             User user = mock(User.class);
             when(userRepository.findByParty_Id(PARTY_ID)).thenReturn(Optional.of(user));
             when(user.matchesPaymentPin(anyString(), eq(passwordEncoder))).thenReturn(false);
@@ -496,32 +376,12 @@ class ExchangeCommandServiceTest {
             assertThatThrownBy(
                             () ->
                                     exchangeCommandService.executeUserExchange(
-                                            PARTY_ID, request("50000")))
+                                            PARTY_ID, UUID, executeRequest()))
                     .isInstanceOf(BusinessException.class)
                     .extracting("code")
                     .isEqualTo(TransactionErrorCode.INVALID_PAYMENT_PIN);
 
             verify(idempotencyStore, never()).beginExecution(any(), any());
-            verify(stateWriter, never()).claimExchange(any(), any());
-        }
-
-        @Test
-        @DisplayName("merchant PIN 불일치 -> INVALID_PAYMENT_PIN, 게이트 미진입")
-        void merchant_pin_불일치() {
-            Merchant merchant = mock(Merchant.class);
-            when(merchantRepository.findByParty_Id(PARTY_ID)).thenReturn(Optional.of(merchant));
-            when(merchant.matchesPaymentPin(anyString(), eq(passwordEncoder))).thenReturn(false);
-
-            assertThatThrownBy(
-                            () ->
-                                    exchangeCommandService.executeMerchantExchange(
-                                            PARTY_ID, request("50000")))
-                    .isInstanceOf(BusinessException.class)
-                    .extracting("code")
-                    .isEqualTo(TransactionErrorCode.INVALID_PAYMENT_PIN);
-
-            verify(idempotencyStore, never()).beginExecution(any(), any());
-            verify(stateWriter, never()).claimSettlementExchange(any(), any());
         }
 
         @Test
@@ -532,24 +392,10 @@ class ExchangeCommandServiceTest {
             assertThatThrownBy(
                             () ->
                                     exchangeCommandService.executeUserExchange(
-                                            PARTY_ID, request("50000")))
+                                            PARTY_ID, UUID, executeRequest()))
                     .isInstanceOf(BusinessException.class)
                     .extracting("code")
                     .isEqualTo(UserErrorCode.USER_NOT_FOUND);
-        }
-
-        @Test
-        @DisplayName("merchant 없음 -> MERCHANT_NOT_FOUND")
-        void merchant_없음() {
-            when(merchantRepository.findByParty_Id(PARTY_ID)).thenReturn(Optional.empty());
-
-            assertThatThrownBy(
-                            () ->
-                                    exchangeCommandService.executeMerchantExchange(
-                                            PARTY_ID, request("50000")))
-                    .isInstanceOf(BusinessException.class)
-                    .extracting("code")
-                    .isEqualTo(MerchantErrorCode.MERCHANT_NOT_FOUND);
         }
     }
 }

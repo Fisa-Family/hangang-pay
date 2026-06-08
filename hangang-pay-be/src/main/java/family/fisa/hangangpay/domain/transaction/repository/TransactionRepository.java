@@ -91,4 +91,9 @@ public interface TransactionRepository {
     /** 포기 대상 - 오래된 PROCESSING, 시도 횟수 정확히 한도(원샷 알림용) */
     List<Transaction> findAbandonedProcessingByType(
             TransactionType type, LocalDateTime threshold, int maxAttempts);
+
+    List<Transaction> findExchangeReconcileTargets(int maxRetry);
+
+    /** 만료 대상 - EXCHANGE + PENDING + createdAt < threshold */
+    List<Transaction> findStalePendingExchangeIntents(LocalDateTime threshold);
 }

@@ -176,6 +176,20 @@ public class TransactionRepositoryImpl implements TransactionRepository {
     }
 
     @Override
+    public List<Transaction> findExchangeReconcileTargets(int maxRetry) {
+        return jpaRepository.findExchangeReconcileTargets(
+                TransactionType.EXCHANGE,
+                List.of(TransactionStatus.PENDING, TransactionStatus.UNKNOWN),
+                maxRetry);
+    }
+
+    @Override
+    public List<Transaction> findStalePendingExchangeIntents(LocalDateTime threshold) {
+        return jpaRepository.findStalePendingExchangeIntents(
+                TransactionType.EXCHANGE, TransactionStatus.PENDING, threshold);
+    }
+
+    @Override
     public List<Transaction> findStaleProcessingByType(
             TransactionType type, LocalDateTime threshold, int maxAttempts) {
         // status는 PROCESSING으로 고정해 넘긴다.

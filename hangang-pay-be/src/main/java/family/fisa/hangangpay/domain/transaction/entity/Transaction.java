@@ -261,6 +261,11 @@ public class Transaction extends BaseEntity {
         this.status = TransactionStatus.PROCESSING;
     }
 
+    /** intent가 TTL 내 실행되지 않아 만료됨 */
+    public void markExpired() {
+        this.status = TransactionStatus.EXPIRED;
+    }
+
     /** 결제 가능한 상태인지 검증 */
     public void validateExecutableBy(Long partyId) {
         validateOwner(partyId);
@@ -309,11 +314,6 @@ public class Transaction extends BaseEntity {
     /** reconcile 시도 횟수 1 증가 (JPA 변경감지) */
     public void incrementReconcileAttempt() {
         this.reconcileAttemptCount = this.reconcileAttemptCount + 1;
-    }
-
-    /** 자동 복구 시도 한도를 소진해 더는 확정할 수 없는 거래를 EXPIRED 터미널로 닫는다. */
-    public void markExpired() {
-        this.status = TransactionStatus.EXPIRED;
     }
 
     /** 취소 요청자가 원본 결제의 수신 가맹점인지 검증 */

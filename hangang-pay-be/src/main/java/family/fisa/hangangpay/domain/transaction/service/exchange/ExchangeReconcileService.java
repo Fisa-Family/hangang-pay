@@ -1,16 +1,10 @@
 package family.fisa.hangangpay.domain.transaction.service.exchange;
 
 import family.fisa.hangangpay.client.bank.BankClient;
-import family.fisa.hangangpay.client.bank.dto.ExchangeStatusResponse;
-import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
-import family.fisa.hangangpay.domain.transaction.dto.ReconcileResult;
+import family.fisa.hangangpay.client.bank.dto.BankExchangeStatus;
 import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeExecuteResponse;
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
-import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.internal.exchange.ExchangeIdempotencyStore;
-import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
-import family.fisa.hangangpay.global.exception.BusinessException;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,84 +15,27 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class ExchangeReconcileService {
 
-    /** reconcile 시도 횟수 임계값. 도달 이후엔 배치/진입 모두 더 이상 시도하지 않음 */
-    static final int MAX_RECONCILE_ATTEMPTS = 10;
-
-    private final TransactionRepository transactionRepository;
-    private final ExchangeStateWriter exchangeStateWriter;
+    private final ExchangeStateWriter stateWriter;
     private final ExchangeIdempotencyStore idempotencyStore;
     private final BankClient bankClient;
 
-    /** 단건 reconcile */
-    public ReconcileResult reconcile(Long transactionId) {
-        // 1. transaction 조회
-        Transaction tx =
-                transactionRepository
-                        .findById(transactionId)
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                TransactionErrorCode.EXCHANGE_NOT_FOUND));
+    /** 한 건 reconcile: bank 조회 결과로 확정 */
+    public void reconcile(Transaction tx) {
+        String uuid = tx.getTransactionUuid();
+        BankExchangeStatus s = bankClient.getStatus(uuid);
 
-        // 2. UNKNOWN만 reconcile 대상
-        if (tx.getStatus() != TransactionStatus.UNKNOWN) {
-            log.info(
-                    "reconcile 대상 아님(UNKNOWN 아님). transactionId={}, status={}",
-                    transactionId,
-                    tx.getStatus());
-            return ReconcileResult.SKIPPED;
+        switch (s.status()) {
+            case SUCCESS -> {
+                ExchangeExecuteResponse resp =
+                        stateWriter.markSuccess(
+                                uuid, s.txHash(), String.valueOf(s.bankTransactionId()));
+                idempotencyStore.completeExecution(uuid, resp);
+            }
+            case FAILED, NOT_FOUND -> { // NOT_FOUND: 미도달 확정(토큰 미차감) → FAILED 안전
+                stateWriter.markFailed(uuid);
+                idempotencyStore.failExecution(uuid);
+            }
+            case PENDING -> stateWriter.incrementRetry(uuid); // bank 처리중 → 다음 주기
         }
-
-        // 3. 시도 임계값 초과
-        if (tx.getReconcileAttemptCount() >= MAX_RECONCILE_ATTEMPTS) {
-            log.error(
-                    "reconcile 임계 도달 - 자동 시도 종료. 수동 처리 필요. transactionId={}, transactionUuid={}, attempt={}",
-                    transactionId,
-                    tx.getTransactionUuid(),
-                    tx.getReconcileAttemptCount());
-            return ReconcileResult.RECONCILE_ERROR;
-        }
-
-        // 4.시도 횟수 증가 (별도 Tx commit - bank 호출이 실패해도 카운트는 유지)
-        int newCount = exchangeStateWriter.incrementReconcileAttempt(transactionId);
-
-        // 5. bank 상태 조회
-        log.info(
-                "reconcile bank 상태 조회 시작. transactionId={}, transactionUuid={}, attempt={}",
-                transactionId,
-                tx.getTransactionUuid(),
-                newCount);
-        Optional<ExchangeStatusResponse> bankStatus =
-                bankClient.queryExchangeStatus(tx.getTransactionUuid());
-
-        // 6. 응답에 따라 SUCCESS / FAILED 확정 + 멱등 record 동기화
-        if (bankStatus.isPresent()) {
-            ExchangeStatusResponse status = bankStatus.get();
-
-            ExchangeExecuteResponse response =
-                    exchangeStateWriter.completeExchange(
-                            transactionId,
-                            status.txHash(),
-                            String.valueOf(status.bankTransactionId()));
-
-            // 멱등 record를 SUCCESS + snapshot 으로 갱신 -> 같은 UUID 재요청이 PROCESSING에 막히지 안호 결과를 받음
-            idempotencyStore.completeExecution(tx.getTransactionUuid(), response);
-
-            log.info(
-                    "reconcile 성공 마킹. transactionId={}, transactionUuid={}, txHash={}",
-                    transactionId,
-                    tx.getTransactionUuid(),
-                    status.txHash());
-            return ReconcileResult.RECONCILED_SUCCESS;
-        }
-
-        exchangeStateWriter.failExchange(transactionId);
-        // 멱등 record를 FAILED로 갱신
-        idempotencyStore.failExecution(tx.getTransactionUuid());
-        log.info(
-                "reconcile 실패 마킹(bank에 거래 없음). transactionId={}, transactionUuid={}",
-                transactionId,
-                tx.getTransactionUuid());
-        return ReconcileResult.RECONCILED_FAILED;
     }
 }

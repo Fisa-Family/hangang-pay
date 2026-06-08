@@ -14,8 +14,10 @@ import family.fisa.hangangpay.domain.merchant.service.MerchantQrService;
 import family.fisa.hangangpay.domain.merchant.service.MerchantQueryService;
 import family.fisa.hangangpay.domain.transaction.code.TransactionSuccessCode;
 import family.fisa.hangangpay.domain.transaction.dto.request.ExchangeExecuteRequest;
+import family.fisa.hangangpay.domain.transaction.dto.request.ExchangeIntentCreateRequest;
 import family.fisa.hangangpay.domain.transaction.dto.request.PaymentCancelRequest;
 import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeExecuteResponse;
+import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeIntentResponse;
 import family.fisa.hangangpay.domain.transaction.dto.response.MerchantPaymentDetail;
 import family.fisa.hangangpay.domain.transaction.dto.response.MerchantPaymentHistoryItem;
 import family.fisa.hangangpay.domain.transaction.dto.response.PaymentCancelResponse;
@@ -116,6 +118,7 @@ public class MerchantController {
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
     }
 
+    /** 현재 세션 가맹점의 보유 토큰 잔액과 SETTLEMENT 계좌 정보를 조회한다. */
     @Operation(
             summary = "가맹점 정산 신청 조회 (MERCHANT-006)",
             description = "현재 세션 가맹점의 보유 토큰 잔액(availableAmount)과 SETTLEMENT 계좌 정보를 반환한다.")
@@ -126,22 +129,36 @@ public class MerchantController {
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
     }
 
+    /** 가맹점 정산 의도 생성 (PIN 없음) */
     @Operation(
-            summary = "가맹점 정산 신청 (MERCHANT-007)",
-            description = "가맹점의 보유 토큰 잔액(availableAmount)을 현금으로 환전한다.")
-    @PostMapping("/redeem")
+            summary = "가맹점 정산 의도 생성 (MERCHANT-007)",
+            description = "보유 토큰을 환전할 PENDING 의도를 생성한다.")
+    @PostMapping("/redeem/intents")
+    public ResponseEntity<ApiResponse<ExchangeIntentResponse>> createMerchantRedeemIntent(
+            @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId,
+            @Valid @RequestBody ExchangeIntentCreateRequest request) {
+        ExchangeIntentResponse response =
+                exchangeCommandService.createMerchantIntent(partyId, request);
+        return ResponseEntity.ok(
+                ApiResponse.onSuccess(TransactionSuccessCode.EXCHANGE_INTENT_CREATED, response));
+    }
+
+    /** 가맹점 정산 실행 (PIN) */
+    @Operation(summary = "가맹점 정산 실행 (MERCHANT-008)", description = "PIN 검증 후 정산 의도를 1:1로 계좌 환전한다.")
+    @PostMapping("/redeem/{transactionUuid}/execute")
     public ResponseEntity<ApiResponse<ExchangeExecuteResponse>> executeMerchantRedeem(
             @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId,
+            @PathVariable String transactionUuid,
             @Valid @RequestBody ExchangeExecuteRequest request) {
         ExchangeExecuteResponse response =
-                exchangeCommandService.executeMerchantExchange(partyId, request);
+                exchangeCommandService.executeMerchantExchange(partyId, transactionUuid, request);
         return ResponseEntity.ok(
                 ApiResponse.onSuccess(TransactionSuccessCode.EXCHANGE_EXECUTED, response));
     }
 
     /** 현재 세션 가맹점의 결제용 QR을 조회한다. */
     @Operation(
-            summary = "가맹점 QR 조회 (MERCHANT-007)",
+            summary = "가맹점 QR 조회 (MERCHANT-009)",
             description = "현재 세션의 가맹점 식별값(merchantId, partyId)을 담은 PNG QR을 base64로 반환한다.")
     @GetMapping("/qr")
     public ResponseEntity<ApiResponse<MerchantQrResponse>> getMerchantQr(
@@ -150,7 +167,7 @@ public class MerchantController {
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
     }
 
-    @Operation(summary = "가맹점 마이페이지 조회 (MERCHANT-009)")
+    @Operation(summary = "가맹점 마이페이지 조회 (MERCHANT-010)")
     @GetMapping("/mypage")
     public ResponseEntity<ApiResponse<MerchantMyPageResponse>> getMyPage(
             @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId) {
@@ -161,7 +178,7 @@ public class MerchantController {
                 ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, merchantMyPageResponse));
     }
 
-    @Operation(summary = "가맹점 계좌 변경 (MERCHANT-010)")
+    @Operation(summary = "가맹점 계좌 변경 (MERCHANT-011)")
     @PatchMapping("/accounts")
     public ResponseEntity<ApiResponse<MerchantAccountUpdateResponse>> updateAccount(
             @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId,
