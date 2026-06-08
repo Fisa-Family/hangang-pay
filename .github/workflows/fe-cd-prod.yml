@@ -1,0 +1,77 @@
+# ============================================================
+# 한강페이 FE 프로덕션 배포 (CD)
+# prod 브랜치 push → 빌드 → S3 sync → CloudFront 무효화
+# CI(검사/테스트/빌드)는 fe-ci.yml이 dev/test에서 담당. 이 파일은 "배포"만.
+# 기존 fe-ci.yml(dev/test → 온프레 nginx)과 브랜치가 달라 충돌 없음.
+# ============================================================
+name: FE CD Prod
+
+on:
+  push:
+    branches: [prod]               # prod 브랜치 push만
+    paths:                         # fe 변경 or 이 워크플로 변경 시에만 (모노레포 불필요 실행 방지)
+      - "hangang-pay-fe/**"
+      - ".github/workflows/fe-cd-prod.yml"
+
+# OIDC로 AWS 역할 assume → 저장된 액세스키 0개
+permissions:
+  id-token: write
+  contents: read
+
+# prod FE 배포 동시 실행 방지. 뒤 실행이 오면 진행 중인 건 취소(최신본 우선).
+concurrency:
+  group: fe-cd-prod
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: ap-northeast-2
+
+jobs:
+  deploy:
+    name: Build & Deploy to CloudFront
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hangang-pay-fe   # 모노레포라 npm은 fe 폴더에서
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"                # fe-ci.yml과 동일 버전
+          cache: npm
+          cache-dependency-path: hangang-pay-fe/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build
+        run: npm run build                  # tsc -b && vite build → dist/
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.FE_AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # 해시 붙은 에셋(JS/CSS)은 1년 immutable 캐시.
+      # 내용 바뀌면 파일명(해시)도 바뀌므로 영구 캐시해도 안전. index.html만 제외.
+      - name: Sync assets to S3 (immutable)
+        run: |
+          aws s3 sync dist/ "s3://${{ vars.FE_S3_BUCKET }}" --delete \
+            --cache-control "public,max-age=31536000,immutable" \
+            --exclude "index.html"
+
+      # index.html은 no-cache. 새 배포 즉시 반영(이게 새 해시 에셋을 가리킴).
+      - name: Upload index.html (no-cache)
+        run: |
+          aws s3 cp dist/index.html "s3://${{ vars.FE_S3_BUCKET }}/index.html" \
+            --cache-control "no-cache"
+
+      # CloudFront 엣지 캐시 무효화. index.html + 루트만(해시 에셋은 파일명이 달라 불필요).
+      - name: Invalidate CloudFront
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ vars.FE_CLOUDFRONT_DIST_ID }}" \
+            --paths "/index.html" "/"
