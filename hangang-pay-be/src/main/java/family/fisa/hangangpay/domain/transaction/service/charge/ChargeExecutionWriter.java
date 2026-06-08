@@ -1,4 +1,4 @@
-package family.fisa.hangangpay.domain.transaction.service;
+package family.fisa.hangangpay.domain.transaction.service.charge;
 
 import family.fisa.hangangpay.domain.account.entity.Account;
 import family.fisa.hangangpay.domain.account.repository.AccountRepository;
@@ -6,11 +6,11 @@ import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
 import family.fisa.hangangpay.domain.transaction.dto.response.ChargeExecuteResponse;
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
-import family.fisa.hangangpay.domain.transaction.internal.ChargeExecutionPreparationResult;
-import family.fisa.hangangpay.domain.transaction.internal.ChargeExecutionPrepared;
-import family.fisa.hangangpay.domain.transaction.internal.ChargeIdempotencyDecision;
-import family.fisa.hangangpay.domain.transaction.internal.ChargeIdempotencyStore;
-import family.fisa.hangangpay.domain.transaction.internal.ChargeRequestHashGenerator;
+import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeExecutionPreparationResult;
+import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeExecutionPrepared;
+import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeIdempotencyDecision;
+import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeIdempotencyStore;
+import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeRequestHashGenerator;
 import family.fisa.hangangpay.domain.transaction.internal.payment.PaymentIdempotencyDecisionType;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
 import family.fisa.hangangpay.domain.user.code.error.UserErrorCode;
@@ -126,7 +126,7 @@ public class ChargeExecutionWriter {
             String bankTransactionId,
             LocalDateTime confirmedAt) {
         Transaction transaction = getChargeTransaction(transactionUuid);
-        transaction.completeWithBankResponse(txHash, bankTransactionId);
+        transaction.completeSuccessWithResponse(txHash, bankTransactionId);
         log.info("충전 성공. transactionUuid={}, txHash={}", transactionUuid, txHash);
         return ChargeExecuteResponse.from(transaction, confirmedAt);
     }

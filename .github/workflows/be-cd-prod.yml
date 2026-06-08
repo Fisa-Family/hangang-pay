@@ -11,6 +11,7 @@ on:
     paths:                        # be 코드 or 이 워크플로 변경 시에만 트리거(불필요 실행 방지)
       - "hangang-pay-be/**"
       - ".github/workflows/be-cd-prod.yml"
+  workflow_dispatch:    
 
 # OIDC로 AWS 역할을 assume하려면 id-token 쓰기 권한 필수.
 # (액세스키를 Secrets에 저장하는 방식 대신, 단기 토큰을 발급받는 방식)

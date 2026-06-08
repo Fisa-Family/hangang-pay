@@ -3,10 +3,14 @@ package family.fisa.hangangpay.domain.transaction.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import family.fisa.hangangpay.client.bank.BankClient;
@@ -32,15 +36,18 @@ import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelExecution
 import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelIdempotencyDecision;
 import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelIdempotencyStore;
 import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelLockManager;
+import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelRequestHashGenerator;
 import family.fisa.hangangpay.domain.transaction.internal.payment.*;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
+import family.fisa.hangangpay.domain.transaction.service.cancel.CancelExecutionStateWriter;
+import family.fisa.hangangpay.domain.transaction.service.payment.PaymentExecutionStateWriter;
 import family.fisa.hangangpay.domain.user.repository.UserRepository;
 import family.fisa.hangangpay.domain.wallet.entity.Wallet;
 import family.fisa.hangangpay.domain.wallet.repository.WalletRepository;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,6 +55,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.client.ResourceAccessException;
@@ -81,6 +89,7 @@ class TransactionCommandServiceTest {
     @Mock private CancelExecutionStateWriter cancelExecutionStateWriter;
     @Mock private CancelIdempotencyStore cancelIdempotencyStore;
     @Mock private CancelLockManager cancelLockManager;
+    @Mock private CancelRequestHashGenerator cancelRequestHashGenerator;
 
     private TransactionCommandService transactionCommandService;
 
@@ -99,7 +108,13 @@ class TransactionCommandServiceTest {
                         cancelIdempotencyStore,
                         cancelLockManager,
                         paymentExecutionStateWriter,
-                        cancelExecutionStateWriter);
+                        cancelExecutionStateWriter,
+                        cancelRequestHashGenerator);
+
+        // 취소 멱등 해시 생성기는 비-null 해시를 반환해야 beginCancel(anyString, anyString) 매칭이 성립한다.
+        lenient()
+                .when(cancelRequestHashGenerator.generate(anyString(), anyLong()))
+                .thenReturn(REQUEST_HASH);
     }
 
     @Test
@@ -286,111 +301,215 @@ class TransactionCommandServiceTest {
         verify(paymentExecutionStateWriter)
                 .prepareExecution(USER_ID, USER_PARTY_ID, TRANSACTION_UUID, "123456");
 
-        verify(bankClient).payment(prepared.toBankPaymentRequest());
+        // 타임아웃은 재시도 대상 → bank 호출 2회(원본+재시도) 후에도 미해결이면 UNKNOWN
+        verify(bankClient, times(2)).payment(prepared.toBankPaymentRequest());
         verify(paymentExecutionStateWriter).markUnknown(TRANSACTION_UUID);
         verify(paymentIdempotencyStore).completeExecution(TRANSACTION_UUID, unknownResponse);
         verify(paymentExecutionStateWriter, never()).completeSuccess(any(), any(), any(), any());
     }
 
     @Test
+    @DisplayName("Bank가 422(ALREADY_FAILED)면 재시도 없이 FAILED로 확정하고 예외를 던진다")
+    void executePayment_terminalFailure_throwsAndCompletesFailed() {
+        PaymentExecutionPrepared prepared =
+                new PaymentExecutionPrepared(
+                        TRANSACTION_UUID,
+                        REQUEST_HASH,
+                        "0x-user",
+                        "0x-merchant",
+                        new BigDecimal("10000"));
+
+        given(
+                        paymentExecutionStateWriter.prepareExecution(
+                                USER_ID, USER_PARTY_ID, TRANSACTION_UUID, "123456"))
+                .willReturn(PaymentExecutionPreparationResult.prepared(prepared));
+        given(bankClient.payment(prepared.toBankPaymentRequest()))
+                .willThrow(bankError(422, "Unprocessable Entity", "TRANSACTION_ALREADY_FAILED"));
+        given(paymentLockManager.withTransactionLock(eq(TRANSACTION_UUID), any()))
+                .willAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
+
+        assertThatThrownBy(
+                        () ->
+                                transactionCommandService.executePayment(
+                                        USER_ID,
+                                        USER_PARTY_ID,
+                                        TRANSACTION_UUID,
+                                        new PaymentExecuteRequest("123456")))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("code", TransactionErrorCode.PAYMENT_ALREADY_FAILED);
+
+        // 종단 실패 → 재시도 없음(1회), FAILED 확정, snapshot 미적재
+        verify(bankClient).payment(prepared.toBankPaymentRequest());
+        verify(paymentExecutionStateWriter).completeFailed(TRANSACTION_UUID);
+        verify(paymentExecutionStateWriter, never()).completeSuccess(any(), any(), any(), any());
+        verify(paymentIdempotencyStore, never()).completeExecution(any(), any());
+    }
+
+    @Test
+    @DisplayName("일시적 오류(timeout) 후 재시도에서 성공하면 SUCCESS로 확정된다")
+    void executePayment_retrySucceeds() {
+        PaymentExecutionPrepared prepared =
+                new PaymentExecutionPrepared(
+                        TRANSACTION_UUID,
+                        REQUEST_HASH,
+                        "0x-user",
+                        "0x-merchant",
+                        new BigDecimal("10000"));
+        PaymentResponse bankResponse = successBankPaymentResponse("0x-tx");
+        PaymentExecutionResponse expected =
+                new PaymentExecutionResponse(
+                        TRANSACTION_UUID,
+                        TransactionStatus.SUCCESS,
+                        "APV-2026-00000123",
+                        "0x-tx",
+                        new BigDecimal("10000"),
+                        "성수 한강카페",
+                        LocalDateTime.of(2026, 5, 25, 10, 0));
+
+        given(
+                        paymentExecutionStateWriter.prepareExecution(
+                                USER_ID, USER_PARTY_ID, TRANSACTION_UUID, "123456"))
+                .willReturn(PaymentExecutionPreparationResult.prepared(prepared));
+        // 1차 timeout → 2차 성공
+        given(bankClient.payment(prepared.toBankPaymentRequest()))
+                .willThrow(new ResourceAccessException("timeout"))
+                .willReturn(bankResponse);
+        given(
+                        paymentExecutionStateWriter.completeSuccess(
+                                TRANSACTION_UUID,
+                                bankResponse.txHash(),
+                                String.valueOf(bankResponse.bankTransactionId()),
+                                bankResponse.confirmedAt()))
+                .willReturn(expected);
+        given(paymentLockManager.withTransactionLock(eq(TRANSACTION_UUID), any()))
+                .willAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
+
+        PaymentExecutionResponse response =
+                transactionCommandService.executePayment(
+                        USER_ID,
+                        USER_PARTY_ID,
+                        TRANSACTION_UUID,
+                        new PaymentExecuteRequest("123456"));
+
+        assertThat(response).isSameAs(expected);
+        verify(bankClient, times(2)).payment(prepared.toBankPaymentRequest());
+        verify(paymentExecutionStateWriter)
+                .completeSuccess(
+                        TRANSACTION_UUID,
+                        bankResponse.txHash(),
+                        String.valueOf(bankResponse.bankTransactionId()),
+                        bankResponse.confirmedAt());
+        verify(paymentIdempotencyStore).completeExecution(TRANSACTION_UUID, expected);
+    }
+
+    @Test
+    @DisplayName("409(DUPLICATE_PROCESSING)는 재시도 후에도 미해결이면 UNKNOWN으로 끝난다")
+    void executePayment_duplicateProcessing_retriesThenUnknown() {
+        PaymentExecutionPrepared prepared =
+                new PaymentExecutionPrepared(
+                        TRANSACTION_UUID,
+                        REQUEST_HASH,
+                        "0x-user",
+                        "0x-merchant",
+                        new BigDecimal("10000"));
+        PaymentExecutionResponse unknownResponse =
+                new PaymentExecutionResponse(
+                        TRANSACTION_UUID,
+                        TransactionStatus.UNKNOWN,
+                        null,
+                        null,
+                        new BigDecimal("10000"),
+                        "성수 한강카페",
+                        null);
+
+        given(
+                        paymentExecutionStateWriter.prepareExecution(
+                                USER_ID, USER_PARTY_ID, TRANSACTION_UUID, "123456"))
+                .willReturn(PaymentExecutionPreparationResult.prepared(prepared));
+        given(bankClient.payment(prepared.toBankPaymentRequest()))
+                .willThrow(bankError(409, "Conflict", "TRANSACTION_DUPLICATE_PROCESSING"));
+        given(paymentExecutionStateWriter.markUnknown(TRANSACTION_UUID))
+                .willReturn(unknownResponse);
+        given(paymentLockManager.withTransactionLock(eq(TRANSACTION_UUID), any()))
+                .willAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
+
+        PaymentExecutionResponse response =
+                transactionCommandService.executePayment(
+                        USER_ID,
+                        USER_PARTY_ID,
+                        TRANSACTION_UUID,
+                        new PaymentExecuteRequest("123456"));
+
+        assertThat(response).isSameAs(unknownResponse);
+        // 409는 재시도 대상 → 2회 호출 후 UNKNOWN, FAILED 아님
+        verify(bankClient, times(2)).payment(prepared.toBankPaymentRequest());
+        verify(paymentExecutionStateWriter).markUnknown(TRANSACTION_UUID);
+        verify(paymentExecutionStateWriter, never()).completeFailed(any());
+    }
+
+    @Test
     @DisplayName("UNKNOWN 복구 시 Bank SUCCESS 결과로 상태를 SUCCESS로 갱신한다")
     void recoverPayment_updatesStatusFromBankSuccess() {
-        Transaction transaction = paymentTransaction(TransactionStatus.UNKNOWN);
+        BankTransactionStatusResponse bankStatus = recoveryBankStatus(TransactionStatus.SUCCESS);
+        PaymentExecutionResponse expected = paymentRecoveryResponse(TransactionStatus.SUCCESS);
 
-        givenRecoveryBase(transaction);
-        givenRecoveryMerchant(transaction);
-        given(bankClient.getTransactionStatus(TRANSACTION_UUID))
-                .willReturn(
-                        new BankTransactionStatusResponse(
-                                TRANSACTION_UUID,
-                                101L,
-                                TransactionStatus.SUCCESS,
-                                "0x-recovered",
-                                LocalDateTime.of(2026, 5, 25, 10, 5)));
+        givenPaymentRecoveryBase(bankStatus, expected);
 
         PaymentExecutionResponse response =
                 transactionCommandService.recoverPayment(USER_PARTY_ID, TRANSACTION_UUID);
 
-        assertThat(response.status()).isEqualTo(TransactionStatus.SUCCESS);
-        assertThat(response.txHash()).isEqualTo("0x-recovered");
-        assertThat(response.merchantName()).isEqualTo("성수 한강카페");
-        assertThat(transaction.getStatus()).isEqualTo(TransactionStatus.SUCCESS);
-        assertThat(transaction.getTxHash()).isEqualTo("0x-recovered");
+        assertThat(response).isSameAs(expected);
 
-        verify(paymentRateLimiter).checkRecoveryRateLimit(USER_PARTY_ID, TRANSACTION_UUID);
-        verify(paymentRateLimiter).checkBankOutboundRateLimit();
+        InOrder inOrder = inOrder(paymentExecutionStateWriter, bankClient);
+        inOrder.verify(paymentExecutionStateWriter)
+                .prepareRecovery(USER_PARTY_ID, TRANSACTION_UUID);
+        inOrder.verify(bankClient).getTransactionStatus(TRANSACTION_UUID);
+        inOrder.verify(paymentExecutionStateWriter)
+                .applyRecoveryResult(TRANSACTION_UUID, bankStatus);
     }
 
     @Test
     @DisplayName("UNKNOWN 복구 시 Bank FAILED 결과로 상태를 FAILED로 갱신한다")
     void recoverPayment_updatesStatusFromBankFailed() {
-        Transaction transaction = paymentTransaction(TransactionStatus.UNKNOWN);
+        BankTransactionStatusResponse bankStatus = recoveryBankStatus(TransactionStatus.FAILED);
+        PaymentExecutionResponse expected = paymentRecoveryResponse(TransactionStatus.FAILED);
 
-        givenRecoveryBase(transaction);
-        givenRecoveryMerchant(transaction);
-        given(bankClient.getTransactionStatus(TRANSACTION_UUID))
-                .willReturn(
-                        new BankTransactionStatusResponse(
-                                TRANSACTION_UUID,
-                                null,
-                                TransactionStatus.FAILED,
-                                null,
-                                LocalDateTime.of(2026, 5, 25, 10, 5)));
+        givenPaymentRecoveryBase(bankStatus, expected);
 
         PaymentExecutionResponse response =
                 transactionCommandService.recoverPayment(USER_PARTY_ID, TRANSACTION_UUID);
 
-        assertThat(response.status()).isEqualTo(TransactionStatus.FAILED);
-        assertThat(response.merchantName()).isEqualTo("성수 한강카페");
-        assertThat(transaction.getStatus()).isEqualTo(TransactionStatus.FAILED);
-        assertThat(transaction.getTxHash()).isNull();
-
-        verify(paymentRateLimiter).checkRecoveryRateLimit(USER_PARTY_ID, TRANSACTION_UUID);
-        verify(paymentRateLimiter).checkBankOutboundRateLimit();
+        assertThat(response).isSameAs(expected);
+        verify(paymentExecutionStateWriter).applyRecoveryResult(TRANSACTION_UUID, bankStatus);
     }
 
     @Test
     @DisplayName("Bank가 아직 PROCESSING이면 복구 가능한 상태로 남긴다")
     void recoverPayment_keepsRecoverableWhenBankStillProcessing() {
-        Transaction transaction = paymentTransaction(TransactionStatus.UNKNOWN);
+        BankTransactionStatusResponse bankStatus = recoveryBankStatus(TransactionStatus.PROCESSING);
+        PaymentExecutionResponse expected = paymentRecoveryResponse(TransactionStatus.UNKNOWN);
 
-        givenRecoveryBase(transaction);
-        givenRecoveryMerchant(transaction);
-        given(bankClient.getTransactionStatus(TRANSACTION_UUID))
-                .willReturn(
-                        new BankTransactionStatusResponse(
-                                TRANSACTION_UUID,
-                                null,
-                                TransactionStatus.PROCESSING,
-                                null,
-                                LocalDateTime.of(2026, 5, 25, 10, 5)));
+        givenPaymentRecoveryBase(bankStatus, expected);
 
         PaymentExecutionResponse response =
                 transactionCommandService.recoverPayment(USER_PARTY_ID, TRANSACTION_UUID);
 
-        assertThat(response.status()).isEqualTo(TransactionStatus.UNKNOWN);
-        assertThat(response.merchantName()).isEqualTo("성수 한강카페");
-        assertThat(transaction.getStatus()).isEqualTo(TransactionStatus.UNKNOWN);
-        assertThat(transaction.getTxHash()).isNull();
-
-        verify(paymentRateLimiter).checkRecoveryRateLimit(USER_PARTY_ID, TRANSACTION_UUID);
-        verify(paymentRateLimiter).checkBankOutboundRateLimit();
+        assertThat(response).isSameAs(expected);
+        verify(paymentExecutionStateWriter).applyRecoveryResult(TRANSACTION_UUID, bankStatus);
     }
 
     @Test
     @DisplayName("Bank SUCCESS 조회 결과에 txHash가 없으면 복구 결과 오류가 발생한다")
     void recoverPayment_bankSuccessWithoutTxHashThrowsInvalidRecoveryResult() {
-        Transaction transaction = paymentTransaction(TransactionStatus.UNKNOWN);
-
-        givenRecoveryBase(transaction);
-        given(bankClient.getTransactionStatus(TRANSACTION_UUID))
-                .willReturn(
-                        new BankTransactionStatusResponse(
-                                TRANSACTION_UUID,
-                                101L,
-                                TransactionStatus.SUCCESS,
-                                null,
-                                LocalDateTime.of(2026, 5, 25, 10, 5)));
+        BankTransactionStatusResponse bankStatus =
+                new BankTransactionStatusResponse(
+                        TRANSACTION_UUID,
+                        101L,
+                        TransactionStatus.SUCCESS,
+                        null,
+                        LocalDateTime.of(2026, 5, 25, 10, 5));
+        givenPaymentRecoveryThrows(
+                bankStatus, TransactionErrorCode.PAYMENT_RECOVERY_RESULT_INVALID);
 
         assertThatThrownBy(
                         () ->
@@ -399,24 +518,20 @@ class TransactionCommandServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue(
                         "code", TransactionErrorCode.PAYMENT_RECOVERY_RESULT_INVALID);
-
-        verify(merchantRepository, never()).findByParty_Id(any());
     }
 
     @Test
     @DisplayName("Bank SUCCESS 조회 결과에 bankTransactionId가 없으면 복구 결과 오류가 발생한다")
     void recoverPayment_bankSuccessWithoutBankTransactionIdThrowsInvalidRecoveryResult() {
-        Transaction transaction = paymentTransaction(TransactionStatus.UNKNOWN);
-
-        givenRecoveryBase(transaction);
-        given(bankClient.getTransactionStatus(TRANSACTION_UUID))
-                .willReturn(
-                        new BankTransactionStatusResponse(
-                                TRANSACTION_UUID,
-                                null,
-                                TransactionStatus.SUCCESS,
-                                "0x-recovered",
-                                LocalDateTime.of(2026, 5, 25, 10, 5)));
+        BankTransactionStatusResponse bankStatus =
+                new BankTransactionStatusResponse(
+                        TRANSACTION_UUID,
+                        null,
+                        TransactionStatus.SUCCESS,
+                        "0x-recovered",
+                        LocalDateTime.of(2026, 5, 25, 10, 5));
+        givenPaymentRecoveryThrows(
+                bankStatus, TransactionErrorCode.PAYMENT_RECOVERY_RESULT_INVALID);
 
         assertThatThrownBy(
                         () ->
@@ -425,16 +540,12 @@ class TransactionCommandServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue(
                         "code", TransactionErrorCode.PAYMENT_RECOVERY_RESULT_INVALID);
-
-        verify(merchantRepository, never()).findByParty_Id(any());
     }
 
     @Test
     @DisplayName("SUCCESS 같은 최종 상태는 복구 대상이 아니다")
     void recoverPayment_rejectsNonRecoverableStatus() {
-        Transaction transaction = paymentTransaction(TransactionStatus.SUCCESS);
-
-        givenRecoveryBase(transaction);
+        givenPaymentRecoveryPrepareThrows(TransactionErrorCode.PAYMENT_NOT_RECOVERABLE);
 
         assertThatThrownBy(
                         () ->
@@ -449,9 +560,7 @@ class TransactionCommandServiceTest {
     @Test
     @DisplayName("로컬 PENDING 결제는 아직 Bank 실행 전이므로 복구 대상이 아니다")
     void recoverPayment_rejectsPendingStatus() {
-        Transaction transaction = paymentTransaction(TransactionStatus.PENDING);
-
-        givenRecoveryBase(transaction);
+        givenPaymentRecoveryPrepareThrows(TransactionErrorCode.PAYMENT_NOT_RECOVERABLE);
 
         assertThatThrownBy(
                         () ->
@@ -466,45 +575,88 @@ class TransactionCommandServiceTest {
     @Test
     @DisplayName("복구도 transactionUuid Redis lock 안에서 실행한다")
     void recoverPayment_usesTransactionLock() {
-        Transaction transaction = paymentTransaction(TransactionStatus.UNKNOWN);
-
-        givenRecoveryBase(transaction);
-        givenRecoveryMerchant(transaction);
-        given(bankClient.getTransactionStatus(TRANSACTION_UUID))
-                .willReturn(
-                        new BankTransactionStatusResponse(
-                                TRANSACTION_UUID,
-                                101L,
-                                TransactionStatus.SUCCESS,
-                                "0x-recovered",
-                                LocalDateTime.of(2026, 5, 25, 10, 5)));
+        BankTransactionStatusResponse bankStatus = recoveryBankStatus(TransactionStatus.SUCCESS);
+        PaymentExecutionResponse expected = paymentRecoveryResponse(TransactionStatus.SUCCESS);
+        givenPaymentRecoveryBase(bankStatus, expected);
 
         transactionCommandService.recoverPayment(USER_PARTY_ID, TRANSACTION_UUID);
 
         verify(paymentLockManager).withTransactionLock(eq(TRANSACTION_UUID), any());
     }
 
-    private void givenRecoveryBase(Transaction transaction) {
-        given(transactionRepository.findByTransactionUuid(TRANSACTION_UUID))
-                .willReturn(Optional.of(transaction));
+    @Test
+    @DisplayName("복구해도 은행이 아직 PROCESSING이면 시도 횟수만 올린다(cap 진행)")
+    void recoverPayment_stillProcessing_incrementsAttempt() {
+        BankTransactionStatusResponse bankStatus = recoveryBankStatus(TransactionStatus.PROCESSING);
+        PaymentExecutionResponse stillProcessing =
+                paymentRecoveryResponse(TransactionStatus.PROCESSING);
+        givenPaymentRecoveryBase(bankStatus, stillProcessing);
+
+        transactionCommandService.recoverPayment(USER_PARTY_ID, TRANSACTION_UUID);
+
+        verify(paymentExecutionStateWriter).incrementRecoveryAttempt(TRANSACTION_UUID);
+        verify(paymentIdempotencyStore, never()).completeExecution(anyString(), any());
+        verify(paymentIdempotencyStore, never()).failExecution(anyString());
+    }
+
+    private void givenPaymentRecoveryBase(
+            BankTransactionStatusResponse bankStatus, PaymentExecutionResponse response) {
         given(paymentLockManager.withTransactionLock(eq(TRANSACTION_UUID), any()))
                 .willAnswer(
                         invocation -> {
                             Supplier<?> supplier = invocation.getArgument(1);
                             return supplier.get();
                         });
+        given(paymentExecutionStateWriter.prepareRecovery(USER_PARTY_ID, TRANSACTION_UUID))
+                .willReturn(TRANSACTION_UUID);
+        given(bankClient.getTransactionStatus(TRANSACTION_UUID)).willReturn(bankStatus);
+        given(paymentExecutionStateWriter.applyRecoveryResult(TRANSACTION_UUID, bankStatus))
+                .willReturn(response);
     }
 
-    private void givenRecoveryMerchant(Transaction transaction) {
-        given(merchantRepository.findByParty_Id(MERCHANT_PARTY_ID))
-                .willReturn(Optional.of(merchant(transaction.getToParty())));
+    private void givenPaymentRecoveryThrows(
+            BankTransactionStatusResponse bankStatus, TransactionErrorCode errorCode) {
+        given(paymentLockManager.withTransactionLock(eq(TRANSACTION_UUID), any()))
+                .willAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
+        given(paymentExecutionStateWriter.prepareRecovery(USER_PARTY_ID, TRANSACTION_UUID))
+                .willReturn(TRANSACTION_UUID);
+        given(bankClient.getTransactionStatus(TRANSACTION_UUID)).willReturn(bankStatus);
+        given(paymentExecutionStateWriter.applyRecoveryResult(TRANSACTION_UUID, bankStatus))
+                .willThrow(new BusinessException(errorCode));
+    }
+
+    private void givenPaymentRecoveryPrepareThrows(TransactionErrorCode errorCode) {
+        given(paymentLockManager.withTransactionLock(eq(TRANSACTION_UUID), any()))
+                .willAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
+        given(paymentExecutionStateWriter.prepareRecovery(USER_PARTY_ID, TRANSACTION_UUID))
+                .willThrow(new BusinessException(errorCode));
+    }
+
+    private BankTransactionStatusResponse recoveryBankStatus(TransactionStatus status) {
+        return new BankTransactionStatusResponse(
+                TRANSACTION_UUID,
+                status == TransactionStatus.SUCCESS ? 101L : null,
+                status,
+                status == TransactionStatus.SUCCESS ? "0x-recovered" : null,
+                LocalDateTime.of(2026, 5, 25, 10, 5));
+    }
+
+    private PaymentExecutionResponse paymentRecoveryResponse(TransactionStatus status) {
+        return new PaymentExecutionResponse(
+                TRANSACTION_UUID,
+                status,
+                "APV-2026-00000123",
+                status == TransactionStatus.SUCCESS ? "0x-recovered" : null,
+                new BigDecimal("10000"),
+                "성수 한강카페",
+                LocalDateTime.of(2026, 5, 25, 10, 5));
     }
 
     // ===== 결제 취소 =====
 
     @Test
     @DisplayName("정상 취소 시 Bank를 호출하고 SUCCESS로 확정된다")
-    void cancelPayment_success() {
+    void executeCancel_success() {
         // 1. prepareCancel 반환값 (CancelExecutionPrepared — 미구현, RED 의도)
         CancelExecutionPrepared prepared =
                 new CancelExecutionPrepared(
@@ -543,7 +695,7 @@ class TransactionCommandServiceTest {
                 .willReturn(expected);
 
         PaymentCancelResponse response =
-                transactionCommandService.cancelPayment(
+                transactionCommandService.executeCancel(
                         MERCHANT_PARTY_ID, TRANSACTION_ID, new PaymentCancelRequest("123456"));
 
         assertThat(response).isSameAs(expected);
@@ -560,7 +712,7 @@ class TransactionCommandServiceTest {
 
     @Test
     @DisplayName("세션 가맹점이 결제 수신자(toParty)가 아니면 취소가 거부된다")
-    void cancelPayment_failsWhenMerchantIsNotReceiver() {
+    void executeCancel_failsWhenMerchantIsNotReceiver() {
         given(transactionRepository.findById(TRANSACTION_ID))
                 .willReturn(Optional.of(paymentTransaction(TransactionStatus.SUCCESS)));
         given(cancelLockManager.withCancelLock(anyString(), any()))
@@ -572,7 +724,7 @@ class TransactionCommandServiceTest {
 
         assertThatThrownBy(
                         () ->
-                                transactionCommandService.cancelPayment(
+                                transactionCommandService.executeCancel(
                                         OTHER_PARTY_ID,
                                         TRANSACTION_ID,
                                         new PaymentCancelRequest("123456")))
@@ -584,7 +736,7 @@ class TransactionCommandServiceTest {
 
     @Test
     @DisplayName("원본 결제가 SUCCESS 상태가 아니면 취소가 거부된다")
-    void cancelPayment_failsWhenPaymentNotSuccess() {
+    void executeCancel_failsWhenPaymentNotSuccess() {
         given(transactionRepository.findById(TRANSACTION_ID))
                 .willReturn(Optional.of(paymentTransaction(TransactionStatus.SUCCESS)));
         given(cancelLockManager.withCancelLock(anyString(), any()))
@@ -596,7 +748,7 @@ class TransactionCommandServiceTest {
 
         assertThatThrownBy(
                         () ->
-                                transactionCommandService.cancelPayment(
+                                transactionCommandService.executeCancel(
                                         MERCHANT_PARTY_ID,
                                         TRANSACTION_ID,
                                         new PaymentCancelRequest("123456")))
@@ -608,7 +760,7 @@ class TransactionCommandServiceTest {
 
     @Test
     @DisplayName("동일 원본에 SUCCESS CANCEL이 이미 존재하면 재취소가 거부된다")
-    void cancelPayment_failsWhenAlreadyCancelled() {
+    void executeCancel_failsWhenAlreadyCancelled() {
         given(transactionRepository.findById(TRANSACTION_ID))
                 .willReturn(Optional.of(paymentTransaction(TransactionStatus.SUCCESS)));
         given(cancelLockManager.withCancelLock(anyString(), any()))
@@ -620,7 +772,7 @@ class TransactionCommandServiceTest {
 
         assertThatThrownBy(
                         () ->
-                                transactionCommandService.cancelPayment(
+                                transactionCommandService.executeCancel(
                                         MERCHANT_PARTY_ID,
                                         TRANSACTION_ID,
                                         new PaymentCancelRequest("123456")))
@@ -633,7 +785,7 @@ class TransactionCommandServiceTest {
 
     @Test
     @DisplayName("Bank timeout 시 CANCEL이 UNKNOWN으로 저장되고 실패 확정이 아님을 반환한다")
-    void cancelPayment_marksUnknownWhenBankTimeout() {
+    void executeCancel_marksUnknownWhenBankTimeout() {
         // 1. prepareCancel 정상 완료 — CANCEL 레코드가 PROCESSING으로 DB에 커밋된 상태
         CancelExecutionPrepared prepared =
                 new CancelExecutionPrepared(
@@ -667,7 +819,7 @@ class TransactionCommandServiceTest {
         given(cancelExecutionStateWriter.markUnknown(CANCEL_UUID)).willReturn(unknownResponse);
 
         PaymentCancelResponse response =
-                transactionCommandService.cancelPayment(
+                transactionCommandService.executeCancel(
                         MERCHANT_PARTY_ID, TRANSACTION_ID, new PaymentCancelRequest("123456"));
 
         // 4. UNKNOWN 응답 검증
@@ -678,10 +830,48 @@ class TransactionCommandServiceTest {
         // 5. 호출 흐름 검증 — completeSuccess는 절대 호출되면 안 된다
         verify(cancelExecutionStateWriter)
                 .prepareCancel(MERCHANT_PARTY_ID, TRANSACTION_ID, "123456");
-        verify(bankClient).cancel(prepared.toBankCancelRequest());
+        // 타임아웃은 재시도 대상 → bank 호출 2회 후에도 미해결이면 UNKNOWN
+        verify(bankClient, times(2)).cancel(prepared.toBankCancelRequest());
         verify(cancelExecutionStateWriter).markUnknown(CANCEL_UUID);
         verify(cancelIdempotencyStore).completeCancel(TRANSACTION_UUID, unknownResponse);
         verify(cancelExecutionStateWriter, never()).completeSuccess(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("취소 Bank가 422(ALREADY_FAILED)면 재시도 없이 FAILED로 확정하고 예외를 던진다")
+    void executeCancel_terminalFailure_throwsAndCompletesFailed() {
+        CancelExecutionPrepared prepared =
+                new CancelExecutionPrepared(
+                        CANCEL_UUID,
+                        TRANSACTION_UUID,
+                        "0x-merchant",
+                        "0x-user",
+                        new BigDecimal("10000"));
+
+        given(transactionRepository.findById(TRANSACTION_ID))
+                .willReturn(Optional.of(paymentTransaction(TransactionStatus.SUCCESS)));
+        given(cancelLockManager.withCancelLock(anyString(), any()))
+                .willAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
+        given(cancelIdempotencyStore.beginCancel(anyString(), anyString()))
+                .willReturn(CancelIdempotencyDecision.newRequest());
+        given(cancelExecutionStateWriter.prepareCancel(MERCHANT_PARTY_ID, TRANSACTION_ID, "123456"))
+                .willReturn(prepared);
+        given(bankClient.cancel(prepared.toBankCancelRequest()))
+                .willThrow(bankError(422, "Unprocessable Entity", "TRANSACTION_ALREADY_FAILED"));
+
+        assertThatThrownBy(
+                        () ->
+                                transactionCommandService.executeCancel(
+                                        MERCHANT_PARTY_ID,
+                                        TRANSACTION_ID,
+                                        new PaymentCancelRequest("123456")))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("code", TransactionErrorCode.CANCEL_ALREADY_FAILED);
+
+        verify(bankClient).cancel(prepared.toBankCancelRequest()); // 재시도 없음(종단)
+        verify(cancelExecutionStateWriter).completeFailed(CANCEL_UUID);
+        verify(cancelExecutionStateWriter, never()).completeSuccess(any(), any(), any(), any());
+        verify(cancelIdempotencyStore, never()).completeCancel(any(), any());
     }
 
     // ===== recover =====
@@ -689,145 +879,65 @@ class TransactionCommandServiceTest {
     @Test
     @DisplayName("UNKNOWN CANCEL이 Bank SUCCESS이면 SUCCESS로 복구된다")
     void recoverCancel_successFromUnknown() {
-        // 1. 원본 PAYMENT — toParty가 MERCHANT이므로 소유권 검증 통과
-        Transaction originalPayment = paymentTransaction(TransactionStatus.SUCCESS);
-
-        // 2. 복구 대상 CANCEL — UNKNOWN 상태 (Bank 응답을 받지 못한 상태)
-        Transaction cancelTx = cancelTransaction(TransactionStatus.UNKNOWN);
-
-        // 3. Bank가 SUCCESS를 반환 — 취소는 실제로 완료됐다
+        CancelExecutionPrepared prepared = cancelRecoveryPrepared();
         BankTransactionStatusResponse bankStatus =
-                new BankTransactionStatusResponse(
-                        CANCEL_UUID,
-                        888L,
-                        TransactionStatus.SUCCESS,
-                        "0x-recovered-cancel",
-                        LocalDateTime.of(2026, 5, 27, 14, 30));
+                cancelRecoveryBankStatus(TransactionStatus.SUCCESS);
+        PaymentCancelResponse expected = cancelRecoveryResponse(TransactionStatus.SUCCESS);
 
-        // 4. Mock 설정
-        given(
-                        transactionRepository.findDetailByIdAndTypes(
-                                TRANSACTION_ID, List.of(TransactionType.PAYMENT)))
-                .willReturn(Optional.of(originalPayment));
-        given(cancelLockManager.withCancelLock(anyString(), any()))
-                .willAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
-        given(
-                        transactionRepository.findRecoverableCancelByOriginalTransactionUuid(
-                                TRANSACTION_UUID))
-                .willReturn(Optional.of(cancelTx));
-        given(bankClient.getTransactionStatus(CANCEL_UUID)).willReturn(bankStatus);
+        givenCancelRecoveryBase(prepared, bankStatus, expected);
 
-        // 5. 실행
         PaymentCancelResponse response =
                 transactionCommandService.recoverCancel(MERCHANT_PARTY_ID, TRANSACTION_ID);
 
-        // 6. 응답 검증 — SUCCESS 확정 상태여야 한다
-        assertThat(response.status()).isEqualTo(TransactionStatus.SUCCESS);
-        assertThat(response.txHash()).isEqualTo("0x-recovered-cancel");
-        assertThat(response.confirmedAt()).isEqualTo(bankStatus.confirmedAt());
+        assertThat(response).isSameAs(expected);
 
-        // 7. 엔티티 상태 전환 검증 — recoverSuccess가 호출됐는지 간접 확인
-        assertThat(cancelTx.getStatus()).isEqualTo(TransactionStatus.SUCCESS);
-        assertThat(cancelTx.getTxHash()).isEqualTo("0x-recovered-cancel");
+        InOrder inOrder = inOrder(cancelExecutionStateWriter, bankClient);
+        inOrder.verify(cancelExecutionStateWriter)
+                .prepareRecovery(MERCHANT_PARTY_ID, TRANSACTION_ID);
+        inOrder.verify(bankClient).getTransactionStatus(CANCEL_UUID);
+        inOrder.verify(cancelExecutionStateWriter).applyRecoveryResult(CANCEL_UUID, bankStatus);
+        verify(cancelIdempotencyStore).completeCancel(TRANSACTION_UUID, expected);
     }
 
     @Test
     @DisplayName("UNKNOWN CANCEL이 Bank FAILED이면 FAILED로 확정된다")
     void recoverCancel_failedFromUnknown() {
-        // 1. 원본 PAYMENT와 복구 대상 CANCEL 설정
-        Transaction originalPayment = paymentTransaction(TransactionStatus.SUCCESS);
-        Transaction cancelTx = cancelTransaction(TransactionStatus.UNKNOWN);
-
-        // 2. Bank가 FAILED를 반환 — 취소가 실패했음을 은행이 확인
+        CancelExecutionPrepared prepared = cancelRecoveryPrepared();
         BankTransactionStatusResponse bankStatus =
-                new BankTransactionStatusResponse(
-                        CANCEL_UUID,
-                        null, // FAILED이면 bankTransactionId 없음
-                        TransactionStatus.FAILED,
-                        null, // txHash 없음
-                        LocalDateTime.of(2026, 5, 27, 14, 30));
+                cancelRecoveryBankStatus(TransactionStatus.FAILED);
+        PaymentCancelResponse expected = cancelRecoveryResponse(TransactionStatus.FAILED);
 
-        // 3. Mock 설정
-        given(
-                        transactionRepository.findDetailByIdAndTypes(
-                                TRANSACTION_ID, List.of(TransactionType.PAYMENT)))
-                .willReturn(Optional.of(originalPayment));
-        given(cancelLockManager.withCancelLock(anyString(), any()))
-                .willAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
-        given(
-                        transactionRepository.findRecoverableCancelByOriginalTransactionUuid(
-                                TRANSACTION_UUID))
-                .willReturn(Optional.of(cancelTx));
-        given(bankClient.getTransactionStatus(CANCEL_UUID)).willReturn(bankStatus);
+        givenCancelRecoveryBase(prepared, bankStatus, expected);
 
-        // 4. 실행
         PaymentCancelResponse response =
                 transactionCommandService.recoverCancel(MERCHANT_PARTY_ID, TRANSACTION_ID);
 
-        // 5. FAILED 확정 검증 — txHash, confirmedAt 없음
-        assertThat(response.status()).isEqualTo(TransactionStatus.FAILED);
-        assertThat(response.txHash()).isNull();
-        assertThat(cancelTx.getStatus()).isEqualTo(TransactionStatus.FAILED);
+        assertThat(response).isSameAs(expected);
+        verify(cancelIdempotencyStore, never()).completeCancel(any(), any());
     }
 
     @Test
     @DisplayName("Bank가 아직 PROCESSING이면 CANCEL 상태를 UNKNOWN으로 유지한다")
     void recoverCancel_keepsUnknownWhenBankStillProcessing() {
-        // 1. 원본 PAYMENT와 복구 대상 CANCEL 설정
-        Transaction originalPayment = paymentTransaction(TransactionStatus.SUCCESS);
-        Transaction cancelTx = cancelTransaction(TransactionStatus.UNKNOWN);
-
-        // 2. Bank도 아직 처리 중 — 확정할 근거 없음
+        CancelExecutionPrepared prepared = cancelRecoveryPrepared();
         BankTransactionStatusResponse bankStatus =
-                new BankTransactionStatusResponse(
-                        CANCEL_UUID,
-                        null,
-                        TransactionStatus.PROCESSING,
-                        null,
-                        null); // confirmedAt 없음 - 아직 미확정
+                cancelRecoveryBankStatus(TransactionStatus.PROCESSING);
+        PaymentCancelResponse expected = cancelRecoveryResponse(TransactionStatus.UNKNOWN);
 
-        // 3. Mock 설정
-        given(
-                        transactionRepository.findDetailByIdAndTypes(
-                                TRANSACTION_ID, List.of(TransactionType.PAYMENT)))
-                .willReturn(Optional.of(originalPayment));
-        given(cancelLockManager.withCancelLock(anyString(), any()))
-                .willAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
-        given(
-                        transactionRepository.findRecoverableCancelByOriginalTransactionUuid(
-                                TRANSACTION_UUID))
-                .willReturn(Optional.of(cancelTx));
-        given(bankClient.getTransactionStatus(CANCEL_UUID)).willReturn(bankStatus);
+        givenCancelRecoveryBase(prepared, bankStatus, expected);
 
-        // 4. 실행
         PaymentCancelResponse response =
                 transactionCommandService.recoverCancel(MERCHANT_PARTY_ID, TRANSACTION_ID);
 
-        // 5. 상태 유지 검증 — FAILED로 확정하지 않는다는 것이 핵심
-        assertThat(response.status()).isEqualTo(TransactionStatus.UNKNOWN);
-        assertThat(cancelTx.getStatus()).isEqualTo(TransactionStatus.UNKNOWN);
-        assertThat(cancelTx.getTxHash()).isNull();
+        assertThat(response).isSameAs(expected);
+        verify(cancelIdempotencyStore, never()).completeCancel(any(), any());
     }
 
     @Test
     @DisplayName("복구 가능한 CANCEL이 없으면 예외가 발생하고 Bank는 호출되지 않는다")
     void recoverCancel_failsWhenNoRecoverableCancel() {
-        // 1. 원본 PAYMENT는 존재하지만
-        Transaction originalPayment = paymentTransaction(TransactionStatus.SUCCESS);
-        given(
-                        transactionRepository.findDetailByIdAndTypes(
-                                TRANSACTION_ID, List.of(TransactionType.PAYMENT)))
-                .willReturn(Optional.of(originalPayment));
-        given(cancelLockManager.withCancelLock(anyString(), any()))
-                .willAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
+        givenCancelRecoveryPrepareThrows(TransactionErrorCode.CANCEL_NOT_RECOVERABLE);
 
-        // 2. 복구 대상 CANCEL이 없음 (예: 이미 SUCCESS/FAILED로 확정됐거나 아예 취소 기록 없음)
-        given(
-                        transactionRepository.findRecoverableCancelByOriginalTransactionUuid(
-                                TRANSACTION_UUID))
-                .willReturn(Optional.empty());
-
-        // 3. CANCEL_NOT_RECOVERABLE 예외 발생 기대
         assertThatThrownBy(
                         () ->
                                 transactionCommandService.recoverCancel(
@@ -842,30 +952,8 @@ class TransactionCommandServiceTest {
     @Test
     @DisplayName("세션 가맹점이 원본 결제 수신자가 아니면 복구가 거부된다")
     void recoverCancel_failsWhenMerchantIsNotReceiver() {
-        // 1. toParty가 OTHER_PARTY_ID인 원본 PAYMENT — 현재 세션 가맹점과 다름
-        Party userParty = party(USER_PARTY_ID, PartyType.USER);
-        Party otherMerchantParty = party(OTHER_PARTY_ID, PartyType.MERCHANT);
-        Transaction originalPayment =
-                Transaction.builder()
-                        .id(TRANSACTION_ID)
-                        .transactionUuid(TRANSACTION_UUID)
-                        .transactionType(TransactionType.PAYMENT)
-                        .status(TransactionStatus.SUCCESS)
-                        .fromParty(userParty)
-                        .toParty(otherMerchantParty) // 2. 다른 가맹점이 수신자
-                        .fromWallet(wallet(1L, userParty, "0x-user"))
-                        .toWallet(wallet(3L, otherMerchantParty, "0x-other"))
-                        .amount(new BigDecimal("10000"))
-                        .build();
+        givenCancelRecoveryPrepareThrows(TransactionErrorCode.PAYMENT_CANCEL_FORBIDDEN);
 
-        given(
-                        transactionRepository.findDetailByIdAndTypes(
-                                TRANSACTION_ID, List.of(TransactionType.PAYMENT)))
-                .willReturn(Optional.of(originalPayment));
-        given(cancelLockManager.withCancelLock(anyString(), any()))
-                .willAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
-
-        // 3. MERCHANT_PARTY_ID는 수신자가 아님 → PAYMENT_CANCEL_FORBIDDEN 예외
         assertThatThrownBy(
                         () ->
                                 transactionCommandService.recoverCancel(
@@ -879,7 +967,7 @@ class TransactionCommandServiceTest {
 
     @Test
     @DisplayName("Bank 서버 오류(RestClientResponseException) 시 CANCEL이 UNKNOWN으로 저장되고 snapshot이 적재된다")
-    void cancelPayment_bankServerError_marksUnknownAndStoresSnapshot() {
+    void executeCancel_bankServerError_marksUnknownAndStoresSnapshot() {
         // 1. prepareCancel 정상 완료
         CancelExecutionPrepared prepared =
                 new CancelExecutionPrepared(
@@ -915,7 +1003,7 @@ class TransactionCommandServiceTest {
         given(cancelExecutionStateWriter.markUnknown(CANCEL_UUID)).willReturn(unknownResponse);
 
         PaymentCancelResponse response =
-                transactionCommandService.cancelPayment(
+                transactionCommandService.executeCancel(
                         MERCHANT_PARTY_ID, TRANSACTION_ID, new PaymentCancelRequest("123456"));
 
         // 4. UNKNOWN 응답 반환 검증
@@ -984,11 +1072,7 @@ class TransactionCommandServiceTest {
     @Test
     @DisplayName("취소 복구 시 Bank SUCCESS인데 txHash가 없으면 복구 결과 오류가 발생한다")
     void recoverCancel_bankSuccessWithNullTxHash_throwsRecoveryResultInvalid() {
-        // 1. 원본 PAYMENT와 복구 대상 CANCEL
-        Transaction originalPayment = paymentTransaction(TransactionStatus.SUCCESS);
-        Transaction cancelTx = cancelTransaction(TransactionStatus.UNKNOWN);
-
-        // 2. Bank SUCCESS인데 txHash 누락
+        CancelExecutionPrepared prepared = cancelRecoveryPrepared();
         BankTransactionStatusResponse bankStatus =
                 new BankTransactionStatusResponse(
                         CANCEL_UUID,
@@ -997,19 +1081,9 @@ class TransactionCommandServiceTest {
                         null, // txHash 없음
                         LocalDateTime.of(2026, 5, 27, 14, 30));
 
-        given(
-                        transactionRepository.findDetailByIdAndTypes(
-                                TRANSACTION_ID, List.of(TransactionType.PAYMENT)))
-                .willReturn(Optional.of(originalPayment));
-        given(cancelLockManager.withCancelLock(anyString(), any()))
-                .willAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
-        given(
-                        transactionRepository.findRecoverableCancelByOriginalTransactionUuid(
-                                TRANSACTION_UUID))
-                .willReturn(Optional.of(cancelTx));
-        given(bankClient.getTransactionStatus(CANCEL_UUID)).willReturn(bankStatus);
+        givenCancelRecoveryThrows(
+                prepared, bankStatus, TransactionErrorCode.PAYMENT_RECOVERY_RESULT_INVALID);
 
-        // 3. PAYMENT_RECOVERY_RESULT_INVALID 예외 발생
         assertThatThrownBy(
                         () ->
                                 transactionCommandService.recoverCancel(
@@ -1017,6 +1091,73 @@ class TransactionCommandServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue(
                         "code", TransactionErrorCode.PAYMENT_RECOVERY_RESULT_INVALID);
+    }
+
+    private void givenCancelRecoveryBase(
+            CancelExecutionPrepared prepared,
+            BankTransactionStatusResponse bankStatus,
+            PaymentCancelResponse response) {
+        givenCancelRecoveryLock();
+        given(cancelExecutionStateWriter.prepareRecovery(MERCHANT_PARTY_ID, TRANSACTION_ID))
+                .willReturn(prepared);
+        given(bankClient.getTransactionStatus(prepared.cancelTransactionUuid()))
+                .willReturn(bankStatus);
+        given(
+                        cancelExecutionStateWriter.applyRecoveryResult(
+                                prepared.cancelTransactionUuid(), bankStatus))
+                .willReturn(response);
+    }
+
+    private void givenCancelRecoveryThrows(
+            CancelExecutionPrepared prepared,
+            BankTransactionStatusResponse bankStatus,
+            TransactionErrorCode errorCode) {
+        givenCancelRecoveryLock();
+        given(cancelExecutionStateWriter.prepareRecovery(MERCHANT_PARTY_ID, TRANSACTION_ID))
+                .willReturn(prepared);
+        given(bankClient.getTransactionStatus(prepared.cancelTransactionUuid()))
+                .willReturn(bankStatus);
+        given(
+                        cancelExecutionStateWriter.applyRecoveryResult(
+                                prepared.cancelTransactionUuid(), bankStatus))
+                .willThrow(new BusinessException(errorCode));
+    }
+
+    private void givenCancelRecoveryPrepareThrows(TransactionErrorCode errorCode) {
+        givenCancelRecoveryLock();
+        given(cancelExecutionStateWriter.prepareRecovery(MERCHANT_PARTY_ID, TRANSACTION_ID))
+                .willThrow(new BusinessException(errorCode));
+    }
+
+    private void givenCancelRecoveryLock() {
+        given(transactionRepository.findById(TRANSACTION_ID))
+                .willReturn(Optional.of(paymentTransaction(TransactionStatus.SUCCESS)));
+        given(cancelLockManager.withCancelLock(eq(TRANSACTION_UUID), any()))
+                .willAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
+    }
+
+    private CancelExecutionPrepared cancelRecoveryPrepared() {
+        return new CancelExecutionPrepared(
+                CANCEL_UUID, TRANSACTION_UUID, "0x-merchant", "0x-user", new BigDecimal("10000"));
+    }
+
+    private BankTransactionStatusResponse cancelRecoveryBankStatus(TransactionStatus status) {
+        return new BankTransactionStatusResponse(
+                CANCEL_UUID,
+                status == TransactionStatus.SUCCESS ? 888L : null,
+                status,
+                status == TransactionStatus.SUCCESS ? "0x-recovered-cancel" : null,
+                LocalDateTime.of(2026, 5, 27, 14, 30));
+    }
+
+    private PaymentCancelResponse cancelRecoveryResponse(TransactionStatus status) {
+        return new PaymentCancelResponse(
+                CANCEL_UUID,
+                status,
+                status == TransactionStatus.SUCCESS ? "APV-2026-00000456" : null,
+                status == TransactionStatus.SUCCESS ? "0x-recovered-cancel" : null,
+                new BigDecimal("10000"),
+                LocalDateTime.of(2026, 5, 27, 14, 30));
     }
 
     private CancelResponse successBankCancelResponse() {
@@ -1029,6 +1170,12 @@ class TransactionCommandServiceTest {
                 LocalDateTime.of(2026, 5, 27, 14, 0),
                 new BigDecimal("110000"),
                 new BigDecimal("90000"));
+    }
+
+    /** bank 에러 응답(JSON body에 code 포함)을 던지는 RestClientResponseException 생성 */
+    private RestClientResponseException bankError(int status, String statusText, String bankCode) {
+        byte[] body = ("{\"code\":\"" + bankCode + "\"}").getBytes(StandardCharsets.UTF_8);
+        return new RestClientResponseException(statusText, status, statusText, null, body, null);
     }
 
     private PaymentResponse successBankPaymentResponse(String txHash) {

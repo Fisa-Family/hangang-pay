@@ -1,13 +1,13 @@
-package family.fisa.hangangpay.domain.transaction.service;
+package family.fisa.hangangpay.domain.transaction.service.charge;
 
 import family.fisa.hangangpay.client.bank.BankClient;
 import family.fisa.hangangpay.client.bank.dto.ChargeResponse;
 import family.fisa.hangangpay.domain.transaction.dto.request.ChargeExecuteRequest;
 import family.fisa.hangangpay.domain.transaction.dto.response.ChargeExecuteResponse;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
-import family.fisa.hangangpay.domain.transaction.internal.ChargeExecutionPreparationResult;
-import family.fisa.hangangpay.domain.transaction.internal.ChargeExecutionPrepared;
-import family.fisa.hangangpay.domain.transaction.internal.ChargeIdempotencyStore;
+import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeExecutionPreparationResult;
+import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeExecutionPrepared;
+import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeIdempotencyStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

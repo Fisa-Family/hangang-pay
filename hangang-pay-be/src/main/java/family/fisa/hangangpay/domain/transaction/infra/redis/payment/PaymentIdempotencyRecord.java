@@ -29,4 +29,9 @@ public record PaymentIdempotencyRecord(
         return new PaymentIdempotencyRecord(
                 transactionUuid, requestHash, status, transactionId, responseSnapshot);
     }
+
+    public PaymentIdempotencyRecord fail() {
+        return new PaymentIdempotencyRecord(
+                transactionUuid, requestHash, TransactionStatus.FAILED, transactionId, null);
+    }
 }

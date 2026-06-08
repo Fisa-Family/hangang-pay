@@ -13,6 +13,7 @@ import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.web3j.abi.FunctionEncoder;
@@ -28,6 +29,7 @@ import org.web3j.crypto.Hash;
 import org.web3j.crypto.RawTransaction;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.DefaultBlockParameterName;
+import org.web3j.protocol.core.Response;
 import org.web3j.protocol.core.methods.request.Transaction;
 import org.web3j.protocol.core.methods.response.EthCall;
 import org.web3j.protocol.core.methods.response.EthGetTransactionCount;
@@ -45,13 +47,14 @@ import org.web3j.tx.response.PollingTransactionReceiptProcessor;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ContractCallService {
 
     private static final BigInteger DEFAULT_GAS_LIMIT = BigInteger.valueOf(300_000);
     private static final BigInteger PRIVATE_NETWORK_GAS_PRICE = BigInteger.ZERO;
     private static final int RECEIPT_POLLING_ATTEMPTS = 60;
     private static final long RECEIPT_POLLING_INTERVAL_MS = 1_000L;
-    private final BlockchainTransactionKeyConverter keyConverter;
+    private static final int MAX_LOG_DATA_LENGTH = 300;
 
     // 컨트랙트 커스텀 에러를 BusinessException으로 변환하기 위한 selector -> error code 맵
     private static final Map<String, BlockchainErrorCode> CUSTOM_ERROR_MAP =
@@ -108,6 +111,7 @@ public class ContractCallService {
 
     private final ContractRepository contractRepository;
     private final WalletKeyCipher walletKeyCipher;
+    private final BlockchainTransactionKeyConverter keyConverter;
 
     public TransactionReceipt charge(Long institutionId, String userAddress, BigInteger amount) {
         Function function =
@@ -163,10 +167,41 @@ public class ContractCallService {
         Web3j web3j = Web3j.build(new HttpService(owner.getRpcEndpoint()));
 
         try {
-            return readBalance(
-                    web3j, owner.getWalletAddress(), contract.getAddress(), walletAddress);
+            log.info(
+                    "[blockchain] balanceOf call start. walletAddress={}, contractAddress={}, institutionCode={}, rpcEndpoint={}",
+                    walletAddress,
+                    contract.getAddress(),
+                    owner.getInstitutionCode(),
+                    owner.getRpcEndpoint());
+            BigInteger balance =
+                    readBalance(
+                            web3j, owner.getWalletAddress(), contract.getAddress(), walletAddress);
+            log.info(
+                    "[blockchain] balanceOf call success. walletAddress={}, contractAddress={}, institutionCode={}, balance={}",
+                    walletAddress,
+                    contract.getAddress(),
+                    owner.getInstitutionCode(),
+                    balance);
+            return balance;
         } catch (IOException e) {
+            log.error(
+                    "[blockchain] balanceOf IO failure. walletAddress={}, contractAddress={}, institutionCode={}, rpcEndpoint={}",
+                    walletAddress,
+                    contract.getAddress(),
+                    owner.getInstitutionCode(),
+                    owner.getRpcEndpoint(),
+                    e);
             throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
+        } catch (BusinessException e) {
+            log.warn(
+                    "[blockchain] balanceOf business failure. walletAddress={}, contractAddress={}, institutionCode={}, errorCode={}, errorMessage={}",
+                    walletAddress,
+                    contract.getAddress(),
+                    owner.getInstitutionCode(),
+                    e.getCode().getCode(),
+                    e.getCode().getMessage(),
+                    e);
+            throw e;
         } finally {
             web3j.shutdown();
         }
@@ -187,13 +222,25 @@ public class ContractCallService {
         EthCall ethCall = web3j.ethCall(callTx, DefaultBlockParameterName.LATEST).send();
 
         if (ethCall.hasError()) {
-            throwCustomErrorIfMatched(ethCall.getError().getData());
+            log.warn(
+                    "[blockchain] balanceOf RPC error. walletAddress={}, contractAddress={}, errorCode={}, errorMessage={}, errorData={}",
+                    walletAddress,
+                    contractAddress,
+                    rpcErrorCode(ethCall.getError()),
+                    rpcErrorMessage(ethCall.getError()),
+                    compactLogData(rpcErrorData(ethCall.getError())));
+            throwCustomErrorIfMatched(rpcErrorData(ethCall.getError()));
             throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
         }
 
         List<org.web3j.abi.datatypes.Type> decoded =
                 FunctionReturnDecoder.decode(ethCall.getValue(), function.getOutputParameters());
         if (decoded.isEmpty()) {
+            log.warn(
+                    "[blockchain] balanceOf decode empty. walletAddress={}, contractAddress={}, rawValue={}",
+                    walletAddress,
+                    contractAddress,
+                    compactLogData(ethCall.getValue()));
             throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
         }
         return (BigInteger) decoded.get(0).getValue();
@@ -271,10 +318,52 @@ public class ContractCallService {
                 walletKeyCipher.decryptCredentials(owner.getEncryptedPrivateKey());
         Web3j web3j = Web3j.build(new HttpService(owner.getRpcEndpoint()));
         try {
-            return sendFunctionTransaction(
-                    web3j, credentials, contract.getAddress(), gasLimit, function);
+            log.info(
+                    "[blockchain] contract tx start. functionName={}, contractType={}, contractAddress={}, institutionCode={}, signerAddress={}, rpcEndpoint={}, chainId={}, gasLimit={}",
+                    function.getName(),
+                    contractType,
+                    contract.getAddress(),
+                    owner.getInstitutionCode(),
+                    credentials.getAddress(),
+                    owner.getRpcEndpoint(),
+                    privateNetworkChainId,
+                    gasLimit);
+            TransactionReceipt receipt =
+                    sendFunctionTransaction(
+                            web3j, credentials, contract.getAddress(), gasLimit, function);
+            log.info(
+                    "[blockchain] contract tx success. functionName={}, contractType={}, contractAddress={}, txHash={}, blockNumber={}, status={}",
+                    function.getName(),
+                    contractType,
+                    contract.getAddress(),
+                    safeReceiptTxHash(receipt),
+                    safeReceiptBlockNumber(receipt),
+                    safeReceiptStatus(receipt));
+            return receipt;
         } catch (IOException e) {
+            log.error(
+                    "[blockchain] contract tx IO failure. functionName={}, contractType={}, contractAddress={}, institutionCode={}, signerAddress={}, rpcEndpoint={}",
+                    function.getName(),
+                    contractType,
+                    contract.getAddress(),
+                    owner.getInstitutionCode(),
+                    credentials.getAddress(),
+                    owner.getRpcEndpoint(),
+                    e);
             throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
+        } catch (BusinessException e) {
+            log.warn(
+                    "[blockchain] contract tx business failure. functionName={}, contractType={}, contractAddress={}, institutionCode={}, signerAddress={}, rpcEndpoint={}, errorCode={}, errorMessage={}",
+                    function.getName(),
+                    contractType,
+                    contract.getAddress(),
+                    owner.getInstitutionCode(),
+                    credentials.getAddress(),
+                    owner.getRpcEndpoint(),
+                    e.getCode().getCode(),
+                    e.getCode().getMessage(),
+                    e);
+            throw e;
         } finally {
             web3j.shutdown();
         }
@@ -288,7 +377,18 @@ public class ContractCallService {
             Function function)
             throws IOException {
 
+        log.info(
+                "[blockchain] eth_call simulation start. functionName={}, contractAddress={}, signerAddress={}, gasLimit={}",
+                function.getName(),
+                contractAddress,
+                credentials.getAddress(),
+                gasLimit);
         simulateOrThrow(web3j, credentials.getAddress(), contractAddress, gasLimit, function);
+        log.info(
+                "[blockchain] eth_call simulation success. functionName={}, contractAddress={}, signerAddress={}",
+                function.getName(),
+                contractAddress,
+                credentials.getAddress());
 
         RawTransactionManager mgr =
                 new RawTransactionManager(web3j, credentials, privateNetworkChainId);
@@ -297,8 +397,22 @@ public class ContractCallService {
                                 credentials.getAddress(), DefaultBlockParameterName.PENDING)
                         .send();
         if (nonceResponse.hasError()) {
+            log.warn(
+                    "[blockchain] eth_getTransactionCount RPC error. functionName={}, signerAddress={}, contractAddress={}, errorCode={}, errorMessage={}, errorData={}",
+                    function.getName(),
+                    credentials.getAddress(),
+                    contractAddress,
+                    rpcErrorCode(nonceResponse.getError()),
+                    rpcErrorMessage(nonceResponse.getError()),
+                    compactLogData(rpcErrorData(nonceResponse.getError())));
             throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
         }
+        log.info(
+                "[blockchain] nonce fetched. functionName={}, signerAddress={}, contractAddress={}, nonce={}",
+                function.getName(),
+                credentials.getAddress(),
+                contractAddress,
+                nonceResponse.getTransactionCount());
         RawTransaction tx =
                 RawTransaction.createTransaction(
                         nonceResponse.getTransactionCount(),
@@ -309,12 +423,35 @@ public class ContractCallService {
                         FunctionEncoder.encode(function));
         EthSendTransaction sendResponse = mgr.signAndSend(tx);
         if (sendResponse.hasError()) {
-            String errorData = sendResponse.getError().getData();
+            String errorData = rpcErrorData(sendResponse.getError());
+            log.warn(
+                    "[blockchain] eth_sendRawTransaction RPC error. functionName={}, signerAddress={}, contractAddress={}, nonce={}, chainId={}, errorCode={}, errorMessage={}, errorData={}",
+                    function.getName(),
+                    credentials.getAddress(),
+                    contractAddress,
+                    nonceResponse.getTransactionCount(),
+                    privateNetworkChainId,
+                    rpcErrorCode(sendResponse.getError()),
+                    rpcErrorMessage(sendResponse.getError()),
+                    compactLogData(errorData));
             throwCustomErrorIfMatched(errorData);
             throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
         }
+        log.info(
+                "[blockchain] transaction submitted. functionName={}, signerAddress={}, contractAddress={}, txHash={}",
+                function.getName(),
+                credentials.getAddress(),
+                contractAddress,
+                sendResponse.getTransactionHash());
         TransactionReceipt receipt = waitForReceipt(web3j, sendResponse.getTransactionHash());
         if (!receipt.isStatusOK()) {
+            log.warn(
+                    "[blockchain] transaction receipt failed. functionName={}, contractAddress={}, txHash={}, status={}, blockNumber={}",
+                    function.getName(),
+                    contractAddress,
+                    safeReceiptTxHash(receipt),
+                    safeReceiptStatus(receipt),
+                    safeReceiptBlockNumber(receipt));
             throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_TRANSACTION_REVERTED);
         }
         return receipt;
@@ -322,11 +459,23 @@ public class ContractCallService {
 
     public TransactionReceipt waitForReceipt(Web3j web3j, String txHash) {
         try {
+            log.info(
+                    "[blockchain] receipt polling start. txHash={}, intervalMs={}, attempts={}",
+                    txHash,
+                    RECEIPT_POLLING_INTERVAL_MS,
+                    RECEIPT_POLLING_ATTEMPTS);
             PollingTransactionReceiptProcessor processor =
                     new PollingTransactionReceiptProcessor(
                             web3j, RECEIPT_POLLING_INTERVAL_MS, RECEIPT_POLLING_ATTEMPTS);
-            return processor.waitForTransactionReceipt(txHash);
+            TransactionReceipt receipt = processor.waitForTransactionReceipt(txHash);
+            log.info(
+                    "[blockchain] receipt polling success. txHash={}, status={}, blockNumber={}",
+                    txHash,
+                    safeReceiptStatus(receipt),
+                    safeReceiptBlockNumber(receipt));
+            return receipt;
         } catch (IOException | TransactionException e) {
+            log.error("[blockchain] receipt polling failure. txHash={}", txHash, e);
             throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_RECEIPT_TIMEOUT);
         }
     }
@@ -503,7 +652,15 @@ public class ContractCallService {
 
         // RPC 레벨 에러 발생 시 custom error 매핑 시도
         if (ethCall.hasError()) {
-            String errorData = ethCall.getError().getData();
+            String errorData = rpcErrorData(ethCall.getError());
+            log.warn(
+                    "[blockchain] eth_call simulation RPC error. functionName={}, from={}, contractAddress={}, errorCode={}, errorMessage={}, errorData={}",
+                    function.getName(),
+                    from,
+                    contractAddress,
+                    rpcErrorCode(ethCall.getError()),
+                    rpcErrorMessage(ethCall.getError()),
+                    compactLogData(errorData));
             throwCustomErrorIfMatched(errorData);
 
             throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_TRANSACTION_REVERTED);
@@ -514,6 +671,12 @@ public class ContractCallService {
         // Error(string) 형태의 일반 revert
         // 0x08c379a0 = Error(string) selector
         if (value != null && value.startsWith("0x08c379a0")) {
+            log.warn(
+                    "[blockchain] eth_call simulation reverted with Error(string). functionName={}, from={}, contractAddress={}, rawValue={}",
+                    function.getName(),
+                    from,
+                    contractAddress,
+                    compactLogData(value));
             throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_TRANSACTION_REVERTED);
         }
 
@@ -539,7 +702,56 @@ public class ContractCallService {
         BlockchainErrorCode code = CUSTOM_ERROR_MAP.get(selector);
 
         if (code != null) {
+            log.warn(
+                    "[blockchain] contract custom error matched. selector={}, errorCode={}, errorData={}",
+                    selector,
+                    code.getCode(),
+                    compactLogData(revertData));
             throw new BusinessException(code);
+        }
+    }
+
+    private static Integer rpcErrorCode(Response.Error error) {
+        return error != null ? error.getCode() : null;
+    }
+
+    private static String rpcErrorMessage(Response.Error error) {
+        return error != null ? error.getMessage() : null;
+    }
+
+    private static String rpcErrorData(Response.Error error) {
+        return error != null ? error.getData() : null;
+    }
+
+    private static String compactLogData(String value) {
+        if (value == null || value.length() <= MAX_LOG_DATA_LENGTH) {
+            return value;
+        }
+        return value.substring(0, MAX_LOG_DATA_LENGTH) + "...";
+    }
+
+    private static String safeReceiptStatus(TransactionReceipt receipt) {
+        try {
+            return receipt.getStatus();
+        } catch (RuntimeException e) {
+            return "unavailable:" + e.getClass().getSimpleName();
+        }
+    }
+
+    private static String safeReceiptTxHash(TransactionReceipt receipt) {
+        try {
+            return receipt.getTransactionHash();
+        } catch (RuntimeException e) {
+            return "unavailable:" + e.getClass().getSimpleName();
+        }
+    }
+
+    private static String safeReceiptBlockNumber(TransactionReceipt receipt) {
+        try {
+            BigInteger blockNumber = receipt.getBlockNumber();
+            return blockNumber != null ? blockNumber.toString() : null;
+        } catch (RuntimeException e) {
+            return "unavailable:" + e.getClass().getSimpleName();
         }
     }
 }

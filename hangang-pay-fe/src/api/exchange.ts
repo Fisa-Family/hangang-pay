@@ -5,14 +5,17 @@ export interface ExchangeInitResult {
   walletBalance: number
 }
 
-export interface ExchangeExecuteBody {
+// EXCHANGE-002: 환전 의도 생성 응답 (BE: ExchangeIntentResponse)
+export interface ExchangeIntentResult {
   transactionUuid: string
+  status: string
   amount: number
-  paymentPin: string
-  // TODO: BE ExchangeExecuteRequest에 accountId 추가 후 활성화
-  accountId?: number
+  accountNumber: string
+  bankName: string
+  expiresAt: string
 }
 
+// EXCHANGE-003: 환전 실행 응답 (BE: ExchangeExecuteResponse)
 export interface ExchangeExecuteResult {
   transactionId: number
   transactionUuid: string
@@ -28,10 +31,24 @@ export function fetchExchangeInit(): Promise<ExchangeInitResult> {
   return apiFetch<ExchangeInitResult>('/exchange/init')
 }
 
-export function executeExchange(body: ExchangeExecuteBody): Promise<ExchangeExecuteResult> {
-  return apiFetch<ExchangeExecuteResult>('/exchange/execute', {
+// EXCHANGE-002: 환전 의도 생성 (PIN 없음). transactionUuid는 클라 생성 멱등키.
+export function createExchangeIntent(body: {
+  transactionUuid: string
+  amount: number
+}): Promise<ExchangeIntentResult> {
+  return apiFetch<ExchangeIntentResult>('/exchange/intents', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+  })
+}
+
+// EXCHANGE-003: 환전 실행 (PIN). uuid는 path로 전달.
+export function executeExchange(
+  transactionUuid: string,
+  paymentPin: string
+): Promise<ExchangeExecuteResult> {
+  return apiFetch<ExchangeExecuteResult>(`/exchange/${transactionUuid}/execute`, {
+    method: 'POST',
+    body: JSON.stringify({ paymentPin }),
   })
 }

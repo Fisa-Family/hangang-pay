@@ -20,4 +20,9 @@ public record CancelIdempotencyDecision(
     public static CancelIdempotencyDecision conflict() {
         return new CancelIdempotencyDecision(CancelIdempotencyDecisionType.CONFLICT, null);
     }
+
+    // 이미 실패로 끝난 취소 요청.
+    public static CancelIdempotencyDecision alreadyFailed() {
+        return new CancelIdempotencyDecision(CancelIdempotencyDecisionType.ALREADY_FAILED, null);
+    }
 }
