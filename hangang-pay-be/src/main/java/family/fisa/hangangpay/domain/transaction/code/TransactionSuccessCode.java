@@ -21,6 +21,7 @@ public enum TransactionSuccessCode implements BaseSuccessCode {
     CANCEL_RECOVERED(HttpStatus.OK, "CANCEL_RECOVERED", "결제 취소 상태를 복구했습니다."),
     PAYMENT_HISTORY_RETRIEVED(HttpStatus.OK, "PAYMENT_HISTORY_RETRIEVED", "결제 내역을 조회했습니다."),
     PAYMENT_DETAIL_RETRIEVED(HttpStatus.OK, "PAYMENT_DETAIL_RETRIEVED", "결제 상세 내역을 조회했습니다."),
+    EXCHANGE_INTENT_CREATED(HttpStatus.CREATED, "EXCHANGE_INTENT_CREATED", "환전 의도를 생성했습니다."),
     ;
 
     private final HttpStatus status;

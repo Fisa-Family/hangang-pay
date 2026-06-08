@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
+import family.fisa.hangangpay.client.bank.dto.BankTransactionStatusResponse;
 import family.fisa.hangangpay.domain.merchant.entity.Merchant;
 import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.party.entity.Party;
@@ -17,6 +18,7 @@ import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
 import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelExecutionPrepared;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
+import family.fisa.hangangpay.domain.transaction.service.cancel.CancelExecutionStateWriter;
 import family.fisa.hangangpay.domain.wallet.entity.Wallet;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import java.math.BigDecimal;
@@ -256,6 +258,144 @@ class CancelExecutionStateWriterTest {
         assertThat(response.confirmedAt()).isNull();
     }
 
+    // ===== recovery =====
+
+    @Test
+    @DisplayName("취소 복구 준비 시 원본 소유권과 복구 가능한 CANCEL을 검증한다")
+    void prepareRecovery_validatesAndReturnsCancelTarget() {
+        Transaction original = paymentTransaction(MERCHANT_PARTY_ID, TransactionStatus.SUCCESS);
+        Transaction cancelTx = cancelTransaction(TransactionStatus.UNKNOWN);
+
+        given(
+                        transactionRepository.findDetailByIdAndTypes(
+                                TRANSACTION_ID, List.of(TransactionType.PAYMENT)))
+                .willReturn(Optional.of(original));
+        given(
+                        transactionRepository.findRecoverableCancelByOriginalTransactionUuid(
+                                TRANSACTION_UUID))
+                .willReturn(Optional.of(cancelTx));
+
+        CancelExecutionPrepared prepared =
+                cancelExecutionStateWriter.prepareRecovery(MERCHANT_PARTY_ID, TRANSACTION_ID);
+
+        assertThat(prepared.cancelTransactionUuid()).isEqualTo(CANCEL_UUID);
+        assertThat(prepared.originalTransactionUuid()).isEqualTo(TRANSACTION_UUID);
+        assertThat(prepared.fromWalletAddress()).isEqualTo("0x-merchant");
+        assertThat(prepared.toWalletAddress()).isEqualTo("0x-user");
+    }
+
+    @Test
+    @DisplayName("취소 복구 준비 시 가맹점이 원본 결제 수신자가 아니면 거부된다")
+    void prepareRecovery_rejectsWrongMerchant() {
+        Transaction original = paymentTransaction(OTHER_PARTY_ID, TransactionStatus.SUCCESS);
+        given(
+                        transactionRepository.findDetailByIdAndTypes(
+                                TRANSACTION_ID, List.of(TransactionType.PAYMENT)))
+                .willReturn(Optional.of(original));
+
+        assertThatThrownBy(
+                        () ->
+                                cancelExecutionStateWriter.prepareRecovery(
+                                        MERCHANT_PARTY_ID, TRANSACTION_ID))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("code", TransactionErrorCode.PAYMENT_CANCEL_FORBIDDEN);
+    }
+
+    @Test
+    @DisplayName("취소 복구 준비 시 복구 가능한 CANCEL이 없으면 거부된다")
+    void prepareRecovery_rejectsWhenNoRecoverableCancel() {
+        Transaction original = paymentTransaction(MERCHANT_PARTY_ID, TransactionStatus.SUCCESS);
+        given(
+                        transactionRepository.findDetailByIdAndTypes(
+                                TRANSACTION_ID, List.of(TransactionType.PAYMENT)))
+                .willReturn(Optional.of(original));
+        given(
+                        transactionRepository.findRecoverableCancelByOriginalTransactionUuid(
+                                TRANSACTION_UUID))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(
+                        () ->
+                                cancelExecutionStateWriter.prepareRecovery(
+                                        MERCHANT_PARTY_ID, TRANSACTION_ID))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("code", TransactionErrorCode.CANCEL_NOT_RECOVERABLE);
+    }
+
+    @Test
+    @DisplayName("Bank SUCCESS 취소 복구 결과를 로컬 SUCCESS로 반영한다")
+    void applyRecoveryResult_success() {
+        Transaction cancelTx = cancelTransaction(TransactionStatus.UNKNOWN);
+        BankTransactionStatusResponse bankStatus =
+                bankStatus(TransactionStatus.SUCCESS, 888L, "0x-recovered-cancel");
+
+        given(transactionRepository.findByTransactionUuid(CANCEL_UUID))
+                .willReturn(Optional.of(cancelTx));
+
+        PaymentCancelResponse response =
+                cancelExecutionStateWriter.applyRecoveryResult(CANCEL_UUID, bankStatus);
+
+        assertThat(response.status()).isEqualTo(TransactionStatus.SUCCESS);
+        assertThat(response.txHash()).isEqualTo("0x-recovered-cancel");
+        assertThat(cancelTx.getStatus()).isEqualTo(TransactionStatus.SUCCESS);
+        assertThat(cancelTx.getTxHash()).isEqualTo("0x-recovered-cancel");
+        assertThat(cancelTx.getBankTransactionId()).isEqualTo("888");
+    }
+
+    @Test
+    @DisplayName("Bank FAILED 취소 복구 결과를 로컬 FAILED로 반영한다")
+    void applyRecoveryResult_failed() {
+        Transaction cancelTx = cancelTransaction(TransactionStatus.UNKNOWN);
+        BankTransactionStatusResponse bankStatus = bankStatus(TransactionStatus.FAILED, null, null);
+
+        given(transactionRepository.findByTransactionUuid(CANCEL_UUID))
+                .willReturn(Optional.of(cancelTx));
+
+        PaymentCancelResponse response =
+                cancelExecutionStateWriter.applyRecoveryResult(CANCEL_UUID, bankStatus);
+
+        assertThat(response.status()).isEqualTo(TransactionStatus.FAILED);
+        assertThat(response.txHash()).isNull();
+        assertThat(cancelTx.getStatus()).isEqualTo(TransactionStatus.FAILED);
+    }
+
+    @Test
+    @DisplayName("Bank PROCESSING 취소 복구 결과는 로컬 UNKNOWN을 유지한다")
+    void applyRecoveryResult_processingKeepsUnknown() {
+        Transaction cancelTx = cancelTransaction(TransactionStatus.UNKNOWN);
+        BankTransactionStatusResponse bankStatus =
+                bankStatus(TransactionStatus.PROCESSING, null, null);
+
+        given(transactionRepository.findByTransactionUuid(CANCEL_UUID))
+                .willReturn(Optional.of(cancelTx));
+
+        PaymentCancelResponse response =
+                cancelExecutionStateWriter.applyRecoveryResult(CANCEL_UUID, bankStatus);
+
+        assertThat(response.status()).isEqualTo(TransactionStatus.UNKNOWN);
+        assertThat(response.txHash()).isNull();
+        assertThat(cancelTx.getStatus()).isEqualTo(TransactionStatus.UNKNOWN);
+    }
+
+    @Test
+    @DisplayName("Bank SUCCESS 취소 복구 결과에 txHash나 bankTransactionId가 없으면 오류가 발생한다")
+    void applyRecoveryResult_successRequiresBankProof() {
+        Transaction cancelTx = cancelTransaction(TransactionStatus.UNKNOWN);
+        BankTransactionStatusResponse bankStatus =
+                bankStatus(TransactionStatus.SUCCESS, null, "0x-recovered-cancel");
+
+        given(transactionRepository.findByTransactionUuid(CANCEL_UUID))
+                .willReturn(Optional.of(cancelTx));
+
+        assertThatThrownBy(
+                        () ->
+                                cancelExecutionStateWriter.applyRecoveryResult(
+                                        CANCEL_UUID, bankStatus))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue(
+                        "code", TransactionErrorCode.PAYMENT_RECOVERY_RESULT_INVALID);
+    }
+
     // ===== 픽스처 =====
 
     private Transaction paymentTransaction(Long toPartyId, TransactionStatus status) {
@@ -278,6 +418,10 @@ class CancelExecutionStateWriterTest {
     }
 
     private Transaction cancelTransaction() {
+        return cancelTransaction(TransactionStatus.PROCESSING);
+    }
+
+    private Transaction cancelTransaction(TransactionStatus status) {
         Party merchantParty = party(MERCHANT_PARTY_ID, PartyType.MERCHANT);
         Party userParty = party(USER_PARTY_ID, PartyType.USER);
 
@@ -286,13 +430,23 @@ class CancelExecutionStateWriterTest {
                 .transactionUuid(CANCEL_UUID)
                 .originalTransactionUuid(TRANSACTION_UUID)
                 .transactionType(TransactionType.CANCEL)
-                .status(TransactionStatus.PROCESSING)
+                .status(status)
                 .fromParty(merchantParty)
                 .toParty(userParty)
                 .fromWallet(wallet(2L, merchantParty, "0x-merchant"))
                 .toWallet(wallet(1L, userParty, "0x-user"))
                 .amount(new BigDecimal("10000"))
                 .build();
+    }
+
+    private BankTransactionStatusResponse bankStatus(
+            TransactionStatus status, Long bankTransactionId, String txHash) {
+        return new BankTransactionStatusResponse(
+                CANCEL_UUID,
+                bankTransactionId,
+                status,
+                txHash,
+                LocalDateTime.of(2026, 5, 27, 14, 30));
     }
 
     private Merchant merchant(String pinHash) {

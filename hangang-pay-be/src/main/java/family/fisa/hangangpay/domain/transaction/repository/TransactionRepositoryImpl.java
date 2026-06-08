@@ -119,16 +119,6 @@ public class TransactionRepositoryImpl implements TransactionRepository {
         return jpaRepository.sumSuccessByTypeSince(partyId, type, since);
     }
 
-    /** 배치 reconcile 대상 PENDING EXCHANGE ID 목록 조회 */
-    @Override
-    public List<Long> findPendingExchangeIdsForReconcile(int maxAttempts) {
-        return jpaRepository.findIdsForReconcile(
-                TransactionStatus.PENDING,
-                TransactionType.EXCHANGE,
-                LocalDateTime.now(),
-                maxAttempts);
-    }
-
     @Override
     public boolean existsSuccessCancelByOriginalTransactionUuid(String originalTransactionUuid) {
         return jpaRepository.existsByOriginalTransactionUuidAndTransactionTypeAndStatus(
@@ -158,8 +148,11 @@ public class TransactionRepositoryImpl implements TransactionRepository {
     @Override
     public Optional<Transaction> findRecoverableCancelByOriginalTransactionUuid(
             String originalTransactionUuid) {
-        return jpaRepository.findByOriginalTransactionUuidAndTransactionTypeAndStatus(
-                originalTransactionUuid, TransactionType.CANCEL, TransactionStatus.UNKNOWN);
+        // UNKNOWN + 오래된 PROCESSING(sweep 대상) 둘 다 복구 가능 CANCEL로 본다.
+        return jpaRepository.findByOriginalTransactionUuidAndTransactionTypeAndStatusIn(
+                originalTransactionUuid,
+                TransactionType.CANCEL,
+                List.of(TransactionStatus.UNKNOWN, TransactionStatus.PROCESSING));
     }
 
     @Override
@@ -170,5 +163,42 @@ public class TransactionRepositoryImpl implements TransactionRepository {
             LocalDateTime endExclusive) {
         return jpaRepository.findMerchantPaymentsBetween(
                 merchantPartyId, status, startInclusive, endExclusive);
+    }
+
+    @Override
+    public List<Transaction> findExchangeReconcileTargets(int maxRetry, LocalDateTime threshold) {
+        return jpaRepository.findExchangeReconcileTargets(
+                TransactionType.EXCHANGE, maxRetry, threshold);
+    }
+
+    @Override
+    public List<Transaction> findStalePendingExchangeIntents(LocalDateTime threshold) {
+        return jpaRepository.findStalePendingExchangeIntents(
+                TransactionType.EXCHANGE, TransactionStatus.PENDING, threshold);
+    }
+
+    @Override
+    public List<Transaction> findStaleProcessingByType(
+            TransactionType type, LocalDateTime threshold, int maxAttempts) {
+        // status는 PROCESSING으로 고정해 넘긴다.
+        return jpaRepository
+                .findByStatusAndTransactionTypeAndUpdatedAtBeforeAndReconcileAttemptCountLessThan(
+                        TransactionStatus.PROCESSING, type, threshold, maxAttempts);
+    }
+
+    @Override
+    public List<Transaction> findAbandonedProcessingByType(
+            TransactionType type, LocalDateTime threshold, int maxAttempts) {
+        return jpaRepository
+                .findByStatusAndTransactionTypeAndUpdatedAtBeforeAndReconcileAttemptCount(
+                        TransactionStatus.PROCESSING, type, threshold, maxAttempts);
+    }
+
+    @Override
+    public List<Transaction> findExchangeAbandonedTargets(int maxRetry) {
+        return jpaRepository.findExchangeAbandonedTargets(
+                TransactionType.EXCHANGE,
+                List.of(TransactionStatus.PROCESSING, TransactionStatus.UNKNOWN),
+                maxRetry);
     }
 }

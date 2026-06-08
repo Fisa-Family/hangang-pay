@@ -8,6 +8,7 @@ import family.fisa.hangangpay.domain.transaction.entity.Transaction;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
+import family.fisa.hangangpay.domain.transaction.service.exchange.ExchangeQueryService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Optional;

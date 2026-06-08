@@ -5,6 +5,7 @@ import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Limit;
@@ -156,11 +157,12 @@ public interface TransactionJpaRepository extends JpaRepository<Transaction, Lon
     BigDecimal sumAllSuccessByType(
             @Param("partyId") Long partyId, @Param("type") TransactionType type);
 
-    /** 복구 가능한 CANCEL 조회 - UNKNOWN 상태만 */
-    Optional<Transaction> findByOriginalTransactionUuidAndTransactionTypeAndStatus(
+    /** 복구 가능한 CANCEL 조회 - IN (UNKNOWN, PROCESSING) */
+    @EntityGraph(attributePaths = {"fromParty"})
+    Optional<Transaction> findByOriginalTransactionUuidAndTransactionTypeAndStatusIn(
             String originalTransactionUuid,
             TransactionType transactionType,
-            TransactionStatus status);
+            Collection<TransactionStatus> statuses);
 
     @Query(
             "SELECT t FROM Transaction t "
@@ -174,4 +176,54 @@ public interface TransactionJpaRepository extends JpaRepository<Transaction, Lon
             @Param("status") TransactionStatus status,
             @Param("startInclusive") LocalDateTime startInclusive,
             @Param("endExclusive") LocalDateTime endExclusive);
+
+    /** 복구 대상 - 특정 상태 + 타입 + updatedAt 이전 + 시도 한도 미만 */
+    @EntityGraph(attributePaths = {"fromParty"})
+    List<Transaction>
+            findByStatusAndTransactionTypeAndUpdatedAtBeforeAndReconcileAttemptCountLessThan(
+                    TransactionStatus status,
+                    TransactionType type,
+                    LocalDateTime threshold,
+                    int maxAttempts);
+
+    /** 포기(alert) 대상 - updatedAt 이전 + 시도 횟수 정확히 일치(원샷 알림용) */
+    @EntityGraph(attributePaths = {"fromParty"})
+    List<Transaction> findByStatusAndTransactionTypeAndUpdatedAtBeforeAndReconcileAttemptCount(
+            TransactionStatus status,
+            TransactionType type,
+            LocalDateTime threshold,
+            int attemptCount);
+
+    @Query(
+            "SELECT t FROM Transaction t "
+                    + "WHERE t.transactionType = :type "
+                    + "AND t.reconcileAttemptCount < :maxRetry "
+                    + "AND (t.status = family.fisa.hangangpay.domain.transaction.entity.TransactionStatus.UNKNOWN "
+                    + "  OR (t.status = family.fisa.hangangpay.domain.transaction.entity.TransactionStatus.PROCESSING "
+                    + "      AND t.updatedAt < :threshold))")
+    List<Transaction> findExchangeReconcileTargets(
+            @Param("type") TransactionType type,
+            @Param("maxRetry") int maxRetry,
+            @Param("threshold") LocalDateTime threshold);
+
+    @Query(
+            "SELECT t FROM Transaction t "
+                    + "WHERE t.transactionType = :type "
+                    + "AND t.status = :status "
+                    + "AND t.createdAt < :threshold")
+    List<Transaction> findStalePendingExchangeIntents(
+            @Param("type") TransactionType type,
+            @Param("status") TransactionStatus status,
+            @Param("threshold") LocalDateTime threshold);
+
+    /** 환전 reconcile 포기 대상 - PROCESSING/UNKNOWN + 시도 한도 소진 */
+    @Query(
+            "SELECT t FROM Transaction t "
+                    + "WHERE t.transactionType = :type "
+                    + "AND t.status IN :statuses "
+                    + "AND t.reconcileAttemptCount >= :maxRetry")
+    List<Transaction> findExchangeAbandonedTargets(
+            @Param("type") TransactionType type,
+            @Param("statuses") List<TransactionStatus> statuses,
+            @Param("maxRetry") int maxRetry);
 }

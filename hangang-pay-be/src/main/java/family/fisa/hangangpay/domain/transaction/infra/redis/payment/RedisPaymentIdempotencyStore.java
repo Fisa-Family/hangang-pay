@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
 import family.fisa.hangangpay.domain.transaction.dto.response.PaymentExecutionResponse;
+import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.internal.payment.PaymentIdempotencyDecision;
 import family.fisa.hangangpay.domain.transaction.internal.payment.PaymentIdempotencyStore;
 import family.fisa.hangangpay.global.exception.BusinessException;
@@ -47,9 +48,14 @@ public class RedisPaymentIdempotencyStore implements PaymentIdempotencyStore {
             return PaymentIdempotencyDecision.conflict();
         }
 
-        // 완료된 동일 요청은 Bank를 다시 호출하지 않고 저장된 응답 snapshot을 재사용한다.
+        // 완료된 동일 요청은 Bank를 다시 호출하지 않고 저장된 응답 snapshot을 재사용한다. (UNKNOWN / SUCCESS)
         if (existing.responseSnapshot() != null) {
             return PaymentIdempotencyDecision.returnSnapshot(existing.responseSnapshot());
+        }
+
+        // snapshot은 없지만 status가 FAILED면, 복구가 실패로 확정한 거래다 → 재시도 거절함. (은행 요청 전, 죽은 PROCESSING)
+        if (existing.status() == TransactionStatus.FAILED) {
+            return PaymentIdempotencyDecision.alreadyFailed();
         }
 
         // snapshot이 없으면 기존 요청이 아직 Bank 호출 또는 후처리 중인 상태다.
@@ -66,6 +72,17 @@ public class RedisPaymentIdempotencyStore implements PaymentIdempotencyStore {
         PaymentIdempotencyRecord completed = existing.complete(responseSnapshot);
 
         redisTemplate.opsForValue().set(key, serialize(completed), IDEMPOTENCY_TTL);
+    }
+
+    @Override
+    public void failExecution(String transactionUuid) {
+        // 1. 기존 선점 record(PROCESSING, snapshot = null) 인 경우를 꺼낸다.
+        String key = key(transactionUuid);
+        PaymentIdempotencyRecord existing = readRecord(key);
+
+        // 2. FAILED 마킹 + snapshot 제거한다.
+        // 이후 같은 uuid 재요청은 beginExecution에서 ALREADY_FAILED
+        redisTemplate.opsForValue().set(key, serialize(existing.fail()), IDEMPOTENCY_TTL);
     }
 
     private String key(String transactionUuid) {

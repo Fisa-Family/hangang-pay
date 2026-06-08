@@ -7,6 +7,7 @@ import {
   mockMerchantPaymentDetail,
   mockMerchantSettlements,
   mockMerchantRedeemInit,
+  mockMerchantRedeemIntent,
   mockMerchantRedeemResult,
   mockPaymentCancelResult,
 } from '../fixtures/merchant'
@@ -32,5 +33,7 @@ export const merchantHandlers = [
 
   http.get(`${BASE}/merchant/redeem`, () => ok(mockMerchantRedeemInit)),
 
-  http.post(`${BASE}/merchant/redeem`, () => ok(mockMerchantRedeemResult)),
+  http.post(`${BASE}/merchant/redeem/intents`, () => ok(mockMerchantRedeemIntent)),
+
+  http.post(`${BASE}/merchant/redeem/:transactionUuid/execute`, () => ok(mockMerchantRedeemResult)),
 ]
