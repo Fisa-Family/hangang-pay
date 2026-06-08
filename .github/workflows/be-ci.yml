@@ -159,6 +159,7 @@ jobs:
 
           sudo docker stop hangang-pay-be || true
           sudo docker rm hangang-pay-be || true
+          sudo fuser -k 8080/tcp 2>/dev/null || true
 
           REDIS_HOST='${{ vars.ONPREM_REDIS_HOST }}'
           REDIS_PORT='${{ vars.ONPREM_REDIS_PORT || '6379' }}'
