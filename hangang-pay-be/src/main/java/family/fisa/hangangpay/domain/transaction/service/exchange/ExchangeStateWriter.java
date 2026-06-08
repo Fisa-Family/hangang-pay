@@ -1,4 +1,4 @@
-package family.fisa.hangangpay.domain.transaction.service;
+package family.fisa.hangangpay.domain.transaction.service.exchange;
 
 import family.fisa.hangangpay.client.bank.dto.ExchangeRequest;
 import family.fisa.hangangpay.domain.account.entity.Account;
@@ -110,6 +110,13 @@ public class ExchangeStateWriter {
                 tx.getAmount());
     }
 
+    /** 미저장 거래를 SUCCESS로 확정하며 저장 + 응답 빌드 */
+    public ExchangeExecuteResponse completeExchange(
+            Transaction tx, String txHash, String bankTransactionId) {
+
+        tx.completeSuccessWithResponse(txHash, bankTransactionId);
+        Transaction saved = transactionRepository.save(tx);
+        return ExchangeExecuteResponse.from(saved);
     /** 현재 상태 응답 빌드 - 멱등 재요청(이미 SUCCESS/FAILED) 시 그대로 돌려주기 위함 */
     @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
     public ExchangeExecuteResponse getResponse(String uuid) {
@@ -132,6 +139,7 @@ public class ExchangeStateWriter {
         Transaction tx = findByUuid(uuid);
         tx.markFailed(); // status=FAILED
         log.info("환전 FAILED. transactionUuid={}", uuid);
+        tx.completeSuccessWithResponse(txHash, bankTransactionId);
         return ExchangeExecuteResponse.from(tx);
     }
 

@@ -1,4 +1,4 @@
-package family.fisa.hangangpay.domain.transaction.service;
+package family.fisa.hangangpay.domain.transaction.service.charge;
 
 import family.fisa.hangangpay.domain.account.entity.Account;
 import family.fisa.hangangpay.domain.account.repository.AccountRepository;
@@ -126,7 +126,7 @@ public class ChargeExecutionWriter {
             String bankTransactionId,
             LocalDateTime confirmedAt) {
         Transaction transaction = getChargeTransaction(transactionUuid);
-        transaction.completeWithBankResponse(txHash, bankTransactionId);
+        transaction.completeSuccessWithResponse(txHash, bankTransactionId);
         log.info("충전 성공. transactionUuid={}, txHash={}", transactionUuid, txHash);
         return ChargeExecuteResponse.from(transaction, confirmedAt);
     }

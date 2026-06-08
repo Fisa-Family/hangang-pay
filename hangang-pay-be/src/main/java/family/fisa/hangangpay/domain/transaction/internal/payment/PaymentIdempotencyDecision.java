@@ -22,4 +22,9 @@ public record PaymentIdempotencyDecision(
     public static PaymentIdempotencyDecision conflict() {
         return new PaymentIdempotencyDecision(PaymentIdempotencyDecisionType.CONFLICT, null);
     }
+
+    // 이미 실패로 끝난 요청. snapshot은 없다(FAILED는 본문 응답이 아니라 예외로 내려감).
+    public static PaymentIdempotencyDecision alreadyFailed() {
+        return new PaymentIdempotencyDecision(PaymentIdempotencyDecisionType.ALREADY_FAILED, null);
+    }
 }

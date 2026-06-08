@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
 import family.fisa.hangangpay.domain.transaction.dto.response.PaymentCancelResponse;
+import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelIdempotencyDecision;
 import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelIdempotencyStore;
 import family.fisa.hangangpay.global.exception.BusinessException;
@@ -49,6 +50,12 @@ public class RedisCancelIdempotencyStore implements CancelIdempotencyStore {
             return CancelIdempotencyDecision.returnSnapshot(existing.responseSnapshot());
         }
 
+        // 4-1. snapshot 없고 status가 FAILED - 복구가 실패로 확정된 취소 -> 재시도 거절 (은행 호출 전, 서버가 죽었을 때 PROCESSING
+        // 레코드를 스케줄러에서 처리함.)
+        if (existing.status() == TransactionStatus.FAILED) {
+            return CancelIdempotencyDecision.alreadyFailed();
+        }
+
         // 5. snapshot 없음 — 기존 요청이 아직 처리 중
         return CancelIdempotencyDecision.processing();
     }
@@ -62,6 +69,17 @@ public class RedisCancelIdempotencyStore implements CancelIdempotencyStore {
         redisTemplate
                 .opsForValue()
                 .set(key, serialize(existing.complete(responseSnapshot)), IDEMPOTENCY_TTL);
+    }
+
+    @Override
+    public void failCancel(String originalPaymentUuid) {
+        // 1. 기존 선점 record를 꺼낸다.
+        String key = KEY_PREFIX + originalPaymentUuid;
+        CancelIdempotencyRecord existing = readRecord(key);
+
+        // 2. FAILED 마킹 + snapshot 제거한다.
+        // 이후 같은 uuid 재요청은 beginExecution에서 ALREADY_FAILED
+        redisTemplate.opsForValue().set(key, serialize(existing.fail()), IDEMPOTENCY_TTL);
     }
 
     private CancelIdempotencyRecord readRecord(String key) {

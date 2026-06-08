@@ -21,9 +21,9 @@ import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeIntentResp
 import family.fisa.hangangpay.domain.transaction.dto.response.MerchantPaymentDetail;
 import family.fisa.hangangpay.domain.transaction.dto.response.MerchantPaymentHistoryItem;
 import family.fisa.hangangpay.domain.transaction.dto.response.PaymentCancelResponse;
-import family.fisa.hangangpay.domain.transaction.service.ExchangeCommandService;
 import family.fisa.hangangpay.domain.transaction.service.TransactionCommandService;
 import family.fisa.hangangpay.domain.transaction.service.TransactionQueryService;
+import family.fisa.hangangpay.domain.transaction.service.exchange.ExchangeCommandService;
 import family.fisa.hangangpay.global.code.success.GeneralSuccessCode;
 import family.fisa.hangangpay.global.pagination.CursorPageRequest;
 import family.fisa.hangangpay.global.pagination.CursorPageResponse;
@@ -194,12 +194,12 @@ public class MerchantController {
             summary = "결제 취소 (MERCHANT-004)",
             description = "가맹점이 본인 결제 건을 PIN 인증 후 취소한다. 시간 제한 없음.")
     @PostMapping("/payments/{transactionId}/cancel")
-    public ResponseEntity<ApiResponse<PaymentCancelResponse>> cancelPayment(
+    public ResponseEntity<ApiResponse<PaymentCancelResponse>> executeCancel(
             @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId,
             @PathVariable Long transactionId,
             @Valid @RequestBody PaymentCancelRequest request) {
         PaymentCancelResponse response =
-                transactionCommandService.cancelPayment(partyId, transactionId, request);
+                transactionCommandService.executeCancel(partyId, transactionId, request);
         return ResponseEntity.ok(
                 ApiResponse.onSuccess(TransactionSuccessCode.PAYMENT_CANCELLED, response));
     }

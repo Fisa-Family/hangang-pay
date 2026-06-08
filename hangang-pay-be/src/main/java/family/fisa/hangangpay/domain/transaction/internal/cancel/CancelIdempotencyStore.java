@@ -9,4 +9,8 @@ public interface CancelIdempotencyStore {
 
     // Bank 취소 완료(SUCCESS/UNKNOWN) 후 최종 응답 snapshot 저장
     void completeCancel(String originalPaymentUuid, PaymentCancelResponse responseSnapshot);
+
+    // Bank 취소가 결정적으로 실패했을 때 record를 FAILED로 마킹한다.
+    // 이후 동일 원본결제 재취소 요청은 ALREADY_FAILED로 즉시 거절된다.
+    void failCancel(String originalPaymentUuid);
 }

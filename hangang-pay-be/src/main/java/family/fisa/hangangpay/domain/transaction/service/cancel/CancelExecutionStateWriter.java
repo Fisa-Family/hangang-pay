@@ -1,11 +1,13 @@
-package family.fisa.hangangpay.domain.transaction.service;
+package family.fisa.hangangpay.domain.transaction.service.cancel;
 
+import family.fisa.hangangpay.client.bank.dto.BankTransactionStatusResponse;
 import family.fisa.hangangpay.domain.merchant.code.MerchantErrorCode;
 import family.fisa.hangangpay.domain.merchant.entity.Merchant;
 import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
 import family.fisa.hangangpay.domain.transaction.dto.response.PaymentCancelResponse;
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
+import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
 import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelExecutionPrepared;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
@@ -103,18 +105,66 @@ public class CancelExecutionStateWriter {
             String bankTransactionId,
             LocalDateTime confirmedAt) {
         // 1. CANCEL 거래 조회
-        Transaction cancelTx = getTransactionByUuid(cancelTransactionUuid);
+        Transaction transaction = getTransactionByUuid(cancelTransactionUuid);
 
         // 2. txHash, bankTransactionId 기록 후 SUCCESS 전환
-        cancelTx.completeWithBankResponse(txHash, bankTransactionId);
+        transaction.completeSuccessWithResponse(txHash, bankTransactionId);
 
         // 3. 승인번호 생성 — id는 prepareCancel 시점에 이미 채번됨
-        cancelTx.assignApprovalNumber(makeApvNumber(cancelTx.getId()));
+        transaction.assignApprovalNumber(makeApvNumber(transaction.getId()));
 
         log.info("결제 취소 완료. cancelUuid={}, txHash={}", cancelTransactionUuid, txHash);
 
         // 4. 응답 조립
-        return PaymentCancelResponse.from(cancelTx, confirmedAt);
+        return PaymentCancelResponse.from(transaction, confirmedAt);
+    }
+
+    public void completeFailed(String transactionUuid) {
+        Transaction transaction = getTransactionByUuid(transactionUuid);
+        transaction.markFailed();
+        log.warn("결제 실패 확정(FAILED). transactionUuid={}", transactionUuid);
+    }
+
+    /** 복구했지만 은행이 아직 처리 중일 때 재조정 시도 횟수를 1 올린다. (cap 진행용) */
+    public void incrementRecoveryAttempt(String cancelTransactionUuid) {
+        Transaction cancelTx = getTransactionByUuid(cancelTransactionUuid);
+        cancelTx.incrementReconcileAttempt();
+    }
+
+    /** 자동 복구 시도 한도를 소진한 취소를 EXPIRED 터미널로 닫는다. */
+    public void markExpired(String cancelTransactionUuid) {
+        Transaction cancelTx = getTransactionByUuid(cancelTransactionUuid);
+        cancelTx.markExpired();
+    }
+
+    public CancelExecutionPrepared prepareRecovery(Long merchantPartyId, Long transactionId) {
+        Transaction original = getPaymentTransaction(transactionId);
+
+        original.validateMerchantIsReceiver(merchantPartyId);
+
+        Transaction cancelTx = getRecoverableCancelTransaction(original.getTransactionUuid());
+
+        return CancelExecutionPrepared.from(original, cancelTx);
+    }
+
+    public PaymentCancelResponse applyRecoveryResult(
+            String cancelTransactionUuid, BankTransactionStatusResponse bankStatus) {
+        Transaction cancelTx = getTransactionByUuid(cancelTransactionUuid);
+
+        if (bankStatus.status() == TransactionStatus.SUCCESS) {
+            validateBankSuccessRecoveryResult(bankStatus);
+            cancelTx.recoverSuccess(
+                    bankStatus.txHash(), String.valueOf(bankStatus.bankTransactionId()));
+        }
+
+        if (bankStatus.status() == TransactionStatus.FAILED) {
+            cancelTx.recoverFailed();
+        }
+
+        // PROCESSING(은행 아직 처리 중)이면 상태를 바꾸지 않고 현재 상태(UNKNOWN/PROCESSING) 그대로 반환한다.
+        // → 복구 미완. 다음 복구/sweep에서 재시도된다. (별도 분기 불필요)
+
+        return PaymentCancelResponse.from(cancelTx, bankStatus.confirmedAt());
     }
 
     /** 내부 메소드 */
@@ -130,6 +180,13 @@ public class CancelExecutionStateWriter {
                 .orElseThrow(() -> new BusinessException(TransactionErrorCode.PAYMENT_NOT_FOUND));
     }
 
+    private Transaction getRecoverableCancelTransaction(String originalTransactionUuid) {
+        return transactionRepository
+                .findRecoverableCancelByOriginalTransactionUuid(originalTransactionUuid)
+                .orElseThrow(
+                        () -> new BusinessException(TransactionErrorCode.CANCEL_NOT_RECOVERABLE));
+    }
+
     private Merchant getMerchant(Long merchantPartyId) {
         return merchantRepository
                 .findByParty_Id(merchantPartyId)
@@ -138,5 +195,11 @@ public class CancelExecutionStateWriter {
 
     private String makeApvNumber(Long id) {
         return "APV-" + LocalDateTime.now().getYear() + "-" + String.format("%08d", id);
+    }
+
+    private void validateBankSuccessRecoveryResult(BankTransactionStatusResponse bankStatus) {
+        if (bankStatus.txHash() == null || bankStatus.bankTransactionId() == null) {
+            throw new BusinessException(TransactionErrorCode.PAYMENT_RECOVERY_RESULT_INVALID);
+        }
     }
 }

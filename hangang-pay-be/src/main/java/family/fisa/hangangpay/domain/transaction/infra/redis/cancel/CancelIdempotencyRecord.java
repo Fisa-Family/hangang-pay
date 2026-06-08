@@ -24,4 +24,9 @@ public record CancelIdempotencyRecord(
         return new CancelIdempotencyRecord(
                 originalPaymentUuid, requestHash, status, responseSnapshot);
     }
+
+    public CancelIdempotencyRecord fail() {
+        return new CancelIdempotencyRecord(
+                originalPaymentUuid, requestHash, TransactionStatus.FAILED, null);
+    }
 }
