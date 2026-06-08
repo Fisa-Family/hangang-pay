@@ -43,6 +43,9 @@ contract LocalCurrencyPolicy is Initializable, UUPSUpgradeable {
   // 등록된 가맹점 여부
   mapping(address => bool) public merchants;
 
+  // 처리된 transactionUuid 중복 실행 방지
+  mapping(bytes32 => bool) public processedTx;
+
   // BE ErrorCode 매핑을 위한 custom error
   error Unauthorized();
   error InvalidAddress();
@@ -54,6 +57,7 @@ contract LocalCurrencyPolicy is Initializable, UUPSUpgradeable {
   error DepositTokenBurnFailed();
   error TransferFailed();
   error BankNotRegistered();
+  error AlreadyProcessed();
 
   // 가맹점 등록 이벤트
   event MerchantUpdated(address indexed merchant, bool approved);
@@ -65,10 +69,20 @@ contract LocalCurrencyPolicy is Initializable, UUPSUpgradeable {
   event Refunded(uint256 indexed toInstitutionId, address indexed user, uint256 amount);
 
   // 결제 이벤트
-  event Paid(address indexed from, address indexed to, uint256 amount);
+  event Paid(
+    bytes32 indexed transactionUuid,
+    address indexed from,
+    address indexed to,
+    uint256 amount
+  );
 
   // 결제 취소 이벤트
-  event PaymentCanceled(address indexed from, address indexed to, uint256 amount);
+  event PaymentCanceled(
+    bytes32 indexed transactionUuid,
+    address indexed from,
+    address indexed to,
+    uint256 amount
+  );
 
   // owner만 실행 가능
   modifier onlyOwner() {
@@ -168,7 +182,15 @@ contract LocalCurrencyPolicy is Initializable, UUPSUpgradeable {
 
   // 결제 함수
   // 사용자 -> 가맹점 방향으로 예금토큰을 이동
-  function pay(address from, address to, uint256 amount) external onlyOwner returns (bool) {
+  function pay(
+    bytes32 transactionUuid,
+    address from,
+    address to,
+    uint256 amount
+  ) external onlyOwner returns (bool) {
+    // 중복 실행 방지
+    if (processedTx[transactionUuid]) revert AlreadyProcessed();
+
     // 주소 검증
     if (from == address(0) || to == address(0)) {
       revert InvalidAddress();
@@ -184,22 +206,28 @@ contract LocalCurrencyPolicy is Initializable, UUPSUpgradeable {
       revert MerchantNotRegistered();
     }
 
+    processedTx[transactionUuid] = true;
+
     // from -> to 예금토큰 강제 이체
     if (!ILocalDepositToken(depositToken).forceTransfer(from, to, amount)) {
       revert TransferFailed();
     }
 
-    emit Paid(from, to, amount);
+    emit Paid(transactionUuid, from, to, amount);
     return true;
   }
 
   // 결제 취소 함수
   // 가맹점 -> 사용자 방향으로 예금토큰을 반환
   function cancelPayment(
+    bytes32 transactionUuid,
     address from,
     address to,
     uint256 amount
   ) external onlyOwner returns (bool) {
+    // 중복 실행 방지
+    if (processedTx[transactionUuid]) revert AlreadyProcessed();
+
     // 주소 검증
     if (from == address(0) || to == address(0)) {
       revert InvalidAddress();
@@ -215,19 +243,22 @@ contract LocalCurrencyPolicy is Initializable, UUPSUpgradeable {
       revert MerchantNotRegistered();
     }
 
+    processedTx[transactionUuid] = true;
+
     // from -> to 예금토큰 강제 이체
     // (가맹점 -> 사용자)
     if (!ILocalDepositToken(depositToken).forceTransfer(from, to, amount)) {
       revert TransferFailed();
     }
-    emit PaymentCanceled(from, to, amount);
+
+    emit PaymentCanceled(transactionUuid, from, to, amount);
     return true;
   }
 
   // UUPS 업그레이드는 owner만 허용
   function _authorizeUpgrade(address) internal override onlyOwner {}
 
-  uint256[50] private __gap;
+  uint256[49] private __gap;
 
   function versionV5() external pure returns (string memory) {
     return "v5";
