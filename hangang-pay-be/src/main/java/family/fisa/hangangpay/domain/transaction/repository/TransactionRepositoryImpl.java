@@ -119,16 +119,6 @@ public class TransactionRepositoryImpl implements TransactionRepository {
         return jpaRepository.sumSuccessByTypeSince(partyId, type, since);
     }
 
-    /** 배치 reconcile 대상 PENDING EXCHANGE ID 목록 조회 */
-    @Override
-    public List<Long> findPendingExchangeIdsForReconcile(int maxAttempts) {
-        return jpaRepository.findIdsForReconcile(
-                TransactionStatus.PENDING,
-                TransactionType.EXCHANGE,
-                LocalDateTime.now(),
-                maxAttempts);
-    }
-
     @Override
     public boolean existsSuccessCancelByOriginalTransactionUuid(String originalTransactionUuid) {
         return jpaRepository.existsByOriginalTransactionUuidAndTransactionTypeAndStatus(
@@ -176,11 +166,9 @@ public class TransactionRepositoryImpl implements TransactionRepository {
     }
 
     @Override
-    public List<Transaction> findExchangeReconcileTargets(int maxRetry) {
+    public List<Transaction> findExchangeReconcileTargets(int maxRetry, LocalDateTime threshold) {
         return jpaRepository.findExchangeReconcileTargets(
-                TransactionType.EXCHANGE,
-                List.of(TransactionStatus.PENDING, TransactionStatus.UNKNOWN),
-                maxRetry);
+                TransactionType.EXCHANGE, maxRetry, threshold);
     }
 
     @Override
@@ -204,5 +192,13 @@ public class TransactionRepositoryImpl implements TransactionRepository {
         return jpaRepository
                 .findByStatusAndTransactionTypeAndUpdatedAtBeforeAndReconcileAttemptCount(
                         TransactionStatus.PROCESSING, type, threshold, maxAttempts);
+    }
+
+    @Override
+    public List<Transaction> findExchangeAbandonedTargets(int maxRetry) {
+        return jpaRepository.findExchangeAbandonedTargets(
+                TransactionType.EXCHANGE,
+                List.of(TransactionStatus.PROCESSING, TransactionStatus.UNKNOWN),
+                maxRetry);
     }
 }

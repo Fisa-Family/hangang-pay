@@ -197,12 +197,14 @@ public interface TransactionJpaRepository extends JpaRepository<Transaction, Lon
     @Query(
             "SELECT t FROM Transaction t "
                     + "WHERE t.transactionType = :type "
-                    + "AND t.status IN :statuses "
-                    + "AND t.reconcileAttemptCount < :maxRetry")
+                    + "AND t.reconcileAttemptCount < :maxRetry "
+                    + "AND (t.status = family.fisa.hangangpay.domain.transaction.entity.TransactionStatus.UNKNOWN "
+                    + "  OR (t.status = family.fisa.hangangpay.domain.transaction.entity.TransactionStatus.PROCESSING "
+                    + "      AND t.updatedAt < :threshold))")
     List<Transaction> findExchangeReconcileTargets(
             @Param("type") TransactionType type,
-            @Param("statuses") List<TransactionStatus> statuses,
-            @Param("maxRetry") int maxRetry);
+            @Param("maxRetry") int maxRetry,
+            @Param("threshold") LocalDateTime threshold);
 
     @Query(
             "SELECT t FROM Transaction t "
@@ -213,4 +215,15 @@ public interface TransactionJpaRepository extends JpaRepository<Transaction, Lon
             @Param("type") TransactionType type,
             @Param("status") TransactionStatus status,
             @Param("threshold") LocalDateTime threshold);
+
+    /** 환전 reconcile 포기 대상 - PROCESSING/UNKNOWN + 시도 한도 소진 */
+    @Query(
+            "SELECT t FROM Transaction t "
+                    + "WHERE t.transactionType = :type "
+                    + "AND t.status IN :statuses "
+                    + "AND t.reconcileAttemptCount >= :maxRetry")
+    List<Transaction> findExchangeAbandonedTargets(
+            @Param("type") TransactionType type,
+            @Param("statuses") List<TransactionStatus> statuses,
+            @Param("maxRetry") int maxRetry);
 }

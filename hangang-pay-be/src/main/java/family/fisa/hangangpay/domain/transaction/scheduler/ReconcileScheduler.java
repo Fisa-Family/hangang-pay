@@ -8,29 +8,33 @@ import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/** PENDING/UNKNOWN 환전을 주기적으로 일관 reconcile 하는 배치 트리거 */
+/** PROCESSING/UNKNOWN 환전을 주기적으로 일관 reconcile 하는 배치 트리거 */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class ReconcileScheduler {
 
     public static final int MAX_RETRY = 10;
-    private static final long RECONCILE_INTERVAL_MS = 300_000L; // 5분
-    private static final long EXPIRE_INTERVAL_MS = 300_000L; // 5분
     private static final int INTENT_TTL_MINUTES = 10; // 이 시간 지난 PENDING은 만료
+    private static final int PROCESSING_STALE_MINUTES =
+            5; // 이 시간 안 지난 PROCESSING은 라이브 실행 중으로 보고 건드리지 않음
 
     private final TransactionRepository transactionRepository;
     private final ExchangeReconcileService exchangeReconcileService;
     private final ExchangeStateWriter stateWriter;
 
     /** PROCESSING/UNKNOWN을 bank 조회로 확정 */
-    @Scheduled(fixedDelay = RECONCILE_INTERVAL_MS)
-    // TODO @SchedulerLock(name = "exchangeReconcile")
+    @Scheduled(cron = "0 */5 * * * *")
+    @SchedulerLock(name = "reconcileExchanges", lockAtMostFor = "5m", lockAtLeastFor = "5s")
     public void reconcileExchanges() {
-        List<Transaction> targets = transactionRepository.findExchangeReconcileTargets(MAX_RETRY);
+        LocalDateTime threshold = LocalDateTime.now().minusMinutes(PROCESSING_STALE_MINUTES);
+
+        List<Transaction> targets =
+                transactionRepository.findExchangeReconcileTargets(MAX_RETRY, threshold);
         if (targets.isEmpty()) {
             return;
         }
@@ -43,11 +47,21 @@ public class ReconcileScheduler {
             }
         }
         log.info("환전 reconcile 배치 완료. count={}", targets.size());
+
+        // 시도 한도를 소진한 PROCESSING/UNKNOWN을 alert 후 EXPIRED 터미널로 닫는다.
+        for (Transaction abandoned :
+                transactionRepository.findExchangeAbandonedTargets(MAX_RETRY)) {
+            log.error(
+                    "[ALERT] 환전 자동 reconcile 포기 - 수기 확인 필요. transactionUuid={}, attempts={}",
+                    abandoned.getTransactionUuid(),
+                    abandoned.getReconcileAttemptCount());
+            stateWriter.markExpired(abandoned.getTransactionUuid());
+        }
     }
 
     /** TTL 지난 PENDING intent를 EXPIRED 처리 */
-    @Scheduled(fixedDelay = EXPIRE_INTERVAL_MS)
-    // TODO @SchedulerLock(name = "exchangeExpire")
+    @Scheduled(cron = "0 */5 * * * *")
+    @SchedulerLock(name = "expireStaleIntents", lockAtMostFor = "5m", lockAtLeastFor = "5s")
     public void expireStaleIntents() {
         LocalDateTime threshold = LocalDateTime.now().minusMinutes(INTENT_TTL_MINUTES);
         List<Transaction> targets =
