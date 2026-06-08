@@ -316,11 +316,6 @@ public class Transaction extends BaseEntity {
         this.reconcileAttemptCount = this.reconcileAttemptCount + 1;
     }
 
-    /** 자동 복구 시도 한도를 소진해 더는 확정할 수 없는 거래를 EXPIRED 터미널로 닫는다. */
-    public void markExpired() {
-        this.status = TransactionStatus.EXPIRED;
-    }
-
     /** 취소 요청자가 원본 결제의 수신 가맹점인지 검증 */
     public void validateMerchantIsReceiver(Long merchantPartyId) {
         if (!this.toParty.getId().equals(merchantPartyId)) {
