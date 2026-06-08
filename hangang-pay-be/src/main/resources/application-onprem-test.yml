@@ -15,6 +15,15 @@ spring:
 logging:
   level:
     root: WARN
+  structured:
+    format:
+      console: ecs                          # stdout을 ECS JSON으로 → Alloy가 docker 로그로 수집 후 Loki push
+
+# Sentry: 온프레 테스트 환경 식별 + 성능 트레이싱(테스트라 전량 샘플링)
+sentry:
+  environment: onprem-test
+  traces-sample-rate: 1.0
+  release: ${SENTRY_RELEASE:}
 
 app:
   cors:

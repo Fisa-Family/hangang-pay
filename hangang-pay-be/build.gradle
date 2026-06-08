@@ -57,6 +57,10 @@ dependencies {
 	// QR 생성 라이브러리
 	implementation("com.google.zxing:core:3.5.3")
 	implementation 'com.google.zxing:javase:3.5.3'
+
+	// Sentry (에러 추적 + 성능 트레이싱). SENTRY_DSN 미설정 시 비활성
+	implementation 'io.sentry:sentry-spring-boot-starter-jakarta:8.28.0'
+	implementation 'io.sentry:sentry-logback:8.28.0'
 }
 
 tasks.named('test') {

@@ -1,0 +1,33 @@
+# hangang-pay-bank: 앱 + Alloy 사이드카 (온프레미스 수동 배포)
+# 사용:  cp .env.example .env  → 값 채움  → docker compose up -d
+# 앱 이미지는 온프레에서 직접 빌드하거나(APP_IMAGE=hangang-pay-bank:local) 레지스트리에서 pull.
+
+# 서비스명은 app/alloy로 유지(스크랩 DNS app:8081 동일). container_name만 bank-* 로 둬서
+# 혹시 platform과 같은 호스트에 co-locate 되더라도 컨테이너명 충돌을 피한다.
+services:
+  app:
+    image: ${APP_IMAGE}
+    container_name: bank-app
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    env_file:
+      - .env
+
+  alloy:
+    image: grafana/alloy:latest
+    container_name: bank-alloy
+    restart: unless-stopped
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --server.http.listen-addr=0.0.0.0:12345
+    ports:
+      - "12345:12345" # Alloy UI/health (선택)
+    env_file:
+      - .env
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - app

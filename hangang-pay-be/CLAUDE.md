@@ -70,6 +70,7 @@ flowchart TD
 - ERD 상세: `docs/erd.md`
 - 패키지/도메인 책임: `docs/package.md`
 - REST API 목록과 권한 규칙: `docs/rest_api.md`
+- 관측성(Sentry/Grafana Cloud/Alloy): `docs/observability.md`
 
 ## Definition of Done
 
