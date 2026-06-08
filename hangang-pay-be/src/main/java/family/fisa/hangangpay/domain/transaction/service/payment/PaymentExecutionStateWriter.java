@@ -116,6 +116,12 @@ public class PaymentExecutionStateWriter {
         transaction.incrementReconcileAttempt();
     }
 
+    /** 자동 복구 시도 한도를 소진한 결제를 EXPIRED 터미널로 닫는다. */
+    public void markExpired(String transactionUuid) {
+        Transaction transaction = getPaymentTransaction(transactionUuid);
+        transaction.markExpired();
+    }
+
     public String prepareRecovery(Long partyId, String transactionUuid) {
         Transaction transaction = getPaymentTransaction(transactionUuid);
 

@@ -92,8 +92,8 @@ class UnknownPaymentRecoverySchedulerTest {
     }
 
     @Test
-    @DisplayName("결제: 오래된 PROCESSING은 복구하고, 포기 대상은 시도횟수를 올려 원샷(1회) 처리한다")
-    void resolveUnknownPayments_recoversStaleAndAlertsAbandonedOnce() {
+    @DisplayName("결제: 오래된 PROCESSING은 복구하고, 포기 대상은 EXPIRED로 닫는다")
+    void resolveUnknownPayments_recoversStaleAndExpiresAbandoned() {
         given(transactionRepository.findAllUnknownByType(TransactionType.PAYMENT))
                 .willReturn(List.of());
         given(
@@ -109,13 +109,13 @@ class UnknownPaymentRecoverySchedulerTest {
 
         // 오래된 PROCESSING은 복구 시도
         verify(transactionCommandService).recoverPayment(USER_PARTY_ID, PAYMENT_UUID);
-        // 포기 대상은 시도횟수를 한 칸 올려(원샷) 다음 주기 재알림을 막는다
-        verify(paymentExecutionStateWriter).incrementRecoveryAttempt(PAYMENT_UUID);
+        // 포기 대상은 EXPIRED 터미널로 닫아 다음 주기 sweep·재알림에서 제외한다
+        verify(paymentExecutionStateWriter).markExpired(PAYMENT_UUID);
     }
 
     @Test
-    @DisplayName("취소: 포기 대상은 시도횟수를 올려 원샷(1회) 처리한다")
-    void resolveUnknownCancels_alertsAbandonedOnce() {
+    @DisplayName("취소: 포기 대상은 EXPIRED로 닫는다")
+    void resolveUnknownCancels_expiresAbandoned() {
         given(transactionRepository.findAllUnknownByType(TransactionType.CANCEL))
                 .willReturn(List.of());
         given(
@@ -129,7 +129,7 @@ class UnknownPaymentRecoverySchedulerTest {
 
         scheduler.resolveUnknownCancels();
 
-        verify(cancelExecutionStateWriter).incrementRecoveryAttempt(CANCEL_UUID);
+        verify(cancelExecutionStateWriter).markExpired(CANCEL_UUID);
     }
 
     // ===== 픽스처 =====

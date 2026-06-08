@@ -131,6 +131,12 @@ public class CancelExecutionStateWriter {
         cancelTx.incrementReconcileAttempt();
     }
 
+    /** 자동 복구 시도 한도를 소진한 취소를 EXPIRED 터미널로 닫는다. */
+    public void markExpired(String cancelTransactionUuid) {
+        Transaction cancelTx = getTransactionByUuid(cancelTransactionUuid);
+        cancelTx.markExpired();
+    }
+
     public CancelExecutionPrepared prepareRecovery(Long merchantPartyId, Long transactionId) {
         Transaction original = getPaymentTransaction(transactionId);
 

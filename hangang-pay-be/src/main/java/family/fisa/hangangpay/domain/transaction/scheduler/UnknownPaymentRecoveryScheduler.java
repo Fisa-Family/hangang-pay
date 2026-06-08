@@ -59,7 +59,8 @@ public class UnknownPaymentRecoveryScheduler {
             }
         }
 
-        // 포기 대상(시도 횟수 == 한도) alert. ERROR 로그 1회 후 카운트를 올려 재알림을 막는다.
+        // 포기 대상(시도 횟수 == 한도) alert 후 EXPIRED 터미널로 닫는다.
+        // EXPIRED는 PROCESSING이 아니므로 다음 주기 sweep·재알림에서 자연히 제외된다.
         for (Transaction abandoned :
                 transactionRepository.findAbandonedProcessingByType(
                         TransactionType.PAYMENT, threshold, MAX_RECOVER_ATTEMPTS)) {
@@ -67,7 +68,7 @@ public class UnknownPaymentRecoveryScheduler {
                     "[ALERT] 결제 자동 복구 포기 - 수기 확인 필요. transactionUuid={}, attempts={}",
                     abandoned.getTransactionUuid(),
                     abandoned.getReconcileAttemptCount());
-            paymentExecutionStateWriter.incrementRecoveryAttempt(abandoned.getTransactionUuid());
+            paymentExecutionStateWriter.markExpired(abandoned.getTransactionUuid());
         }
     }
 
@@ -116,7 +117,7 @@ public class UnknownPaymentRecoveryScheduler {
             }
         }
 
-        // 포기 대상 alert (원샷)
+        // 포기 대상 alert 후 EXPIRED 터미널로 닫는다 (다음 주기 sweep·재알림에서 제외)
         for (Transaction abandoned :
                 transactionRepository.findAbandonedProcessingByType(
                         TransactionType.CANCEL, threshold, MAX_RECOVER_ATTEMPTS)) {
@@ -124,7 +125,7 @@ public class UnknownPaymentRecoveryScheduler {
                     "[ALERT] 취소 자동 복구 포기 - 수기 확인 필요. cancelUuid={}, attempts={}",
                     abandoned.getTransactionUuid(),
                     abandoned.getReconcileAttemptCount());
-            cancelExecutionStateWriter.incrementRecoveryAttempt(abandoned.getTransactionUuid());
+            cancelExecutionStateWriter.markExpired(abandoned.getTransactionUuid());
         }
     }
 }
