@@ -313,10 +313,7 @@ public class BankClientImpl implements BankClient {
         return response.getResult();
     }
 
-    /**
-     * 매핑된 에러 코드가 없다면 RestClientResponseException 에러를 그대로 반환 -> GlobalExceptionHandler에서
-     * BANK_SERVER_ERROR로 처리
-     */
+    /** Bank가 의미 있는 에러 응답을 주면 그대로 전달한다. */
     private <T> ApiResponse<T> callBank(Supplier<ApiResponse<T>> request) {
         try {
             return request.get();
@@ -336,7 +333,7 @@ public class BankClientImpl implements BankClient {
                 return Optional.of(mapped);
             }
 
-            if (response.code() != null && response.code().startsWith("BLOCKCHAIN_")) {
+            if (response.code() != null && response.message() != null) {
                 return Optional.of(
                         new ExternalBankErrorCode(
                                 HttpStatus.valueOf(ex.getStatusCode().value()),
