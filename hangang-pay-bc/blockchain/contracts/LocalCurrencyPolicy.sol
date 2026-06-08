@@ -206,12 +206,13 @@ contract LocalCurrencyPolicy is Initializable, UUPSUpgradeable {
       revert MerchantNotRegistered();
     }
 
+    processedTx[transactionUuid] = true;
+
     // from -> to 예금토큰 강제 이체
     if (!ILocalDepositToken(depositToken).forceTransfer(from, to, amount)) {
       revert TransferFailed();
     }
 
-    processedTx[transactionUuid] = true;
     emit Paid(transactionUuid, from, to, amount);
     return true;
   }
@@ -242,13 +243,14 @@ contract LocalCurrencyPolicy is Initializable, UUPSUpgradeable {
       revert MerchantNotRegistered();
     }
 
+    processedTx[transactionUuid] = true;
+
     // from -> to 예금토큰 강제 이체
     // (가맹점 -> 사용자)
     if (!ILocalDepositToken(depositToken).forceTransfer(from, to, amount)) {
       revert TransferFailed();
     }
 
-    processedTx[transactionUuid] = true;
     emit PaymentCanceled(transactionUuid, from, to, amount);
     return true;
   }
