@@ -85,7 +85,7 @@ public class ExchangeStateWriter {
     public ExchangeExecuteResponse completeExchange(
             Transaction tx, String txHash, String bankTransactionId) {
 
-        tx.completeWithBankResponse(txHash, bankTransactionId);
+        tx.completeSuccessWithResponse(txHash, bankTransactionId);
         Transaction saved = transactionRepository.save(tx);
         return ExchangeExecuteResponse.from(saved);
     }
