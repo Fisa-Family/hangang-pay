@@ -8,7 +8,6 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.PostPersist;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -33,9 +32,6 @@ public class BlockchainOutbox extends BaseEntity {
     @Column(name = "blockchain_ledger_id", nullable = false)
     private Long blockchainLedgerId;
 
-    @Column(name = "message_id", unique = true, length = 36)
-    private String messageId;
-
     @Column(name = "transaction_uuid", nullable = false, length = 36)
     private String transactionUuid;
 
@@ -53,9 +49,8 @@ public class BlockchainOutbox extends BaseEntity {
     @Column(name = "retry_count", nullable = false)
     private int retryCount;
 
-    @PostPersist
-    void assignMessageId() {
-        this.messageId = "outbox-" + this.id;
+    public String getMessageId() {
+        return "outbox-" + this.id;
     }
 
     public void markSent() {

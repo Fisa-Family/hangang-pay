@@ -18,24 +18,6 @@ class BlockchainSyncMessageTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    @DisplayName("messageIdFromOutboxId는 동일한 outboxId로 항상 같은 값을 반환한다")
-    void messageIdIsStableForSameOutboxId() {
-        String first = BlockchainSyncMessage.messageIdFromOutboxId(42L);
-        String second = BlockchainSyncMessage.messageIdFromOutboxId(42L);
-
-        assertThat(first).isEqualTo(second);
-    }
-
-    @Test
-    @DisplayName("다른 outboxId는 다른 messageId를 반환한다")
-    void differentOutboxIdProducesDifferentMessageId() {
-        String a = BlockchainSyncMessage.messageIdFromOutboxId(1L);
-        String b = BlockchainSyncMessage.messageIdFromOutboxId(2L);
-
-        assertThat(a).isNotEqualTo(b);
-    }
-
-    @Test
     @DisplayName("BlockchainSyncMessage는 Jackson 직렬화/역직렬화가 가능하다")
     void serializesAndDeserializesWithJackson() throws Exception {
         JsonNode payload =
@@ -44,7 +26,7 @@ class BlockchainSyncMessageTest {
 
         BlockchainSyncMessage message =
                 new BlockchainSyncMessage(
-                        BlockchainSyncMessage.messageIdFromOutboxId(7L),
+                        "outbox-7",
                         7L,
                         3L,
                         "uuid-1111",

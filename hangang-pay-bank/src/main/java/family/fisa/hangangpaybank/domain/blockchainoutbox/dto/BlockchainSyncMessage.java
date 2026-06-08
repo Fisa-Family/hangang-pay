@@ -10,9 +10,4 @@ public record BlockchainSyncMessage(
         String transactionUuid,
         BlockchainSyncType type,
         int payloadVersion,
-        JsonNode payload) {
-
-    public static String messageIdFromOutboxId(Long outboxId) {
-        return "outbox-" + outboxId;
-    }
-}
+        JsonNode payload) {}
