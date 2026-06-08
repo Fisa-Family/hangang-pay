@@ -4,8 +4,10 @@ import family.fisa.hangangpay.client.bank.BankClient;
 import family.fisa.hangangpay.client.bank.dto.ExchangeStatusResponse;
 import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
 import family.fisa.hangangpay.domain.transaction.dto.ReconcileResult;
+import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeExecuteResponse;
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
+import family.fisa.hangangpay.domain.transaction.internal.exchange.ExchangeIdempotencyStore;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import java.util.Optional;
@@ -24,11 +26,12 @@ public class ExchangeReconcileService {
 
     private final TransactionRepository transactionRepository;
     private final ExchangeStateWriter exchangeStateWriter;
+    private final ExchangeIdempotencyStore idempotencyStore;
     private final BankClient bankClient;
 
     /** 단건 reconcile */
     public ReconcileResult reconcile(Long transactionId) {
-        // 1. transaction 조회 + 사전 검증
+        // 1. transaction 조회
         Transaction tx =
                 transactionRepository
                         .findById(transactionId)
@@ -37,16 +40,16 @@ public class ExchangeReconcileService {
                                         new BusinessException(
                                                 TransactionErrorCode.EXCHANGE_NOT_FOUND));
 
-        if (tx.getStatus() != TransactionStatus.PENDING) {
-            // 이미 마킹 끝난 거래
+        // 2. UNKNOWN만 reconcile 대상
+        if (tx.getStatus() != TransactionStatus.UNKNOWN) {
             log.info(
-                    "reconcile 대상 아님(PENDING 아님). transactionId={}, status={}",
+                    "reconcile 대상 아님(UNKNOWN 아님). transactionId={}, status={}",
                     transactionId,
                     tx.getStatus());
             return ReconcileResult.SKIPPED;
         }
 
-        // reconcile 횟수 임계값 초과
+        // 3. 시도 임계값 초과
         if (tx.getReconcileAttemptCount() >= MAX_RECONCILE_ATTEMPTS) {
             log.error(
                     "reconcile 임계 도달 - 자동 시도 종료. 수동 처리 필요. transactionId={}, transactionUuid={}, attempt={}",
@@ -56,10 +59,10 @@ public class ExchangeReconcileService {
             return ReconcileResult.RECONCILE_ERROR;
         }
 
-        // 2. 시도 횟수 증가 (별도 Tx로 commit - bank 호출이 실패해도 카운트는 유지)
+        // 4.시도 횟수 증가 (별도 Tx commit - bank 호출이 실패해도 카운트는 유지)
         int newCount = exchangeStateWriter.incrementReconcileAttempt(transactionId);
 
-        // 3. bank 상태 조회
+        // 5. bank 상태 조회
         log.info(
                 "reconcile bank 상태 조회 시작. transactionId={}, transactionUuid={}, attempt={}",
                 transactionId,
@@ -68,12 +71,18 @@ public class ExchangeReconcileService {
         Optional<ExchangeStatusResponse> bankStatus =
                 bankClient.queryExchangeStatus(tx.getTransactionUuid());
 
-        // 4. 응답에 따라 SUCCESS / FAILED 마킹
+        // 6. 응답에 따라 SUCCESS / FAILED 확정 + 멱등 record 동기화
         if (bankStatus.isPresent()) {
             ExchangeStatusResponse status = bankStatus.get();
 
-            exchangeStateWriter.completeExchange(
-                    transactionId, status.txHash(), String.valueOf(status.bankTransactionId()));
+            ExchangeExecuteResponse response =
+                    exchangeStateWriter.completeExchange(
+                            transactionId,
+                            status.txHash(),
+                            String.valueOf(status.bankTransactionId()));
+
+            // 멱등 record를 SUCCESS + snapshot 으로 갱신 -> 같은 UUID 재요청이 PROCESSING에 막히지 안호 결과를 받음
+            idempotencyStore.completeExecution(tx.getTransactionUuid(), response);
 
             log.info(
                     "reconcile 성공 마킹. transactionId={}, transactionUuid={}, txHash={}",
@@ -84,6 +93,8 @@ public class ExchangeReconcileService {
         }
 
         exchangeStateWriter.failExchange(transactionId);
+        // 멱등 record를 FAILED로 갱신
+        idempotencyStore.failExecution(tx.getTransactionUuid());
         log.info(
                 "reconcile 실패 마킹(bank에 거래 없음). transactionId={}, transactionUuid={}",
                 transactionId,

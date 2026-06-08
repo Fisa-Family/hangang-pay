@@ -8,6 +8,7 @@ import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
 import family.fisa.hangangpay.domain.transaction.dto.request.ExchangeExecuteRequest;
 import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeExecuteResponse;
+import family.fisa.hangangpay.domain.transaction.entity.Transaction;
 import family.fisa.hangangpay.domain.transaction.internal.exchange.ExchangeIdempotencyDecision;
 import family.fisa.hangangpay.domain.transaction.internal.exchange.ExchangeIdempotencyStore;
 import family.fisa.hangangpay.domain.transaction.internal.exchange.ExchangeRequestHashGenerator;
@@ -15,16 +16,20 @@ import family.fisa.hangangpay.domain.user.code.error.UserErrorCode;
 import family.fisa.hangangpay.domain.user.entity.User;
 import family.fisa.hangangpay.domain.user.repository.UserRepository;
 import family.fisa.hangangpay.global.exception.BusinessException;
+import jakarta.transaction.Transactional;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClientResponseException;
 
 /** EXCHANGE 명령 오케스트레이터 */
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class ExchangeCommandService {
 
     private final ExchangeQueryService exchangeQueryService;
@@ -51,7 +56,6 @@ public class ExchangeCommandService {
 
         // 2. 멱등성 검증
         Optional<ExchangeExecuteResponse> idempotentHit = openIdempotencyGate(partyId, request);
-
         if (idempotentHit.isPresent()) {
             log.info("멱등 hit. partyId={}, transactionUuid={}", partyId, request.transactionUuid());
             return idempotentHit.get();
@@ -60,10 +64,10 @@ public class ExchangeCommandService {
         // 3. 환전 자격 검증 (마지막 충전 직후 잔액의 60% 이상 사용)
         verifyEligibility(partyId);
 
-        // 4. 슬롯 선점: wallet 락 + inflight 체크 + PENDING 저장(별도 Tx)
-        Long transactionId = stateWriter.claimExchange(partyId, request);
+        // 4. 환전 거래 엔티티 생성
+        Transaction transaction = stateWriter.claimExchange(partyId, request);
 
-        return runBankExchange(partyId, request, transactionId);
+        return runBankExchange(partyId, request, transaction);
     }
 
     /** 가맹점 환전 실행 */
@@ -86,57 +90,63 @@ public class ExchangeCommandService {
             return idempotentHit.get();
         }
 
-        Long transactionId = stateWriter.claimSettlementExchange(partyId, request);
-        return runBankExchange(partyId, request, transactionId);
+        Transaction transaction = stateWriter.claimSettlementExchange(partyId, request);
+        return runBankExchange(partyId, request, transaction);
     }
 
     /** claim 이후 bank 호출 로직 */
     private ExchangeExecuteResponse runBankExchange(
-            Long partyId, ExchangeExecuteRequest request, Long transactionId) {
-        // 1. 외부 호출: 락/Tx 밖에서 bank 호출
-        ExchangeResponse bankResponse;
-        try {
-            bankResponse =
-                    bankClient.exchange(stateWriter.buildBankRequest(transactionId, request));
-        } catch (RuntimeException ex) {
+            Long partyId, ExchangeExecuteRequest request, Transaction transaction) {
 
-            log.error(
-                    "환전 실행 실패. partyId={}, transactionUuid={}",
+        ExchangeResponse bankResponse;
+
+        // 1. bank 호출 트랜잭션 내부 호출
+        try {
+            bankResponse = bankClient.exchange(stateWriter.buildBankRequest(transaction, request));
+        } catch (ResourceAccessException | RestClientResponseException ex) {
+            // bank 응답을 신뢰할 수 없음(타임아웃/HTTP 오류) -> UNKNOWN으로 저장
+            // Redis 멱등 record는 inFlight 그대로 둔다(failExecution 호출 X)
+            // -> 같은 UUID 재실행은 게이트에서 PROCESSING으로 차단, UNKNOWN은 reconcile이 조회로 확정.
+            log.warn(
+                    "환전 응답 불확실 → UNKNOWN 저장. partyId={}, transactionUuid={}",
                     partyId,
                     request.transactionUuid(),
                     ex);
-
-            stateWriter.failExchange(transactionId);
-
-            // 멱등 record FAILED 마킹
+            return stateWriter.markUnknownExchange(transaction);
+        } catch (RuntimeException ex) {
+            // bank가 거절 -> 거래를 저장하지 않는다
+            // 멱등 record만 FAILED로 남겨 같은 UUID 재시도를 ALREADY_FAILED로 막는다
+            log.error(
+                    "환전 실행 실패(은행 거절). partyId={}, transactionUuid={}",
+                    partyId,
+                    request.transactionUuid(),
+                    ex);
             idempotencyStore.failExecution(request.transactionUuid());
             throw ex;
         }
 
-        // 2. 완료 마킹 (별도 Tx) + 응답 빌드
+        // 성공 : 같은 트랜잭션에서 SUCCESS로 저장
         ExchangeExecuteResponse response =
                 stateWriter.completeExchange(
-                        transactionId,
+                        transaction,
                         bankResponse.txHash(),
                         String.valueOf(bankResponse.bankTransactionId()));
 
-        // 3. 성공 응답 snapshot 저장: 동일 transactionUuid 재시도 시 Bank 재호출 없이 그대로 반환
+        // 성공 응답 snapshot 저장: 동일 transactionUuid 재시도 시 Bank 재호출 없이 그대로 반환
         idempotencyStore.completeExecution(request.transactionUuid(), response);
 
         log.info(
                 "환전 실행 완료. partyId={}, transactionId={}, txHash={}",
                 partyId,
-                transactionId,
+                response.transactionId(),
                 bankResponse.txHash());
-
         return response;
     }
 
-    /** Redis 멱등 게이트 첫 요청이면 Optional.empty() 진행을 알림 이미 처리됐고나 진행 중인 요청이면 분기 처리 */
+    /** Redis 멱등 게이트 첫 요청이면 empty. 이미 처리/진행 중이면 분기 */
     private Optional<ExchangeExecuteResponse> openIdempotencyGate(
             Long partyId, ExchangeExecuteRequest request) {
         // 1. 해시 값 생성
-        // TODO 현재 null 반환
         String requestHash = requestHashGenerator.generate(partyId, request);
 
         ExchangeIdempotencyDecision decision =

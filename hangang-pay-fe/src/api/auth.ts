@@ -86,6 +86,7 @@ export interface MerchantRegisterRequest {
   paymentPin: string
   institutionId: number
   accountNumber: string
+  phoneNumber: string
   termsAgreed: {
     serviceTerms: boolean
     privacyTerms: boolean

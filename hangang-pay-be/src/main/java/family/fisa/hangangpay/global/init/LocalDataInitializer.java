@@ -1,5 +1,6 @@
 package family.fisa.hangangpay.global.init;
 
+import family.fisa.hangangpay.client.bank.BankClient;
 import family.fisa.hangangpay.domain.account.entity.Account;
 import family.fisa.hangangpay.domain.account.entity.AccountType;
 import family.fisa.hangangpay.domain.account.repository.AccountRepository;
@@ -34,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 @Profile({"local", "onprem-test"})
 @RequiredArgsConstructor
+@SuppressWarnings("java:S2068") // 로컬 전용 시드 테스트 계정, 운영 환경에 배포되지 않음
 public class LocalDataInitializer implements ApplicationRunner {
 
     private final PartyRepository partyRepository;
@@ -44,6 +46,7 @@ public class LocalDataInitializer implements ApplicationRunner {
     private final TransactionRepository transactionRepository;
     private final WalletCommandService walletCommandService;
     private final PasswordEncoder passwordEncoder;
+    private final BankClient bankClient;
 
     // created_at 과거 시각 덮어쓰기용 JDBC 템플릿
     private final JdbcTemplate jdbcTemplate;
@@ -159,6 +162,9 @@ public class LocalDataInitializer implements ApplicationRunner {
         // seedEligibleUserTransactions(user2Party, user2Account, user2Wallet,
         // merchantParty,
         // merchantWallet);
+
+        syncOnChainBalance(userWallet.getAddress(), new BigDecimal("57500"));
+        syncOnChainBalance(merchantWallet.getAddress(), new BigDecimal("14500"));
 
         log.info("[be-local-seed] done");
     }
@@ -466,6 +472,19 @@ public class LocalDataInitializer implements ApplicationRunner {
                                 "한강삼겹살"));
         payment2.completeSuccessWithResponse("0xPAYTX0102", null);
         backdate(payment2.getId(), 3, 14);
+    }
+
+    // seed DB 거래내역에 맞춰 온체인 잔액 동기화 (로컬 전용)
+    private void syncOnChainBalance(String walletAddress, BigDecimal amount) {
+        try {
+            bankClient.localMint(2L, walletAddress, amount);
+            log.info("[be-local-seed] 온체인 mint 완료. wallet={}, amount={}", walletAddress, amount);
+        } catch (Exception e) {
+            log.warn(
+                    "[be-local-seed] 온체인 mint 실패 (컨트랙트 미배포 또는 bank 미실행). wallet={}",
+                    walletAddress,
+                    e);
+        }
     }
 
     // created_at을 과거 시각으로 덮어씀 — @CreatedDate updatable=false라 JPA 재플러시 후에도 유지
