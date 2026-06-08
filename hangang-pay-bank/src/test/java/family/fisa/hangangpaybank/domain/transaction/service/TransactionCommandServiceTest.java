@@ -5,17 +5,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import family.fisa.hangangpaybank.domain.blockchain.code.error.BlockchainErrorCode;
 import family.fisa.hangangpaybank.domain.blockchain.entity.BlockchainLedger;
-import family.fisa.hangangpaybank.domain.blockchain.entity.BlockchainTxStatus;
 import family.fisa.hangangpaybank.domain.blockchain.repository.BlockchainLedgerRepository;
 import family.fisa.hangangpaybank.domain.blockchain.service.ContractCallService;
-import family.fisa.hangangpaybank.domain.blockchainoutbox.dto.BlockchainSyncRequest;
-import family.fisa.hangangpaybank.domain.blockchainoutbox.dto.BlockchainSyncRequestResult;
-import family.fisa.hangangpaybank.domain.blockchainoutbox.port.BlockchainSyncRequester;
 import family.fisa.hangangpaybank.domain.institution.entity.BankAccount;
 import family.fisa.hangangpaybank.domain.institution.entity.BankWallet;
 import family.fisa.hangangpaybank.domain.institution.entity.Institution;
@@ -23,7 +18,6 @@ import family.fisa.hangangpaybank.domain.institution.repository.BankAccountRepos
 import family.fisa.hangangpaybank.domain.institution.repository.BankWalletRepository;
 import family.fisa.hangangpaybank.domain.institution.repository.InstitutionRepository;
 import family.fisa.hangangpaybank.domain.ledger.entity.AccountLedger;
-import family.fisa.hangangpaybank.domain.ledger.entity.WalletLedgerStatus;
 import family.fisa.hangangpaybank.domain.ledger.repository.AccountLedgerRepository;
 import family.fisa.hangangpaybank.domain.transaction.dto.request.CancelRequest;
 import family.fisa.hangangpaybank.domain.transaction.dto.request.ChargeRequest;
@@ -59,7 +53,7 @@ class TransactionCommandServiceTest {
     @Mock private AccountLedgerRepository accountLedgerRepository;
     @Mock private ContractCallService contractCallService;
     @Mock private PaymentStateWriter paymentStateWriter;
-    @Mock private BlockchainSyncRequester syncRequester;
+    @Mock private PaymentExecutionService paymentExecutionService;
 
     private TransactionCommandService service;
 
@@ -74,7 +68,7 @@ class TransactionCommandServiceTest {
                         accountLedgerRepository,
                         contractCallService,
                         paymentStateWriter,
-                        syncRequester);
+                        paymentExecutionService);
     }
 
     // ── CHARGE (동기, 기존 흐름 유지) ───────────────────────────────────────────
@@ -120,182 +114,76 @@ class TransactionCommandServiceTest {
     // ── PAYMENT 성공 ──────────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("결제 성공: DB 잔액 차감/증가, WalletLedger(SUCCESS), syncRequester 호출")
-    void payment_success_updatesDbBalancesAndRequestsSync() {
+    @DisplayName("결제 성공: 실행 서비스 결과를 그대로 반환한다")
+    void payment_success_returnsExecutionResult() {
         // given
-        BankWallet from = wallet(FROM_ADDRESS, new BigDecimal("500"));
-        BankWallet to = wallet(TO_ADDRESS, BigDecimal.ZERO);
-
-        given(bankWalletRepository.findByWalletAddressWithLock(FROM_ADDRESS))
-                .willReturn(Optional.of(from));
-        given(bankWalletRepository.findByWalletAddressWithLock(TO_ADDRESS))
-                .willReturn(Optional.of(to));
-        given(paymentStateWriter.findExisting("uuid-1")).willReturn(Optional.empty());
-        given(contractCallService.isMerchant(TO_ADDRESS)).willReturn(true);
-        given(
-                        paymentStateWriter.saveSuccessWalletLedgers(
-                                eq(from), eq(to), eq("uuid-1"), eq(AMOUNT)))
-                .willReturn(LocalDateTime.now());
-        given(syncRequester.request(any())).willReturn(new BlockchainSyncRequestResult(1L, 1L));
+        PaymentResponse executionResponse =
+                PaymentResponse.from(
+                        "uuid-1",
+                        family.fisa.hangangpaybank.domain.ledger.entity.WalletLedgerStatus.SUCCESS,
+                        LocalDateTime.now(),
+                        new BigDecimal("400"),
+                        new BigDecimal("100"));
+        given(paymentExecutionService.payment(paymentRequest("uuid-1")))
+                .willReturn(executionResponse);
 
         // when
         PaymentResponse response = service.payment(paymentRequest("uuid-1"));
 
         // then
-        assertThat(response.status()).isEqualTo("SUCCESS");
-        assertThat(response.confirmedAt()).isNotNull();
-        // DB 잔액이 차감/증가됐는지 확인
-        assertThat(from.getBalance()).isEqualByComparingTo(new BigDecimal("400"));
-        assertThat(to.getBalance()).isEqualByComparingTo(new BigDecimal("100"));
-        verify(syncRequester).request(any(BlockchainSyncRequest.class));
+        assertThat(response).isEqualTo(executionResponse);
     }
 
     @Test
-    @DisplayName("결제 성공: contractCallService.pay() 미호출 확인 (DB-First)")
-    void payment_success_doesNotCallContractPay() {
+    @DisplayName("결제 비즈니스 실패: rollback 이후 주소 기반 FAILED ledger 저장")
+    void payment_businessFailure_savesFailedLedgerByAddress() {
         // given
-        BankWallet from = wallet(FROM_ADDRESS, new BigDecimal("500"));
-        BankWallet to = wallet(TO_ADDRESS, BigDecimal.ZERO);
-
-        given(bankWalletRepository.findByWalletAddressWithLock(FROM_ADDRESS))
-                .willReturn(Optional.of(from));
-        given(bankWalletRepository.findByWalletAddressWithLock(TO_ADDRESS))
-                .willReturn(Optional.of(to));
-        given(paymentStateWriter.findExisting("uuid-2")).willReturn(Optional.empty());
-        given(contractCallService.isMerchant(TO_ADDRESS)).willReturn(true);
-        given(paymentStateWriter.saveSuccessWalletLedgers(any(), any(), any(), any()))
-                .willReturn(LocalDateTime.now());
-        given(syncRequester.request(any())).willReturn(new BlockchainSyncRequestResult(1L, 1L));
-
-        // when
-        service.payment(paymentRequest("uuid-2"));
-
-        // then - 동기 블록체인 pay() 호출이 없어야 한다
-        verify(contractCallService, never()).pay(any(), any(), any());
-    }
-
-    // ── PAYMENT 실패 ──────────────────────────────────────────────────────────
-
-    @Test
-    @DisplayName("비가맹점 수신자: WalletLedger(FAILED) 저장, 잔액 미변경")
-    void payment_nonMerchant_savesFailedLedgerAndKeepsBalance() {
-        // given
-        BankWallet from = wallet(FROM_ADDRESS, new BigDecimal("500"));
-        BankWallet to = wallet(TO_ADDRESS, BigDecimal.ZERO);
-
-        given(bankWalletRepository.findByWalletAddressWithLock(FROM_ADDRESS))
-                .willReturn(Optional.of(from));
-        given(bankWalletRepository.findByWalletAddressWithLock(TO_ADDRESS))
-                .willReturn(Optional.of(to));
-        given(paymentStateWriter.findExisting("uuid-3")).willReturn(Optional.empty());
-        given(contractCallService.isMerchant(TO_ADDRESS)).willReturn(false);
+        BusinessException failure =
+                new BusinessException(BlockchainErrorCode.BLOCKCHAIN_MERCHANT_NOT_REGISTERED);
+        given(paymentExecutionService.payment(paymentRequest("uuid-2"))).willThrow(failure);
 
         // when & then
-        assertThatThrownBy(() -> service.payment(paymentRequest("uuid-3")))
+        assertThatThrownBy(() -> service.payment(paymentRequest("uuid-2")))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
                 .isEqualTo(BlockchainErrorCode.BLOCKCHAIN_MERCHANT_NOT_REGISTERED);
 
-        // FAILED WalletLedger가 저장되어야 한다
         verify(paymentStateWriter)
-                .saveFailedWalletLedgers(eq(from), eq(to), eq("uuid-3"), eq(AMOUNT));
-        // 잔액은 변경되지 않아야 한다
-        assertThat(from.getBalance()).isEqualByComparingTo(new BigDecimal("500"));
-        verify(syncRequester, never()).request(any());
-    }
-
-    @Test
-    @DisplayName("DB 잔액 부족: WalletLedger(FAILED) 저장, 잔액 미변경")
-    void payment_insufficientBalance_savesFailedLedger() {
-        // given
-        BankWallet from = wallet(FROM_ADDRESS, new BigDecimal("50")); // 100보다 적음
-        BankWallet to = wallet(TO_ADDRESS, BigDecimal.ZERO);
-
-        given(bankWalletRepository.findByWalletAddressWithLock(FROM_ADDRESS))
-                .willReturn(Optional.of(from));
-        given(bankWalletRepository.findByWalletAddressWithLock(TO_ADDRESS))
-                .willReturn(Optional.of(to));
-        given(paymentStateWriter.findExisting("uuid-4")).willReturn(Optional.empty());
-        given(contractCallService.isMerchant(TO_ADDRESS)).willReturn(true);
-
-        // when & then
-        assertThatThrownBy(() -> service.payment(paymentRequest("uuid-4")))
-                .isInstanceOf(BusinessException.class);
-
-        verify(paymentStateWriter)
-                .saveFailedWalletLedgers(eq(from), eq(to), eq("uuid-4"), eq(AMOUNT));
-        assertThat(from.getBalance()).isEqualByComparingTo(new BigDecimal("50"));
-    }
-
-    // ── PAYMENT 멱등성 ─────────────────────────────────────────────────────────
-
-    @Test
-    @DisplayName("SUCCESS 멱등성 재요청: syncRequester 재호출 없이 기존 응답 반환")
-    void payment_idempotentSuccess_returnsExistingResultWithoutSync() {
-        // given
-        BankWallet from = wallet(FROM_ADDRESS, new BigDecimal("400"));
-        BankWallet to = wallet(TO_ADDRESS, new BigDecimal("100"));
-        BlockchainLedger existing = successLedger("uuid-5");
-
-        given(bankWalletRepository.findByWalletAddressWithLock(FROM_ADDRESS))
-                .willReturn(Optional.of(from));
-        given(bankWalletRepository.findByWalletAddressWithLock(TO_ADDRESS))
-                .willReturn(Optional.of(to));
-        given(paymentStateWriter.findExisting("uuid-5")).willReturn(Optional.of(existing));
-
-        // when
-        PaymentResponse response = service.payment(paymentRequest("uuid-5"));
-
-        // then - 블록체인 재요청 없이 기존 결과 반환
-        assertThat(response.status()).isEqualTo("SUCCESS");
-        verify(syncRequester, never()).request(any());
-        verify(contractCallService, never()).isMerchant(any());
+                .saveFailedWalletLedgersByAddress(
+                        eq(FROM_ADDRESS), eq(TO_ADDRESS), eq("uuid-2"), eq(AMOUNT));
     }
 
     // ── CANCEL ────────────────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("취소 성공: WalletLedger(SUCCESS) 저장, syncRequester 호출")
-    void cancel_success_savesLedgerAndRequestsSync() {
+    @DisplayName("취소 성공: 실행 서비스 결과를 그대로 반환한다")
+    void cancel_success_returnsExecutionResult() {
         // given
-        BankWallet from = wallet(FROM_ADDRESS, new BigDecimal("500")); // 가맹점
-        BankWallet to = wallet(TO_ADDRESS, BigDecimal.ZERO); // 사용자
-
-        given(bankWalletRepository.findByWalletAddressWithLock(FROM_ADDRESS))
-                .willReturn(Optional.of(from));
-        given(bankWalletRepository.findByWalletAddressWithLock(TO_ADDRESS))
-                .willReturn(Optional.of(to));
-        given(paymentStateWriter.findExisting("uuid-6")).willReturn(Optional.empty());
-        given(contractCallService.isMerchant(FROM_ADDRESS)).willReturn(true);
-        given(
-                        paymentStateWriter.saveSuccessWalletLedgers(
-                                eq(from), eq(to), eq("uuid-6"), eq(AMOUNT)))
-                .willReturn(LocalDateTime.now());
-        given(syncRequester.request(any())).willReturn(new BlockchainSyncRequestResult(1L, 1L));
+        CancelResponse executionResponse =
+                CancelResponse.from(
+                        "uuid-6",
+                        "orig-1",
+                        family.fisa.hangangpaybank.domain.ledger.entity.WalletLedgerStatus.SUCCESS,
+                        LocalDateTime.now(),
+                        new BigDecimal("400"),
+                        new BigDecimal("100"));
+        given(paymentExecutionService.cancel(cancelRequest("uuid-6", "orig-1")))
+                .willReturn(executionResponse);
 
         // when
         CancelResponse response = service.cancel(cancelRequest("uuid-6", "orig-1"));
 
         // then
-        assertThat(response.transactionUuid()).isEqualTo("uuid-6");
-        assertThat(response.originalTransactionUuid()).isEqualTo("orig-1");
-        assertThat(response.status()).isEqualTo("SUCCESS");
-        verify(syncRequester).request(any(BlockchainSyncRequest.class));
+        assertThat(response).isEqualTo(executionResponse);
     }
 
     @Test
-    @DisplayName("취소 비가맹점: WalletLedger(FAILED) 저장, 잔액 미변경")
-    void cancel_nonMerchant_savesFailedLedger() {
+    @DisplayName("취소 비즈니스 실패: rollback 이후 주소 기반 FAILED ledger 저장")
+    void cancel_businessFailure_savesFailedLedgerByAddress() {
         // given
-        BankWallet from = wallet(FROM_ADDRESS, new BigDecimal("500"));
-        BankWallet to = wallet(TO_ADDRESS, BigDecimal.ZERO);
-
-        given(bankWalletRepository.findByWalletAddressWithLock(FROM_ADDRESS))
-                .willReturn(Optional.of(from));
-        given(bankWalletRepository.findByWalletAddressWithLock(TO_ADDRESS))
-                .willReturn(Optional.of(to));
-        given(paymentStateWriter.findExisting("uuid-7")).willReturn(Optional.empty());
-        given(contractCallService.isMerchant(FROM_ADDRESS)).willReturn(false);
+        BusinessException failure =
+                new BusinessException(BlockchainErrorCode.BLOCKCHAIN_MERCHANT_NOT_REGISTERED);
+        given(paymentExecutionService.cancel(cancelRequest("uuid-7", "orig-2"))).willThrow(failure);
 
         // when & then
         assertThatThrownBy(() -> service.cancel(cancelRequest("uuid-7", "orig-2")))
@@ -304,8 +192,8 @@ class TransactionCommandServiceTest {
                 .isEqualTo(BlockchainErrorCode.BLOCKCHAIN_MERCHANT_NOT_REGISTERED);
 
         verify(paymentStateWriter)
-                .saveFailedWalletLedgers(eq(from), eq(to), eq("uuid-7"), eq(AMOUNT));
-        assertThat(from.getBalance()).isEqualByComparingTo(new BigDecimal("500"));
+                .saveFailedWalletLedgersByAddress(
+                        eq(FROM_ADDRESS), eq(TO_ADDRESS), eq("uuid-7"), eq(AMOUNT));
     }
 
     // ── 헬퍼 ──────────────────────────────────────────────────────────────────
@@ -345,16 +233,6 @@ class TransactionCommandServiceTest {
                 .accountNumber("1002-123-456789")
                 .ownerName("tester")
                 .balance(balance)
-                .build();
-    }
-
-    private static BlockchainLedger successLedger(String uuid) {
-        return BlockchainLedger.builder()
-                .id(1L)
-                .institution(Institution.builder().id(1L).build())
-                .idempotentKey(uuid)
-                .status(BlockchainTxStatus.SUCCESS)
-                .confirmedAt(LocalDateTime.now().minusMinutes(1))
                 .build();
     }
 

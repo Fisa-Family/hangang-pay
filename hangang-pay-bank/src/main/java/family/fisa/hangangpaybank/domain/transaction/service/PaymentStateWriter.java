@@ -3,8 +3,10 @@ package family.fisa.hangangpaybank.domain.transaction.service;
 import family.fisa.hangangpaybank.domain.blockchain.entity.BlockchainLedger;
 import family.fisa.hangangpaybank.domain.blockchain.entity.BlockchainTxStatus;
 import family.fisa.hangangpaybank.domain.blockchain.repository.BlockchainLedgerRepository;
+import family.fisa.hangangpaybank.domain.institution.code.error.InstitutionErrorCode;
 import family.fisa.hangangpaybank.domain.institution.entity.BankWallet;
 import family.fisa.hangangpaybank.domain.institution.entity.Institution;
+import family.fisa.hangangpaybank.domain.institution.repository.BankWalletRepository;
 import family.fisa.hangangpaybank.domain.ledger.entity.WalletLedger;
 import family.fisa.hangangpaybank.domain.ledger.entity.WalletLedgerDirection;
 import family.fisa.hangangpaybank.domain.ledger.entity.WalletLedgerStatus;
@@ -34,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PaymentStateWriter {
 
     private final BlockchainLedgerRepository blockchainLedgerRepository;
+    private final BankWalletRepository bankWalletRepository;
     private final WalletLedgerRepository walletLedgerRepository;
 
     /** transactionUuid 기준으로 기존 ledger를 조회한다. 결과에 따라 멱등성 분기를 호출자가 처리한다. */
@@ -43,10 +46,7 @@ public class PaymentStateWriter {
 
     /** 결제/취소 성공 WalletLedger를 부모 트랜잭션 안에서 저장한다. */
     public LocalDateTime saveSuccessWalletLedgers(
-            BankWallet fromWallet,
-            BankWallet toWallet,
-            String transactionUuid,
-            BigDecimal amount) {
+            BankWallet fromWallet, BankWallet toWallet, String transactionUuid, BigDecimal amount) {
         LocalDateTime confirmedAt = LocalDateTime.now();
         saveWalletLedgerPair(
                 fromWallet,
@@ -64,12 +64,21 @@ public class PaymentStateWriter {
     public void saveFailedWalletLedgers(
             BankWallet fromWallet, BankWallet toWallet, String transactionUuid, BigDecimal amount) {
         saveWalletLedgerPair(
-                fromWallet,
-                toWallet,
-                transactionUuid,
-                amount,
-                WalletLedgerStatus.FAILED,
-                null);
+                fromWallet, toWallet, transactionUuid, amount, WalletLedgerStatus.FAILED, null);
+        log.info("[payment] WalletLedger FAILED 저장 완료. uuid={}", transactionUuid);
+    }
+
+    /** 결제/취소 실패 WalletLedger를 주소 기반으로 재조회한 뒤 독립 트랜잭션에 저장한다. */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void saveFailedWalletLedgersByAddress(
+            String fromWalletAddress,
+            String toWalletAddress,
+            String transactionUuid,
+            BigDecimal amount) {
+        BankWallet fromWallet = fetchBankWallet(fromWalletAddress);
+        BankWallet toWallet = fetchBankWallet(toWalletAddress);
+        saveWalletLedgerPair(
+                fromWallet, toWallet, transactionUuid, amount, WalletLedgerStatus.FAILED, null);
         log.info("[payment] WalletLedger FAILED 저장 완료. uuid={}", transactionUuid);
     }
 
@@ -156,5 +165,20 @@ public class PaymentStateWriter {
                             return new NoSuchElementException(
                                     "BlockchainLedger not found: id=" + ledgerId);
                         });
+    }
+
+    private BankWallet fetchBankWallet(String walletAddress) {
+        return bankWalletRepository
+                .findByWalletAddress(normalizeAddress(walletAddress))
+                .orElseThrow(
+                        () -> new BusinessException(InstitutionErrorCode.BANK_WALLET_NOT_FOUND));
+    }
+
+    private static String normalizeAddress(String address) {
+        if (address == null) {
+            return null;
+        }
+        String lower = address.toLowerCase();
+        return lower.startsWith("0x") ? lower : "0x" + lower;
     }
 }
