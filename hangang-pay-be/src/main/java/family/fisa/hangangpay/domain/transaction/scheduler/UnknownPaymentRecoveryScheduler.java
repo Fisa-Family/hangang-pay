@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -32,6 +33,7 @@ public class UnknownPaymentRecoveryScheduler {
     private static final int MAX_RECOVER_ATTEMPTS = 10;
 
     @Scheduled(cron = "0 * * * * *")
+    @SchedulerLock(name = "resolveUnknownPayments", lockAtMostFor = "5m", lockAtLeastFor = "5s")
     public void resolveUnknownPayments() {
         // UNKNOWN 전체 + 오래된 PROCESSING(원본 시도가 죽어 미반영된 건, 시도 한도 미만)을 함께 복구 대상으로 모은다.
         LocalDateTime threshold = LocalDateTime.now().minusMinutes(PROCESSING_STALE_MINUTES);
@@ -73,6 +75,7 @@ public class UnknownPaymentRecoveryScheduler {
     }
 
     @Scheduled(cron = "0 * * * * *")
+    @SchedulerLock(name = "resolveUnknownCancels", lockAtMostFor = "5m", lockAtLeastFor = "5s")
     public void resolveUnknownCancels() {
         LocalDateTime threshold = LocalDateTime.now().minusMinutes(PROCESSING_STALE_MINUTES);
 

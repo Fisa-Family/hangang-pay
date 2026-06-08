@@ -57,11 +57,6 @@ public interface TransactionRepository {
     /** 특정 시점 이후(inclusive)의 SUCCESS 거래 타입별 누적 금액 - 사용액 산정용 */
     BigDecimal sumSuccessByTypeSince(Long partyId, TransactionType type, LocalDateTime since);
 
-    /**
-     * 배치 reconcile 대상 id 조회 - PENDING + EXCHANGE + createdAt < threshold && attempt < maxAttempts
-     */
-    List<Long> findPendingExchangeIdsForReconcile(int maxAttempts);
-
     /** 원거래 UUID를 참조하는 SUCCESS CANCEL 거래 존재 여부 */
     boolean existsSuccessCancelByOriginalTransactionUuid(String originalTransactionUuid);
 
@@ -92,8 +87,12 @@ public interface TransactionRepository {
     List<Transaction> findAbandonedProcessingByType(
             TransactionType type, LocalDateTime threshold, int maxAttempts);
 
-    List<Transaction> findExchangeReconcileTargets(int maxRetry);
+    /** 환전 reconcile 대상 - UNKNOWN(즉시) + PROCESSING(threshold 이전, 라이브 제외), 시도 한도 미만 */
+    List<Transaction> findExchangeReconcileTargets(int maxRetry, LocalDateTime threshold);
 
     /** 만료 대상 - EXCHANGE + PENDING + createdAt < threshold */
     List<Transaction> findStalePendingExchangeIntents(LocalDateTime threshold);
+
+    /** 환전 reconcile 포기 대상 - PROCESSING/UNKNOWN + 시도 한도 소진 */
+    List<Transaction> findExchangeAbandonedTargets(int maxRetry);
 }
