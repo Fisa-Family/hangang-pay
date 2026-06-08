@@ -1,13 +1,12 @@
 package family.fisa.hangangpay.domain.wallet.service;
 
-import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
-import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
+import family.fisa.hangangpay.client.bank.BankClient;
+import family.fisa.hangangpay.client.bank.dto.BankWalletResponse;
 import family.fisa.hangangpay.domain.wallet.dto.WalletBalanceResponse;
 import family.fisa.hangangpay.domain.wallet.entity.Wallet;
 import family.fisa.hangangpay.domain.wallet.repository.WalletRepository;
 import family.fisa.hangangpay.global.code.error.GeneralErrorCode;
 import family.fisa.hangangpay.global.exception.BusinessException;
-import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,8 +24,8 @@ public class WalletQueryService {
     /** 지갑 레포지토리 */
     private final WalletRepository walletRepository;
 
-    /** 거래 내역 레포지토리 */
-    private final TransactionRepository transactionRepository;
+    /** 은행 연동 클라이언트 */
+    private final BankClient bankClient;
 
     /** 파티 식별자 기준 지갑 잔액 조회 */
     public WalletBalanceResponse getBalance(Long partyId) {
@@ -37,24 +36,18 @@ public class WalletQueryService {
                         .orElseThrow(
                                 () -> new BusinessException(GeneralErrorCode.COMMON_NOT_FOUND));
 
-        // DB 거래 내역 합산으로 잔액 계산 (충전 - 결제 - 환전)
-        BigDecimal charged =
-                transactionRepository.sumAllSuccessByType(partyId, TransactionType.CHARGE);
-        BigDecimal paid =
-                transactionRepository.sumAllSuccessByType(partyId, TransactionType.PAYMENT);
-        BigDecimal exchanged =
-                transactionRepository.sumAllSuccessByType(partyId, TransactionType.EXCHANGE);
-        BigDecimal balance = charged.subtract(paid).subtract(exchanged);
+        // 잔액은 source of truth(bank/블록체인)에서 조회
+        BankWalletResponse bankWallet = bankClient.getBankWalletByAddress(wallet.getAddress());
 
         log.info(
                 "지갑 잔액 조회: partyId={}, walletAddress={}, balance={}",
                 partyId,
                 wallet.getAddress(),
-                balance);
+                bankWallet.balance());
 
         return WalletBalanceResponse.builder()
                 .walletAddress(wallet.getAddress())
-                .balance(balance)
+                .balance(bankWallet.balance())
                 .unit(UNIT)
                 .updatedAt(wallet.getUpdatedAt())
                 .build();
