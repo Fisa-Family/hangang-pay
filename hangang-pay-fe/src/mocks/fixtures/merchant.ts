@@ -124,6 +124,15 @@ export const mockMerchantRedeemInit = {
   },
 }
 
+export const mockMerchantRedeemIntent = {
+  transactionUuid: 'mock-redeem-uuid-001',
+  status: 'PENDING',
+  amount: 205000,
+  accountNumber: '****-****-9012',
+  bankName: '기업은행',
+  expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+}
+
 export const mockMerchantRedeemResult = {
   transactionId: 501,
   transactionUuid: 'mock-redeem-uuid-001',

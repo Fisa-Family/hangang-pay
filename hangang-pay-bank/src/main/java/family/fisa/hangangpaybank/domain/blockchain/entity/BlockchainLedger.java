@@ -53,6 +53,11 @@ public class BlockchainLedger extends BaseEntity {
                 .build();
     }
 
+    public void markSubmitted(String txHash) {
+        this.status = BlockchainTxStatus.SUBMITTED;
+        this.txHash = txHash;
+    }
+
     public void markSuccess(TransactionReceipt receipt) {
         this.status = BlockchainTxStatus.SUCCESS;
         this.txHash = receipt.getTransactionHash();

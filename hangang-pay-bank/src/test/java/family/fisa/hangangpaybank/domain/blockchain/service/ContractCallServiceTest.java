@@ -10,6 +10,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import family.fisa.hangangpaybank.domain.blockchain.code.error.BlockchainErrorCode;
+import family.fisa.hangangpaybank.domain.blockchain.dto.SubmittedBlockchainTx;
 import family.fisa.hangangpaybank.domain.institution.entity.Contract;
 import family.fisa.hangangpaybank.domain.institution.entity.ContractType;
 import family.fisa.hangangpaybank.domain.institution.entity.Institution;
@@ -30,6 +31,7 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.web3j.abi.datatypes.Function;
+import org.web3j.abi.datatypes.generated.Bytes32;
 import org.web3j.crypto.Credentials;
 import org.web3j.crypto.Hash;
 import org.web3j.protocol.Web3j;
@@ -51,9 +53,15 @@ class ContractCallServiceTest {
     private static final String LOCAL_CURRENCY_ADDRESS =
             "0x0000000000000000000000000000000000000001";
     private static final String USER_ADDRESS = "0x0000000000000000000000000000000000000002";
+    private static final String MERCHANT_ADDRESS = "0x0000000000000000000000000000000000000003";
+    private static final String TRANSACTION_UUID = "550e8400-e29b-41d4-a716-446655440000";
 
     @Mock private ContractRepository contractRepository;
     @Mock private WalletKeyCipher walletKeyCipher;
+
+    @Spy
+    private BlockchainTransactionKeyConverter keyConverter =
+            new BlockchainTransactionKeyConverter();
 
     @Spy @InjectMocks private ContractCallService contractCallService;
 
@@ -274,6 +282,265 @@ class ContractCallServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
                 .isEqualTo(BlockchainErrorCode.BLOCKCHAIN_TRANSACTION_REVERTED);
+    }
+
+    @Test
+    @DisplayName("isMerchant - merchants eth_call이 true를 반환하면 true를 리턴한다")
+    void isMerchantReturnsTrueWhenEthCallDecodesTrue() throws Exception {
+        Web3j web3j = mock(Web3j.class);
+        Request<?, EthCall> ethCallRequest = mockEthCallRequest();
+        EthCall ethCall = new EthCall();
+        ethCall.setResult(Numeric.toHexStringWithPrefixZeroPadded(BigInteger.ONE, 64));
+
+        doReturn(ethCallRequest)
+                .when(web3j)
+                .ethCall(any(Transaction.class), eq(DefaultBlockParameterName.LATEST));
+        given(ethCallRequest.send()).willReturn(ethCall);
+
+        boolean result =
+                contractCallService.readMerchant(
+                        web3j, WALLET_ADDRESS, LOCAL_CURRENCY_ADDRESS, USER_ADDRESS);
+
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    @DisplayName("isMerchant - merchants eth_call이 false를 반환하면 false를 리턴한다")
+    void isMerchantReturnsFalseWhenEthCallDecodesFalse() throws Exception {
+        Web3j web3j = mock(Web3j.class);
+        Request<?, EthCall> ethCallRequest = mockEthCallRequest();
+        EthCall ethCall = new EthCall();
+        ethCall.setResult(Numeric.toHexStringWithPrefixZeroPadded(BigInteger.ZERO, 64));
+
+        doReturn(ethCallRequest)
+                .when(web3j)
+                .ethCall(any(Transaction.class), eq(DefaultBlockParameterName.LATEST));
+        given(ethCallRequest.send()).willReturn(ethCall);
+
+        boolean result =
+                contractCallService.readMerchant(
+                        web3j, WALLET_ADDRESS, LOCAL_CURRENCY_ADDRESS, USER_ADDRESS);
+
+        assertThat(result).isFalse();
+    }
+
+    @Test
+    @DisplayName("isMerchant - merchants eth_call이 RPC 에러를 반환하면 RPC 실패 예외로 매핑한다")
+    void readMerchantMapsEthCallErrorToRpcFailed() throws Exception {
+        Web3j web3j = mock(Web3j.class);
+        Request<?, EthCall> ethCallRequest = mockEthCallRequest();
+        EthCall ethCall = new EthCall();
+        Response.Error error = new Response.Error(-32000, "execution failed");
+        error.setData("0xdeadbeef");
+        ethCall.setError(error);
+
+        doReturn(ethCallRequest)
+                .when(web3j)
+                .ethCall(any(Transaction.class), eq(DefaultBlockParameterName.LATEST));
+        given(ethCallRequest.send()).willReturn(ethCall);
+
+        assertThatThrownBy(
+                        () ->
+                                contractCallService.readMerchant(
+                                        web3j,
+                                        WALLET_ADDRESS,
+                                        LOCAL_CURRENCY_ADDRESS,
+                                        USER_ADDRESS))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
+    }
+
+    @Test
+    @DisplayName("isMerchant - merchants eth_call 응답을 디코딩할 수 없으면 RPC 실패 예외로 매핑한다")
+    void readMerchantMapsEmptyDecodeToRpcFailed() throws Exception {
+        Web3j web3j = mock(Web3j.class);
+        Request<?, EthCall> ethCallRequest = mockEthCallRequest();
+        EthCall ethCall = new EthCall();
+        ethCall.setResult("0x");
+
+        doReturn(ethCallRequest)
+                .when(web3j)
+                .ethCall(any(Transaction.class), eq(DefaultBlockParameterName.LATEST));
+        given(ethCallRequest.send()).willReturn(ethCall);
+
+        assertThatThrownBy(
+                        () ->
+                                contractCallService.readMerchant(
+                                        web3j,
+                                        WALLET_ADDRESS,
+                                        LOCAL_CURRENCY_ADDRESS,
+                                        USER_ADDRESS))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
+    }
+
+    @Test
+    @DisplayName("isMerchant - 컨트랙트가 배포되지 않았으면 예외를 던진다")
+    void isMerchantThrowsWhenContractNotDeployed() {
+        given(contractRepository.findFirstByNameOrderByIdAsc(ContractType.LOCAL_CURRENCY))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> contractCallService.isMerchant(USER_ADDRESS))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(BlockchainErrorCode.BLOCKCHAIN_CONTRACT_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("isMerchant - sendFunctionTransaction을 호출하지 않는다 (simulateOrThrow 경로 진입 없음)")
+    void isMerchantDoesNotCallSendFunctionTransaction() throws Exception {
+        Institution ownerInstitution = ownerInstitution();
+        Contract localCurrency =
+                Contract.builder()
+                        .name(ContractType.LOCAL_CURRENCY)
+                        .address(LOCAL_CURRENCY_ADDRESS)
+                        .institution(ownerInstitution)
+                        .build();
+
+        given(contractRepository.findFirstByNameOrderByIdAsc(ContractType.LOCAL_CURRENCY))
+                .willReturn(Optional.of(localCurrency));
+        doReturn(true)
+                .when(contractCallService)
+                .readMerchant(
+                        any(Web3j.class), any(), eq(LOCAL_CURRENCY_ADDRESS), eq(USER_ADDRESS));
+
+        contractCallService.isMerchant(USER_ADDRESS);
+
+        verify(contractCallService, org.mockito.Mockito.never())
+                .sendFunctionTransaction(
+                        any(Web3j.class),
+                        any(org.web3j.crypto.Credentials.class),
+                        any(),
+                        any(),
+                        any(Function.class));
+    }
+
+    @Test
+    @DisplayName(
+            "submitPayment - pay(bytes32,address,address,uint256) Function 인코딩으로 submitFunctionTransaction을 호출한다")
+    void submitPaymentEncodesPayFunctionWithBytes32Uuid() throws Exception {
+        Institution ownerInstitution = ownerInstitution();
+        Contract localCurrency =
+                Contract.builder()
+                        .name(ContractType.LOCAL_CURRENCY)
+                        .address(LOCAL_CURRENCY_ADDRESS)
+                        .institution(ownerInstitution)
+                        .build();
+        Credentials credentials = Credentials.create(PRIVATE_KEY);
+        SubmittedBlockchainTx submittedTx = new SubmittedBlockchainTx("0xabc");
+
+        given(contractRepository.findFirstByNameOrderByIdAsc(ContractType.LOCAL_CURRENCY))
+                .willReturn(Optional.of(localCurrency));
+        given(walletKeyCipher.decryptCredentials(PRIVATE_KEY)).willReturn(credentials);
+        doReturn(submittedTx)
+                .when(contractCallService)
+                .submitFunctionTransaction(
+                        any(Web3j.class),
+                        eq(credentials),
+                        eq(LOCAL_CURRENCY_ADDRESS),
+                        eq(BigInteger.valueOf(300_000)),
+                        any(Function.class));
+
+        SubmittedBlockchainTx result =
+                contractCallService.submitPayment(
+                        TRANSACTION_UUID,
+                        USER_ADDRESS,
+                        MERCHANT_ADDRESS,
+                        BigInteger.valueOf(10_000));
+
+        assertThat(result).isSameAs(submittedTx);
+
+        ArgumentCaptor<Function> functionCaptor = ArgumentCaptor.forClass(Function.class);
+        verify(contractCallService)
+                .submitFunctionTransaction(
+                        any(Web3j.class),
+                        eq(credentials),
+                        eq(LOCAL_CURRENCY_ADDRESS),
+                        eq(BigInteger.valueOf(300_000)),
+                        functionCaptor.capture());
+
+        Function captured = functionCaptor.getValue();
+        assertThat(captured.getName()).isEqualTo("pay");
+        assertThat(captured.getInputParameters().get(0)).isInstanceOf(Bytes32.class);
+    }
+
+    @Test
+    @DisplayName(
+            "submitCancelPayment - cancelPayment(bytes32,address,address,uint256) Function 인코딩으로 submitFunctionTransaction을 호출한다")
+    void submitCancelPaymentEncodesCancelPaymentFunctionWithBytes32Uuid() throws Exception {
+        Institution ownerInstitution = ownerInstitution();
+        Contract localCurrency =
+                Contract.builder()
+                        .name(ContractType.LOCAL_CURRENCY)
+                        .address(LOCAL_CURRENCY_ADDRESS)
+                        .institution(ownerInstitution)
+                        .build();
+        Credentials credentials = Credentials.create(PRIVATE_KEY);
+        SubmittedBlockchainTx submittedTx = new SubmittedBlockchainTx("0xdef");
+
+        given(contractRepository.findFirstByNameOrderByIdAsc(ContractType.LOCAL_CURRENCY))
+                .willReturn(Optional.of(localCurrency));
+        given(walletKeyCipher.decryptCredentials(PRIVATE_KEY)).willReturn(credentials);
+        doReturn(submittedTx)
+                .when(contractCallService)
+                .submitFunctionTransaction(
+                        any(Web3j.class),
+                        eq(credentials),
+                        eq(LOCAL_CURRENCY_ADDRESS),
+                        eq(BigInteger.valueOf(300_000)),
+                        any(Function.class));
+
+        SubmittedBlockchainTx result =
+                contractCallService.submitCancelPayment(
+                        TRANSACTION_UUID,
+                        MERCHANT_ADDRESS,
+                        USER_ADDRESS,
+                        BigInteger.valueOf(10_000));
+
+        assertThat(result).isSameAs(submittedTx);
+
+        ArgumentCaptor<Function> functionCaptor = ArgumentCaptor.forClass(Function.class);
+        verify(contractCallService)
+                .submitFunctionTransaction(
+                        any(Web3j.class),
+                        eq(credentials),
+                        eq(LOCAL_CURRENCY_ADDRESS),
+                        eq(BigInteger.valueOf(300_000)),
+                        functionCaptor.capture());
+
+        Function captured = functionCaptor.getValue();
+        assertThat(captured.getName()).isEqualTo("cancelPayment");
+        assertThat(captured.getInputParameters().get(0)).isInstanceOf(Bytes32.class);
+    }
+
+    @Test
+    @DisplayName("submitPayment - waitForReceipt와 sendFunctionTransaction을 호출하지 않는다")
+    void submitPaymentDoesNotWaitForReceiptOrCallSendFunctionTransaction() throws Exception {
+        Institution ownerInstitution = ownerInstitution();
+        Contract localCurrency =
+                Contract.builder()
+                        .name(ContractType.LOCAL_CURRENCY)
+                        .address(LOCAL_CURRENCY_ADDRESS)
+                        .institution(ownerInstitution)
+                        .build();
+        Credentials credentials = Credentials.create(PRIVATE_KEY);
+
+        given(contractRepository.findFirstByNameOrderByIdAsc(ContractType.LOCAL_CURRENCY))
+                .willReturn(Optional.of(localCurrency));
+        given(walletKeyCipher.decryptCredentials(PRIVATE_KEY)).willReturn(credentials);
+        doReturn(new SubmittedBlockchainTx("0xabc"))
+                .when(contractCallService)
+                .submitFunctionTransaction(any(), any(), any(), any(), any());
+
+        contractCallService.submitPayment(
+                TRANSACTION_UUID, USER_ADDRESS, MERCHANT_ADDRESS, BigInteger.valueOf(10_000));
+
+        verify(contractCallService, org.mockito.Mockito.never())
+                .waitForReceipt(any(Web3j.class), any(String.class));
+        verify(contractCallService, org.mockito.Mockito.never())
+                .sendFunctionTransaction(any(), any(), any(), any(), any());
     }
 
     @SuppressWarnings("unchecked")
