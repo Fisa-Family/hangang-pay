@@ -3,10 +3,12 @@ package family.fisa.hangangpay.domain.transaction.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -34,6 +36,7 @@ import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelExecution
 import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelIdempotencyDecision;
 import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelIdempotencyStore;
 import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelLockManager;
+import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelRequestHashGenerator;
 import family.fisa.hangangpay.domain.transaction.internal.payment.*;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
 import family.fisa.hangangpay.domain.transaction.service.cancel.CancelExecutionStateWriter;
@@ -86,6 +89,7 @@ class TransactionCommandServiceTest {
     @Mock private CancelExecutionStateWriter cancelExecutionStateWriter;
     @Mock private CancelIdempotencyStore cancelIdempotencyStore;
     @Mock private CancelLockManager cancelLockManager;
+    @Mock private CancelRequestHashGenerator cancelRequestHashGenerator;
 
     private TransactionCommandService transactionCommandService;
 
@@ -104,7 +108,13 @@ class TransactionCommandServiceTest {
                         cancelIdempotencyStore,
                         cancelLockManager,
                         paymentExecutionStateWriter,
-                        cancelExecutionStateWriter);
+                        cancelExecutionStateWriter,
+                        cancelRequestHashGenerator);
+
+        // 취소 멱등 해시 생성기는 비-null 해시를 반환해야 beginCancel(anyString, anyString) 매칭이 성립한다.
+        lenient()
+                .when(cancelRequestHashGenerator.generate(anyString(), anyLong()))
+                .thenReturn(REQUEST_HASH);
     }
 
     @Test
