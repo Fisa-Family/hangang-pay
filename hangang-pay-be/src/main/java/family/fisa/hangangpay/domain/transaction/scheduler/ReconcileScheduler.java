@@ -2,7 +2,7 @@ package family.fisa.hangangpay.domain.transaction.scheduler;
 
 import family.fisa.hangangpay.domain.transaction.dto.ReconcileResult;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
-import family.fisa.hangangpay.domain.transaction.service.ExchangeReconcileService;
+import family.fisa.hangangpay.domain.transaction.service.exchange.ExchangeReconcileService;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;

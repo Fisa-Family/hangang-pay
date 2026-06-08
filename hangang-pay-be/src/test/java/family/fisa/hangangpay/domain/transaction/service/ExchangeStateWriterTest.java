@@ -21,6 +21,7 @@ import family.fisa.hangangpay.domain.transaction.entity.Transaction;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
+import family.fisa.hangangpay.domain.transaction.service.exchange.ExchangeStateWriter;
 import family.fisa.hangangpay.domain.wallet.entity.Wallet;
 import family.fisa.hangangpay.domain.wallet.repository.WalletRepository;
 import family.fisa.hangangpay.global.code.error.AccountErrorCode;

@@ -17,6 +17,8 @@ import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
 import family.fisa.hangangpay.domain.transaction.internal.exchange.ExchangeIdempotencyStore;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
+import family.fisa.hangangpay.domain.transaction.service.exchange.ExchangeReconcileService;
+import family.fisa.hangangpay.domain.transaction.service.exchange.ExchangeStateWriter;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;

@@ -1,4 +1,4 @@
-package family.fisa.hangangpay.domain.transaction.service;
+package family.fisa.hangangpay.domain.transaction.service.exchange;
 
 import family.fisa.hangangpay.client.bank.dto.ExchangeRequest;
 import family.fisa.hangangpay.domain.account.entity.Account;
@@ -85,7 +85,7 @@ public class ExchangeStateWriter {
     public ExchangeExecuteResponse completeExchange(
             Transaction tx, String txHash, String bankTransactionId) {
 
-        tx.completeWithBankResponse(txHash, bankTransactionId);
+        tx.completeSuccessWithResponse(txHash, bankTransactionId);
         Transaction saved = transactionRepository.save(tx);
         return ExchangeExecuteResponse.from(saved);
     }
@@ -102,7 +102,7 @@ public class ExchangeStateWriter {
                                         new BusinessException(
                                                 TransactionErrorCode.EXCHANGE_NOT_FOUND));
 
-        tx.completeWithBankResponse(txHash, bankTransactionId);
+        tx.completeSuccessWithResponse(txHash, bankTransactionId);
         return ExchangeExecuteResponse.from(tx);
     }
 

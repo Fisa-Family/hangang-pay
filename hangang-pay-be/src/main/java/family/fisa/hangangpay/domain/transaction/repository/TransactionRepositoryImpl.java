@@ -158,8 +158,11 @@ public class TransactionRepositoryImpl implements TransactionRepository {
     @Override
     public Optional<Transaction> findRecoverableCancelByOriginalTransactionUuid(
             String originalTransactionUuid) {
-        return jpaRepository.findByOriginalTransactionUuidAndTransactionTypeAndStatus(
-                originalTransactionUuid, TransactionType.CANCEL, TransactionStatus.UNKNOWN);
+        // UNKNOWN + 오래된 PROCESSING(sweep 대상) 둘 다 복구 가능 CANCEL로 본다.
+        return jpaRepository.findByOriginalTransactionUuidAndTransactionTypeAndStatusIn(
+                originalTransactionUuid,
+                TransactionType.CANCEL,
+                List.of(TransactionStatus.UNKNOWN, TransactionStatus.PROCESSING));
     }
 
     @Override
@@ -170,5 +173,22 @@ public class TransactionRepositoryImpl implements TransactionRepository {
             LocalDateTime endExclusive) {
         return jpaRepository.findMerchantPaymentsBetween(
                 merchantPartyId, status, startInclusive, endExclusive);
+    }
+
+    @Override
+    public List<Transaction> findStaleProcessingByType(
+            TransactionType type, LocalDateTime threshold, int maxAttempts) {
+        // status는 PROCESSING으로 고정해 넘긴다.
+        return jpaRepository
+                .findByStatusAndTransactionTypeAndUpdatedAtBeforeAndReconcileAttemptCountLessThan(
+                        TransactionStatus.PROCESSING, type, threshold, maxAttempts);
+    }
+
+    @Override
+    public List<Transaction> findAbandonedProcessingByType(
+            TransactionType type, LocalDateTime threshold, int maxAttempts) {
+        return jpaRepository
+                .findByStatusAndTransactionTypeAndUpdatedAtBeforeAndReconcileAttemptCount(
+                        TransactionStatus.PROCESSING, type, threshold, maxAttempts);
     }
 }

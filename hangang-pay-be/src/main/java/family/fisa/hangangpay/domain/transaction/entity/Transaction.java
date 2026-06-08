@@ -245,7 +245,7 @@ public class Transaction extends BaseEntity {
     }
 
     /** BankClient 응답을 반영해 성공 상태로 마무리 (JPA 변경감지) */
-    public void completeWithBankResponse(String txHash, String bankTransactionId) {
+    public void completeSuccessWithResponse(String txHash, String bankTransactionId) {
         this.txHash = txHash;
         this.bankTransactionId = bankTransactionId;
         this.status = TransactionStatus.SUCCESS;
@@ -309,6 +309,11 @@ public class Transaction extends BaseEntity {
     /** reconcile 시도 횟수 1 증가 (JPA 변경감지) */
     public void incrementReconcileAttempt() {
         this.reconcileAttemptCount = this.reconcileAttemptCount + 1;
+    }
+
+    /** 자동 복구 시도 한도를 소진해 더는 확정할 수 없는 거래를 EXPIRED 터미널로 닫는다. */
+    public void markExpired() {
+        this.status = TransactionStatus.EXPIRED;
     }
 
     /** 취소 요청자가 원본 결제의 수신 가맹점인지 검증 */
