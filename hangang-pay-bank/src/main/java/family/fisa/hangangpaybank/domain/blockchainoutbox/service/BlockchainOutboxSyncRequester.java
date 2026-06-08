@@ -30,10 +30,13 @@ public class BlockchainOutboxSyncRequester implements BlockchainSyncRequester {
     private final ContractRepository contractRepository;
     private final ObjectMapper objectMapper;
 
+    /** 블록체인으로 요청을 전송하기 위한 준비 작업. 블록체인 원장과 outbox에 요청 기록을 남긴다. */
     @Override
     public BlockchainSyncRequestResult request(BlockchainSyncRequest request) {
+        // LOCAL_CURRENCY 컨트랙트의 발행 기관을 찾는다.
         Institution institution = findLocalCurrencyOwner();
 
+        // blockchain_ledger에 PENDING 상태의 거래를 기록한다.
         BlockchainLedger ledger =
                 blockchainLedgerRepository.save(
                         BlockchainLedger.of(
@@ -41,6 +44,7 @@ public class BlockchainOutboxSyncRequester implements BlockchainSyncRequester {
                                 BlockchainTxStatus.PENDING,
                                 request.transactionUuid()));
 
+        // blockchain_outbox에 NEW 상태의 메시지를 저장한다.
         BlockchainOutbox outbox =
                 blockchainOutboxRepository.save(
                         BlockchainOutbox.builder()
