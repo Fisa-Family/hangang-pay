@@ -26,13 +26,7 @@ class BlockchainSyncMessageTest {
 
         BlockchainSyncMessage message =
                 new BlockchainSyncMessage(
-                        "outbox-7",
-                        7L,
-                        3L,
-                        "uuid-1111",
-                        BlockchainSyncType.PAYMENT,
-                        1,
-                        payload);
+                        "outbox-7", 7L, 3L, "uuid-1111", BlockchainSyncType.PAYMENT, payload);
 
         String json = objectMapper.writeValueAsString(message);
         BlockchainSyncMessage deserialized =
@@ -43,7 +37,6 @@ class BlockchainSyncMessageTest {
         assertThat(deserialized.blockchainLedgerId()).isEqualTo(3L);
         assertThat(deserialized.transactionUuid()).isEqualTo("uuid-1111");
         assertThat(deserialized.type()).isEqualTo(BlockchainSyncType.PAYMENT);
-        assertThat(deserialized.payloadVersion()).isEqualTo(1);
     }
 
     @Test

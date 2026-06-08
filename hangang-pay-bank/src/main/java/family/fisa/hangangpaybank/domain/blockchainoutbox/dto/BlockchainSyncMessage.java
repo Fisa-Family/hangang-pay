@@ -9,5 +9,4 @@ public record BlockchainSyncMessage(
         Long blockchainLedgerId,
         String transactionUuid,
         BlockchainSyncType type,
-        int payloadVersion,
         JsonNode payload) {}
