@@ -106,7 +106,7 @@ public class LocalDataInitializer implements ApplicationRunner {
                                 .party(userParty)
                                 .institution(woori)
                                 .accountType(AccountType.PRIMARY)
-                                .accountNumber("1002-123-456789")
+                                .accountNumber("1002123456789")
                                 .build());
         Wallet userWallet = walletCommandService.createWallet(userParty, bok);
 
@@ -131,7 +131,7 @@ public class LocalDataInitializer implements ApplicationRunner {
                                 .party(merchantParty)
                                 .institution(shinhan)
                                 .accountType(AccountType.SETTLEMENT)
-                                .accountNumber("110-987-654321")
+                                .accountNumber("110987654321")
                                 .build());
         Wallet merchantWallet = walletCommandService.createWallet(merchantParty, bok);
 
@@ -153,7 +153,7 @@ public class LocalDataInitializer implements ApplicationRunner {
                                 .party(user2Party)
                                 .institution(shinhan)
                                 .accountType(AccountType.PRIMARY)
-                                .accountNumber("110-111-222333")
+                                .accountNumber("110111222333")
                                 .build());
         Wallet user2Wallet = walletCommandService.createWallet(user2Party, bok);
 
