@@ -245,7 +245,7 @@ public class Transaction extends BaseEntity {
     }
 
     /** BankClient 응답을 반영해 성공 상태로 마무리 (JPA 변경감지) */
-    public void completeWithBankResponse(String txHash, String bankTransactionId) {
+    public void completeSuccessWithResponse(String txHash, String bankTransactionId) {
         this.txHash = txHash;
         this.bankTransactionId = bankTransactionId;
         this.status = TransactionStatus.SUCCESS;
@@ -259,6 +259,11 @@ public class Transaction extends BaseEntity {
     /** 트랜잭션 상태 전이 메서드 */
     public void markProcessing() {
         this.status = TransactionStatus.PROCESSING;
+    }
+
+    /** intent가 TTL 내 실행되지 않아 만료됨 */
+    public void markExpired() {
+        this.status = TransactionStatus.EXPIRED;
     }
 
     /** 결제 가능한 상태인지 검증 */

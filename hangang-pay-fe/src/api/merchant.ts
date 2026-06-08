@@ -214,14 +214,34 @@ export function fetchMerchantRedeemInit(): Promise<MerchantRedeemInit> {
   return apiFetch<MerchantRedeemInit>('/merchant/redeem')
 }
 
-// POST /api/v1/merchant/redeem — transactionUuid는 클라 생성 멱등키, amount는 전액
-export function executeMerchantRedeem(input: {
+// MERCHANT-007: 출금 의도 생성 응답 (BE: ExchangeIntentResponse)
+export interface MerchantRedeemIntentResult {
+  transactionUuid: string
+  status: string
+  amount: number
+  accountNumber: string
+  bankName: string
+  expiresAt: string
+}
+
+// MERCHANT-007: 출금 의도 생성 (PIN 없음). transactionUuid는 클라 생성 멱등키, amount는 전액.
+export function createMerchantRedeemIntent(body: {
   transactionUuid: string
   amount: number
-  paymentPin: string
-}): Promise<MerchantRedeemResult> {
-  return apiFetch<MerchantRedeemResult>('/merchant/redeem', {
+}): Promise<MerchantRedeemIntentResult> {
+  return apiFetch<MerchantRedeemIntentResult>('/merchant/redeem/intents', {
     method: 'POST',
-    body: JSON.stringify(input),
+    body: JSON.stringify(body),
+  })
+}
+
+// MERCHANT-008: 출금 실행 (PIN). uuid는 path로 전달.
+export function executeMerchantRedeem(
+  transactionUuid: string,
+  paymentPin: string
+): Promise<MerchantRedeemResult> {
+  return apiFetch<MerchantRedeemResult>(`/merchant/redeem/${transactionUuid}/execute`, {
+    method: 'POST',
+    body: JSON.stringify({ paymentPin }),
   })
 }

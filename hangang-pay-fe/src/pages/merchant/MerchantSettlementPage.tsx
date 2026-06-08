@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { ApiError } from '@/api/client'
 import {
+  createMerchantRedeemIntent,
   executeMerchantRedeem,
   fetchMerchantRedeemInit,
   type MerchantRedeemResult,
@@ -39,7 +40,14 @@ export function MerchantSettlementPage() {
   })
 
   const redeemMutation = useMutation({
-    mutationFn: executeMerchantRedeem,
+    // 1) intent 생성(PENDING 커밋, PIN 없음) → 2) 실행(PIN). bank 실패 시 intent가 남아 복구된다.
+    mutationFn: async (input: { transactionUuid: string; amount: number; paymentPin: string }) => {
+      await createMerchantRedeemIntent({
+        transactionUuid: input.transactionUuid,
+        amount: input.amount,
+      })
+      return executeMerchantRedeem(input.transactionUuid, input.paymentPin)
+    },
     onSuccess: (res) => {
       if (res.status === 'SUCCESS') {
         setResult(res)

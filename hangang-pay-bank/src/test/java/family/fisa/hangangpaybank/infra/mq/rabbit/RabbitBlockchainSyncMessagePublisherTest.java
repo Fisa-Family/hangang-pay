@@ -31,7 +31,6 @@ class RabbitBlockchainSyncMessagePublisherTest {
                         10L,
                         "uuid-1",
                         BlockchainSyncType.PAYMENT,
-                        1,
                         new ObjectMapper().createObjectNode());
 
         publisher.publish(message);

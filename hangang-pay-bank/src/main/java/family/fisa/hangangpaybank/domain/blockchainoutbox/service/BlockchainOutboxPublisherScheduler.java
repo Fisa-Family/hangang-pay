@@ -57,12 +57,11 @@ public class BlockchainOutboxPublisherScheduler {
         JsonNode payload = objectMapper.readTree(outbox.getPayload());
 
         return new BlockchainSyncMessage(
-                BlockchainSyncMessage.messageIdFromOutboxId(outbox.getId()),
+                outbox.getMessageId(),
                 outbox.getId(),
                 outbox.getBlockchainLedgerId(),
                 outbox.getTransactionUuid(),
                 outbox.getType(),
-                1,
                 payload);
     }
 }

@@ -7,6 +7,8 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import family.fisa.hangangpay.client.bank.dto.BankTransactionStatusResponse;
+import family.fisa.hangangpay.domain.merchant.entity.Merchant;
 import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.party.entity.PartyType;
@@ -21,6 +23,7 @@ import family.fisa.hangangpay.domain.transaction.internal.payment.PaymentIdempot
 import family.fisa.hangangpay.domain.transaction.internal.payment.PaymentRateLimiter;
 import family.fisa.hangangpay.domain.transaction.internal.payment.PaymentRequestHashGenerator;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
+import family.fisa.hangangpay.domain.transaction.service.payment.PaymentExecutionStateWriter;
 import family.fisa.hangangpay.domain.user.entity.User;
 import family.fisa.hangangpay.domain.user.repository.UserRepository;
 import family.fisa.hangangpay.domain.wallet.entity.Wallet;
@@ -153,6 +156,113 @@ class PaymentExecutionStateWriterTest {
         verify(paymentRateLimiter, never()).checkBankOutboundRateLimit();
     }
 
+    @Test
+    @DisplayName("복구 준비 시 소유권과 복구 가능 상태를 검증하고 Bank 조회용 UUID를 반환한다")
+    void prepareRecovery_validatesAndReturnsTransactionUuid() {
+        Transaction transaction = paymentTransaction(TransactionStatus.UNKNOWN);
+        given(transactionRepository.findByTransactionUuid(TRANSACTION_UUID))
+                .willReturn(Optional.of(transaction));
+
+        String result =
+                paymentExecutionStateWriter.prepareRecovery(USER_PARTY_ID, TRANSACTION_UUID);
+
+        assertThat(result).isEqualTo(TRANSACTION_UUID);
+        verify(paymentRateLimiter).checkRecoveryRateLimit(USER_PARTY_ID, TRANSACTION_UUID);
+        verify(paymentRateLimiter).checkBankOutboundRateLimit();
+    }
+
+    @Test
+    @DisplayName("복구 준비 시 최종 상태 거래는 복구 대상이 아니다")
+    void prepareRecovery_rejectsFinalStatus() {
+        Transaction transaction = paymentTransaction(TransactionStatus.SUCCESS);
+        given(transactionRepository.findByTransactionUuid(TRANSACTION_UUID))
+                .willReturn(Optional.of(transaction));
+
+        assertThatThrownBy(
+                        () ->
+                                paymentExecutionStateWriter.prepareRecovery(
+                                        USER_PARTY_ID, TRANSACTION_UUID))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("code", TransactionErrorCode.PAYMENT_NOT_RECOVERABLE);
+
+        verify(paymentRateLimiter, never()).checkRecoveryRateLimit(any(), any());
+        verify(paymentRateLimiter, never()).checkBankOutboundRateLimit();
+    }
+
+    @Test
+    @DisplayName("Bank SUCCESS 복구 결과를 로컬 SUCCESS로 반영한다")
+    void applyRecoveryResult_success() {
+        Transaction transaction = paymentTransaction(TransactionStatus.UNKNOWN);
+        BankTransactionStatusResponse bankStatus =
+                bankStatus(TransactionStatus.SUCCESS, 101L, "0x-recovered");
+
+        givenRecoveryApplyBase(transaction);
+
+        PaymentExecutionResponse response =
+                paymentExecutionStateWriter.applyRecoveryResult(TRANSACTION_UUID, bankStatus);
+
+        assertThat(response.status()).isEqualTo(TransactionStatus.SUCCESS);
+        assertThat(response.txHash()).isEqualTo("0x-recovered");
+        assertThat(response.merchantName()).isEqualTo("성수 한강카페");
+        assertThat(transaction.getStatus()).isEqualTo(TransactionStatus.SUCCESS);
+        assertThat(transaction.getTxHash()).isEqualTo("0x-recovered");
+        assertThat(transaction.getBankTransactionId()).isEqualTo("101");
+    }
+
+    @Test
+    @DisplayName("Bank FAILED 복구 결과를 로컬 FAILED로 반영한다")
+    void applyRecoveryResult_failed() {
+        Transaction transaction = paymentTransaction(TransactionStatus.UNKNOWN);
+        BankTransactionStatusResponse bankStatus = bankStatus(TransactionStatus.FAILED, null, null);
+
+        givenRecoveryApplyBase(transaction);
+
+        PaymentExecutionResponse response =
+                paymentExecutionStateWriter.applyRecoveryResult(TRANSACTION_UUID, bankStatus);
+
+        assertThat(response.status()).isEqualTo(TransactionStatus.FAILED);
+        assertThat(transaction.getStatus()).isEqualTo(TransactionStatus.FAILED);
+        assertThat(transaction.getTxHash()).isNull();
+    }
+
+    @Test
+    @DisplayName("Bank PROCESSING 복구 결과는 로컬 UNKNOWN을 유지한다")
+    void applyRecoveryResult_processingKeepsUnknown() {
+        Transaction transaction = paymentTransaction(TransactionStatus.UNKNOWN);
+        BankTransactionStatusResponse bankStatus =
+                bankStatus(TransactionStatus.PROCESSING, null, null);
+
+        givenRecoveryApplyBase(transaction);
+
+        PaymentExecutionResponse response =
+                paymentExecutionStateWriter.applyRecoveryResult(TRANSACTION_UUID, bankStatus);
+
+        assertThat(response.status()).isEqualTo(TransactionStatus.UNKNOWN);
+        assertThat(transaction.getStatus()).isEqualTo(TransactionStatus.UNKNOWN);
+        assertThat(transaction.getTxHash()).isNull();
+    }
+
+    @Test
+    @DisplayName("Bank SUCCESS 복구 결과에 txHash나 bankTransactionId가 없으면 오류가 발생한다")
+    void applyRecoveryResult_successRequiresBankProof() {
+        Transaction transaction = paymentTransaction(TransactionStatus.UNKNOWN);
+        BankTransactionStatusResponse bankStatus =
+                bankStatus(TransactionStatus.SUCCESS, null, "0x-recovered");
+
+        given(transactionRepository.findByTransactionUuid(TRANSACTION_UUID))
+                .willReturn(Optional.of(transaction));
+
+        assertThatThrownBy(
+                        () ->
+                                paymentExecutionStateWriter.applyRecoveryResult(
+                                        TRANSACTION_UUID, bankStatus))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue(
+                        "code", TransactionErrorCode.PAYMENT_RECOVERY_RESULT_INVALID);
+
+        verify(merchantRepository, never()).findByParty_Id(any());
+    }
+
     private void givenExecutionBase(Transaction transaction) {
         given(transactionRepository.findByTransactionUuid(TRANSACTION_UUID))
                 .willReturn(Optional.of(transaction));
@@ -160,6 +270,36 @@ class PaymentExecutionStateWriterTest {
         given(passwordEncoder.matches("123456", "pin-hash")).willReturn(true);
         given(paymentRequestHashGenerator.generatePaymentExecuteHash(transaction))
                 .willReturn(REQUEST_HASH);
+    }
+
+    private void givenRecoveryApplyBase(Transaction transaction) {
+        given(transactionRepository.findByTransactionUuid(TRANSACTION_UUID))
+                .willReturn(Optional.of(transaction));
+        given(merchantRepository.findByParty_Id(MERCHANT_PARTY_ID))
+                .willReturn(Optional.of(merchant(transaction.getToParty())));
+    }
+
+    private BankTransactionStatusResponse bankStatus(
+            TransactionStatus status, Long bankTransactionId, String txHash) {
+        return new BankTransactionStatusResponse(
+                TRANSACTION_UUID,
+                bankTransactionId,
+                status,
+                txHash,
+                LocalDateTime.of(2026, 5, 25, 10, 5));
+    }
+
+    private Merchant merchant(Party party) {
+        return Merchant.builder()
+                .id(1L)
+                .party(party)
+                .merchantName("성수 한강카페")
+                .username("merchant")
+                .passwordHash("password-hash")
+                .paymentPinHash("pin-hash")
+                .businessNumber("123-45-67890")
+                .ownerName("김한강")
+                .build();
     }
 
     private Transaction paymentTransaction(TransactionStatus status) {

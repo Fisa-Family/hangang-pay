@@ -1,4 +1,4 @@
-package family.fisa.hangangpay.domain.transaction.internal;
+package family.fisa.hangangpay.domain.transaction.internal.charge;
 
 import family.fisa.hangangpay.client.bank.dto.ChargeRequest;
 import java.math.BigDecimal;
