@@ -7,10 +7,9 @@ import {
   BackTitleHeader,
   EmptyState,
   HistoryDateGroupHeader,
+  HistoryListItem,
   SegmentedTabs,
 } from '@/components/common'
-import { formatTimeHHmm, formatWon } from '@/lib/format'
-import { cn } from '@/lib/utils'
 import { groupByDate } from '../history/UserHistoryPage.helpers'
 import {
   getNextPageParam,
@@ -103,30 +102,11 @@ export function MerchantPaymentsPage() {
             <section key={group.date}>
               <HistoryDateGroupHeader isoDate={group.items[0].createdAt} />
               {group.items.map((item) => (
-                <button
+                <HistoryListItem
                   key={item.id}
-                  type="button"
+                  item={item}
                   onClick={() => navigate(`/merchant/payments/${item.id}`)}
-                  className="flex w-full items-center justify-between gap-3 border-b border-border/50 px-4 py-3 text-left transition-colors last:border-b-0 active:bg-muted/40"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-foreground">
-                      {item.counterpartName}
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {formatTimeHHmm(item.createdAt)}
-                    </p>
-                  </div>
-                  <span
-                    className={cn(
-                      'shrink-0 text-sm font-bold tabular-nums',
-                      item.sign === '+' ? 'text-primary' : 'text-foreground'
-                    )}
-                  >
-                    {item.sign}
-                    {formatWon(item.amount)}
-                  </span>
-                </button>
+                />
               ))}
             </section>
           ))}
