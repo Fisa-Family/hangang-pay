@@ -11,7 +11,6 @@ import { Store } from 'lucide-react'
 import {
   BackTitleHeader,
   Button,
-  ConfirmDialog,
   EmptyState,
   PageHeader,
   PinEntry,
@@ -32,7 +31,6 @@ export function MerchantPaymentDetailPage() {
   const isValidId = Number.isInteger(transactionId) && transactionId >= 1
 
   const [step, setStep] = useState<Step>('detail')
-  const [confirmOpen, setConfirmOpen] = useState(false)
   const [pin, setPin] = useState('')
   const [toast, setToast] = useState<string | null>(null)
   const [result, setResult] = useState<PaymentCancelResult | null>(null)
@@ -200,26 +198,18 @@ export function MerchantPaymentDetailPage() {
 
       {canCancel && (
         <footer className="shrink-0 bg-background pt-3 pb-[calc(env(safe-area-inset-bottom)+0.25rem)]">
-          <Button variant="danger" size="lg" onClick={() => setConfirmOpen(true)}>
+          <Button
+            variant="danger"
+            size="lg"
+            onClick={() => {
+              setPin('')
+              setStep('pin')
+            }}
+          >
             결제 취소하기
           </Button>
         </footer>
       )}
-
-      <ConfirmDialog
-        open={confirmOpen}
-        variant="danger"
-        reverseButtons
-        title="이 결제를 취소하시겠습니까?"
-        confirmText="예"
-        cancelText="아니요"
-        onConfirm={() => {
-          setConfirmOpen(false)
-          setPin('')
-          setStep('pin')
-        }}
-        onCancel={() => setConfirmOpen(false)}
-      />
 
       <Toast open={!!toast} message={toast ?? ''} variant="error" />
     </div>
