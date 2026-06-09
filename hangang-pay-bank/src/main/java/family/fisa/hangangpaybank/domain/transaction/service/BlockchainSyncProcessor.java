@@ -61,13 +61,14 @@ public class BlockchainSyncProcessor {
             // 2. txHash로 receipt 가져오기 - 블록체인 노드 폴링
             TransactionReceipt receipt = contractCallService.waitForReceiptByHash(txHash);
 
-            // 3. 성공 -> 즉시 커밋 (REQUIRES_NEW)
-            ledgerStateWriter.markSuccess(ledger.getId(), message.transactionUuid(), receipt);
+            // 3. receipt 결과 -> 즉시 커밋 (REQUIRES_NEW)
+            ledgerStateWriter.markReceiptResult(ledger.getId(), message.transactionUuid(), receipt);
 
             log.info(
-                    "[consumer] PAYMENT SUCCESS. uuid={}, txHash={}",
+                    "[consumer] PAYMENT receipt 처리 완료. uuid={}, txHash={}, statusOk={}",
                     message.transactionUuid(),
-                    txHash);
+                    txHash,
+                    receipt.isStatusOK());
 
         } catch (BusinessException e) {
             // 4. 실패 -> retryable이면 DLQ에 적재, 아닐 경우 FAILED 처리
@@ -90,11 +91,12 @@ public class BlockchainSyncProcessor {
         try {
             String txHash = resolveCancelTxHash(ledger, message, payload);
             TransactionReceipt receipt = contractCallService.waitForReceiptByHash(txHash);
-            ledgerStateWriter.markSuccess(ledger.getId(), message.transactionUuid(), receipt);
+            ledgerStateWriter.markReceiptResult(ledger.getId(), message.transactionUuid(), receipt);
             log.info(
-                    "[consumer] CANCEL SUCCESS. uuid={}, txHash={}",
+                    "[consumer] CANCEL receipt 처리 완료. uuid={}, txHash={}, statusOk={}",
                     message.transactionUuid(),
-                    txHash);
+                    txHash,
+                    receipt.isStatusOK());
 
         } catch (BusinessException e) {
             handleFailure(e, ledger.getId(), message.transactionUuid());

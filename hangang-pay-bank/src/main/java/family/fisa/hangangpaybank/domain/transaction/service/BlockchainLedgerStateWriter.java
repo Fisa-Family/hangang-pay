@@ -48,6 +48,16 @@ public class BlockchainLedgerStateWriter {
         log.warn("[ledger] FAILED. uuid={}", transactionUuid);
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void markReceiptResult(
+            Long ledgerId, String transactionUuid, TransactionReceipt receipt) {
+        if (receipt.isStatusOK()) {
+            markSuccess(ledgerId, transactionUuid, receipt);
+            return;
+        }
+        markFailed(ledgerId, transactionUuid);
+    }
+
     private BlockchainLedger fetchById(Long ledgerId, String transactionUuid) {
         return blockchainLedgerRepository
                 .findById(ledgerId)
