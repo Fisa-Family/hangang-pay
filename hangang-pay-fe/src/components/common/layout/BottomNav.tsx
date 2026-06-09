@@ -18,7 +18,6 @@ interface BottomNavTab {
   disabled?: boolean
 }
 
-// 소비자 탭 (미구현 탭은 disabled)
 const userTabs: BottomNavTab[] = [
   { id: 'home', label: '홈', path: '/home' },
   { id: 'payments', label: '결제내역', path: '/mypage/payments' },
@@ -27,14 +26,12 @@ const userTabs: BottomNavTab[] = [
   { id: 'mypage', label: '마이페이지', path: '/mypage' },
 ]
 
-// 가맹점 탭
 const merchantTabs: BottomNavTab[] = [
   { id: 'home', label: '홈', path: '/merchant/home' },
   { id: 'payments', label: '내역', path: '/merchant/payments' },
   { id: 'mypage', label: '마이', path: '/merchant/mypage' },
 ]
 
-// 탭 아이디별 아이콘 매핑
 const tabIcons: Record<string, (className?: string) => React.ReactNode> = {
   home: (cls) => <Home className={cls} aria-hidden />,
   payments: (cls) => <FileText className={cls} aria-hidden />,
@@ -49,17 +46,33 @@ export function BottomNav({ type, active, onNavigate, className }: BottomNavProp
   return (
     <nav
       className={cn(
-        'absolute inset-x-0 bottom-0 z-20 bg-card px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-4 shadow-[0_-2px_12px_rgba(0,0,0,0.06)]',
+        'absolute inset-x-0 bottom-0 z-20 bg-card pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-1px_0_rgba(0,0,0,0.08)]',
         className
       )}
     >
       <div
-        className="grid items-end gap-1"
+        className="grid items-stretch"
         style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
       >
         {tabs.map((tab) => {
           const isActive = active === tab.id
           const icon = tabIcons[tab.id]
+
+          if (tab.featured) {
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => onNavigate(tab.path)}
+                className="flex flex-col items-center -mt-4 gap-1.5 pb-1"
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary ring-4 ring-card shadow-lg shadow-primary/25">
+                  {icon?.('w-[22px] h-[22px] text-white')}
+                </div>
+                <span className="text-[10px] font-bold leading-none text-primary">{tab.label}</span>
+              </button>
+            )
+          }
 
           return (
             <button
@@ -68,16 +81,19 @@ export function BottomNav({ type, active, onNavigate, className }: BottomNavProp
               disabled={tab.disabled}
               onClick={() => onNavigate(tab.path)}
               className={cn(
-                'flex flex-col items-center gap-1 rounded-lg px-1 text-xs font-semibold text-muted-foreground transition-colors',
-                !tab.featured && 'min-h-12 justify-center',
-                isActive && !tab.featured && 'text-primary',
-                tab.featured &&
-                  '-mt-4 min-h-15 justify-end rounded-2xl bg-primary pb-2 text-primary-foreground shadow-md shadow-primary/30',
+                'flex flex-col items-center pb-1 transition-colors',
+                isActive ? 'text-primary' : 'text-muted-foreground',
                 tab.disabled && 'opacity-40'
               )}
             >
+              <div
+                className={cn(
+                  'mb-2 h-0.75 w-8 rounded-full transition-all duration-200',
+                  isActive ? 'bg-primary' : 'bg-transparent'
+                )}
+              />
               {icon?.('w-[22px] h-[22px]')}
-              <span className="truncate">{tab.label}</span>
+              <span className="mt-1 text-[10px] font-semibold leading-none">{tab.label}</span>
             </button>
           )
         })}
