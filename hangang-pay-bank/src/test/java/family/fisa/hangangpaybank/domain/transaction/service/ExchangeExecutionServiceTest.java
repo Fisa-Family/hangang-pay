@@ -55,7 +55,7 @@ class ExchangeExecutionServiceTest {
     @InjectMocks private ExchangeExecutionService service;
 
     @Test
-    @DisplayName("환전 성공: 토큰 차감 + 현금 입금 + account_ledger 저장 + syncRequester 호출, status=PROCESSING")
+    @DisplayName("환전 성공: 토큰 차감 + 현금 입금 + account_ledger 저장 + syncRequester 호출, status=SUCCESS")
     void exchange_success_debitsTokenCreditsCashAndRequestsSync() {
         BankWallet wallet = wallet(new BigDecimal("500"));
         BankAccount account = account(new BigDecimal("100000"));
@@ -74,7 +74,7 @@ class ExchangeExecutionServiceTest {
 
         ExchangeResponse response = service.exchange(request());
 
-        assertThat(response.status()).isEqualTo("PROCESSING");
+        assertThat(response.status()).isEqualTo("SUCCESS");
         assertThat(response.txHash()).isNull();
         assertThat(response.accountBalance()).isEqualByComparingTo(new BigDecimal("100100"));
         assertThat(wallet.getBalance()).isEqualByComparingTo(new BigDecimal("400")); // 토큰 차감

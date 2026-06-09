@@ -18,13 +18,16 @@ public record ExchangeResponse(
         LocalDateTime confirmedAt,
         BigDecimal accountBalance) {
 
-    /** 비동기 접수. 토큰 burn 진행 전이므로 온체인 정보는 null, status=PROCESSING */
+    /**
+     * 동기 접수 응답: off-chain DB 처리(토큰 차감/현금 입금/account_ledger) 완료 = SUCCESS. 블록체인 burn은 비동기로 디커플되며,
+     * 온체인 정보(txHash 등)는 아직 없어 null이고 상태조회로 확인한다. (결제 동기 응답과 동일 의미)
+     */
     public static ExchangeResponse accepted(
             ExchangeRequest request, AccountLedger accountLedger, BigDecimal accountBalance) {
         return ExchangeResponse.builder()
                 .transactionUuid(request.transactionUuid())
                 .bankTransactionId(accountLedger.getId())
-                .status("PROCESSING")
+                .status("SUCCESS")
                 .txHash(null)
                 .blockNumber(null)
                 .confirmedAt(null)
