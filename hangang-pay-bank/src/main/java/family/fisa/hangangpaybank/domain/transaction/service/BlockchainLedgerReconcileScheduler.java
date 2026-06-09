@@ -100,7 +100,11 @@ public class BlockchainLedgerReconcileScheduler {
         try {
             TransactionReceipt receipt =
                     contractCallService.waitForReceiptByHash(ledger.getTxHash());
-            ledgerStateWriter.markReceiptResult(ledger.getId(), ledger.getIdempotentKey(), receipt);
+            if (receipt.isStatusOK()) {
+                ledgerStateWriter.markSuccess(ledger.getId(), ledger.getIdempotentKey(), receipt);
+            } else {
+                ledgerStateWriter.markFailed(ledger.getId(), ledger.getIdempotentKey());
+            }
             log.info(
                     "[reconcile] receipt reconciled. ledgerId={}, uuid={}, txHash={}",
                     ledger.getId(),
