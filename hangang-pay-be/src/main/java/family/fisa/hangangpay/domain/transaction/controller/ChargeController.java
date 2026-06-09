@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.SessionAttribute;
 
 @Tag(name = "충전", description = "충전 API")
 @RestController
-@RequestMapping("/api/v1")
+@RequestMapping("/api/v1/charge")
 @RequiredArgsConstructor
 public class ChargeController {
 
