@@ -219,7 +219,7 @@ export function ProcessingPage() {
         <ResultState
           variant="info"
           title="결제 상태를 확인 중이에요"
-          description={'결과를 다시 확인해주세요.\n같은 결제가 중복 처리되지는 않습니다.'}
+          description={'현재 서버 네트워크에 오류가 발생했어요.\n 서버가 복구되는 대로 바로 확인 가능해요!\n'}
           primaryText="다시 확인"
           onPrimary={handleRecover}
           secondaryText="홈으로"
