@@ -1,19 +1,22 @@
-import { type ReactNode, useEffect, useState } from 'react'
+import { createElement, type ReactNode, useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
-  Button,
-  PageHeader,
-  ProcessingState,
-  ResultState,
-  Toast,
-  type ToastState,
-} from '@/components/common'
+  Coffee,
+  Cookie,
+  Croissant,
+  Pizza,
+  Sandwich,
+  Soup,
+  Utensils,
+  UtensilsCrossed,
+} from 'lucide-react'
+import { Button, PageHeader, ProcessingState, ResultState } from '@/components/common'
 import { ApiError } from '@/api/client'
 import { getChargeDetail, type ChargeDetail } from '@/api/chargeHistories'
 import { getPaymentHistoryDetail, type PaymentHistoryDetail } from '@/api/paymentHistories'
 import { getExchangeHistoryDetail, type ExchangeHistoryDetail } from '@/api/exchangeHistories'
-import { formatWon, formatDateTime, shortHash } from '@/lib/format'
-import icon from '@/components/common/icons/icon.png'
+import { formatWon, formatDateTime } from '@/lib/format'
+import voucherIcon from '@/components/common/icons/icon.png'
 
 interface DetailRow {
   label: string
@@ -28,20 +31,15 @@ interface FlowConfig {
   amountLabel: string
   amount: (detail: unknown) => number
   amountPrefix?: string
-  rows: (detail: unknown, onCopy: (text: string) => void) => DetailRow[]
+  iconType: 'voucher' | 'food'
+  rows: (detail: unknown) => DetailRow[]
 }
 
-function TxHashButton({ hash, onCopy }: { hash?: string; onCopy: (text: string) => void }) {
-  if (!hash) return <span>{shortHash()}</span>
-  return (
-    <button
-      type="button"
-      className="max-w-[230px] truncate text-right text-[14px] font-medium text-foreground"
-      onClick={() => onCopy(hash)}
-    >
-      {shortHash(hash)} ⧉
-    </button>
-  )
+const FOOD_ICONS = [Utensils, UtensilsCrossed, Coffee, Pizza, Sandwich, Cookie, Croissant, Soup]
+
+function pickFoodIcon(id: string) {
+  const seed = id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
+  return FOOD_ICONS[seed % FOOD_ICONS.length]
 }
 
 const FLOWS: Record<string, FlowConfig> = {
@@ -52,7 +50,8 @@ const FLOWS: Record<string, FlowConfig> = {
     cardTitle: () => '한강사랑상품권',
     amountLabel: '충전 금액',
     amount: (d) => (d as ChargeDetail).amount,
-    rows: (d, onCopy) => {
+    iconType: 'voucher',
+    rows: (d) => {
       const detail = d as ChargeDetail
       return [
         {
@@ -62,7 +61,6 @@ const FLOWS: Record<string, FlowConfig> = {
         { label: '결제금액', value: formatWon(detail.actualPaidAmount) },
         { label: '결제계좌', value: `${detail.bankName} ${detail.accountNumber}` },
         { label: '충전일시', value: formatDateTime(detail.createdAt) },
-        { label: '트랜잭션 해시', value: <TxHashButton hash={detail.txHash} onCopy={onCopy} /> },
       ]
     },
   },
@@ -74,13 +72,13 @@ const FLOWS: Record<string, FlowConfig> = {
     amountLabel: '결제 금액',
     amount: (d) => (d as PaymentHistoryDetail).amount,
     amountPrefix: '-',
-    rows: (d, onCopy) => {
+    iconType: 'food',
+    rows: (d) => {
       const detail = d as PaymentHistoryDetail
       return [
         { label: '승인번호', value: detail.approvalNumber },
         { label: '결제수단', value: '한강사랑상품권' },
         { label: '결제일시', value: formatDateTime(detail.createdAt) },
-        { label: '트랜잭션 해시', value: <TxHashButton hash={detail.txHash} onCopy={onCopy} /> },
       ]
     },
   },
@@ -91,12 +89,12 @@ const FLOWS: Record<string, FlowConfig> = {
     cardTitle: () => '한강사랑상품권',
     amountLabel: '환불금액',
     amount: (d) => (d as ExchangeHistoryDetail).amount,
-    rows: (d, onCopy) => {
+    iconType: 'voucher',
+    rows: (d) => {
       const detail = d as ExchangeHistoryDetail
       return [
         { label: '환불계좌', value: `${detail.bankName} ${detail.accountNumber}` },
         { label: '환불일시', value: formatDateTime(detail.createdAt) },
-        { label: '트랜잭션 해시', value: <TxHashButton hash={detail.txHash} onCopy={onCopy} /> },
       ]
     },
   },
@@ -111,7 +109,6 @@ export function UserHistoryDetailPage() {
 
   const [detail, setDetail] = useState<unknown>(null)
   const [error, setError] = useState('')
-  const [toast, setToast] = useState<ToastState | null>(null)
 
   useEffect(() => {
     if (!id || !flow) return
@@ -122,19 +119,6 @@ export function UserHistoryDetailPage() {
         setError(err instanceof ApiError ? err.message : flow.defaultError)
       })
   }, [id, flow])
-
-  useEffect(() => {
-    if (!toast) return
-    const timeoutId = window.setTimeout(() => setToast(null), 2000)
-    return () => window.clearTimeout(timeoutId)
-  }, [toast])
-
-  function handleCopy(text: string) {
-    void navigator.clipboard
-      .writeText(text)
-      .then(() => setToast({ message: '트랜잭션 해시가 복사되었습니다.', variant: 'success' }))
-      .catch(() => setToast({ message: '복사에 실패했습니다.', variant: 'error' }))
-  }
 
   const title = flow?.title ?? '상세'
 
@@ -166,19 +150,29 @@ export function UserHistoryDetailPage() {
 
   if (!detail || !flow) return null
 
-  const rows = flow.rows(detail, handleCopy)
+  const rows = flow.rows(detail)
   const amount = flow.amount(detail)
   const prefix = flow.amountPrefix ?? ''
-
   return (
     <div className="flex h-full flex-col bg-background">
       <PageHeader title={title} onBack={() => navigate(-1)} />
 
       <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-4 pt-5">
         <section className="rounded-2xl border border-border bg-card px-5 py-5 shadow-sm">
-          <div className="flex min-h-[72px] items-center gap-3">
-            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl">
-              <img src={icon} alt="한강사랑상품권" className="h-full w-full object-cover" />
+          <div className="flex min-h-18 items-center gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-muted">
+              {flow.iconType === 'food' ? (
+                createElement(pickFoodIcon(id ?? '0'), {
+                  size: 24,
+                  className: 'text-muted-foreground',
+                })
+              ) : (
+                <img
+                  src={voucherIcon}
+                  alt="한강사랑상품권"
+                  className="h-full w-full object-cover"
+                />
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[16px] font-semibold leading-none text-foreground">
@@ -218,8 +212,6 @@ export function UserHistoryDetailPage() {
           확인
         </Button>
       </footer>
-
-      <Toast open={toast !== null} message={toast?.message ?? ''} variant={toast?.variant} />
     </div>
   )
 }
