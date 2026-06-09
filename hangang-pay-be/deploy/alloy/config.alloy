@@ -1,0 +1,121 @@
+// Grafana Alloy 수집 설정 (hangang-pay 공통)
+// - 메트릭: 앱의 /actuator/prometheus 스크랩 → Grafana Cloud Prometheus remote_write
+// - 로그: 앱 컨테이너 stdout(ECS JSON) 수집 → Grafana Cloud Loki push
+//
+// 모든 환경값/크리덴셜은 환경변수로 외부화한다. 이 파일에는 secret이 없으므로 커밋 가능.
+// 서버마다 다른 값은 .env로만 분기한다. (config.alloy는 두 레포 바이트 동일)
+//   ALLOY_SERVICE   service 라벨   (hangang-pay-be / hangang-pay-bank)
+//   DEPLOY_TARGET   deploy 라벨    (cloud / onprem)
+//   ALLOY_ENV       env 라벨       (prod / test)
+//   ALLOY_COLOR     color 라벨     (blue / green / 빈값)
+//   INSTANCE_ID     instance 라벨  (EC2 instance-id / 온프레 hostname)
+//   APP_SCRAPE_TARGET 스크랩 대상  (app:8080 / app:8081)
+
+// ----------------------------------------------------------------------------
+// 1. 메트릭: 앱 actuator 스크랩 → Grafana Cloud Prometheus remote_write
+// ----------------------------------------------------------------------------
+
+// 1-1. 앱의 /actuator/prometheus를 30초 주기로 스크랩
+prometheus.scrape "app" {
+  targets = [{
+    __address__ = sys.env("APP_SCRAPE_TARGET"),
+  }]
+  metrics_path    = "/actuator/prometheus"
+  scrape_interval = "30s"
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+// 1-2. 스크랩한 시계열을 Grafana Cloud로 remote_write
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = sys.env("GRAFANA_PROM_URL")
+    basic_auth {
+      username = sys.env("GRAFANA_PROM_USER")
+      password = sys.env("GRAFANA_PROM_PASSWORD")
+    }
+  }
+  // 1-3. 모든 시계열에 공통 식별 라벨 부착 (서버 구분용)
+  external_labels = {
+    service  = sys.env("ALLOY_SERVICE"),
+    deploy   = sys.env("DEPLOY_TARGET"),
+    env      = sys.env("ALLOY_ENV"),
+    color    = sys.env("ALLOY_COLOR"),
+    instance = sys.env("INSTANCE_ID"),
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 2. 로그: 앱 컨테이너 stdout(ECS JSON) 수집 → Grafana Cloud Loki push
+// ----------------------------------------------------------------------------
+
+// 2-1. docker 데몬에서 컨테이너 목록 발견
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// 2-2. app 컨테이너만 필터링하고 공통 라벨을 부착한다.
+discovery.relabel "app_logs" {
+  targets = discovery.docker.containers.targets
+
+  // APP_CONTAINER_NAME과 일치하는 앱 컨테이너만 유지(alloy 자기 로그는 제외).
+  // 컨테이너명은 레포마다 다를 수 있어 env로 분기(be=app, bank=bank-app).
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/?" + sys.env("APP_CONTAINER_NAME")
+    action        = "keep"
+  }
+  rule {
+    target_label = "service"
+    replacement  = sys.env("ALLOY_SERVICE")
+  }
+  rule {
+    target_label = "deploy"
+    replacement  = sys.env("DEPLOY_TARGET")
+  }
+  rule {
+    target_label = "env"
+    replacement  = sys.env("ALLOY_ENV")
+  }
+  rule {
+    target_label = "color"
+    replacement  = sys.env("ALLOY_COLOR")
+  }
+  rule {
+    target_label = "instance"
+    replacement  = sys.env("INSTANCE_ID")
+  }
+}
+
+// 2-3. 필터된 app 컨테이너의 stdout 로그를 tail
+loki.source.docker "app" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.app_logs.output
+  labels     = {}
+  forward_to = [loki.process.app.receiver]
+}
+
+// 2-4. ECS JSON 파싱 → log.level을 level 라벨로 승격
+loki.process "app" {
+  stage.json {
+    expressions = {
+      level = "\"log.level\"",
+    }
+  }
+  stage.labels {
+    values = {
+      level = "",
+    }
+  }
+  forward_to = [loki.write.grafana_cloud.receiver]
+}
+
+// 2-5. 가공된 로그를 Grafana Cloud Loki로 push
+loki.write "grafana_cloud" {
+  endpoint {
+    url = sys.env("GRAFANA_LOKI_URL")
+    basic_auth {
+      username = sys.env("GRAFANA_LOKI_USER")
+      password = sys.env("GRAFANA_LOKI_PASSWORD")
+    }
+  }
+}

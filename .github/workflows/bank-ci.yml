@@ -99,6 +99,9 @@ jobs:
     environment: test
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
       - name: Configure SSH
         run: |
           mkdir -p ~/.ssh
@@ -124,30 +127,79 @@ jobs:
             StrictHostKeyChecking no
           EOF
 
-      - name: Pull image and restart container
+      - name: Upload compose deployment files
+        run: |
+          ssh onprem-bank 'rm -rf /tmp/hangang-pay-bank-deploy && mkdir -p /tmp/hangang-pay-bank-deploy'
+          scp hangang-pay-bank/deploy/docker-compose.yml onprem-bank:/tmp/hangang-pay-bank-deploy/docker-compose.yml
+          scp -r hangang-pay-bank/deploy/alloy onprem-bank:/tmp/hangang-pay-bank-deploy/alloy
+
+      - name: Pull image and restart compose stack
         run: |
           ssh onprem-bank 'bash -s' <<'EOF'
           set -Eeuo pipefail
+
+          APP_DIR=/opt/hangang-pay-bank
+
+          if ! sudo docker compose version >/dev/null 2>&1; then
+            sudo apt-get update -y
+            sudo apt-get install -y docker-compose-plugin
+          fi
 
           echo '${{ secrets.DOCKERHUB_TOKEN }}' | sudo docker login \
             --username '${{ secrets.DOCKERHUB_USERNAME }}' \
             --password-stdin
 
           sudo docker pull '${{ secrets.DOCKERHUB_USERNAME }}/hangang-pay-bank:test-latest'
+          sudo docker pull grafana/alloy:latest
 
-          sudo docker stop hangang-pay-bank || true
-          sudo docker rm hangang-pay-bank || true
+          sudo mkdir -p "$APP_DIR/alloy"
+          sudo cp /tmp/hangang-pay-bank-deploy/docker-compose.yml "$APP_DIR/docker-compose.yml"
+          sudo cp -R /tmp/hangang-pay-bank-deploy/alloy/. "$APP_DIR/alloy/"
 
-          sudo docker run -d \
-            --name hangang-pay-bank \
-            --restart unless-stopped \
-            -p 8081:8081 \
-            -e SPRING_PROFILES_ACTIVE=onprem-test \
-            -e DB_URL='${{ secrets.ONPREM_BANK_DB_URL }}' \
-            -e DB_USERNAME='${{ secrets.ONPREM_BANK_DB_USERNAME }}' \
-            -e DB_PASSWORD='${{ secrets.ONPREM_BANK_DB_PASSWORD }}' \
-            -e WALLET_KEY_CIPHER_SECRET='${{ secrets.ONPREM_BANK_WALLET_KEY_CIPHER_SECRET }}' \
-            '${{ secrets.DOCKERHUB_USERNAME }}/hangang-pay-bank:test-latest'
+          if [ -f "$APP_DIR/.env" ]; then
+            (cd "$APP_DIR" && sudo docker compose -f docker-compose.yml down) || true
+          fi
+
+          sudo docker rm -f hangang-pay-bank bank-app bank-alloy 2>/dev/null || true
+
+          sudo tee "$APP_DIR/.env" >/dev/null <<'ENV'
+          APP_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/hangang-pay-bank:test-latest
+          SPRING_PROFILES_ACTIVE=onprem-test
+          DB_URL=${{ secrets.ONPREM_BANK_DB_URL }}
+          DB_USERNAME=${{ secrets.ONPREM_BANK_DB_USERNAME }}
+          DB_PASSWORD=${{ secrets.ONPREM_BANK_DB_PASSWORD }}
+          WALLET_KEY_CIPHER_SECRET=${{ secrets.ONPREM_BANK_WALLET_KEY_CIPHER_SECRET }}
+          SENTRY_DSN=${{ secrets.ONPREM_BANK_SENTRY_DSN }}
+          SENTRY_RELEASE=${{ github.sha }}
+          GRAFANA_PROM_URL=${{ secrets.ONPREM_BANK_GRAFANA_PROM_URL }}
+          GRAFANA_PROM_USER=${{ secrets.ONPREM_BANK_GRAFANA_PROM_USER }}
+          GRAFANA_PROM_PASSWORD=${{ secrets.ONPREM_BANK_GRAFANA_PROM_PASSWORD }}
+          GRAFANA_LOKI_URL=${{ secrets.ONPREM_BANK_GRAFANA_LOKI_URL }}
+          GRAFANA_LOKI_USER=${{ secrets.ONPREM_BANK_GRAFANA_LOKI_USER }}
+          GRAFANA_LOKI_PASSWORD=${{ secrets.ONPREM_BANK_GRAFANA_LOKI_PASSWORD }}
+          ALLOY_SERVICE=hangang-pay-bank
+          DEPLOY_TARGET=onprem
+          ALLOY_ENV=prod
+          ALLOY_COLOR=
+          APP_SCRAPE_TARGET=app:8081
+          APP_CONTAINER_NAME=bank-app
+          ENV
+
+          printf 'INSTANCE_ID=%s\n' "$(hostname)" | sudo tee -a "$APP_DIR/.env" >/dev/null
+          sudo chmod 600 "$APP_DIR/.env"
+
+          BOK_RPC_ENDPOINT='${{ secrets.ONPREM_BANK_BOK_RPC_ENDPOINT }}'
+          WR_RPC_ENDPOINT='${{ secrets.ONPREM_BANK_WR_RPC_ENDPOINT }}'
+          SH_RPC_ENDPOINT='${{ secrets.ONPREM_BANK_SH_RPC_ENDPOINT }}'
+          HN_RPC_ENDPOINT='${{ secrets.ONPREM_BANK_HN_RPC_ENDPOINT }}'
+
+          if [ -n "$BOK_RPC_ENDPOINT" ]; then printf 'BOK_RPC_ENDPOINT=%s\n' "$BOK_RPC_ENDPOINT" | sudo tee -a "$APP_DIR/.env" >/dev/null; fi
+          if [ -n "$WR_RPC_ENDPOINT" ]; then printf 'WR_RPC_ENDPOINT=%s\n' "$WR_RPC_ENDPOINT" | sudo tee -a "$APP_DIR/.env" >/dev/null; fi
+          if [ -n "$SH_RPC_ENDPOINT" ]; then printf 'SH_RPC_ENDPOINT=%s\n' "$SH_RPC_ENDPOINT" | sudo tee -a "$APP_DIR/.env" >/dev/null; fi
+          if [ -n "$HN_RPC_ENDPOINT" ]; then printf 'HN_RPC_ENDPOINT=%s\n' "$HN_RPC_ENDPOINT" | sudo tee -a "$APP_DIR/.env" >/dev/null; fi
+
+          cd "$APP_DIR"
+          sudo docker compose -f docker-compose.yml up -d --remove-orphans
 
           HEALTH_MAX_ATTEMPTS=30
           HEALTH_RETRY_SECONDS=5
@@ -163,9 +215,9 @@ jobs:
               break
             fi
 
-            if ! sudo docker inspect -f '{{.State.Running}}' hangang-pay-bank | grep -q true; then
-              echo "hangang-pay-bank container stopped during startup."
-              sudo docker logs --tail 200 hangang-pay-bank
+            if ! sudo docker inspect -f '{{.State.Running}}' bank-app | grep -q true; then
+              echo "bank-app container stopped during startup."
+              sudo docker compose -f docker-compose.yml logs --tail 200 app alloy
               exit 1
             fi
 
@@ -174,12 +226,12 @@ jobs:
           done
 
           if [ "$healthy" = "true" ]; then
-            sudo docker ps --filter "name=hangang-pay-bank"
+            sudo docker ps --filter "name=bank-"
             exit 0
           fi
 
           echo "hangang-pay-bank health check timed out."
-          sudo docker ps --filter "name=hangang-pay-bank"
-          sudo docker logs --tail 200 hangang-pay-bank
+          sudo docker ps --filter "name=bank-"
+          sudo docker compose -f docker-compose.yml logs --tail 200 app alloy
           exit 1
           EOF
