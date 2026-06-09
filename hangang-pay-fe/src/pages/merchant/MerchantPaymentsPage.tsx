@@ -7,10 +7,9 @@ import {
   BackTitleHeader,
   EmptyState,
   HistoryDateGroupHeader,
+  HistoryListItem,
   SegmentedTabs,
 } from '@/components/common'
-import { formatTimeHHmm, formatWon } from '@/lib/format'
-import { cn } from '@/lib/utils'
 import { groupByDate } from '../history/UserHistoryPage.helpers'
 import {
   getNextPageParam,
@@ -79,11 +78,11 @@ export function MerchantPaymentsPage() {
   const showEmpty = !query.isLoading && !query.error && filtered.length === 0 && !query.hasNextPage
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col bg-card -mx-5 -my-5 px-5 py-5">
       <BackTitleHeader title="결제 내역" onBack={() => navigate('/merchant/home')} />
       <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} />
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto pb-5">
         {query.isLoading && (
           <p className="px-4 py-6 text-center text-sm text-muted-foreground">불러오는 중...</p>
         )}
@@ -103,30 +102,11 @@ export function MerchantPaymentsPage() {
             <section key={group.date}>
               <HistoryDateGroupHeader isoDate={group.items[0].createdAt} />
               {group.items.map((item) => (
-                <button
+                <HistoryListItem
                   key={item.id}
-                  type="button"
+                  item={item}
                   onClick={() => navigate(`/merchant/payments/${item.id}`)}
-                  className="flex w-full items-center justify-between gap-3 border-b border-border/50 px-4 py-3 text-left transition-colors last:border-b-0 active:bg-muted/40"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-foreground">
-                      {item.counterpartName}
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {formatTimeHHmm(item.createdAt)}
-                    </p>
-                  </div>
-                  <span
-                    className={cn(
-                      'shrink-0 text-sm font-bold tabular-nums',
-                      item.sign === '+' ? 'text-primary' : 'text-foreground'
-                    )}
-                  >
-                    {item.sign}
-                    {formatWon(item.amount)}
-                  </span>
-                </button>
+                />
               ))}
             </section>
           ))}
