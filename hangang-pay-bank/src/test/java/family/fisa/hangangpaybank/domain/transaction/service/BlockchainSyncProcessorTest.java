@@ -73,7 +73,7 @@ class BlockchainSyncProcessorTest {
         // then
         verify(contractCallService).submitPayment(eq("uuid-1"), eq("0xFROM"), eq("0xTO"), any());
         verify(ledgerStateWriter).markSubmitted(1L, "uuid-1", "0xHASH");
-        verify(ledgerStateWriter).markSuccess(eq(1L), eq("uuid-1"), eq(receipt));
+        verify(ledgerStateWriter).markSuccess(1L, "uuid-1", receipt);
     }
 
     @Test
@@ -93,7 +93,7 @@ class BlockchainSyncProcessorTest {
         // then - submit 호출 없이 기존 txHash로 receipt 조회
         verify(contractCallService, never()).submitPayment(any(), any(), any(), any());
         verify(ledgerStateWriter, never()).markSubmitted(any(), any(), any());
-        verify(ledgerStateWriter).markSuccess(eq(2L), eq("uuid-2"), eq(receipt));
+        verify(ledgerStateWriter).markSuccess(2L, "uuid-2", receipt);
     }
 
     @Test
@@ -155,7 +155,7 @@ class BlockchainSyncProcessorTest {
         verify(contractCallService)
                 .submitCancelPayment(eq("uuid-5"), eq("0xMERCHANT"), eq("0xUSER"), any());
         verify(ledgerStateWriter).markSubmitted(5L, "uuid-5", "0xCANCEL_HASH");
-        verify(ledgerStateWriter).markSuccess(eq(5L), eq("uuid-5"), eq(receipt));
+        verify(ledgerStateWriter).markSuccess(5L, "uuid-5", receipt);
     }
 
     // ── 오류 처리 ──────────────────────────────────────────────────────────────
