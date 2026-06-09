@@ -6,7 +6,6 @@ import java.util.List;
 
 public record ChargeInitResponse(
         Long partyId,
-        String transactionUuid,
         BigDecimal balance,
         BigDecimal monthlyLimit,
         BigDecimal remainingLimit,
@@ -16,7 +15,6 @@ public record ChargeInitResponse(
     /** Account 목록을 포함한 충전 초기화 응답 객체 생성 */
     public static ChargeInitResponse of(
             Long partyId,
-            String transactionUuid,
             BigDecimal balance,
             BigDecimal monthlyLimit,
             BigDecimal remainingLimit,
@@ -24,7 +22,6 @@ public record ChargeInitResponse(
             List<Account> accounts) {
         return new ChargeInitResponse(
                 partyId,
-                transactionUuid,
                 balance,
                 monthlyLimit,
                 remainingLimit,

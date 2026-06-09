@@ -48,8 +48,11 @@ public interface TransactionRepository {
             LocalDateTime startOfMonth,
             LocalDateTime startOfNextMonth);
 
-    /** 가장 최근 SUCCESS CHARGE 1건 - 환전 자격 판정 기준점 */
+    /** 가장 최근 SUCCESS CHARGE 1건 - 환전 자격 검증용 */
     Optional<Transaction> findLatestSuccessCharge(Long partyId);
+
+    /** 만료 대상 - CHARGE + PENDING + createdAt < threshold */
+    List<Transaction> findStalePendingChargeIntents(LocalDateTime threshold);
 
     /** 특정 시점 이전(exclusive)의 SUCCESS 거래 타입별 누적 금액 - 잔액 산정용 */
     BigDecimal sumSuccessByTypeBefore(Long partyId, TransactionType type, LocalDateTime before);
@@ -59,9 +62,6 @@ public interface TransactionRepository {
 
     /** 원거래 UUID를 참조하는 SUCCESS CANCEL 거래 존재 여부 */
     boolean existsSuccessCancelByOriginalTransactionUuid(String originalTransactionUuid);
-
-    /** 가장 최근 PENDING CHARGE 1건 - 충전 init 중복 방지용 */
-    Optional<Transaction> findLatestPendingCharge(Long partyId);
 
     /** 특정 거래 유형의 SUCCESS 누적 금액 (전체 기간) */
     BigDecimal sumAllSuccessByType(Long partyId, TransactionType type);
