@@ -57,6 +57,7 @@ public class BlockchainOutbox extends BaseEntity {
         this.status = BlockchainOutboxStatus.SENT;
     }
 
+    /** outbox의 발행 시도 횟수를 증가시킨다. MAX_RETRY 횟수에 도달하면 해당 outbox를 FAILED 상태로 전환한다. */
     public void incrementRetryOrFail() {
         this.retryCount++;
         if (this.retryCount >= MAX_RETRY) {

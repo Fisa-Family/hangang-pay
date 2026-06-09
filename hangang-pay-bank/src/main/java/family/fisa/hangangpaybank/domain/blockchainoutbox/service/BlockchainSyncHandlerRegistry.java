@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Component;
 
+/** BlockchainSyncHandler를 type별로 저장하기 위한 Registry */
 @Component
 public class BlockchainSyncHandlerRegistry {
 

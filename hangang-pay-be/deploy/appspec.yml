@@ -1,5 +1,12 @@
 version: 0.0
 os: linux
+# compose/alloy 설정을 안정적인 경로로 복사한다(컨테이너 bind mount가 ephemeral 번들 경로를
+# 가리키지 않도록). 복사는 Install 단계(BeforeInstall 이후, ApplicationStart 이전)에 수행된다.
+files:
+  - source: docker-compose.yml
+    destination: /opt/hangang-pay-be
+  - source: alloy
+    destination: /opt/hangang-pay-be/alloy
 hooks:
   ApplicationStop:
     - location: scripts/stop.sh
