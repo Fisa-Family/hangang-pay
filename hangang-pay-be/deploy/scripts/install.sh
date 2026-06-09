@@ -16,9 +16,12 @@ fi
 
 # 2. docker compose 플러그인 확인 (없으면 설치) — app+alloy를 compose로 함께 띄우므로 필수
 if ! docker compose version >/dev/null 2>&1; then
-  export DEBIAN_FRONTEND=noninteractive
-  apt-get update -y
-  apt-get install -y docker-compose-plugin
+  COMPOSE_VERSION=v2.32.4
+  mkdir -p /usr/local/lib/docker/cli-plugins
+  curl -SL \
+    "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-linux-x86_64" \
+    -o /usr/local/lib/docker/cli-plugins/docker-compose
+  chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 fi
 
 # 3. Install 단계의 파일 복사가 기존 파일과 충돌하지 않도록 대상 디렉터리 정리

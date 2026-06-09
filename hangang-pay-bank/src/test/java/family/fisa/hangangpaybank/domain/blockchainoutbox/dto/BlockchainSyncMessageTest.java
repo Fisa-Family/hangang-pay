@@ -70,7 +70,7 @@ class BlockchainSyncMessageTest {
                 new CancelBlockchainPayload("orig-uuid", "0xA", "0xB", new BigDecimal("50"));
         ChargeBlockchainPayload charge = new ChargeBlockchainPayload("0xC", new BigDecimal("10"));
         ExchangeBlockchainPayload exchange =
-                new ExchangeBlockchainPayload("0xD", new BigDecimal("20"));
+                new ExchangeBlockchainPayload(1L, "0xD", new BigDecimal("20"));
 
         assertThat(payment.fromWalletAddress()).isEqualTo("0xA");
         assertThat(cancel.originalTransactionUuid()).isEqualTo("orig-uuid");

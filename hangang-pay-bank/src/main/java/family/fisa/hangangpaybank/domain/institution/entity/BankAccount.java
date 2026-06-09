@@ -38,4 +38,9 @@ public class BankAccount extends BaseEntity {
     public void updateBalance(BigDecimal balance) {
         this.balance = balance;
     }
+
+    /** 잔액 증가 */
+    public void increaseBalance(BigDecimal amount) {
+        this.balance = this.balance.add(amount);
+    }
 }
