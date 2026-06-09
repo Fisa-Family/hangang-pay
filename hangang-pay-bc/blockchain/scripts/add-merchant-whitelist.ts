@@ -1,4 +1,5 @@
 import { ethers } from "hardhat";
+import "dotenv/config";
 
 const LOCAL_CURRENCY_ADDRESS =
   process.env.LOCAL_CURRENCY_ADDRESS ?? "0x3Ace09BBA3b8507681146252d3Dd33cD4E2d4F63";
