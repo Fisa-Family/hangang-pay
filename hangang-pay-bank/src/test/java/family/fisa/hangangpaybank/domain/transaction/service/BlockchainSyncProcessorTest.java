@@ -16,6 +16,7 @@ import family.fisa.hangangpaybank.domain.blockchain.repository.BlockchainLedgerR
 import family.fisa.hangangpaybank.domain.blockchain.service.ContractCallService;
 import family.fisa.hangangpaybank.domain.blockchainoutbox.dto.BlockchainSyncMessage;
 import family.fisa.hangangpaybank.domain.blockchainoutbox.dto.payload.CancelBlockchainPayload;
+import family.fisa.hangangpaybank.domain.blockchainoutbox.dto.payload.ExchangeBlockchainPayload;
 import family.fisa.hangangpaybank.domain.blockchainoutbox.dto.payload.PaymentBlockchainPayload;
 import family.fisa.hangangpaybank.domain.blockchainoutbox.entity.BlockchainSyncType;
 import family.fisa.hangangpaybank.domain.institution.entity.Institution;
@@ -220,6 +221,86 @@ class BlockchainSyncProcessorTest {
         verify(ledgerStateWriter).markFailed(8L, "uuid-8");
     }
 
+    // ── EXCHANGE ──────────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName(
+            "EXCHANGE - txHash 없는 PENDING ledger: submitRefund 호출 → markSubmitted → markSuccess")
+    void processExchange_pendingWithoutTxHash_submitsAndMarksSuccess() throws Exception {
+        // given
+        BlockchainSyncMessage message = exchangeMessage(10L, "uuid-ex-1", 1L, "0xUSER", "100");
+        BlockchainLedger ledger = pendingLedger(10L, null);
+
+        given(blockchainLedgerRepository.findById(10L)).willReturn(Optional.of(ledger));
+        given(contractCallService.submitRefund(eq(1L), eq("0xUSER"), any()))
+                .willReturn(new SubmittedBlockchainTx("0xREFUND_HASH"));
+        given(contractCallService.waitForReceiptByHash("0xREFUND_HASH")).willReturn(receipt);
+
+        // when
+        processor.processExchange(message);
+
+        // then
+        verify(contractCallService).submitRefund(eq(1L), eq("0xUSER"), any());
+        verify(ledgerStateWriter).markSubmitted(10L, "uuid-ex-1", "0xREFUND_HASH");
+        verify(ledgerStateWriter).markSuccess(eq(10L), eq("uuid-ex-1"), eq(receipt));
+    }
+
+    @Test
+    @DisplayName("EXCHANGE - txHash 있는 SUBMITTED ledger: submitRefund 재호출 없이 receipt만 조회")
+    void processExchange_submittedWithTxHash_skipsSubmit() throws Exception {
+        // given
+        BlockchainSyncMessage message = exchangeMessage(11L, "uuid-ex-2", 1L, "0xUSER", "100");
+        BlockchainLedger ledger = pendingLedger(11L, "0xEXISTING_HASH");
+
+        given(blockchainLedgerRepository.findById(11L)).willReturn(Optional.of(ledger));
+        given(contractCallService.waitForReceiptByHash("0xEXISTING_HASH")).willReturn(receipt);
+
+        // when
+        processor.processExchange(message);
+
+        // then - submit 호출 없이 기존 txHash로 receipt 조회
+        verify(contractCallService, never()).submitRefund(any(), any(), any());
+        verify(ledgerStateWriter, never()).markSubmitted(any(), any(), any());
+        verify(ledgerStateWriter).markSuccess(eq(11L), eq("uuid-ex-2"), eq(receipt));
+    }
+
+    @Test
+    @DisplayName("EXCHANGE - 이미 SUCCESS 상태: 컨트랙트 호출 없이 즉시 반환 (멱등)")
+    void processExchange_alreadySuccess_returnsWithoutContractCall() throws Exception {
+        // given
+        BlockchainSyncMessage message = exchangeMessage(12L, "uuid-ex-3", 1L, "0xUSER", "100");
+        BlockchainLedger ledger = terminalLedger(12L, BlockchainTxStatus.SUCCESS);
+
+        given(blockchainLedgerRepository.findById(12L)).willReturn(Optional.of(ledger));
+
+        // when
+        processor.processExchange(message);
+
+        // then
+        verify(contractCallService, never()).submitRefund(any(), any(), any());
+        verify(contractCallService, never()).waitForReceiptByHash(any());
+    }
+
+    @Test
+    @DisplayName("EXCHANGE - INSUFFICIENT_TOKEN_BALANCE: non-retryable → markFailed 후 정상 반환 (ACK)")
+    void processExchange_insufficientToken_marksFailed() throws Exception {
+        // given
+        BlockchainSyncMessage message = exchangeMessage(13L, "uuid-ex-4", 1L, "0xUSER", "100");
+        BlockchainLedger ledger = pendingLedger(13L, null);
+
+        given(blockchainLedgerRepository.findById(13L)).willReturn(Optional.of(ledger));
+        given(contractCallService.submitRefund(any(), any(), any()))
+                .willThrow(
+                        new BusinessException(
+                                BlockchainErrorCode.BLOCKCHAIN_INSUFFICIENT_TOKEN_BALANCE));
+
+        // when - 예외 전파 없이 정상 반환 → ACK
+        processor.processExchange(message);
+
+        // then
+        verify(ledgerStateWriter).markFailed(13L, "uuid-ex-4");
+    }
+
     // ── 헬퍼 ──────────────────────────────────────────────────────────────────
 
     private BlockchainSyncMessage paymentMessage(String uuid, String from, String to, String amount)
@@ -246,6 +327,19 @@ class BlockchainSyncProcessorTest {
                 Long.parseLong(uuid.replaceAll("[^0-9]", "").substring(0, 1)),
                 uuid,
                 BlockchainSyncType.CANCEL,
+                objectMapper.valueToTree(payload));
+    }
+
+    private BlockchainSyncMessage exchangeMessage(
+            Long ledgerId, String uuid, Long institutionId, String wallet, String amount) {
+        ExchangeBlockchainPayload payload =
+                new ExchangeBlockchainPayload(institutionId, wallet, new BigDecimal(amount));
+        return new BlockchainSyncMessage(
+                "msg-" + uuid,
+                1L,
+                ledgerId,
+                uuid,
+                BlockchainSyncType.EXCHANGE,
                 objectMapper.valueToTree(payload));
     }
 
