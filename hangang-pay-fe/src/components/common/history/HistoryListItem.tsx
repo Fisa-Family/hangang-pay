@@ -15,9 +15,9 @@ const SUBTYPE_LABEL: Record<DisplayHistoryType, string> = {
   SETTLEMENT: '출금',
 }
 
-function amountClass(displayType: DisplayHistoryType): string {
-  if (displayType === 'CHARGE' || displayType === 'CANCEL') return 'text-primary'
+function amountClass(displayType: DisplayHistoryType, sign: string): string {
   if (displayType === 'EXCHANGE') return 'text-warning'
+  if (sign === '+') return 'text-primary'
   return 'text-foreground'
 }
 
@@ -43,7 +43,10 @@ export function HistoryListItem({ item, onClick }: HistoryListItemProps) {
       </div>
 
       <span
-        className={cn('shrink-0 text-sm font-bold tabular-nums', amountClass(item.displayType))}
+        className={cn(
+          'shrink-0 text-sm font-bold tabular-nums',
+          amountClass(item.displayType, item.sign)
+        )}
       >
         {item.sign}
         {formatWon(item.amount)}
