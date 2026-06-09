@@ -31,6 +31,11 @@ export const merchantHandlers = [
 
   http.post(`${BASE}/merchant/payments/:transactionId/cancel`, () => ok(mockPaymentCancelResult)),
 
+  // MERCHANT-004-R 결제 취소 복구: 상태 재조회 결과 반환
+  http.post(`${BASE}/merchant/payments/:transactionId/cancel/recover`, () =>
+    ok(mockPaymentCancelResult)
+  ),
+
   http.get(`${BASE}/merchant/redeem`, () => ok(mockMerchantRedeemInit)),
 
   http.post(`${BASE}/merchant/redeem/intents`, () => ok(mockMerchantRedeemIntent)),
