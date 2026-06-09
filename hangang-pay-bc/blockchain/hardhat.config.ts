@@ -1,6 +1,7 @@
 import "@nomicfoundation/hardhat-toolbox";
 import "@openzeppelin/hardhat-upgrades";
 import type { HardhatUserConfig } from "hardhat/config";
+import "dotenv/config";
 
 const config: HardhatUserConfig = {
   solidity: {

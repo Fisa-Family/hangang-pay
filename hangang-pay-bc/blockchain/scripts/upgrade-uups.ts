@@ -22,6 +22,7 @@
 import hre from "hardhat";
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import "dotenv/config";
 
 type ContractType = "CBDC" | "DEPOSIT_TOKEN" | "SETTLEMENT" | "LOCAL_CURRENCY";
 
