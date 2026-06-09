@@ -26,6 +26,7 @@ import { request as httpsRequest } from "node:https";
 import { dirname, resolve } from "node:path";
 import { URL } from "node:url";
 import type { BaseContract, ContractTransactionResponse } from "ethers";
+import "dotenv/config";
 
 type Institution = {
   id: bigint;

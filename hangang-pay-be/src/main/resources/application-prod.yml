@@ -37,6 +37,15 @@ springdoc: # 운영에서는 API 문서 비활성(공격 표면 축소)
 logging:
   level:
     family.fisa.hangangpay: INFO            # 우리 애플리케이션 패키지만 INFO 유지
+  structured:
+    format:
+      console: ecs                          # stdout을 ECS JSON으로 → Alloy가 docker 로그로 수집 후 Loki push
+
+# Sentry: 운영 환경 식별 + 성능 트레이싱 샘플링
+sentry:
+  environment: prod
+  traces-sample-rate: 0.2                   # 요청 트랜잭션 20% 샘플링(오버헤드 제어)
+  release: ${SENTRY_RELEASE:}               # 배포 버전 라벨(선택)
 
 bank:
   base-url: ${BANK_BASE_URL}                # hangang-pay-bank API 베이스 URL(블록체인 처리 위임 대상)

@@ -1,11 +1,14 @@
 package family.fisa.hangangpaybank.domain.transaction.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
+import family.fisa.hangangpaybank.domain.blockchain.code.error.BlockchainErrorCode;
 import family.fisa.hangangpaybank.domain.blockchain.entity.BlockchainLedger;
-import family.fisa.hangangpaybank.domain.blockchain.entity.BlockchainTxStatus;
 import family.fisa.hangangpaybank.domain.blockchain.repository.BlockchainLedgerRepository;
 import family.fisa.hangangpaybank.domain.blockchain.service.ContractCallService;
 import family.fisa.hangangpaybank.domain.institution.entity.BankAccount;
@@ -16,17 +19,21 @@ import family.fisa.hangangpaybank.domain.institution.repository.BankWalletReposi
 import family.fisa.hangangpaybank.domain.institution.repository.InstitutionRepository;
 import family.fisa.hangangpaybank.domain.ledger.entity.AccountLedger;
 import family.fisa.hangangpaybank.domain.ledger.repository.AccountLedgerRepository;
+import family.fisa.hangangpaybank.domain.transaction.dto.request.CancelRequest;
 import family.fisa.hangangpaybank.domain.transaction.dto.request.ChargeRequest;
 import family.fisa.hangangpaybank.domain.transaction.dto.request.PaymentRequest;
+import family.fisa.hangangpaybank.domain.transaction.dto.response.CancelResponse;
 import family.fisa.hangangpaybank.domain.transaction.dto.response.ChargeResponse;
 import family.fisa.hangangpaybank.domain.transaction.dto.response.PaymentResponse;
+import family.fisa.hangangpaybank.global.exception.BusinessException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.time.LocalDateTime;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
@@ -34,10 +41,9 @@ import org.web3j.protocol.core.methods.response.TransactionReceipt;
 @ExtendWith(MockitoExtension.class)
 class TransactionCommandServiceTest {
 
-    private static final String TRANSACTION_UUID = "11111111-1111-1111-1111-111111111111";
-    private static final String ACCOUNT_NUMBER = "1002-123-456789";
-    private static final String FROM_WALLET = "0x0000000000000000000000000000000000000001";
-    private static final String TO_WALLET = "0x0000000000000000000000000000000000000002";
+    private static final String FROM_ADDRESS = "0x000000000000000000000000000000000000aaaa";
+    private static final String TO_ADDRESS = "0x000000000000000000000000000000000000bbbb";
+    private static final BigDecimal AMOUNT = new BigDecimal("100");
     private static final BigInteger TOKEN_DECIMALS = BigInteger.TEN.pow(18);
 
     @Mock private BankAccountRepository bankAccountRepository;
@@ -47,96 +53,169 @@ class TransactionCommandServiceTest {
     @Mock private AccountLedgerRepository accountLedgerRepository;
     @Mock private ContractCallService contractCallService;
     @Mock private PaymentStateWriter paymentStateWriter;
+    @Mock private PaymentExecutionService paymentExecutionService;
 
-    @InjectMocks private TransactionCommandService transactionCommandService;
+    private TransactionCommandService service;
+
+    @BeforeEach
+    void setUp() {
+        service =
+                new TransactionCommandService(
+                        bankAccountRepository,
+                        bankWalletRepository,
+                        institutionRepository,
+                        blockchainLedgerRepository,
+                        accountLedgerRepository,
+                        contractCallService,
+                        paymentStateWriter,
+                        paymentExecutionService);
+    }
+
+    // ── CHARGE (동기, 기존 흐름 유지) ───────────────────────────────────────────
 
     @Test
     @DisplayName("충전 완료 응답의 지갑 잔액은 컨트랙트 balanceOf 기준으로 반환한다")
-    void chargeReturnsContractWalletBalance() {
+    void charge_returnsContractWalletBalance() {
+        // given
         Institution institution = institution();
         BankAccount bankAccount = bankAccount(institution, new BigDecimal("100000"));
-        BankWallet bankWallet = bankWallet(institution, TO_WALLET);
+        BankWallet bankWallet = wallet(TO_ADDRESS, BigDecimal.ZERO);
         ChargeRequest request =
                 new ChargeRequest(
-                        TRANSACTION_UUID,
+                        "uuid-charge",
                         1L,
-                        ACCOUNT_NUMBER,
-                        TO_WALLET,
+                        "1002-123-456789",
+                        TO_ADDRESS,
                         new BigDecimal("9000"),
                         new BigDecimal("10000"));
         TransactionReceipt receipt = receipt("0x-charge", 10L);
-        AccountLedger accountLedger = AccountLedger.builder().id(100L).build();
 
         given(institutionRepository.findById(1L)).willReturn(Optional.of(institution));
-        given(bankAccountRepository.findByInstitution_IdAndAccountNumber(1L, ACCOUNT_NUMBER))
+        given(bankAccountRepository.findByInstitution_IdAndAccountNumber(1L, "1002-123-456789"))
                 .willReturn(Optional.of(bankAccount));
-        given(bankWalletRepository.findByWalletAddress(TO_WALLET))
+        given(bankWalletRepository.findByWalletAddress(TO_ADDRESS))
                 .willReturn(Optional.of(bankWallet));
-        given(accountLedgerRepository.save(any(AccountLedger.class))).willReturn(accountLedger);
-        given(contractCallService.charge(1L, TO_WALLET, toTokenUnit(new BigDecimal("10000"))))
-                .willReturn(receipt);
+        given(accountLedgerRepository.save(any(AccountLedger.class)))
+                .willAnswer(inv -> inv.getArgument(0));
+        given(contractCallService.charge(eq(1L), eq(TO_ADDRESS), any())).willReturn(receipt);
         given(blockchainLedgerRepository.save(any(BlockchainLedger.class)))
-                .willAnswer(invocation -> invocation.getArgument(0));
-        given(contractCallService.getBalance(TO_WALLET))
+                .willAnswer(inv -> inv.getArgument(0));
+        given(contractCallService.getBalance(TO_ADDRESS))
                 .willReturn(toTokenUnit(new BigDecimal("12345")));
 
-        ChargeResponse response = transactionCommandService.charge(request);
+        // when
+        ChargeResponse response = service.charge(request);
 
+        // then
         assertThat(response.walletBalance()).isEqualByComparingTo(new BigDecimal("12345"));
         assertThat(response.txHash()).isEqualTo("0x-charge");
     }
 
+    // ── PAYMENT 성공 ──────────────────────────────────────────────────────────
+
     @Test
-    @DisplayName("결제 성공 시 컨트랙트 잔액으로 검증하고 응답 잔액도 컨트랙트 기준으로 넘긴다")
-    void paymentUsesContractBalances() {
-        Institution institution = institution();
-        BankWallet fromWallet = bankWallet(institution, FROM_WALLET);
-        BankWallet toWallet = bankWallet(institution, TO_WALLET);
-        PaymentRequest request =
-                new PaymentRequest(TRANSACTION_UUID, FROM_WALLET, TO_WALLET, new BigDecimal("10"));
-        BlockchainLedger pending =
-                BlockchainLedger.builder()
-                        .id(7L)
-                        .institution(institution)
-                        .idempotentKey(TRANSACTION_UUID)
-                        .status(BlockchainTxStatus.PENDING)
+    @DisplayName("결제 성공: 실행 서비스 결과를 그대로 반환한다")
+    void payment_success_returnsExecutionResult() {
+        // given
+        PaymentResponse executionResponse =
+                PaymentResponse.from(
+                        "uuid-1",
+                        family.fisa.hangangpaybank.domain.ledger.entity.WalletLedgerStatus.SUCCESS,
+                        LocalDateTime.now(),
+                        new BigDecimal("400"),
+                        new BigDecimal("100"));
+        given(paymentExecutionService.payment(paymentRequest("uuid-1")))
+                .willReturn(executionResponse);
+
+        // when
+        PaymentResponse response = service.payment(paymentRequest("uuid-1"));
+
+        // then
+        assertThat(response).isEqualTo(executionResponse);
+    }
+
+    @Test
+    @DisplayName("결제 비즈니스 실패: rollback 이후 주소 기반 FAILED ledger 저장")
+    void payment_businessFailure_savesFailedLedgerByAddress() {
+        // given
+        BusinessException failure =
+                new BusinessException(BlockchainErrorCode.BLOCKCHAIN_MERCHANT_NOT_REGISTERED);
+        given(paymentExecutionService.payment(paymentRequest("uuid-2"))).willThrow(failure);
+
+        // when & then
+        assertThatThrownBy(() -> service.payment(paymentRequest("uuid-2")))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(BlockchainErrorCode.BLOCKCHAIN_MERCHANT_NOT_REGISTERED);
+
+        verify(paymentStateWriter)
+                .saveFailedWalletLedgersByAddress(
+                        eq(FROM_ADDRESS), eq(TO_ADDRESS), eq("uuid-2"), eq(AMOUNT));
+    }
+
+    // ── CANCEL ────────────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("취소 성공: 실행 서비스 결과를 그대로 반환한다")
+    void cancel_success_returnsExecutionResult() {
+        // given
+        CancelResponse executionResponse =
+                CancelResponse.from(
+                        "uuid-6",
+                        "orig-1",
+                        family.fisa.hangangpaybank.domain.ledger.entity.WalletLedgerStatus.SUCCESS,
+                        LocalDateTime.now(),
+                        new BigDecimal("400"),
+                        new BigDecimal("100"));
+        given(paymentExecutionService.cancel(cancelRequest("uuid-6", "orig-1")))
+                .willReturn(executionResponse);
+
+        // when
+        CancelResponse response = service.cancel(cancelRequest("uuid-6", "orig-1"));
+
+        // then
+        assertThat(response).isEqualTo(executionResponse);
+    }
+
+    @Test
+    @DisplayName("취소 비즈니스 실패: rollback 이후 주소 기반 FAILED ledger 저장")
+    void cancel_businessFailure_savesFailedLedgerByAddress() {
+        // given
+        BusinessException failure =
+                new BusinessException(BlockchainErrorCode.BLOCKCHAIN_MERCHANT_NOT_REGISTERED);
+        given(paymentExecutionService.cancel(cancelRequest("uuid-7", "orig-2"))).willThrow(failure);
+
+        // when & then
+        assertThatThrownBy(() -> service.cancel(cancelRequest("uuid-7", "orig-2")))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(BlockchainErrorCode.BLOCKCHAIN_MERCHANT_NOT_REGISTERED);
+
+        verify(paymentStateWriter)
+                .saveFailedWalletLedgersByAddress(
+                        eq(FROM_ADDRESS), eq(TO_ADDRESS), eq("uuid-7"), eq(AMOUNT));
+    }
+
+    // ── 헬퍼 ──────────────────────────────────────────────────────────────────
+
+    private PaymentRequest paymentRequest(String uuid) {
+        return new PaymentRequest(uuid, FROM_ADDRESS, TO_ADDRESS, AMOUNT);
+    }
+
+    private CancelRequest cancelRequest(String uuid, String originalUuid) {
+        return new CancelRequest(uuid, originalUuid, FROM_ADDRESS, TO_ADDRESS, AMOUNT);
+    }
+
+    private static BankWallet wallet(String address, BigDecimal balance) {
+        BankWallet wallet =
+                BankWallet.builder()
+                        .id(1L)
+                        .institution(Institution.builder().id(1L).build())
+                        .walletAddress(address)
+                        .encryptedPrivateKey("encrypted")
                         .build();
-        TransactionReceipt receipt = receipt("0x-pay", 20L);
-        PaymentResponse completed =
-                new PaymentResponse(
-                        TRANSACTION_UUID,
-                        7L,
-                        "0x-pay",
-                        20L,
-                        null,
-                        new BigDecimal("90"),
-                        new BigDecimal("60"));
-
-        given(bankWalletRepository.findByWalletAddress(FROM_WALLET))
-                .willReturn(Optional.of(fromWallet));
-        given(bankWalletRepository.findByWalletAddress(TO_WALLET))
-                .willReturn(Optional.of(toWallet));
-        given(paymentStateWriter.findExisting(TRANSACTION_UUID)).willReturn(Optional.empty());
-        given(contractCallService.getBalance(FROM_WALLET))
-                .willReturn(toTokenUnit(new BigDecimal("100")), toTokenUnit(new BigDecimal("90")));
-        given(contractCallService.getBalance(TO_WALLET))
-                .willReturn(toTokenUnit(new BigDecimal("60")));
-        given(paymentStateWriter.preparePending(TRANSACTION_UUID, institution)).willReturn(pending);
-        given(contractCallService.pay(FROM_WALLET, TO_WALLET, toTokenUnit(new BigDecimal("10"))))
-                .willReturn(receipt);
-        given(
-                        paymentStateWriter.completePayment(
-                                7L,
-                                receipt,
-                                TRANSACTION_UUID,
-                                new BigDecimal("90"),
-                                new BigDecimal("60")))
-                .willReturn(completed);
-
-        PaymentResponse response = transactionCommandService.payment(request);
-
-        assertThat(response.fromBalance()).isEqualByComparingTo(new BigDecimal("90"));
-        assertThat(response.toBalance()).isEqualByComparingTo(new BigDecimal("60"));
+        wallet.updateBalance(balance);
+        return wallet;
     }
 
     private static Institution institution() {
@@ -151,18 +230,9 @@ class TransactionCommandServiceTest {
         return BankAccount.builder()
                 .id(1L)
                 .institution(institution)
-                .accountNumber(ACCOUNT_NUMBER)
+                .accountNumber("1002-123-456789")
                 .ownerName("tester")
                 .balance(balance)
-                .build();
-    }
-
-    private static BankWallet bankWallet(Institution institution, String walletAddress) {
-        return BankWallet.builder()
-                .id(1L)
-                .institution(institution)
-                .walletAddress(walletAddress)
-                .encryptedPrivateKey("encrypted")
                 .build();
     }
 

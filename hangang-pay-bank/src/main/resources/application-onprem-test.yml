@@ -20,3 +20,12 @@ logging:
   level:
     root: WARN
     org.hibernate.tool.schema.internal.ExceptionHandlerLoggedImpl: ERROR
+  structured:
+    format:
+      console: ecs                          # stdout을 ECS JSON으로 → Alloy가 docker 로그로 수집 후 Loki push
+
+# Sentry: 온프레 환경 식별 + 성능 트레이싱
+sentry:
+  environment: onprem-test
+  traces-sample-rate: 1.0
+  release: ${SENTRY_RELEASE:}

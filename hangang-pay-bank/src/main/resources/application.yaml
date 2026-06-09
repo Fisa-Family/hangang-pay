@@ -22,7 +22,16 @@ management:
   endpoints:
     web:
       exposure:
-        include: health, info
+        include: health, info, prometheus
+
+# Sentry (에러 추적 + 성능 트레이싱)
+# DSN은 환경변수로 주입. 미설정 시(local/dev) Sentry 비활성
+sentry:
+  dsn: ${SENTRY_DSN:}
+  send-default-pii: false # 개인정보 비전송
+  logging:
+    minimum-event-level: warn # WARN 이상을 Sentry 이벤트로 전송
+    minimum-breadcrumb-level: info
 
 wallet:
   key-cipher:

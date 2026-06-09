@@ -7,16 +7,15 @@ import {
   fetchMerchantPaymentDetail,
   type PaymentCancelResult,
 } from '@/api/merchant'
+import { Store } from 'lucide-react'
 import {
   BackTitleHeader,
   Button,
-  ConfirmDialog,
   EmptyState,
   PageHeader,
   PinEntry,
   ProcessingView,
   ResultState,
-  SummaryCard,
   Toast,
 } from '@/components/common'
 import { formatDateTime, formatWon } from '@/lib/format'
@@ -32,7 +31,6 @@ export function MerchantPaymentDetailPage() {
   const isValidId = Number.isInteger(transactionId) && transactionId >= 1
 
   const [step, setStep] = useState<Step>('detail')
-  const [confirmOpen, setConfirmOpen] = useState(false)
   const [pin, setPin] = useState('')
   const [toast, setToast] = useState<string | null>(null)
   const [result, setResult] = useState<PaymentCancelResult | null>(null)
@@ -146,58 +144,72 @@ export function MerchantPaymentDetailPage() {
   const canCancel = detail?.transactionType === 'PAYMENT' && detail?.cancelAvailable === true
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col bg-background">
       <BackTitleHeader title="결제 상세" onBack={() => navigate(-1)} />
 
-      <div className="flex-1 space-y-4 overflow-y-auto">
+      <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-4 pt-5">
         {detailQuery.isLoading && (
           <div aria-hidden className="h-40 animate-pulse rounded-2xl bg-muted/40" />
         )}
         {detailQuery.error && <EmptyState message="결제 정보를 불러올 수 없습니다." />}
 
         {detail && (
-          <>
-            <section className="rounded-2xl border border-border/40 bg-card p-5 shadow-sm">
-              <p className="text-center text-sm text-muted-foreground">결제 금액</p>
-              <p className="mt-1 text-center text-3xl font-bold tabular-nums text-foreground">
-                ₩ {new Intl.NumberFormat('ko-KR').format(detail.amount)}
-              </p>
-            </section>
+          <section className="rounded-2xl border border-border bg-card px-5 py-5 shadow-sm">
+            <div className="flex min-h-18 items-center gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-muted">
+                <Store size={24} className="text-muted-foreground" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[16px] font-semibold leading-none text-foreground">
+                  {detail.payerName}
+                </p>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="text-xs text-muted-foreground">결제 금액</p>
+                <p className="mt-1.5 text-[24px] font-bold leading-none text-foreground">
+                  {formatWon(detail.amount)}
+                </p>
+              </div>
+            </div>
 
-            <SummaryCard
-              divided
-              rows={[
-                { label: '고객', value: detail.payerName },
+            <div className="mt-4 border-t border-border/70 pt-2">
+              {[
                 { label: '승인번호', value: detail.approvalNumber },
-                { label: '결제 일시', value: formatDateTime(detail.createdAt) },
-              ]}
-            />
-          </>
+                { label: '결제수단', value: '한강사랑상품권' },
+                { label: '결제일시', value: formatDateTime(detail.createdAt) },
+              ].map((row, index) => (
+                <div
+                  key={row.label}
+                  className={[
+                    'flex items-center justify-between gap-4 py-6',
+                    index !== 0 ? 'border-t border-border/70' : '',
+                  ].join(' ')}
+                >
+                  <span className="text-[13px] font-medium text-muted-foreground">{row.label}</span>
+                  <span className="text-right text-[14px] font-semibold text-foreground">
+                    {row.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
         )}
-      </div>
+      </main>
 
       {canCancel && (
-        <div className="pt-3">
-          <Button variant="danger" size="lg" onClick={() => setConfirmOpen(true)}>
+        <footer className="shrink-0 bg-background pt-3 pb-[calc(env(safe-area-inset-bottom)+0.25rem)]">
+          <Button
+            variant="danger"
+            size="lg"
+            onClick={() => {
+              setPin('')
+              setStep('pin')
+            }}
+          >
             결제 취소하기
           </Button>
-        </div>
+        </footer>
       )}
-
-      <ConfirmDialog
-        open={confirmOpen}
-        variant="danger"
-        reverseButtons
-        title="이 결제를 취소하시겠습니까?"
-        confirmText="예"
-        cancelText="아니요"
-        onConfirm={() => {
-          setConfirmOpen(false)
-          setPin('')
-          setStep('pin')
-        }}
-        onCancel={() => setConfirmOpen(false)}
-      />
 
       <Toast open={!!toast} message={toast ?? ''} variant="error" />
     </div>

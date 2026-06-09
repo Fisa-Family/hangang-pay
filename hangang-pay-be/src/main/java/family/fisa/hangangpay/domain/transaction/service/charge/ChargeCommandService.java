@@ -3,11 +3,14 @@ package family.fisa.hangangpay.domain.transaction.service.charge;
 import family.fisa.hangangpay.client.bank.BankClient;
 import family.fisa.hangangpay.client.bank.dto.ChargeResponse;
 import family.fisa.hangangpay.domain.transaction.dto.request.ChargeExecuteRequest;
+import family.fisa.hangangpay.domain.transaction.dto.request.ChargeIntentCreateRequest;
 import family.fisa.hangangpay.domain.transaction.dto.response.ChargeExecuteResponse;
+import family.fisa.hangangpay.domain.transaction.dto.response.ChargeIntentResponse;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeExecutionPreparationResult;
 import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeExecutionPrepared;
 import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeIdempotencyStore;
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,22 +23,30 @@ import org.springframework.web.client.ResourceAccessException;
 @RequiredArgsConstructor
 public class ChargeCommandService {
 
+    /** intent TTL(분). 만료 스케줄러 기준. */
+    private static final long INTENT_TTL_MINUTES = 10L;
+
     private final BankClient bankClient;
     private final ChargeIdempotencyStore chargeIdempotencyStore;
     private final ChargeExecutionWriter chargeExecutionWriter;
 
+    /** 충전 intent - 금액·출금 계좌 바인딩 후 PENDING 생성 */
+    public ChargeIntentResponse createIntent(Long partyId, ChargeIntentCreateRequest request) {
+        log.info(
+                "충전 intent 생성 시작. partyId={}, transactionUuid={}",
+                partyId,
+                request.transactionUuid());
+        return chargeExecutionWriter.createIntent(partyId, request, expiresAt());
+    }
+
     /** 충전 실행 오케스트레이션: 멱등성 판단 → 은행 충전 요청 → 상태 전환 */
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    public ChargeExecuteResponse execute(Long partyId, ChargeExecuteRequest request) {
+    public ChargeExecuteResponse execute(
+            Long partyId, String transactionUuid, ChargeExecuteRequest request) {
 
         ChargeExecutionPreparationResult result =
                 chargeExecutionWriter.prepareProcessing(
-                        partyId,
-                        request.institutionId(),
-                        request.accountId(),
-                        request.amount(),
-                        request.transactionUuid(),
-                        request.paymentPin());
+                        partyId, transactionUuid, request.paymentPin());
 
         if (result.hasSnapshot()) {
             return result.responseSnapshot();
@@ -69,5 +80,9 @@ public class ChargeCommandService {
         chargeIdempotencyStore.completeExecution(prepared.transactionUuid(), response);
 
         return response;
+    }
+
+    private LocalDateTime expiresAt() {
+        return LocalDateTime.now().plusMinutes(INTENT_TTL_MINUTES);
     }
 }

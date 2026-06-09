@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Info } from 'lucide-react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { ApiError } from '@/api/client'
 import {
@@ -162,11 +163,13 @@ export function MerchantSettlementPage() {
 
         {initQuery.data && (
           <>
-            <section className="rounded-2xl border border-border/40 bg-card p-5 shadow-sm">
-              <p className="text-center text-sm text-muted-foreground">출금 가능 금액</p>
-              <p className="mt-1 text-center text-3xl font-bold tabular-nums text-foreground">
-                ₩ {new Intl.NumberFormat('ko-KR').format(availableAmount)}
-              </p>
+            <section className="rounded-2xl border border-border bg-card px-5 py-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">출금 가능 금액</p>
+                <p className="text-[28px] font-bold tabular-nums text-foreground">
+                  {formatWon(availableAmount)}
+                </p>
+              </div>
             </section>
 
             <SummaryCard
@@ -181,6 +184,18 @@ export function MerchantSettlementPage() {
                 },
               ]}
             />
+
+            <section className="flex gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-4">
+              <Info size={16} className="mt-0.5 shrink-0 text-primary" />
+              <div>
+                <p className="text-sm font-semibold text-primary">
+                  지역화폐 결제금, 바로 내 계좌로
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  출금 신청 즉시 등록된 은행 계좌로 입금됩니다.
+                </p>
+              </div>
+            </section>
           </>
         )}
       </div>

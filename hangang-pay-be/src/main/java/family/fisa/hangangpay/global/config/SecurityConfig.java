@@ -50,20 +50,9 @@ public class SecurityConfig {
                                         "/v3/api-docs/**",
                                         "/api-docs/**")
                                 .permitAll()
-                                // Actuator health check
-                                .requestMatchers("/actuator/health")
+                                // Actuator health check and Alloy ㅊ scrape endpoint
+                                .requestMatchers("/actuator/health", "/actuator/prometheus")
                                 .permitAll()
-                                //
-                                // .requestMatchers("/actuator/prometheus")
-                                //                                .access(
-                                //                                        (authentication, context)
-                                // ->
-                                //                                                new
-                                // AuthorizationDecision(
-                                //                                                        new
-                                // IpAddressMatcher(prometheusCidr)
-                                //
-                                // .matches(context.getRequest())))
                                 // 인증 도메인
                                 .requestMatchers("/api/v1/auth/**")
                                 .permitAll()
