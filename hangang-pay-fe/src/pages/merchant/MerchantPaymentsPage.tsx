@@ -82,7 +82,7 @@ export function MerchantPaymentsPage() {
       <BackTitleHeader title="결제 내역" onBack={() => navigate('/merchant/home')} />
       <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} />
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto pb-5">
         {query.isLoading && (
           <p className="px-4 py-6 text-center text-sm text-muted-foreground">불러오는 중...</p>
         )}
