@@ -62,8 +62,11 @@ public class BlockchainSyncProcessor {
             TransactionReceipt receipt = contractCallService.waitForReceiptByHash(txHash);
 
             // 3. receipt 결과 -> 즉시 커밋 (REQUIRES_NEW)
-            ledgerStateWriter.markReceiptResult(ledger.getId(), message.transactionUuid(), receipt);
-
+            if (receipt.isStatusOK()) {
+                ledgerStateWriter.markSuccess(ledger.getId(), message.transactionUuid(), receipt);
+            } else {
+                ledgerStateWriter.markFailed(ledger.getId(), message.transactionUuid());
+            }
             log.info(
                     "[consumer] PAYMENT receipt 처리 완료. uuid={}, txHash={}, statusOk={}",
                     message.transactionUuid(),
@@ -91,7 +94,11 @@ public class BlockchainSyncProcessor {
         try {
             String txHash = resolveCancelTxHash(ledger, message, payload);
             TransactionReceipt receipt = contractCallService.waitForReceiptByHash(txHash);
-            ledgerStateWriter.markReceiptResult(ledger.getId(), message.transactionUuid(), receipt);
+            if (receipt.isStatusOK()) {
+                ledgerStateWriter.markSuccess(ledger.getId(), message.transactionUuid(), receipt);
+            } else {
+                ledgerStateWriter.markFailed(ledger.getId(), message.transactionUuid());
+            }
             log.info(
                     "[consumer] CANCEL receipt 처리 완료. uuid={}, txHash={}, statusOk={}",
                     message.transactionUuid(),

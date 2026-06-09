@@ -85,23 +85,40 @@ class BlockchainLedgerReconcileSchedulerTest {
     }
 
     @Test
-    @DisplayName("오래된 PENDING ledger에 txHash가 있으면 receipt를 재조회한다")
-    void checksReceiptForPendingLedgerWithTxHash() {
+    @DisplayName("오래된 PENDING ledger에 txHash가 있고 성공 receipt면 SUCCESS로 마킹한다")
+    void marksSuccessForPendingLedgerWithTxHash() {
         BlockchainLedger ledger = ledger(2L, BlockchainTxStatus.PENDING, "0xHASH");
         givenEmptyFailedOutboxQuery();
         given(blockchainLedgerRepository.findStaleByStatus(BlockchainTxStatus.PENDING, cutoff, 50))
                 .willReturn(List.of(ledger));
         given(contractCallService.waitForReceiptByHash("0xHASH")).willReturn(receipt);
+        given(receipt.isStatusOK()).willReturn(true);
         givenEmptySubmittedAndFailedLedgerQueries();
 
         scheduler.reconcileOnce(cutoff, 50);
 
-        verify(ledgerStateWriter).markReceiptResult(2L, "uuid-2", receipt);
+        verify(ledgerStateWriter).markSuccess(2L, "uuid-2", receipt);
     }
 
     @Test
-    @DisplayName("오래된 SUBMITTED ledger는 txHash로 receipt를 재조회한다")
-    void checksReceiptForSubmittedLedger() {
+    @DisplayName("오래된 PENDING ledger에 txHash가 있고 실패 receipt면 FAILED로 마킹한다")
+    void marksFailedForPendingLedgerWithTxHash() {
+        BlockchainLedger ledger = ledger(2L, BlockchainTxStatus.PENDING, "0xHASH");
+        givenEmptyFailedOutboxQuery();
+        given(blockchainLedgerRepository.findStaleByStatus(BlockchainTxStatus.PENDING, cutoff, 50))
+                .willReturn(List.of(ledger));
+        given(contractCallService.waitForReceiptByHash("0xHASH")).willReturn(receipt);
+        given(receipt.isStatusOK()).willReturn(false);
+        givenEmptySubmittedAndFailedLedgerQueries();
+
+        scheduler.reconcileOnce(cutoff, 50);
+
+        verify(ledgerStateWriter).markFailed(2L, "uuid-2");
+    }
+
+    @Test
+    @DisplayName("오래된 SUBMITTED ledger는 txHash로 receipt를 재조회하고 성공이면 SUCCESS로 마킹한다")
+    void marksSuccessForSubmittedLedger() {
         BlockchainLedger ledger = ledger(3L, BlockchainTxStatus.SUBMITTED, "0xSUBMITTED");
         givenEmptyFailedOutboxQuery();
         givenEmptyPendingLedgerQuery();
@@ -110,11 +127,12 @@ class BlockchainLedgerReconcileSchedulerTest {
                                 BlockchainTxStatus.SUBMITTED, cutoff, 50))
                 .willReturn(List.of(ledger));
         given(contractCallService.waitForReceiptByHash("0xSUBMITTED")).willReturn(receipt);
+        given(receipt.isStatusOK()).willReturn(true);
         givenEmptyFailedLedgerQuery();
 
         scheduler.reconcileOnce(cutoff, 50);
 
-        verify(ledgerStateWriter).markReceiptResult(3L, "uuid-3", receipt);
+        verify(ledgerStateWriter).markSuccess(3L, "uuid-3", receipt);
     }
 
     @Test
@@ -129,10 +147,11 @@ class BlockchainLedgerReconcileSchedulerTest {
                                 BlockchainTxStatus.FAILED, cutoff, 50))
                 .willReturn(List.of(ledger));
         given(contractCallService.waitForReceiptByHash("0xFAILED")).willReturn(receipt);
+        given(receipt.isStatusOK()).willReturn(true);
 
         scheduler.reconcileOnce(cutoff, 50);
 
-        verify(ledgerStateWriter).markReceiptResult(4L, "uuid-4", receipt);
+        verify(ledgerStateWriter).markSuccess(4L, "uuid-4", receipt);
     }
 
     @Test
@@ -151,7 +170,8 @@ class BlockchainLedgerReconcileSchedulerTest {
 
         scheduler.reconcileOnce(cutoff, 50);
 
-        verify(ledgerStateWriter, never()).markReceiptResult(any(), any(), any());
+        verify(ledgerStateWriter, never()).markSuccess(any(), any(), any());
+        verify(ledgerStateWriter, never()).markFailed(any(), any());
     }
 
     private void givenEmptyFailedOutboxQuery() {
