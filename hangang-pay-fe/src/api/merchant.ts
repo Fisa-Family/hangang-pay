@@ -172,6 +172,14 @@ export function cancelMerchantPayment(
   })
 }
 
+// MERCHANT-004-R: 결제 취소 복구 (UNKNOWN 미확정 건을 Bank 상태 조회로 수렴)
+// POST /api/v1/merchant/payments/{transactionId}/cancel/recover
+export function recoverMerchantCancel(transactionId: number): Promise<PaymentCancelResult> {
+  return apiFetch<PaymentCancelResult>(`/merchant/payments/${transactionId}/cancel/recover`, {
+    method: 'POST',
+  })
+}
+
 // ── 가맹점 출금/환전 (MERCHANT-006 / 007) ──
 
 // MERCHANT-006: 출금 신청 조회 — 출금 가능 잔액 + 정산 계좌
