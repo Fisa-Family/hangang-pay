@@ -40,8 +40,10 @@ export function PayConfirmPage() {
       navigate('/pay/pin', {
         state: {
           nextRoute: '/pay/processing',
+          cancelRoute: `/pay/amount/${merchantId}`,
           transactionUuid: data.transactionUuid,
           amount: Number(amountStr) || 0,
+          merchantId,
           merchantName: merchantQuery.data?.merchantName ?? '',
           balance: balanceQuery.data?.balance ?? 0,
         },
