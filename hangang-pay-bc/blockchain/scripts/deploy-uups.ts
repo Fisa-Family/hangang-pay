@@ -61,6 +61,7 @@ const INITIAL_BANK_RESERVE_AMOUNT = 100_000_000n * TOKEN_DECIMALS;
 const DEFAULT_DEPLOYMENT_RESULT_PATH = "deployments/uups-latest.json";
 const DEFAULT_SPRING_DEPLOYMENT_API_URL =
   "http://localhost:8081/api/v1/internal/blockchain/deployments";
+const DEFAULT_BANK_API_KEY = "hangang-pay-local-bank-api-key";
 
 async function main() {
   const [bok, woori] = await hre.ethers.getSigners();
@@ -235,6 +236,7 @@ function postJson(urlString: string, body: unknown): Promise<string> {
         headers: {
           "Content-Type": "application/json",
           "Content-Length": Buffer.byteLength(payload),
+          "X-Bank-Api-Key": process.env.BANK_API_KEY ?? DEFAULT_BANK_API_KEY,
         },
       },
       (response) => {
