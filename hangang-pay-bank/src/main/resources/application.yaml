@@ -37,6 +37,11 @@ wallet:
   key-cipher:
     secret: ${WALLET_KEY_CIPHER_SECRET:dev-secret-please-change-in-production}
 
+# hangang-pay-be가 보내는 X-Bank-Api-Key 헤더 검증값
+# BE와 동일한 값으로 설정
+bank:
+  api-key: ${BANK_API_KEY:hangang-pay-local-bank-api-key}
+
 blockchain:
   private-network:
     chain-id: 1337
