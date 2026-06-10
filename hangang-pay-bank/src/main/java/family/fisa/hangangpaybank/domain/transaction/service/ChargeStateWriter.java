@@ -165,6 +165,13 @@ public class ChargeStateWriter {
 
         // blockchain ledger 기록
         BlockchainLedger ledger = fetchLedger(ledgerId, request.transactionUuid());
+
+        log.info(
+                "[charge] CHARGE 처리 완료. uuid={}, txHash={}, blockNumber={}",
+                request.transactionUuid(),
+                ledger.getTxHash(),
+                ledger.getBlockNumber());
+
         ledger.markSuccess(receipt);
 
         return new ChargeResponse(
