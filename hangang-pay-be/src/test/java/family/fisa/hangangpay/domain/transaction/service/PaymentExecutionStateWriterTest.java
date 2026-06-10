@@ -82,7 +82,6 @@ class PaymentExecutionStateWriterTest {
                         TRANSACTION_UUID,
                         TransactionStatus.SUCCESS,
                         "APV-2026-00000123",
-                        "0x-snapshot",
                         new BigDecimal("10000"),
                         "성수 한강카페",
                         LocalDateTime.of(2026, 5, 25, 10, 0));
@@ -202,10 +201,9 @@ class PaymentExecutionStateWriterTest {
                 paymentExecutionStateWriter.applyRecoveryResult(TRANSACTION_UUID, bankStatus);
 
         assertThat(response.status()).isEqualTo(TransactionStatus.SUCCESS);
-        assertThat(response.txHash()).isEqualTo("0x-recovered");
         assertThat(response.merchantName()).isEqualTo("성수 한강카페");
         assertThat(transaction.getStatus()).isEqualTo(TransactionStatus.SUCCESS);
-        assertThat(transaction.getTxHash()).isEqualTo("0x-recovered");
+        assertThat(transaction.getTxHash()).isNull();
         assertThat(transaction.getBankTransactionId()).isEqualTo("101");
     }
 

@@ -32,7 +32,6 @@ class ExchangeReconcileServiceTest {
 
     private static final Long TRANSACTION_ID = 100L;
     private static final String UUID = "550e8400-e29b-41d4-a716-446655440000";
-    private static final String TX_HASH = "0xabc123";
     private static final Long BANK_TX_ID = 999L;
     private static final String BANK_TX_ID_STR = "999";
 
@@ -50,21 +49,18 @@ class ExchangeReconcileServiceTest {
     @DisplayName("bank SUCCESS -> markSuccess + completeExecution")
     void bank_success() {
         when(bankClient.getStatus(UUID))
-                .thenReturn(
-                        new BankExchangeStatus(
-                                BankExchangeStatus.Status.SUCCESS, TX_HASH, BANK_TX_ID));
+                .thenReturn(new BankExchangeStatus(BankExchangeStatus.Status.SUCCESS, BANK_TX_ID));
         ExchangeExecuteResponse resp =
                 ExchangeExecuteResponse.builder()
                         .transactionId(TRANSACTION_ID)
                         .transactionUuid(UUID)
                         .status(TransactionStatus.SUCCESS)
-                        .txHash(TX_HASH)
                         .build();
-        when(stateWriter.markSuccess(UUID, TX_HASH, BANK_TX_ID_STR)).thenReturn(resp);
+        when(stateWriter.markSuccess(UUID, null, BANK_TX_ID_STR)).thenReturn(resp);
 
         exchangeReconcileService.reconcile(exchange(TransactionStatus.UNKNOWN));
 
-        verify(stateWriter).markSuccess(UUID, TX_HASH, BANK_TX_ID_STR);
+        verify(stateWriter).markSuccess(UUID, null, BANK_TX_ID_STR);
         verify(idempotencyStore).completeExecution(UUID, resp);
         verify(stateWriter, never()).markFailed(any());
     }
@@ -73,7 +69,7 @@ class ExchangeReconcileServiceTest {
     @DisplayName("bank FAILED -> markFailed + failExecution")
     void bank_failed() {
         when(bankClient.getStatus(UUID))
-                .thenReturn(new BankExchangeStatus(BankExchangeStatus.Status.FAILED, null, null));
+                .thenReturn(new BankExchangeStatus(BankExchangeStatus.Status.FAILED, null));
 
         exchangeReconcileService.reconcile(exchange(TransactionStatus.UNKNOWN));
 
@@ -97,7 +93,7 @@ class ExchangeReconcileServiceTest {
     @DisplayName("bank PENDING -> incrementRetry, 확정 안 함")
     void bank_pending() {
         when(bankClient.getStatus(UUID))
-                .thenReturn(new BankExchangeStatus(BankExchangeStatus.Status.PENDING, null, null));
+                .thenReturn(new BankExchangeStatus(BankExchangeStatus.Status.PENDING, null));
 
         exchangeReconcileService.reconcile(exchange(TransactionStatus.PROCESSING));
 

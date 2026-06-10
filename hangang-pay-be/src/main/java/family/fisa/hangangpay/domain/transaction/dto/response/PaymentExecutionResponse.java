@@ -9,7 +9,6 @@ public record PaymentExecutionResponse(
         String transactionUuid,
         TransactionStatus status,
         String approvalNumber,
-        String txHash,
         BigDecimal amount,
         String merchantName,
         LocalDateTime confirmedAt) {
@@ -20,7 +19,6 @@ public record PaymentExecutionResponse(
                 t.getTransactionUuid(),
                 t.getStatus(),
                 t.getApprovalNumber(),
-                t.getTxHash(),
                 t.getAmount(),
                 merchantName,
                 confirmedAt);

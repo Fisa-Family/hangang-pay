@@ -176,7 +176,6 @@ class RedisCancelIdempotencyStoreTest {
                 ORIGINAL_PAYMENT_UUID,
                 TransactionStatus.SUCCESS,
                 "APV-2026-00000100",
-                "0x-cancel-snapshot",
                 new BigDecimal("10000"),
                 LocalDateTime.of(2026, 5, 27, 14, 0));
     }

@@ -140,8 +140,7 @@ public class PaymentExecutionStateWriter {
 
         if (bankStatus.status() == TransactionStatus.SUCCESS) {
             validateBankSuccessRecoveryResult(bankStatus);
-            transaction.recoverSuccess(
-                    bankStatus.txHash(), String.valueOf(bankStatus.bankTransactionId()));
+            transaction.recoverSuccess(null, String.valueOf(bankStatus.bankTransactionId()));
         }
 
         if (bankStatus.status() == TransactionStatus.FAILED) {
@@ -181,7 +180,7 @@ public class PaymentExecutionStateWriter {
     }
 
     private void validateBankSuccessRecoveryResult(BankTransactionStatusResponse bankStatus) {
-        if (bankStatus.txHash() == null || bankStatus.bankTransactionId() == null) {
+        if (bankStatus.bankTransactionId() == null) {
             throw new BusinessException(TransactionErrorCode.PAYMENT_RECOVERY_RESULT_INVALID);
         }
     }

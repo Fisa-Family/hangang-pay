@@ -27,8 +27,7 @@ public class ExchangeReconcileService {
         switch (s.status()) {
             case SUCCESS -> {
                 ExchangeExecuteResponse resp =
-                        stateWriter.markSuccess(
-                                uuid, s.txHash(), String.valueOf(s.bankTransactionId()));
+                        stateWriter.markSuccess(uuid, null, String.valueOf(s.bankTransactionId()));
                 idempotencyStore.completeExecution(uuid, resp);
             }
             case FAILED, NOT_FOUND -> { // NOT_FOUND: 미도달 확정(토큰 미차감) → FAILED 안전

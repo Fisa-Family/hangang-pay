@@ -213,7 +213,6 @@ class CancelExecutionStateWriterTest {
         // 5. 응답 필드 검증
         assertThat(response.status()).isEqualTo(TransactionStatus.SUCCESS); // 성공 확정 상태
         assertThat(response.transactionUuid()).isEqualTo(CANCEL_UUID);
-        assertThat(response.txHash()).isEqualTo("0x-cancel-tx");
         assertThat(response.amount()).isEqualByComparingTo("10000");
         assertThat(response.confirmedAt()).isEqualTo(confirmedAt);
     }
@@ -251,10 +250,9 @@ class CancelExecutionStateWriterTest {
         assertThat(cancelTx.getStatus()).isEqualTo(TransactionStatus.UNKNOWN);
         assertThat(cancelTx.getStatus()).isNotEqualTo(TransactionStatus.FAILED);
 
-        // 4. 응답 검증 — 은행 확정 전이므로 txHash, confirmedAt 없음
+        // 4. 응답 검증 — 은행 확정 전이므로 confirmedAt 없음
         assertThat(response.status()).isEqualTo(TransactionStatus.UNKNOWN);
         assertThat(response.transactionUuid()).isEqualTo(CANCEL_UUID);
-        assertThat(response.txHash()).isNull();
         assertThat(response.confirmedAt()).isNull();
     }
 
@@ -336,9 +334,8 @@ class CancelExecutionStateWriterTest {
                 cancelExecutionStateWriter.applyRecoveryResult(CANCEL_UUID, bankStatus);
 
         assertThat(response.status()).isEqualTo(TransactionStatus.SUCCESS);
-        assertThat(response.txHash()).isEqualTo("0x-recovered-cancel");
         assertThat(cancelTx.getStatus()).isEqualTo(TransactionStatus.SUCCESS);
-        assertThat(cancelTx.getTxHash()).isEqualTo("0x-recovered-cancel");
+        assertThat(cancelTx.getTxHash()).isNull();
         assertThat(cancelTx.getBankTransactionId()).isEqualTo("888");
     }
 
@@ -355,7 +352,6 @@ class CancelExecutionStateWriterTest {
                 cancelExecutionStateWriter.applyRecoveryResult(CANCEL_UUID, bankStatus);
 
         assertThat(response.status()).isEqualTo(TransactionStatus.FAILED);
-        assertThat(response.txHash()).isNull();
         assertThat(cancelTx.getStatus()).isEqualTo(TransactionStatus.FAILED);
     }
 
@@ -373,12 +369,11 @@ class CancelExecutionStateWriterTest {
                 cancelExecutionStateWriter.applyRecoveryResult(CANCEL_UUID, bankStatus);
 
         assertThat(response.status()).isEqualTo(TransactionStatus.UNKNOWN);
-        assertThat(response.txHash()).isNull();
         assertThat(cancelTx.getStatus()).isEqualTo(TransactionStatus.UNKNOWN);
     }
 
     @Test
-    @DisplayName("Bank SUCCESS 취소 복구 결과에 txHash나 bankTransactionId가 없으면 오류가 발생한다")
+    @DisplayName("Bank SUCCESS 취소 복구 결과에 bankTransactionId가 없으면 오류가 발생한다")
     void applyRecoveryResult_successRequiresBankProof() {
         Transaction cancelTx = cancelTransaction(TransactionStatus.UNKNOWN);
         BankTransactionStatusResponse bankStatus =

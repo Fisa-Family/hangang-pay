@@ -15,7 +15,7 @@ interface FlowConfig {
   title: string
   caption?: (state: FlowState) => string | undefined
   completePath: string
-  errorPath: string
+  errorPath: string | ((state: FlowState) => string)
   defaultError: string
   run: (state: FlowState) => Promise<unknown>
   // 결과 status를 추출하는 flow만 UNKNOWN(미확정) 재시도 단계를 지원한다.
@@ -37,7 +37,7 @@ const FLOWS: Record<string, FlowConfig> = {
     title: '결제를 처리하고 있어요',
     caption: (s) => s.merchantName as string | undefined,
     completePath: '/pay/complete',
-    errorPath: '/pay/confirm',
+    errorPath: (s) => (s.merchantId ? `/pay/amount/${s.merchantId}` : '/pay/confirm'),
     defaultError: '결제 처리 중 오류가 발생했습니다.',
     run: (state) => executePayment(state.transactionUuid as string, state.pin as string),
     // 200 UNKNOWN(미확정)은 throw되지 않으므로 status로 분기한다. FAILED는 BE가 4xx로 throw → catch 처리.
@@ -150,7 +150,9 @@ export function ProcessingPage() {
       const errorState = flow.buildErrorState
         ? flow.buildErrorState(state ?? {}, message)
         : { error: message, amount: state?.amount }
-      navigate(flow.errorPath, { state: errorState, replace: true })
+      const errorPath =
+        typeof flow.errorPath === 'function' ? flow.errorPath(state ?? {}) : flow.errorPath
+      navigate(errorPath, { state: errorState, replace: true })
     },
     [flow, navigate, state]
   )
@@ -221,7 +223,9 @@ export function ProcessingPage() {
         <ResultState
           variant="info"
           title="결제 상태를 확인 중이에요"
-          description={'현재 서버 네트워크에 오류가 발생했어요.\n 서버가 복구되는 대로 바로 확인 가능해요!\n'}
+          description={
+            '현재 서버 네트워크에 오류가 발생했어요.\n 서버가 복구되는 대로 바로 확인 가능해요!\n'
+          }
           primaryText="다시 확인"
           onPrimary={handleRecover}
           secondaryText="홈으로"

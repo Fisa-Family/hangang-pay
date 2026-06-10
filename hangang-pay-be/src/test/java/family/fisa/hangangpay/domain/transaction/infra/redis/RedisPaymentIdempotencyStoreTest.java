@@ -180,7 +180,6 @@ class RedisPaymentIdempotencyStoreTest {
                 TRANSACTION_UUID,
                 TransactionStatus.SUCCESS,
                 "APV-2026-00000123",
-                "0x-snapshot",
                 new BigDecimal("10000"),
                 "성수 한강카페",
                 LocalDateTime.of(2026, 5, 25, 10, 0));

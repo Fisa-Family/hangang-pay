@@ -178,7 +178,7 @@ class TransactionCommandServiceTest {
                         new BigDecimal("10000"));
 
         // Bank 서버 결제 결과 정상 반환
-        PaymentResponse bankResponse = successBankPaymentResponse("0x-tx");
+        PaymentResponse bankResponse = successBankPaymentResponse();
 
         // SUCCESS 저장 후 command service가 최종 반환할 응답
         PaymentExecutionResponse expected =
@@ -186,7 +186,6 @@ class TransactionCommandServiceTest {
                         TRANSACTION_UUID,
                         TransactionStatus.SUCCESS,
                         "APV-2026-00000123",
-                        "0x-tx",
                         new BigDecimal("10000"),
                         "성수 한강카페",
                         LocalDateTime.of(2026, 5, 25, 10, 0));
@@ -205,10 +204,7 @@ class TransactionCommandServiceTest {
 
         given(
                         paymentExecutionStateWriter.completeSuccess(
-                                TRANSACTION_UUID,
-                                bankResponse.txHash(),
-                                String.valueOf(bankResponse.bankTransactionId()),
-                                bankResponse.confirmedAt()))
+                                TRANSACTION_UUID, null, null, bankResponse.confirmedAt()))
                 .willReturn(expected);
 
         // Redis lock mock은 락 획득 성공 후 콜백을 바로 실행하도록 만든다.
@@ -236,11 +232,7 @@ class TransactionCommandServiceTest {
         verify(bankClient).payment(prepared.toBankPaymentRequest());
 
         verify(paymentExecutionStateWriter)
-                .completeSuccess(
-                        TRANSACTION_UUID,
-                        bankResponse.txHash(),
-                        String.valueOf(bankResponse.bankTransactionId()),
-                        bankResponse.confirmedAt());
+                .completeSuccess(TRANSACTION_UUID, null, null, bankResponse.confirmedAt());
 
         verify(paymentIdempotencyStore).completeExecution(TRANSACTION_UUID, expected);
     }
@@ -263,7 +255,6 @@ class TransactionCommandServiceTest {
                         TRANSACTION_UUID,
                         TransactionStatus.UNKNOWN,
                         "APV-2026-00000123",
-                        null,
                         new BigDecimal("10000"),
                         "성수 한강카페",
                         LocalDateTime.of(2026, 5, 25, 10, 0));
@@ -355,13 +346,12 @@ class TransactionCommandServiceTest {
                         "0x-user",
                         "0x-merchant",
                         new BigDecimal("10000"));
-        PaymentResponse bankResponse = successBankPaymentResponse("0x-tx");
+        PaymentResponse bankResponse = successBankPaymentResponse();
         PaymentExecutionResponse expected =
                 new PaymentExecutionResponse(
                         TRANSACTION_UUID,
                         TransactionStatus.SUCCESS,
                         "APV-2026-00000123",
-                        "0x-tx",
                         new BigDecimal("10000"),
                         "성수 한강카페",
                         LocalDateTime.of(2026, 5, 25, 10, 0));
@@ -376,10 +366,7 @@ class TransactionCommandServiceTest {
                 .willReturn(bankResponse);
         given(
                         paymentExecutionStateWriter.completeSuccess(
-                                TRANSACTION_UUID,
-                                bankResponse.txHash(),
-                                String.valueOf(bankResponse.bankTransactionId()),
-                                bankResponse.confirmedAt()))
+                                TRANSACTION_UUID, null, null, bankResponse.confirmedAt()))
                 .willReturn(expected);
         given(paymentLockManager.withTransactionLock(eq(TRANSACTION_UUID), any()))
                 .willAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
@@ -394,11 +381,7 @@ class TransactionCommandServiceTest {
         assertThat(response).isSameAs(expected);
         verify(bankClient, times(2)).payment(prepared.toBankPaymentRequest());
         verify(paymentExecutionStateWriter)
-                .completeSuccess(
-                        TRANSACTION_UUID,
-                        bankResponse.txHash(),
-                        String.valueOf(bankResponse.bankTransactionId()),
-                        bankResponse.confirmedAt());
+                .completeSuccess(TRANSACTION_UUID, null, null, bankResponse.confirmedAt());
         verify(paymentIdempotencyStore).completeExecution(TRANSACTION_UUID, expected);
     }
 
@@ -416,7 +399,6 @@ class TransactionCommandServiceTest {
                 new PaymentExecutionResponse(
                         TRANSACTION_UUID,
                         TransactionStatus.UNKNOWN,
-                        null,
                         null,
                         new BigDecimal("10000"),
                         "성수 한강카페",
@@ -646,7 +628,6 @@ class TransactionCommandServiceTest {
                 TRANSACTION_UUID,
                 status,
                 "APV-2026-00000123",
-                status == TransactionStatus.SUCCESS ? "0x-recovered" : null,
                 new BigDecimal("10000"),
                 "성수 한강카페",
                 LocalDateTime.of(2026, 5, 25, 10, 5));
@@ -671,9 +652,8 @@ class TransactionCommandServiceTest {
         PaymentCancelResponse expected =
                 new PaymentCancelResponse(
                         CANCEL_UUID,
-                        TransactionStatus.SUCCESS, // 1. status 필드 추가 — 성공 확정임을 명시
+                        TransactionStatus.SUCCESS,
                         "APV-2026-00000456",
-                        bankResponse.txHash(),
                         new BigDecimal("10000"),
                         bankResponse.confirmedAt());
 
@@ -688,10 +668,7 @@ class TransactionCommandServiceTest {
         given(bankClient.cancel(prepared.toBankCancelRequest())).willReturn(bankResponse);
         given(
                         cancelExecutionStateWriter.completeSuccess(
-                                CANCEL_UUID,
-                                bankResponse.txHash(),
-                                String.valueOf(bankResponse.bankTransactionId()),
-                                bankResponse.confirmedAt()))
+                                CANCEL_UUID, null, null, bankResponse.confirmedAt()))
                 .willReturn(expected);
 
         PaymentCancelResponse response =
@@ -703,11 +680,7 @@ class TransactionCommandServiceTest {
                 .prepareCancel(MERCHANT_PARTY_ID, TRANSACTION_ID, "123456");
         verify(bankClient).cancel(prepared.toBankCancelRequest());
         verify(cancelExecutionStateWriter)
-                .completeSuccess(
-                        CANCEL_UUID,
-                        bankResponse.txHash(),
-                        String.valueOf(bankResponse.bankTransactionId()),
-                        bankResponse.confirmedAt());
+                .completeSuccess(CANCEL_UUID, null, null, bankResponse.confirmedAt());
     }
 
     @Test
@@ -801,7 +774,6 @@ class TransactionCommandServiceTest {
                         CANCEL_UUID,
                         TransactionStatus.UNKNOWN, // 실패 확정이 아니라 "모름"
                         null, // 승인번호 없음
-                        null, // txHash 없음
                         new BigDecimal("10000"),
                         null); // confirmedAt 없음
 
@@ -825,7 +797,6 @@ class TransactionCommandServiceTest {
         // 4. UNKNOWN 응답 검증
         assertThat(response).isSameAs(unknownResponse);
         assertThat(response.status()).isEqualTo(TransactionStatus.UNKNOWN);
-        assertThat(response.txHash()).isNull();
 
         // 5. 호출 흐름 검증 — completeSuccess는 절대 호출되면 안 된다
         verify(cancelExecutionStateWriter)
@@ -983,7 +954,6 @@ class TransactionCommandServiceTest {
                         CANCEL_UUID,
                         TransactionStatus.UNKNOWN,
                         null,
-                        null,
                         new BigDecimal("10000"),
                         null);
 
@@ -1033,7 +1003,6 @@ class TransactionCommandServiceTest {
                         TRANSACTION_UUID,
                         TransactionStatus.UNKNOWN,
                         null,
-                        null,
                         new BigDecimal("10000"),
                         "성수 한강카페",
                         null);
@@ -1070,15 +1039,15 @@ class TransactionCommandServiceTest {
     }
 
     @Test
-    @DisplayName("취소 복구 시 Bank SUCCESS인데 txHash가 없으면 복구 결과 오류가 발생한다")
-    void recoverCancel_bankSuccessWithNullTxHash_throwsRecoveryResultInvalid() {
+    @DisplayName("취소 복구 시 Bank SUCCESS인데 bankTransactionId가 없으면 복구 결과 오류가 발생한다")
+    void recoverCancel_bankSuccessWithNullBankTransactionId_throwsRecoveryResultInvalid() {
         CancelExecutionPrepared prepared = cancelRecoveryPrepared();
         BankTransactionStatusResponse bankStatus =
                 new BankTransactionStatusResponse(
                         CANCEL_UUID,
-                        888L,
+                        null, // bankTransactionId 없음
                         TransactionStatus.SUCCESS,
-                        null, // txHash 없음
+                        null,
                         LocalDateTime.of(2026, 5, 27, 14, 30));
 
         givenCancelRecoveryThrows(
@@ -1155,7 +1124,6 @@ class TransactionCommandServiceTest {
                 CANCEL_UUID,
                 status,
                 status == TransactionStatus.SUCCESS ? "APV-2026-00000456" : null,
-                status == TransactionStatus.SUCCESS ? "0x-recovered-cancel" : null,
                 new BigDecimal("10000"),
                 LocalDateTime.of(2026, 5, 27, 14, 30));
     }
@@ -1164,9 +1132,7 @@ class TransactionCommandServiceTest {
         return new CancelResponse(
                 CANCEL_UUID,
                 TRANSACTION_UUID,
-                888L,
-                "0x-cancel-tx",
-                200L,
+                "SUCCESS",
                 LocalDateTime.of(2026, 5, 27, 14, 0),
                 new BigDecimal("110000"),
                 new BigDecimal("90000"));
@@ -1178,12 +1144,10 @@ class TransactionCommandServiceTest {
         return new RestClientResponseException(statusText, status, statusText, null, body, null);
     }
 
-    private PaymentResponse successBankPaymentResponse(String txHash) {
+    private PaymentResponse successBankPaymentResponse() {
         return new PaymentResponse(
                 TRANSACTION_UUID,
-                999L,
-                txHash,
-                100L,
+                "SUCCESS",
                 LocalDateTime.of(2026, 5, 25, 10, 0),
                 new BigDecimal("90000"),
                 new BigDecimal("110000"));

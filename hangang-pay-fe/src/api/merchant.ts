@@ -156,7 +156,6 @@ export interface PaymentCancelResult {
   transactionUuid: string
   status: string // 'SUCCESS' | 'UNKNOWN' — SUCCESS만 확정 취소
   approvalNumber: string
-  txHash: string
   amount: number
   confirmedAt: string
 }
