@@ -18,8 +18,7 @@ blockchain:
 
 logging:
   level:
-    root: WARN
-    org.hibernate.tool.schema.internal.ExceptionHandlerLoggedImpl: ERROR
+    family.fisa.hangangpay: INFO
   structured:
     format:
       console: ecs # stdout을 ECS JSON으로 → Alloy가 docker 로그로 수집 후 Loki push
