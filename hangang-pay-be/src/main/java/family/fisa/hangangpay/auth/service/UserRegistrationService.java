@@ -83,7 +83,7 @@ public class UserRegistrationService {
                         institution.getId(),
                         request.accountNumber(),
                         request.name(),
-                        BigDecimal.ZERO));
+                        new BigDecimal(1_000_000)));
         walletCommandService.createWallet(party, institution);
 
         clearSignupSession(session);
