@@ -148,7 +148,6 @@ export const mockPaymentCancelResult = {
   transactionUuid: 'mock-cancel-uuid-001',
   status: 'SUCCESS',
   approvalNumber: 'AP-2024-CANCEL-301',
-  txHash: '0xcancel123abc456',
   amount: 8500,
   confirmedAt: new Date().toISOString(),
 }

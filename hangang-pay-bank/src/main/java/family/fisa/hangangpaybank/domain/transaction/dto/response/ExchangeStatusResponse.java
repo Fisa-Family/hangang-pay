@@ -1,32 +1,26 @@
 package family.fisa.hangangpaybank.domain.transaction.dto.response;
 
-import family.fisa.hangangpaybank.domain.blockchain.entity.BlockchainLedger;
-import family.fisa.hangangpaybank.domain.blockchain.entity.BlockchainTxStatus;
 import family.fisa.hangangpaybank.domain.ledger.entity.AccountLedger;
+import family.fisa.hangangpaybank.domain.ledger.entity.LedgerStatus;
 import lombok.Builder;
 
 @Builder
 public record ExchangeStatusResponse(
-        String transactionUuid, Long bankTransactionId, String status, String txHash) {
+        String transactionUuid, Long bankTransactionId, String status) {
 
-    public static ExchangeStatusResponse of(
-            String transactionUuid,
-            AccountLedger accountLedger,
-            BlockchainLedger blockchainLedger) {
+    public static ExchangeStatusResponse of(String transactionUuid, AccountLedger accountLedger) {
         return ExchangeStatusResponse.builder()
                 .transactionUuid(transactionUuid)
                 .bankTransactionId(accountLedger.getId())
-                .status(mapStatus(blockchainLedger.getStatus()))
-                .txHash(blockchainLedger.getTxHash())
+                .status(mapStatus(accountLedger.getStatus()))
                 .build();
     }
 
-    /** blockchain_ledger 상태를 응답 상태로 변환 (결제 PaymentStatusResponse와 동일 매핑) */
-    private static String mapStatus(BlockchainTxStatus status) {
+    private static String mapStatus(LedgerStatus status) {
         return switch (status) {
             case SUCCESS -> "SUCCESS";
             case FAILED -> "FAILED";
-            case PENDING, SUBMITTED -> "PROCESSING";
+            case PENDING -> "PROCESSING";
         };
     }
 }

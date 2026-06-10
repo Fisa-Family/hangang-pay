@@ -189,9 +189,9 @@ public class BankClientImpl implements BankClient {
 
             ExchangeResponse body = response.getResult();
             log.info(
-                    "bank 환전 성공(SUCCESS). transactionUuid={}, txHash={}",
+                    "bank 환전 성공(SUCCESS). transactionUuid={}, bankTransactionId={}",
                     request.transactionUuid(),
-                    body.txHash());
+                    body.bankTransactionId());
 
             return BankActResult.success(body);
         } catch (RestClientResponseException ex) {

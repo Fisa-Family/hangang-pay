@@ -1,7 +1,5 @@
 package family.fisa.hangangpaybank.domain.transaction.service;
 
-import family.fisa.hangangpaybank.domain.blockchain.entity.BlockchainLedger;
-import family.fisa.hangangpaybank.domain.blockchain.repository.BlockchainLedgerRepository;
 import family.fisa.hangangpaybank.domain.ledger.entity.AccountLedger;
 import family.fisa.hangangpaybank.domain.ledger.repository.AccountLedgerRepository;
 import family.fisa.hangangpaybank.domain.transaction.code.error.TransactionErrorCode;
@@ -20,12 +18,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class ExchangeQueryService {
 
     private final AccountLedgerRepository accountLedgerRepository;
-    private final BlockchainLedgerRepository blockchainLedgerRepository;
 
     public ExchangeStatusResponse getStatus(String transactionUuid) {
         log.info("환전 상태 조회 시작. transactionUuid={}", transactionUuid);
 
-        // bankTransactionId 제공용
+        // account_ledger 기준 조회 — DB 레벨 환전 결과가 기준 (blockchain은 async)
         AccountLedger accountLedger =
                 accountLedgerRepository
                         .findByIdempotentKey(transactionUuid)
@@ -34,23 +31,9 @@ public class ExchangeQueryService {
                                         new BusinessException(
                                                 TransactionErrorCode.TRANSACTION_NOT_FOUND));
 
-        // 진행 상태 판정
-        BlockchainLedger blockchainLedger =
-                blockchainLedgerRepository
-                        .findByIdempotentKey(transactionUuid)
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                TransactionErrorCode.TRANSACTION_NOT_FOUND));
+        ExchangeStatusResponse response = ExchangeStatusResponse.of(transactionUuid, accountLedger);
 
-        ExchangeStatusResponse response =
-                ExchangeStatusResponse.of(transactionUuid, accountLedger, blockchainLedger);
-
-        log.info(
-                "환전 상태 조회 완료. transactionUuid={}, status={}, txHash={}",
-                transactionUuid,
-                response.status(),
-                response.txHash());
+        log.info("환전 상태 조회 완료. transactionUuid={}, status={}", transactionUuid, response.status());
         return response;
     }
 }

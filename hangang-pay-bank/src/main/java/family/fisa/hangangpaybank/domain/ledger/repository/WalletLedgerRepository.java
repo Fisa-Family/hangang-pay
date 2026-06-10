@@ -9,4 +9,6 @@ public interface WalletLedgerRepository extends JpaRepository<WalletLedger, Long
 
     Optional<WalletLedger> findByTransactionUuidAndBankWallet(
             String transactionUuid, BankWallet bankWallet);
+
+    Optional<WalletLedger> findFirstByTransactionUuid(String transactionUuid);
 }

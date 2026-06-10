@@ -148,11 +148,6 @@ export function MerchantPaymentDetailPage() {
           variant="success"
           title={formatWon(result.amount)}
           description="취소 완료"
-          details={
-            <span className="break-all font-mono text-xs text-muted-foreground">
-              {result.txHash}
-            </span>
-          }
           primaryText="홈으로"
           onPrimary={() => navigate('/merchant/home')}
         />

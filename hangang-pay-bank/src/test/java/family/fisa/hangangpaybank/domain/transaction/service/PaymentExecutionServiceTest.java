@@ -9,8 +9,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import family.fisa.hangangpaybank.domain.blockchain.code.error.BlockchainErrorCode;
-import family.fisa.hangangpaybank.domain.blockchain.entity.BlockchainLedger;
-import family.fisa.hangangpaybank.domain.blockchain.entity.BlockchainTxStatus;
 import family.fisa.hangangpaybank.domain.blockchain.service.ContractCallService;
 import family.fisa.hangangpaybank.domain.blockchainoutbox.dto.BlockchainSyncRequest;
 import family.fisa.hangangpaybank.domain.blockchainoutbox.dto.BlockchainSyncRequestResult;
@@ -18,6 +16,8 @@ import family.fisa.hangangpaybank.domain.blockchainoutbox.port.BlockchainSyncReq
 import family.fisa.hangangpaybank.domain.institution.entity.BankWallet;
 import family.fisa.hangangpaybank.domain.institution.entity.Institution;
 import family.fisa.hangangpaybank.domain.institution.repository.BankWalletRepository;
+import family.fisa.hangangpaybank.domain.ledger.entity.WalletLedger;
+import family.fisa.hangangpaybank.domain.ledger.entity.WalletLedgerStatus;
 import family.fisa.hangangpaybank.domain.transaction.dto.request.CancelRequest;
 import family.fisa.hangangpaybank.domain.transaction.dto.request.PaymentRequest;
 import family.fisa.hangangpaybank.domain.transaction.dto.response.CancelResponse;
@@ -146,7 +146,7 @@ class PaymentExecutionServiceTest {
     void payment_idempotentSuccess_returnsExistingResultWithoutSync() {
         BankWallet from = wallet(FROM_ADDRESS, new BigDecimal("400"));
         BankWallet to = wallet(TO_ADDRESS, new BigDecimal("100"));
-        BlockchainLedger existing = successLedger("uuid-5");
+        WalletLedger existing = successWalletLedger("uuid-5");
 
         given(bankWalletRepository.findByWalletAddress(FROM_ADDRESS)).willReturn(Optional.of(from));
         given(bankWalletRepository.findByWalletAddress(TO_ADDRESS)).willReturn(Optional.of(to));
@@ -221,12 +221,10 @@ class PaymentExecutionServiceTest {
         return wallet;
     }
 
-    private static BlockchainLedger successLedger(String uuid) {
-        return BlockchainLedger.builder()
-                .id(1L)
-                .institution(Institution.builder().id(1L).build())
-                .idempotentKey(uuid)
-                .status(BlockchainTxStatus.SUCCESS)
+    private static WalletLedger successWalletLedger(String uuid) {
+        return WalletLedger.builder()
+                .transactionUuid(uuid)
+                .status(WalletLedgerStatus.SUCCESS)
                 .confirmedAt(LocalDateTime.now().minusMinutes(1))
                 .build();
     }

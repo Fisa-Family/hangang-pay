@@ -14,7 +14,6 @@ export const mockPaymentResult = {
   transactionUuid: 'mock-txn-uuid-001',
   status: 'SUCCESS',
   approvalNumber: 'AP-2024-001',
-  txHash: '0xabc123def456789',
   amount: 8500,
   merchantName: '성수 카페',
   confirmedAt: new Date().toISOString(),

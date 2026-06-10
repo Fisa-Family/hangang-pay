@@ -39,9 +39,9 @@ public class PaymentStateWriter {
     private final BankWalletRepository bankWalletRepository;
     private final WalletLedgerRepository walletLedgerRepository;
 
-    /** transactionUuid 기준으로 기존 ledger를 조회한다. 결과에 따라 멱등성 분기를 호출자가 처리한다. */
-    public Optional<BlockchainLedger> findExisting(String transactionUuid) {
-        return blockchainLedgerRepository.findByIdempotentKey(transactionUuid);
+    /** transactionUuid 기준으로 기존 wallet_ledger를 조회한다. 결과에 따라 멱등성 분기를 호출자가 처리한다. */
+    public Optional<WalletLedger> findExisting(String transactionUuid) {
+        return walletLedgerRepository.findFirstByTransactionUuid(transactionUuid);
     }
 
     /** 결제/취소 성공 WalletLedger를 부모 트랜잭션 안에서 저장한다. */
