@@ -31,7 +31,6 @@ export interface PaymentResult {
   transactionUuid: string
   status: string
   approvalNumber: string
-  txHash: string
   amount: number
   merchantName: string
   confirmedAt: string

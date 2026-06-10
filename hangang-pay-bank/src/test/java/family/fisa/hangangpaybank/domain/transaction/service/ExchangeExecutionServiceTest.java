@@ -7,10 +7,6 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import family.fisa.hangangpaybank.domain.blockchain.entity.BlockchainLedger;
-import family.fisa.hangangpaybank.domain.blockchain.entity.BlockchainTxStatus;
-import family.fisa.hangangpaybank.domain.blockchain.repository.BlockchainLedgerRepository;
-import family.fisa.hangangpaybank.domain.blockchain.service.ContractCallService;
 import family.fisa.hangangpaybank.domain.blockchainoutbox.dto.BlockchainSyncRequest;
 import family.fisa.hangangpaybank.domain.blockchainoutbox.port.BlockchainSyncRequester;
 import family.fisa.hangangpaybank.domain.institution.entity.BankAccount;
@@ -20,13 +16,13 @@ import family.fisa.hangangpaybank.domain.institution.repository.BankAccountRepos
 import family.fisa.hangangpaybank.domain.institution.repository.BankWalletRepository;
 import family.fisa.hangangpaybank.domain.institution.repository.InstitutionRepository;
 import family.fisa.hangangpaybank.domain.ledger.entity.AccountLedger;
+import family.fisa.hangangpaybank.domain.ledger.entity.LedgerStatus;
 import family.fisa.hangangpaybank.domain.ledger.repository.AccountLedgerRepository;
 import family.fisa.hangangpaybank.domain.transaction.code.error.TransactionErrorCode;
 import family.fisa.hangangpaybank.domain.transaction.dto.request.ExchangeRequest;
 import family.fisa.hangangpaybank.domain.transaction.dto.response.ExchangeResponse;
 import family.fisa.hangangpaybank.global.exception.BusinessException;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -47,9 +43,7 @@ class ExchangeExecutionServiceTest {
     @Mock private InstitutionRepository institutionRepository;
     @Mock private BankWalletRepository bankWalletRepository;
     @Mock private BankAccountRepository bankAccountRepository;
-    @Mock private BlockchainLedgerRepository blockchainLedgerRepository;
     @Mock private AccountLedgerRepository accountLedgerRepository;
-    @Mock private ContractCallService contractCallService; // dead dep 제거 시 이 줄도 삭제 가능
     @Mock private BlockchainSyncRequester syncRequester;
 
     @InjectMocks private ExchangeExecutionService service;
@@ -60,7 +54,7 @@ class ExchangeExecutionServiceTest {
         BankWallet wallet = wallet(new BigDecimal("500"));
         BankAccount account = account(new BigDecimal("100000"));
 
-        given(blockchainLedgerRepository.findByIdempotentKey(UUID)).willReturn(Optional.empty());
+        given(accountLedgerRepository.findByIdempotentKey(UUID)).willReturn(Optional.empty());
         given(institutionRepository.findById(INSTITUTION_ID))
                 .willReturn(Optional.of(institution()));
         given(bankWalletRepository.findByWalletAddress(WALLET_ADDRESS))
@@ -75,7 +69,6 @@ class ExchangeExecutionServiceTest {
         ExchangeResponse response = service.exchange(request());
 
         assertThat(response.status()).isEqualTo("SUCCESS");
-        assertThat(response.txHash()).isNull();
         assertThat(response.accountBalance()).isEqualByComparingTo(new BigDecimal("100100"));
         assertThat(wallet.getBalance()).isEqualByComparingTo(new BigDecimal("400")); // 토큰 차감
         assertThat(account.getBalance()).isEqualByComparingTo(new BigDecimal("100100")); // 현금 입금
@@ -88,7 +81,7 @@ class ExchangeExecutionServiceTest {
         BankWallet wallet = wallet(new BigDecimal("50"));
         BankAccount account = account(new BigDecimal("100000"));
 
-        given(blockchainLedgerRepository.findByIdempotentKey(UUID)).willReturn(Optional.empty());
+        given(accountLedgerRepository.findByIdempotentKey(UUID)).willReturn(Optional.empty());
         given(institutionRepository.findById(INSTITUTION_ID))
                 .willReturn(Optional.of(institution()));
         given(bankWalletRepository.findByWalletAddress(WALLET_ADDRESS))
@@ -111,11 +104,14 @@ class ExchangeExecutionServiceTest {
     @Test
     @DisplayName("SUCCESS 멱등 재요청: syncRequester 미호출, status=SUCCESS 기존 응답")
     void exchange_idempotentSuccess_returnsExistingWithoutSync() {
-        given(blockchainLedgerRepository.findByIdempotentKey(UUID))
-                .willReturn(Optional.of(successLedger()));
         given(accountLedgerRepository.findByIdempotentKey(UUID))
                 .willReturn(
-                        Optional.of(AccountLedger.builder().id(7L).idempotentKey(UUID).build()));
+                        Optional.of(
+                                AccountLedger.builder()
+                                        .id(7L)
+                                        .idempotentKey(UUID)
+                                        .status(LedgerStatus.SUCCESS)
+                                        .build()));
         given(
                         bankAccountRepository.findByInstitution_IdAndAccountNumber(
                                 INSTITUTION_ID, ACCOUNT_NUMBER))
@@ -130,8 +126,13 @@ class ExchangeExecutionServiceTest {
     @Test
     @DisplayName("PENDING 멱등 재요청: TRANSACTION_DUPLICATE_PROCESSING")
     void exchange_idempotentPending_throwsDuplicate() {
-        given(blockchainLedgerRepository.findByIdempotentKey(UUID))
-                .willReturn(Optional.of(ledger(BlockchainTxStatus.PENDING)));
+        given(accountLedgerRepository.findByIdempotentKey(UUID))
+                .willReturn(
+                        Optional.of(
+                                AccountLedger.builder()
+                                        .idempotentKey(UUID)
+                                        .status(LedgerStatus.PENDING)
+                                        .build()));
 
         assertThatThrownBy(() -> service.exchange(request()))
                 .isInstanceOf(BusinessException.class)
@@ -144,8 +145,13 @@ class ExchangeExecutionServiceTest {
     @Test
     @DisplayName("FAILED 멱등 재요청: TRANSACTION_ALREADY_FAILED")
     void exchange_idempotentFailed_throwsAlreadyFailed() {
-        given(blockchainLedgerRepository.findByIdempotentKey(UUID))
-                .willReturn(Optional.of(ledger(BlockchainTxStatus.FAILED)));
+        given(accountLedgerRepository.findByIdempotentKey(UUID))
+                .willReturn(
+                        Optional.of(
+                                AccountLedger.builder()
+                                        .idempotentKey(UUID)
+                                        .status(LedgerStatus.FAILED)
+                                        .build()));
 
         assertThatThrownBy(() -> service.exchange(request()))
                 .isInstanceOf(BusinessException.class)
@@ -180,26 +186,6 @@ class ExchangeExecutionServiceTest {
                 .accountNumber(ACCOUNT_NUMBER)
                 .ownerName("tester")
                 .balance(balance)
-                .build();
-    }
-
-    private static BlockchainLedger successLedger() {
-        return BlockchainLedger.builder()
-                .id(1L)
-                .institution(institution())
-                .idempotentKey(UUID)
-                .status(BlockchainTxStatus.SUCCESS)
-                .txHash("0xabc")
-                .confirmedAt(LocalDateTime.now().minusMinutes(1))
-                .build();
-    }
-
-    private static BlockchainLedger ledger(BlockchainTxStatus status) {
-        return BlockchainLedger.builder()
-                .id(1L)
-                .institution(institution())
-                .idempotentKey(UUID)
-                .status(status)
                 .build();
     }
 }

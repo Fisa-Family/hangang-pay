@@ -181,10 +181,7 @@ public class TransactionCommandService {
                 switch (outcome.type()) {
                     case SUCCESS ->
                             paymentExecutionStateWriter.completeSuccess(
-                                    transactionUuid,
-                                    outcome.value().txHash(),
-                                    String.valueOf(outcome.value().bankTransactionId()),
-                                    outcome.value().confirmedAt());
+                                    transactionUuid, null, null, outcome.value().confirmedAt());
                     case UNKNOWN -> paymentExecutionStateWriter.markUnknown(transactionUuid);
                     case TERMINAL_FAILED -> {
                         paymentExecutionStateWriter.completeFailed(transactionUuid);
@@ -288,8 +285,8 @@ public class TransactionCommandService {
                     case SUCCESS ->
                             cancelExecutionStateWriter.completeSuccess(
                                     prepared.cancelTransactionUuid(),
-                                    outcome.value().txHash(),
-                                    String.valueOf(outcome.value().bankTransactionId()),
+                                    null,
+                                    null,
                                     outcome.value().confirmedAt());
                     case UNKNOWN ->
                             cancelExecutionStateWriter.markUnknown(

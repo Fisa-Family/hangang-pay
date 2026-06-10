@@ -7,7 +7,7 @@ public record BankTransactionStatusResponse(
         String transactionUuid,
         Long bankTransactionId,
         TransactionStatus status,
-        String txHash,
+        String txHash, // exchange 상태 조회 시 존재. payment/cancel 상태 조회 시 null (blockchain async)
         LocalDateTime confirmedAt) {
 
     public static BankTransactionStatusResponse failed(String recoveryUuid) {

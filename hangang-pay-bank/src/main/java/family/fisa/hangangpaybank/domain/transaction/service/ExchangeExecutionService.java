@@ -1,7 +1,5 @@
 package family.fisa.hangangpaybank.domain.transaction.service;
 
-import family.fisa.hangangpaybank.domain.blockchain.entity.BlockchainLedger;
-import family.fisa.hangangpaybank.domain.blockchain.repository.BlockchainLedgerRepository;
 import family.fisa.hangangpaybank.domain.blockchainoutbox.dto.payload.ExchangeBlockchainPayload;
 import family.fisa.hangangpaybank.domain.blockchainoutbox.port.BlockchainSyncRequester;
 import family.fisa.hangangpaybank.domain.institution.code.error.InstitutionErrorCode;
@@ -36,7 +34,6 @@ public class ExchangeExecutionService {
     private final InstitutionRepository institutionRepository;
     private final BankWalletRepository bankWalletRepository;
     private final BankAccountRepository bankAccountRepository;
-    private final BlockchainLedgerRepository blockchainLedgerRepository;
     private final AccountLedgerRepository accountLedgerRepository;
     private final BlockchainSyncRequester syncRequester;
 
@@ -48,8 +45,8 @@ public class ExchangeExecutionService {
                 request.amount());
 
         // 1. 멱등성 확인
-        Optional<BlockchainLedger> existingOpt =
-                blockchainLedgerRepository.findByIdempotentKey(request.transactionUuid());
+        Optional<AccountLedger> existingOpt =
+                accountLedgerRepository.findByIdempotentKey(request.transactionUuid());
         if (existingOpt.isPresent()) {
             return handleIdempotent(request, existingOpt.get());
         }
@@ -91,26 +88,22 @@ public class ExchangeExecutionService {
     }
 
     /** 동일 transactionUuid 재요청 처리. 결제 멱등 분기와 동일한 정책 */
-    private ExchangeResponse handleIdempotent(ExchangeRequest request, BlockchainLedger existing) {
+    private ExchangeResponse handleIdempotent(ExchangeRequest request, AccountLedger existing) {
         switch (existing.getStatus()) {
             case SUCCESS -> {
                 log.info(
                         "[bank] 멱등성: 환전 SUCCESS 재요청. transactionUuid={}",
                         request.transactionUuid());
 
-                AccountLedger accountLedger = findAccountLedger(request.transactionUuid());
                 BankAccount bankAccount =
                         findBankAccount(request.institutionId(), request.accountNumber());
 
                 return ExchangeResponse.from(
-                        request.transactionUuid(),
-                        accountLedger,
-                        existing,
-                        bankAccount.getBalance());
+                        request.transactionUuid(), existing, bankAccount.getBalance());
             }
 
-            // PENDING/SUBMITTED = 아직 처리중
-            case PENDING, SUBMITTED ->
+            // PENDING = 아직 처리중
+            case PENDING ->
                     throw new BusinessException(
                             TransactionErrorCode.TRANSACTION_DUPLICATE_PROCESSING);
             // FAILED = 이미 실패한 거래 재요청

@@ -5,9 +5,7 @@ import java.time.LocalDateTime;
 
 public record PaymentResponse(
         String transactionUuid,
-        Long bankTransactionId,
-        String txHash,
-        Long blockNumber,
+        String status,
         LocalDateTime confirmedAt,
         BigDecimal fromBalance,
         BigDecimal toBalance) {}
