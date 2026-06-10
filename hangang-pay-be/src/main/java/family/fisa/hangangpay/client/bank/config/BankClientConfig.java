@@ -11,9 +11,15 @@ public class BankClientConfig {
     @Value("${bank.base-url}")
     private String bankBaseUrl;
 
+    @Value("${bank.api-key}")
+    private String bankApiKey;
+
     @Bean
     public RestClient bankRestClient() {
-        // 1. bank 서버와 통신할 RestClient 생성
-        return RestClient.builder().baseUrl(bankBaseUrl).build();
+        // bank 서버와 통신할 RestClient 생성. 모든 요청에 인증용 API Key 헤더를 부착한다.
+        return RestClient.builder()
+                .baseUrl(bankBaseUrl)
+                .defaultHeader("X-Bank-Api-Key", bankApiKey)
+                .build();
     }
 }

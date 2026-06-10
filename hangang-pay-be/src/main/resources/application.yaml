@@ -43,3 +43,8 @@ blockchain:
 wallet:
   key-cipher:
     secret: ${WALLET_KEY_CIPHER_SECRET:hangang-pay-local-wallet-key-cipher-secret}
+
+# hangang-pay-bank 호출 시 X-Bank-Api-Key 헤더로 전달
+# bank 서버와 동일한 값으로 설정 
+bank:
+  api-key: ${BANK_API_KEY:hangang-pay-local-bank-api-key}
