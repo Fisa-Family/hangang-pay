@@ -4,6 +4,7 @@ import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeInitRespon
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
+import family.fisa.hangangpay.domain.wallet.service.WalletQueryService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
@@ -21,9 +22,11 @@ public class ExchangeQueryService {
     private static final BigDecimal USAGE_THRESHOLD_RATE = new BigDecimal("0.60");
 
     private final TransactionRepository transactionRepository;
+    private final WalletQueryService walletQueryService;
 
     public ExchangeInitResponse getExchangeInit(Long partyId) {
-        BigDecimal walletBalance = calculateWalletBalance(partyId);
+        // 잔액은 현재 지갑 잔액으로부터 가져옴
+        BigDecimal walletBalance = walletQueryService.getBalance(partyId).getBalance();
         boolean eligible = checkEligibility(partyId);
 
         log.info(
@@ -64,15 +67,5 @@ public class ExchangeQueryService {
                         partyId, TransactionType.PAYMENT, chargeAt);
 
         return usedSinceCharge.compareTo(threshold) >= 0;
-    }
-
-    private BigDecimal calculateWalletBalance(Long partyId) {
-        BigDecimal charged =
-                transactionRepository.sumAllSuccessByType(partyId, TransactionType.CHARGE);
-        BigDecimal paid =
-                transactionRepository.sumAllSuccessByType(partyId, TransactionType.PAYMENT);
-        BigDecimal exchanged =
-                transactionRepository.sumAllSuccessByType(partyId, TransactionType.EXCHANGE);
-        return charged.subtract(paid).subtract(exchanged);
     }
 }
