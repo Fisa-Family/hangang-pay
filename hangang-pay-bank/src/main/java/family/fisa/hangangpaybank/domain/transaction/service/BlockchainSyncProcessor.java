@@ -189,7 +189,7 @@ public class BlockchainSyncProcessor {
             log.info("[consumer] 기존 txHash 재사용. uuid={}", message.transactionUuid());
             return ledger.getTxHash();
         }
-        BigInteger amount = payload.amount().toBigInteger();
+        BigInteger amount = toTokenUnit(payload.amount());
         SubmittedBlockchainTx submitted =
                 contractCallService.submitPayment(
                         message.transactionUuid(),
@@ -213,7 +213,7 @@ public class BlockchainSyncProcessor {
             log.info("[consumer] 기존 txHash 재사용. uuid={}", message.transactionUuid());
             return ledger.getTxHash();
         }
-        BigInteger amount = payload.amount().toBigInteger();
+        BigInteger amount = toTokenUnit(payload.amount());
         SubmittedBlockchainTx submitted =
                 contractCallService.submitCancelPayment(
                         message.transactionUuid(),
