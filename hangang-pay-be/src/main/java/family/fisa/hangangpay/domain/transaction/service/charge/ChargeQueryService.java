@@ -6,6 +6,7 @@ import family.fisa.hangangpay.domain.transaction.dto.response.ChargeInitResponse
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
+import family.fisa.hangangpay.domain.wallet.service.WalletQueryService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
@@ -21,6 +22,7 @@ public class ChargeQueryService {
 
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
+    private final WalletQueryService walletQueryService;
 
     private static final BigDecimal MONTHLY_LIMIT = new BigDecimal("700000");
     private static final BigDecimal DISCOUNT_RATE = new BigDecimal("0.1");
@@ -29,14 +31,8 @@ public class ChargeQueryService {
     public ChargeInitResponse getChargeInit(Long partyId) {
         List<Account> accounts = accountRepository.findAllByParty_Id(partyId);
 
-        // 잔액 계산 (로컬 거래 내역 기준)
-        BigDecimal charged =
-                transactionRepository.sumAllSuccessByType(partyId, TransactionType.CHARGE);
-        BigDecimal paid =
-                transactionRepository.sumAllSuccessByType(partyId, TransactionType.PAYMENT);
-        BigDecimal exchanged =
-                transactionRepository.sumAllSuccessByType(partyId, TransactionType.EXCHANGE);
-        BigDecimal balance = charged.subtract(paid).subtract(exchanged);
+        // 잔액 - 현재 지갑 잔액을 기준으로 해야함
+        BigDecimal walletBalance = walletQueryService.getBalance(partyId).getBalance();
 
         // 충전 가능 금액 계산
         LocalDateTime startOfMonth = YearMonth.now().atDay(1).atStartOfDay();
@@ -52,6 +48,6 @@ public class ChargeQueryService {
         BigDecimal remainingLimit = MONTHLY_LIMIT.subtract(chargedThisMonth).max(BigDecimal.ZERO);
 
         return ChargeInitResponse.of(
-                partyId, balance, MONTHLY_LIMIT, remainingLimit, DISCOUNT_RATE, accounts);
+                partyId, walletBalance, MONTHLY_LIMIT, remainingLimit, DISCOUNT_RATE, accounts);
     }
 }

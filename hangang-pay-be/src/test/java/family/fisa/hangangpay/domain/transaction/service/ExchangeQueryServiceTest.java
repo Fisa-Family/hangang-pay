@@ -9,6 +9,8 @@ import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
 import family.fisa.hangangpay.domain.transaction.service.exchange.ExchangeQueryService;
+import family.fisa.hangangpay.domain.wallet.dto.WalletBalanceResponse;
+import family.fisa.hangangpay.domain.wallet.service.WalletQueryService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -25,6 +27,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 class ExchangeQueryServiceTest {
 
     @Mock TransactionRepository transactionRepository;
+    @Mock WalletQueryService walletQueryService;
 
     @InjectMocks ExchangeQueryService exchangeQueryService;
 
@@ -42,13 +45,10 @@ class ExchangeQueryServiceTest {
         return tx;
     }
 
-    private void stubWalletBalance(String charged, String paid, String exchanged) {
-        when(transactionRepository.sumAllSuccessByType(PARTY_ID, TransactionType.CHARGE))
-                .thenReturn(new BigDecimal(charged));
-        when(transactionRepository.sumAllSuccessByType(PARTY_ID, TransactionType.PAYMENT))
-                .thenReturn(new BigDecimal(paid));
-        when(transactionRepository.sumAllSuccessByType(PARTY_ID, TransactionType.EXCHANGE))
-                .thenReturn(new BigDecimal(exchanged));
+    private void stubWalletBalance(String balance) {
+        when(walletQueryService.getBalance(PARTY_ID))
+                .thenReturn(
+                        WalletBalanceResponse.builder().balance(new BigDecimal(balance)).build());
     }
 
     private void stubEligibilityCalculation(
@@ -121,7 +121,7 @@ class ExchangeQueryServiceTest {
         @Test
         @DisplayName("지갑 잔액 = 충전 - 결제 - 환전")
         void 잔액_계산() {
-            stubWalletBalance("100000", "30000", "20000");
+            stubWalletBalance("50000");
             when(transactionRepository.findLatestSuccessCharge(PARTY_ID))
                     .thenReturn(Optional.empty());
 
@@ -133,7 +133,7 @@ class ExchangeQueryServiceTest {
         @Test
         @DisplayName("충전 이력 없으면 eligible=false")
         void 충전이력_없으면_eligible_false() {
-            stubWalletBalance("0", "0", "0");
+            stubWalletBalance("0");
             when(transactionRepository.findLatestSuccessCharge(PARTY_ID))
                     .thenReturn(Optional.empty());
 
@@ -145,7 +145,7 @@ class ExchangeQueryServiceTest {
         @Test
         @DisplayName("자격 충족하면 eligible=true, 잔액도 함께 반환")
         void 자격충족_eligible_true() {
-            stubWalletBalance("130000", "42000", "0");
+            stubWalletBalance("88000");
             stubEligibilityCalculation("10000", "0", "0", "60000", "42000");
 
             ExchangeInitResponse result = exchangeQueryService.getExchangeInit(PARTY_ID);
