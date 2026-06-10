@@ -149,8 +149,9 @@ SMS 인증과 계좌 1원 인증은 mock으로 처리한다. 백엔드는 인증
 | `PAY-002` | 결제 의도 생성 | `POST` | `/payment/intents` | `O` | `USER` | 금액·가맹점 정보 전달; transactionUuid 반환 |
 | `PAY-003` | 결제 실행 | `POST` | `/payment/execute` | `O` | `USER` | 소비자 전용; 결과 SUCCESS/UNKNOWN=200, FAILED=4xx (상세는 Payment Flow) |
 | `PAY-004` | 결제 상태 복구 | `POST` | `/payment/{transactionUuid}/recover` | `O` | `USER` | 결제 실패·중단 시 상태 복구 |
-| `CHARGE-001` | 충전 정보 조회 | `GET` | `/charge/init` | `O` | `USER` | 충전 한도·할인 계산 포함 |
-| `CHARGE-002` | 충전 실행 | `POST` | `/charge` | `O` | `USER` | 소비자 전용 |
+| `CHARGE-001` | 충전 정보 조회 | `GET` | `/charge/init` | `O` | `USER` | 충전 한도·할인 계산 (조회 전용) |
+| `CHARGE-002` | 충전 의도 생성 | `POST` | `/charge/intents` | `O` | `USER` | FE 생성 `transactionUuid`; 금액·출금 계좌 바인딩, PENDING 의도 생성. PIN 없음 |
+| `CHARGE-003` | 충전 실행 | `POST` | `/charge/{transactionUuid}/execute` | `O` | `USER` | 소비자 전용; PIN 검증 → 충전 실행 |
 | `EXCHANGE-001` | 환전 정보 조회 | `GET` | `/exchange/init` | `O` | `USER \| MERCHANT` | 환전 가능 여부·예정 금액 포함 |
 | `EXCHANGE-002` | 환전 의도 생성 | `POST` | `/exchange/intents` | `O` | `USER` | FE 생성 `transactionUuid`; 자격(60%) 검증 후 PENDING 의도 생성. PIN 없음 |
 | `EXCHANGE-003` | 환전 실행 | `POST` | `/exchange/{transactionUuid}/execute` | `O` | `USER` | PIN 검증 → 1:1 계좌 환전 |

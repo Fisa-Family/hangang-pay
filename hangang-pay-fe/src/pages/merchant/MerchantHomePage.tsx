@@ -40,26 +40,29 @@ function RecentPaymentList() {
 
   return (
     <div className="flex flex-col">
-      {items.map((item, idx) => (
-        <div
-          key={item.transactionId}
-          className="flex items-center gap-3 py-3"
-          style={{ borderBottom: idx < items.length - 1 ? '1px solid var(--border)' : 'none' }}
-        >
-          <span className="w-10 shrink-0 text-[13px] text-muted-foreground">
-            {formatPaymentTime(item.createdAt)}
-          </span>
-          <span className="flex-1 truncate text-[14px] font-semibold text-foreground">
-            {item.payerName}
-          </span>
-          <span
-            className={`text-[14px] font-bold tabular-nums ${item.transactionType === 'CANCEL' ? 'text-destructive' : 'text-foreground'}`}
+      {items.map((item, idx) => {
+        const sign = item.transactionType === 'CANCEL' ? '-' : '+'
+        return (
+          <div
+            key={item.transactionId}
+            className="flex items-center gap-3 py-4.5"
+            style={{ borderBottom: idx < items.length - 1 ? '1px solid var(--border)' : 'none' }}
           >
-            {item.transactionType === 'CANCEL' ? '-' : '+'}
-            {formatWon(item.amount)}
-          </span>
-        </div>
-      ))}
+            <span className="w-10 shrink-0 text-[13px] text-muted-foreground">
+              {formatPaymentTime(item.createdAt)}
+            </span>
+            <span className="flex-1 truncate text-[14px] font-semibold text-foreground">
+              {item.payerName}
+            </span>
+            <span
+              className={`text-[14px] font-bold tabular-nums ${sign === '+' ? 'text-primary' : 'text-foreground'}`}
+            >
+              {sign}
+              {formatWon(item.amount)}
+            </span>
+          </div>
+        )
+      })}
     </div>
   )
 }

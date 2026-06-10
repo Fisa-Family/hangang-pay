@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/** 환전 상태 조회. */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -21,11 +22,10 @@ public class ExchangeQueryService {
     private final AccountLedgerRepository accountLedgerRepository;
     private final BlockchainLedgerRepository blockchainLedgerRepository;
 
-    /** 플랫폼의 transactionUuid로 두 ledger 정합성을 확인하고 응답을 만든다 */
     public ExchangeStatusResponse getStatus(String transactionUuid) {
         log.info("환전 상태 조회 시작. transactionUuid={}", transactionUuid);
 
-        // 1. account ledger조회
+        // bankTransactionId 제공용
         AccountLedger accountLedger =
                 accountLedgerRepository
                         .findByIdempotentKey(transactionUuid)
@@ -34,7 +34,7 @@ public class ExchangeQueryService {
                                         new BusinessException(
                                                 TransactionErrorCode.TRANSACTION_NOT_FOUND));
 
-        // 2. blockchain_ledger 조회
+        // 진행 상태 판정
         BlockchainLedger blockchainLedger =
                 blockchainLedgerRepository
                         .findByIdempotentKey(transactionUuid)
@@ -43,16 +43,14 @@ public class ExchangeQueryService {
                                         new BusinessException(
                                                 TransactionErrorCode.TRANSACTION_NOT_FOUND));
 
-        // 3. 두 ledger 모두 있음 -> SUCCESS 응답
         ExchangeStatusResponse response =
                 ExchangeStatusResponse.of(transactionUuid, accountLedger, blockchainLedger);
 
         log.info(
-                "환전 상태 조회 완료. transactionUuid={}, bankTransactionId={}, txHash={}",
+                "환전 상태 조회 완료. transactionUuid={}, status={}, txHash={}",
                 transactionUuid,
-                response.bankTransactionId(),
+                response.status(),
                 response.txHash());
-
         return response;
     }
 }

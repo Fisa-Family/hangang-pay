@@ -37,6 +37,28 @@ class BlockchainSyncMessageTest {
         assertThat(deserialized.blockchainLedgerId()).isEqualTo(3L);
         assertThat(deserialized.transactionUuid()).isEqualTo("uuid-1111");
         assertThat(deserialized.type()).isEqualTo(BlockchainSyncType.PAYMENT);
+        assertThat(deserialized.retryCount()).isZero();
+    }
+
+    @Test
+    @DisplayName("retryCount가 없는 기존 메시지도 retryCount=0으로 역직렬화된다")
+    void deserializesLegacyMessageWithoutRetryCount() throws Exception {
+        String json =
+                """
+                {
+                  "messageId": "outbox-7",
+                  "outboxId": 7,
+                  "blockchainLedgerId": 3,
+                  "transactionUuid": "uuid-1111",
+                  "type": "PAYMENT",
+                  "payload": {"fromWalletAddress":"0xA","toWalletAddress":"0xB","amount":100}
+                }
+                """;
+
+        BlockchainSyncMessage deserialized =
+                objectMapper.readValue(json, BlockchainSyncMessage.class);
+
+        assertThat(deserialized.retryCount()).isZero();
     }
 
     @Test
@@ -48,7 +70,7 @@ class BlockchainSyncMessageTest {
                 new CancelBlockchainPayload("orig-uuid", "0xA", "0xB", new BigDecimal("50"));
         ChargeBlockchainPayload charge = new ChargeBlockchainPayload("0xC", new BigDecimal("10"));
         ExchangeBlockchainPayload exchange =
-                new ExchangeBlockchainPayload("0xD", new BigDecimal("20"));
+                new ExchangeBlockchainPayload(1L, "0xD", new BigDecimal("20"));
 
         assertThat(payment.fromWalletAddress()).isEqualTo("0xA");
         assertThat(cancel.originalTransactionUuid()).isEqualTo("orig-uuid");

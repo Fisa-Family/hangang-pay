@@ -97,12 +97,19 @@ public class TransactionRepositoryImpl implements TransactionRepository {
                 partyId, type, status, startOfMonth, startOfNextMonth);
     }
 
-    /** 가장 최근 SUCCESS CHARGE 1건 조회 */
+    /** 가장 최근 SUCCESS CHARGE 1건 조회 - 환전 자격 검증용 */
     @Override
     public Optional<Transaction> findLatestSuccessCharge(Long partyId) {
         return jpaRepository
                 .findFirstByFromParty_IdAndTransactionTypeAndStatusOrderByCreatedAtDescIdDesc(
                         partyId, TransactionType.CHARGE, TransactionStatus.SUCCESS);
+    }
+
+    /** 만료 대상 - CHARGE + PENDING + createdAt < threshold */
+    @Override
+    public List<Transaction> findStalePendingChargeIntents(LocalDateTime threshold) {
+        return jpaRepository.findStalePendingExchangeIntents(
+                TransactionType.CHARGE, TransactionStatus.PENDING, threshold);
     }
 
     /** 특정 시점 이전(exclusive) SUCCESS 거래 유형별 누적 금액 */
@@ -123,14 +130,6 @@ public class TransactionRepositoryImpl implements TransactionRepository {
     public boolean existsSuccessCancelByOriginalTransactionUuid(String originalTransactionUuid) {
         return jpaRepository.existsByOriginalTransactionUuidAndTransactionTypeAndStatus(
                 originalTransactionUuid, TransactionType.CANCEL, TransactionStatus.SUCCESS);
-    }
-
-    /** 가장 최근 PENDING CHARGE 1건 조회 - 중복 init 방지용 */
-    @Override
-    public Optional<Transaction> findLatestPendingCharge(Long partyId) {
-        return jpaRepository
-                .findFirstByFromParty_IdAndTransactionTypeAndStatusOrderByCreatedAtDescIdDesc(
-                        partyId, TransactionType.CHARGE, TransactionStatus.PENDING);
     }
 
     /** 전체 기간 거래 유형별 SUCCESS 누적 금액 조회 */

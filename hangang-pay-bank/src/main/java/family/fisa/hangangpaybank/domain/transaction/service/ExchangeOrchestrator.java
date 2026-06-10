@@ -1,69 +1,42 @@
 package family.fisa.hangangpaybank.domain.transaction.service;
 
-import family.fisa.hangangpaybank.domain.blockchain.service.ContractCallService;
-import family.fisa.hangangpaybank.domain.transaction.code.error.TransactionErrorCode;
 import family.fisa.hangangpaybank.domain.transaction.dto.request.ExchangeRequest;
 import family.fisa.hangangpaybank.domain.transaction.dto.response.ExchangeResponse;
 import family.fisa.hangangpaybank.global.exception.BusinessException;
-import java.math.BigDecimal;
-import java.math.BigInteger;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.web3j.protocol.core.methods.response.TransactionReceipt;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class ExchangeOrchestrator {
 
-    /** ERC20 기본 decimals (1e18) - BigDecimal 금액을 컨트랙트 단위로 변환할 때 사용 */
-    private static final BigInteger TOKEN_DECIMALS = BigInteger.TEN.pow(18);
-
-    private final ExchangeStateWriter stateWriter;
-    private final ContractCallService contractCallService;
+    private final ExchangeStateWriter exchangeStateWriter;
+    private final ExchangeExecutionService exchangeExecutionService;
 
     public ExchangeResponse exchange(ExchangeRequest request) {
-        log.info(
-                "[bank] exchange 시작. transactionUuid={}, institutionId={}, amount={}",
-                request.transactionUuid(),
-                request.institutionId(),
-                request.amount());
-
-        // 1. PENDING 슬록 선점 (REQUIRES_NEW)
-        Long ledgerId = stateWriter.claimExchange(request);
-
-        // 2. 컨트렉트 호출
-        TransactionReceipt receipt;
         try {
-            receipt =
-                    contractCallService.refund(
-                            request.institutionId(),
-                            request.walletAddress(),
-                            toTokenUnit(request.amount()));
-        } catch (Exception e) {
-            log.error(
-                    "[bank] exchange 컨트렉트 실패. transactionUuid={}, ledgerId={}",
+            // 환전 실행 (현금 선입금 + account_ledger SUCCESS + outbox NEW)를 메인 트랜잭션에 위힘
+            return exchangeExecutionService.exchange(request);
+        } catch (BusinessException e) {
+            log.warn(
+                    "[bank] exchange 비즈니스 실패. transactionUuid={}, message={}",
                     request.transactionUuid(),
-                    ledgerId,
-                    e);
-            stateWriter.failExchange(ledgerId, request);
-            throw new BusinessException(TransactionErrorCode.EXCHANGE_CONTRACT_FAILED);
+                    e.getMessage());
+
+            // 실패 기록 (account_ledger FAILED)을 돌깁 트랜잭션으로 남긴다.
+            // 보상 자체가 실패하더라고 원래 예외를 그대로 전파해야 하므로 별도 Try/catch로 감싼다
+            try {
+                exchangeStateWriter.saveFailedAccountLedger(request);
+            } catch (Exception compensationError) {
+                log.error(
+                        "[bank] 실패 보상 기록 중 오류(원 예외는 그대로 전파). transactionUuid={}",
+                        request.transactionUuid(),
+                        compensationError);
+            }
+
+            throw e;
         }
-
-        // 3. 성공 확정 (REQUIRES_NEW)
-        ExchangeResponse response = stateWriter.completeExchange(ledgerId, request, receipt);
-
-        log.info(
-                "[bank] exchange 완료. transactionUuid={}, ledgerId={}, txHash={}",
-                request.transactionUuid(),
-                ledgerId,
-                response.txHash());
-
-        return response;
-    }
-
-    private static BigInteger toTokenUnit(BigDecimal amount) {
-        return amount.multiply(new BigDecimal(TOKEN_DECIMALS)).toBigInteger();
     }
 }
