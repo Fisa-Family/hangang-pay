@@ -5,6 +5,7 @@ import { ApiError } from '@/api/client'
 import {
   cancelMerchantPayment,
   fetchMerchantPaymentDetail,
+  recoverMerchantCancel,
   type PaymentCancelResult,
 } from '@/api/merchant'
 import { Store } from 'lucide-react'
@@ -22,7 +23,7 @@ import { formatDateTime, formatWon } from '@/lib/format'
 
 const PIN_LENGTH = 6
 
-type Step = 'detail' | 'pin' | 'processing' | 'result'
+type Step = 'detail' | 'pin' | 'processing' | 'unknown' | 'result'
 
 export function MerchantPaymentDetailPage() {
   const navigate = useNavigate()
@@ -49,15 +50,34 @@ export function MerchantPaymentDetailPage() {
         setResult(res)
         setStep('result')
       } else {
-        // 미확정(UNKNOWN): 토스트 후 상세 복귀
-        setToast('취소 상태를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.')
+        // 미확정(UNKNOWN/PROCESSING): 재시도(복구) 단계로 전환
         setPin('')
-        setStep('detail')
+        setStep('unknown')
       }
     },
     onError: (err) => {
       setToast(err instanceof ApiError ? err.message : '결제를 취소하지 못했습니다.')
       setPin('')
+      setStep('detail')
+    },
+  })
+
+  // UNKNOWN 취소 건을 Bank 상태 조회로 수렴 — recover API 호출
+  const recoverMutation = useMutation({
+    mutationFn: () => recoverMerchantCancel(transactionId),
+    onSuccess: (res) => {
+      if (res.status === 'SUCCESS') {
+        setResult(res)
+        setStep('result')
+      } else if (res.status === 'FAILED') {
+        // 실패로 확정 → 토스트 후 상세 복귀
+        setToast('취소가 실패로 확정되었습니다.')
+        setStep('detail')
+      }
+      // 그 외(UNKNOWN/PROCESSING): unknown 단계 유지
+    },
+    onError: (err) => {
+      setToast(err instanceof ApiError ? err.message : '취소 상태를 확인하지 못했습니다.')
       setStep('detail')
     },
   })
@@ -91,9 +111,33 @@ export function MerchantPaymentDetailPage() {
   const detail = detailQuery.data?.detail
   const amount = result?.amount ?? detail?.amount ?? 0
 
-  // 취소 처리중
-  if (step === 'processing') {
-    return <ProcessingView title="결제를 취소하고 있어요" amount={amount} />
+  // 취소 처리중 (recover 대기 포함)
+  if (step === 'processing' || recoverMutation.isPending) {
+    return (
+      <ProcessingView
+        title={recoverMutation.isPending ? '취소 상태를 확인하고 있어요' : '결제를 취소하고 있어요'}
+        amount={amount}
+      />
+    )
+  }
+
+  // 취소 미확정(UNKNOWN) → 재시도(복구) 화면
+  if (step === 'unknown') {
+    return (
+      <div className="flex h-full items-center justify-center px-5">
+        <ResultState
+          variant="info"
+          title="취소 상태를 확인 중이에요"
+          description={
+            '네트워크 지연으로 취소 결과가 아직 확정되지 않았어요.\n다시 확인해 취소 상태를 조회해 주세요.\n같은 취소가 중복 처리되지는 않습니다.'
+          }
+          primaryText="다시 확인"
+          onPrimary={() => recoverMutation.mutate()}
+          secondaryText="닫기"
+          onSecondary={() => setStep('detail')}
+        />
+      </div>
+    )
   }
 
   // 취소 완료

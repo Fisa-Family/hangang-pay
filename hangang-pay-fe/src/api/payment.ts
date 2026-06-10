@@ -47,7 +47,7 @@ export function executePayment(
   })
 }
 
-// PAY-004: 결제 상태 복구
-export function recoverPayment(transactionUuid: string): Promise<void> {
-  return apiFetch<void>(`/payment/${transactionUuid}/recover`, { method: 'POST' })
+// PAY-004: 결제 상태 복구 (BE: PaymentExecutionResponse — status로 SUCCESS/FAILED/PROCESSING 수렴)
+export function recoverPayment(transactionUuid: string): Promise<PaymentResult> {
+  return apiFetch<PaymentResult>(`/payment/${transactionUuid}/recover`, { method: 'POST' })
 }

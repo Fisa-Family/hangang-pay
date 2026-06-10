@@ -10,4 +10,28 @@ public record BlockchainSyncMessage(
         Long blockchainLedgerId,
         String transactionUuid,
         BlockchainSyncType type,
-        JsonNode payload) {}
+        JsonNode payload,
+        int retryCount) {
+
+    public BlockchainSyncMessage(
+            String messageId,
+            Long outboxId,
+            Long blockchainLedgerId,
+            String transactionUuid,
+            BlockchainSyncType type,
+            JsonNode payload) {
+        this(messageId, outboxId, blockchainLedgerId, transactionUuid, type, payload, 0);
+    }
+
+    /** retryCount만 바꾼 재발행용 메시지 복사본을 만든다. */
+    public BlockchainSyncMessage withRetryCount(int retryCount) {
+        return new BlockchainSyncMessage(
+                messageId,
+                outboxId,
+                blockchainLedgerId,
+                transactionUuid,
+                type,
+                payload,
+                retryCount);
+    }
+}

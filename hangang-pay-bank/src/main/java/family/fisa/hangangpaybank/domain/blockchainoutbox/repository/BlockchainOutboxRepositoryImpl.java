@@ -3,8 +3,11 @@ package family.fisa.hangangpaybank.domain.blockchainoutbox.repository;
 import family.fisa.hangangpaybank.domain.blockchainoutbox.entity.BlockchainOutbox;
 import family.fisa.hangangpaybank.domain.blockchainoutbox.entity.BlockchainOutboxStatus;
 import family.fisa.hangangpaybank.domain.blockchainoutbox.repository.jpa.BlockchainOutboxJpaRepository;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -21,5 +24,17 @@ public class BlockchainOutboxRepositoryImpl implements BlockchainOutboxRepositor
     @Override
     public List<BlockchainOutbox> findAllByStatus(BlockchainOutboxStatus status) {
         return jpaRepository.findAllByStatus(status);
+    }
+
+    @Override
+    public Optional<BlockchainOutbox> findByBlockchainLedgerId(Long blockchainLedgerId) {
+        return jpaRepository.findByBlockchainLedgerId(blockchainLedgerId);
+    }
+
+    @Override
+    public List<BlockchainOutbox> findStaleByStatus(
+            BlockchainOutboxStatus status, LocalDateTime updatedBefore, int limit) {
+        return jpaRepository.findByStatusAndUpdatedAtBeforeOrderByUpdatedAtAsc(
+                status, updatedBefore, PageRequest.of(0, limit));
     }
 }

@@ -13,7 +13,6 @@ export interface ChargeAccount {
 // 충전 초기화 응답
 export interface ChargeInitData {
   partyId: number
-  transactionUuid: string
   balance: number
   monthlyLimit: number
   remainingLimit: number
@@ -26,16 +25,18 @@ export function fetchChargeInit(): Promise<ChargeInitData> {
   return apiFetch<ChargeInitData>('/charge/init')
 }
 
-// 충전 실행 요청 바디
-export interface ChargeExecuteRequest {
+// CHARGE-002: 충전 의도 생성 응답 (BE: ChargeIntentResponse)
+export interface ChargeIntentResult {
   transactionUuid: string
-  institutionId: number
-  accountId: number
+  status: string
   amount: number
-  paymentPin: string
+  finalAmount: number
+  accountNumber: string
+  bankName: string
+  expiresAt: string
 }
 
-// 충전 실행 결과
+// 충전 실행 결과 (BE: ChargeExecuteResponse)
 export interface ChargeExecuteResult {
   partyId: number
   chargeId: number
@@ -44,10 +45,26 @@ export interface ChargeExecuteResult {
   chargedAt: string
 }
 
-// 충전 실행 요청
-export function executeCharge(body: ChargeExecuteRequest): Promise<ChargeExecuteResult> {
-  return apiFetch<ChargeExecuteResult>('/charge', {
+// CHARGE-002: 충전 의도 생성 (PIN 없음). transactionUuid는 클라 생성 멱등키.
+export function createChargeIntent(body: {
+  transactionUuid: string
+  institutionId: number
+  accountId: number
+  amount: number
+}): Promise<ChargeIntentResult> {
+  return apiFetch<ChargeIntentResult>('/charge/intents', {
     method: 'POST',
     body: JSON.stringify(body),
+  })
+}
+
+// CHARGE-003: 충전 실행 (PIN). uuid는 path로 전달.
+export function executeCharge(
+  transactionUuid: string,
+  paymentPin: string
+): Promise<ChargeExecuteResult> {
+  return apiFetch<ChargeExecuteResult>(`/charge/${transactionUuid}/execute`, {
+    method: 'POST',
+    body: JSON.stringify({ paymentPin }),
   })
 }

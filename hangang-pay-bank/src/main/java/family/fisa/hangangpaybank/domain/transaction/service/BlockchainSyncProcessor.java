@@ -9,8 +9,10 @@ import family.fisa.hangangpaybank.domain.blockchain.repository.BlockchainLedgerR
 import family.fisa.hangangpaybank.domain.blockchain.service.ContractCallService;
 import family.fisa.hangangpaybank.domain.blockchainoutbox.dto.BlockchainSyncMessage;
 import family.fisa.hangangpaybank.domain.blockchainoutbox.dto.payload.CancelBlockchainPayload;
+import family.fisa.hangangpaybank.domain.blockchainoutbox.dto.payload.ExchangeBlockchainPayload;
 import family.fisa.hangangpaybank.domain.blockchainoutbox.dto.payload.PaymentBlockchainPayload;
 import family.fisa.hangangpaybank.global.exception.BusinessException;
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +31,9 @@ import org.web3j.protocol.core.methods.response.TransactionReceipt;
 @Service
 @RequiredArgsConstructor
 public class BlockchainSyncProcessor {
+
+    /** ERC20 기본 decimals (1e18). 환전(refund)은 charge 계열과 동일하게 1e18 스케일 적용. */
+    private static final BigInteger TOKEN_DECIMALS = BigInteger.TEN.pow(18);
 
     // 일시적 인프라 장애만 재시도 대상. 비즈니스/데이터 오류는 retry해도 해소되지 않으므로 FATAL 처리.
     private static final Set<BlockchainErrorCode> RETRYABLE =
@@ -61,13 +66,17 @@ public class BlockchainSyncProcessor {
             // 2. txHash로 receipt 가져오기 - 블록체인 노드 폴링
             TransactionReceipt receipt = contractCallService.waitForReceiptByHash(txHash);
 
-            // 3. 성공 -> 즉시 커밋 (REQUIRES_NEW)
-            ledgerStateWriter.markSuccess(ledger.getId(), message.transactionUuid(), receipt);
-
+            // 3. receipt 결과 -> 즉시 커밋 (REQUIRES_NEW)
+            if (receipt.isStatusOK()) {
+                ledgerStateWriter.markSuccess(ledger.getId(), message.transactionUuid(), receipt);
+            } else {
+                ledgerStateWriter.markFailed(ledger.getId(), message.transactionUuid());
+            }
             log.info(
-                    "[consumer] PAYMENT SUCCESS. uuid={}, txHash={}",
+                    "[consumer] PAYMENT receipt 처리 완료. uuid={}, txHash={}, statusOk={}",
                     message.transactionUuid(),
-                    txHash);
+                    txHash,
+                    receipt.isStatusOK());
 
         } catch (BusinessException e) {
             // 4. 실패 -> retryable이면 DLQ에 적재, 아닐 경우 FAILED 처리
@@ -90,15 +99,82 @@ public class BlockchainSyncProcessor {
         try {
             String txHash = resolveCancelTxHash(ledger, message, payload);
             TransactionReceipt receipt = contractCallService.waitForReceiptByHash(txHash);
-            ledgerStateWriter.markSuccess(ledger.getId(), message.transactionUuid(), receipt);
+            if (receipt.isStatusOK()) {
+                ledgerStateWriter.markSuccess(ledger.getId(), message.transactionUuid(), receipt);
+            } else {
+                ledgerStateWriter.markFailed(ledger.getId(), message.transactionUuid());
+            }
             log.info(
-                    "[consumer] CANCEL SUCCESS. uuid={}, txHash={}",
+                    "[consumer] CANCEL receipt 처리 완료. uuid={}, txHash={}, statusOk={}",
                     message.transactionUuid(),
-                    txHash);
+                    txHash,
+                    receipt.isStatusOK());
 
         } catch (BusinessException e) {
             handleFailure(e, ledger.getId(), message.transactionUuid());
         }
+    }
+
+    public void processExchange(BlockchainSyncMessage message) {
+        ExchangeBlockchainPayload payload = parsePayload(message, ExchangeBlockchainPayload.class);
+        BlockchainLedger ledger = loadLedger(message.blockchainLedgerId());
+
+        // 이미 처리된 메시지인 경우 무시 (재투입 멱등성)
+        if (isTerminal(ledger)) {
+            log.info(
+                    "[consumer] 이미 종료된 ledger. uuid={}, status={}",
+                    message.transactionUuid(),
+                    ledger.getStatus());
+            return;
+        }
+
+        try {
+            // 1. txHash 확보 (미제출 시 refund submit 후 SUBMITTED 체크포인트 커밋)
+            String txHash = resolveExchangeTxHash(ledger, message, payload);
+
+            // 2. txHash로 receipt 폴링
+            TransactionReceipt receipt = contractCallService.waitForReceiptByHash(txHash);
+
+            // 3. 성공 -> SUCCESS 즉시 커밋 (REQUIRES_NEW)
+            ledgerStateWriter.markSuccess(ledger.getId(), message.transactionUuid(), receipt);
+
+            log.info(message.transactionUuid(), txHash);
+
+        } catch (BusinessException e) {
+            // retryable이면 NACK 후 DLQ, 아니면 FAILED 마킹.
+            // 주의: 환전은 토큰/현금을 요청 스레드에서 선반영하므로 FAILED 시 수동 정산 대상.
+            handleFailure(e, ledger.getId(), message.transactionUuid());
+        }
+    }
+
+    /**
+     * 환전 txHash 확보. 이미 SUBMITTED(txHash 존재)면 재제출 없이 재사용, 없으면 refund(burn) 제출 후 SUBMITTED 체크포인트 즉시
+     * 커밋. (프로세스 재시작 시 재제출 방지)
+     */
+    private String resolveExchangeTxHash(
+            BlockchainLedger ledger,
+            BlockchainSyncMessage message,
+            ExchangeBlockchainPayload payload) {
+        if (ledger.getTxHash() != null) {
+            log.info("[consumer] 기존 txHash 재사용. uuid={}", message.transactionUuid());
+            return ledger.getTxHash();
+        }
+        // 환전(refund)은 charge와 동일하게 1e18 스케일. (pay/cancel은 스케일 없이 쓰는 것과 다름)
+        BigInteger amount = toTokenUnit(payload.amount());
+        SubmittedBlockchainTx submitted =
+                contractCallService.submitRefund(
+                        payload.institutionId(), payload.walletAddress(), amount);
+        ledgerStateWriter.markSubmitted(
+                ledger.getId(), message.transactionUuid(), submitted.txHash());
+        log.info(
+                "[consumer] EXCHANGE submitted. uuid={}, txHash={}",
+                message.transactionUuid(),
+                submitted.txHash());
+        return submitted.txHash();
+    }
+
+    private static BigInteger toTokenUnit(BigDecimal amount) {
+        return amount.multiply(new BigDecimal(TOKEN_DECIMALS)).toBigInteger();
     }
 
     /**

@@ -48,7 +48,7 @@ dependencies {
 
 	implementation 'org.web3j:core:4.12.3'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.17'
-  
+
 	runtimeOnly 'io.micrometer:micrometer-registry-prometheus' // 메트릭 노출: /actuator/prometheus → Alloy 스크랩
 	implementation 'io.sentry:sentry-spring-boot-starter-jakarta:8.28.0' // Sentry (에러 추적 + 성능 트레이싱). SENTRY_DSN 미설정 시 비활성
 	implementation 'io.sentry:sentry-logback:8.28.0'

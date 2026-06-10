@@ -1,13 +1,13 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
-import { executePayment, recoverPayment } from '@/api/payment'
-import { executeCharge } from '@/api/charge'
+import { executePayment, recoverPayment, type PaymentResult } from '@/api/payment'
+import { createChargeIntent, executeCharge } from '@/api/charge'
 import { createExchangeIntent, executeExchange } from '@/api/exchange'
 import { registerUser, registerMerchant } from '@/api/auth'
 import { ApiError } from '@/api/client'
-import { ProcessingView } from '@/components/common'
+import { ProcessingView, ResultState } from '@/components/common'
 
 type FlowState = Record<string, unknown>
 
@@ -18,6 +18,10 @@ interface FlowConfig {
   errorPath: string
   defaultError: string
   run: (state: FlowState) => Promise<unknown>
+  // 결과 status를 추출하는 flow만 UNKNOWN(미확정) 재시도 단계를 지원한다.
+  resolveStatus?: (result: unknown) => string
+  // UNKNOWN일 때 "다시 확인"이 호출하는 복구(recover) API.
+  recover?: (state: FlowState) => Promise<unknown>
   buildErrorState?: (state: FlowState, message: string) => Record<string, unknown>
   onComplete?: (queryClient: QueryClient) => void
 }
@@ -35,18 +39,10 @@ const FLOWS: Record<string, FlowConfig> = {
     completePath: '/pay/complete',
     errorPath: '/pay/confirm',
     defaultError: '결제 처리 중 오류가 발생했습니다.',
-    async run(state) {
-      try {
-        return await executePayment(state.transactionUuid as string, state.pin as string)
-      } catch (err) {
-        try {
-          await recoverPayment(state.transactionUuid as string)
-        } catch {
-          // recover는 best-effort, 실패해도 원래 에러를 그대로 throw
-        }
-        throw err
-      }
-    },
+    run: (state) => executePayment(state.transactionUuid as string, state.pin as string),
+    // 200 UNKNOWN(미확정)은 throw되지 않으므로 status로 분기한다. FAILED는 BE가 4xx로 throw → catch 처리.
+    resolveStatus: (result) => (result as PaymentResult).status,
+    recover: (state) => recoverPayment(state.transactionUuid as string),
     onComplete: (queryClient) => {
       invalidateUserTransactionQueries(queryClient)
     },
@@ -56,14 +52,16 @@ const FLOWS: Record<string, FlowConfig> = {
     completePath: '/charge/complete',
     errorPath: '/charge/amount',
     defaultError: '충전 처리 중 오류가 발생했습니다.',
-    run: (state) =>
-      executeCharge({
+    async run(state) {
+      // 1) intent 생성(PENDING 커밋, PIN 없음) → 2) 실행(PIN). bank 실패 시 intent가 남아 복구된다.
+      await createChargeIntent({
         transactionUuid: state.transactionUuid as string,
         institutionId: state.institutionId as number,
         accountId: state.accountId as number,
         amount: state.amount as number,
-        paymentPin: state.pin as string,
-      }),
+      })
+      return executeCharge(state.transactionUuid as string, state.pin as string)
+    },
     onComplete: (queryClient) => {
       invalidateUserTransactionQueries(queryClient)
       void queryClient.invalidateQueries({ queryKey: ['charge', 'init'] })
@@ -141,25 +139,97 @@ export function ProcessingPage() {
   const state = location.state as FlowState | null
   const calledRef = useRef(false)
   const flow = FLOWS[location.pathname]
+  // UNKNOWN(미확정) 결과를 화면 내에 머무르게 하기 위한 상태
+  const [unknownResult, setUnknownResult] = useState<unknown>(null)
+  const [isRecovering, setIsRecovering] = useState(false)
+
+  // 실패/에러 시 직전 화면으로 복귀하며 실패 사유 전달
+  const goError = useCallback(
+    (message: string) => {
+      if (!flow) return
+      const errorState = flow.buildErrorState
+        ? flow.buildErrorState(state ?? {}, message)
+        : { error: message, amount: state?.amount }
+      navigate(flow.errorPath, { state: errorState, replace: true })
+    },
+    [flow, navigate, state]
+  )
+
+  // run/recover 결과를 status에 따라 분기 (resolveStatus 미지원 flow는 무조건 완료)
+  const applyResult = useCallback(
+    (result: unknown) => {
+      if (!flow) return
+      const status = flow.resolveStatus?.(result)
+      if (!flow.resolveStatus || status === 'SUCCESS') {
+        flow.onComplete?.(queryClient)
+        navigate(flow.completePath, { state: result, replace: true })
+        return
+      }
+      if (status === 'FAILED') {
+        goError('결제가 실패로 확정되었습니다.')
+        return
+      }
+      // UNKNOWN / PROCESSING → 재시도 단계 유지
+      setUnknownResult(result)
+    },
+    [flow, navigate, queryClient, goError]
+  )
+
+  const handleError = useCallback(
+    (err: unknown) => {
+      const message =
+        err instanceof ApiError ? err.message : (flow?.defaultError ?? '오류가 발생했습니다.')
+      goError(message)
+    },
+    [flow, goError]
+  )
 
   useEffect(() => {
     if (!state || !flow || calledRef.current) return
     calledRef.current = true
+    flow.run(state).then(applyResult).catch(handleError)
+  }, [state, flow, applyResult, handleError])
 
+  // UNKNOWN 단계에서 "다시 확인" → recover 호출 후 동일 분기 재사용
+  const handleRecover = () => {
+    if (!flow?.recover || !state || isRecovering) return
+    setIsRecovering(true)
+    setUnknownResult(null)
     flow
-      .run(state)
-      .then((result) => {
-        flow.onComplete?.(queryClient)
-        navigate(flow.completePath, { state: result, replace: true })
-      })
-      .catch((err) => {
-        const message = err instanceof ApiError ? err.message : flow.defaultError
-        const errorState = flow.buildErrorState
-          ? flow.buildErrorState(state, message)
-          : { error: message, amount: state.amount }
-        navigate(flow.errorPath, { state: errorState, replace: true })
-      })
-  }, [state, flow, navigate, queryClient])
+      .recover(state)
+      .then(applyResult)
+      .catch(handleError)
+      .finally(() => setIsRecovering(false))
+  }
+
+  // recover 대기 중
+  if (isRecovering) {
+    return (
+      <div className="h-dvh bg-background">
+        <ProcessingView
+          title="결제 상태를 확인하고 있어요"
+          amount={state?.amount as number | undefined}
+        />
+      </div>
+    )
+  }
+
+  // UNKNOWN(미확정) 재시도 화면
+  if (unknownResult) {
+    return (
+      <div className="flex h-dvh items-center justify-center bg-background px-5">
+        <ResultState
+          variant="info"
+          title="결제 상태를 확인 중이에요"
+          description={'현재 서버 네트워크에 오류가 발생했어요.\n 서버가 복구되는 대로 바로 확인 가능해요!\n'}
+          primaryText="다시 확인"
+          onPrimary={handleRecover}
+          secondaryText="홈으로"
+          onSecondary={() => navigate('/home', { replace: true })}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="h-dvh bg-background">

@@ -687,6 +687,23 @@ public class ContractCallService {
     }
 
     /**
+     * refund(토큰 burn)를 제출만 하고 txHash를 반환한다(receipt 대기 안 함). 비동기 환전 컨슈머에서 사용. 동기 {@link #refund}와
+     * 동일한 시그니처(refund(uint256,address,uint256)). refund엔 bytes32 멱등키 인자 없음.
+     */
+    public SubmittedBlockchainTx submitRefund(
+            Long institutionId, String userAddress, BigInteger amount) {
+        Function function =
+                new Function(
+                        "refund",
+                        List.of(
+                                new Uint256(BigInteger.valueOf(institutionId)),
+                                new Address(userAddress),
+                                new Uint256(amount)),
+                        List.of());
+        return submitContractFunction(ContractType.LOCAL_CURRENCY, DEFAULT_GAS_LIMIT, function);
+    }
+
+    /**
      * revert 데이터의 selector를 추출하여 등록된 컨트랙트 custom error와 매칭되는 경우 대응되는 BusinessException을 발생시킨다.
      *
      * <p>예: MerchantNotRegistered() → BLOCKCHAIN_MERCHANT_NOT_REGISTERED

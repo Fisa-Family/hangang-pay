@@ -1,9 +1,13 @@
 package family.fisa.hangangpaybank.domain.blockchain.repository;
 
 import family.fisa.hangangpaybank.domain.blockchain.entity.BlockchainLedger;
+import family.fisa.hangangpaybank.domain.blockchain.entity.BlockchainTxStatus;
 import family.fisa.hangangpaybank.domain.blockchain.repository.jpa.BlockchainLedgerJpaRepository;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -30,5 +34,19 @@ public class BlockchainLedgerRepositoryImpl implements BlockchainLedgerRepositor
     @Override
     public Optional<BlockchainLedger> findByIdempotentKey(String idempotentKey) {
         return jpaRepository.findByIdempotentKey(idempotentKey);
+    }
+
+    @Override
+    public List<BlockchainLedger> findStaleByStatus(
+            BlockchainTxStatus status, LocalDateTime updatedBefore, int limit) {
+        return jpaRepository.findByStatusAndUpdatedAtBeforeOrderByUpdatedAtAsc(
+                status, updatedBefore, PageRequest.of(0, limit));
+    }
+
+    @Override
+    public List<BlockchainLedger> findStaleWithTxHashByStatus(
+            BlockchainTxStatus status, LocalDateTime updatedBefore, int limit) {
+        return jpaRepository.findByStatusAndTxHashIsNotNullAndUpdatedAtBeforeOrderByUpdatedAtAsc(
+                status, updatedBefore, PageRequest.of(0, limit));
     }
 }
