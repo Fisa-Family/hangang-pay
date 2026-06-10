@@ -1,32 +1,25 @@
 package family.fisa.hangangpaybank.domain.transaction.dto.response;
 
-import family.fisa.hangangpaybank.domain.blockchain.entity.BlockchainLedger;
-import family.fisa.hangangpaybank.domain.blockchain.entity.BlockchainTxStatus;
+import family.fisa.hangangpaybank.domain.ledger.entity.WalletLedger;
+import family.fisa.hangangpaybank.domain.ledger.entity.WalletLedgerStatus;
 import java.time.LocalDateTime;
 
 public record PaymentStatusResponse(
-        String transactionUuid,
-        Long bankTransactionId,
-        String status,
-        String txHash,
-        LocalDateTime confirmedAt) {
+        String transactionUuid, Long bankTransactionId, String status, LocalDateTime confirmedAt) {
 
-    /** blockchain_ledger 상태를 클라이언트 응답 상태로 변환한다 */
-    public static PaymentStatusResponse of(String transactionUuid, BlockchainLedger ledger) {
-        String mappedStatus = mapStatus(ledger.getStatus());
+    public static PaymentStatusResponse of(String transactionUuid, WalletLedger ledger) {
         return new PaymentStatusResponse(
                 transactionUuid,
                 ledger.getId(),
-                mappedStatus,
-                ledger.getTxHash(),
+                mapStatus(ledger.getStatus()),
                 ledger.getConfirmedAt());
     }
 
-    private static String mapStatus(BlockchainTxStatus status) {
+    private static String mapStatus(WalletLedgerStatus status) {
         return switch (status) {
             case SUCCESS -> "SUCCESS";
             case FAILED -> "FAILED";
-            case PENDING, SUBMITTED -> "PROCESSING";
+            case PENDING -> "PROCESSING";
         };
     }
 }

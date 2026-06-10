@@ -98,7 +98,7 @@ export function ChargeAmountPage() {
       state: {
         nextRoute: '/charge/processing',
         cancelRoute: '/charge/amount',
-        transactionUuid: data.transactionUuid,
+        transactionUuid: crypto.randomUUID(),
         institutionId: selectedAccount.institutionId,
         accountId: selectedAccount.accountId,
         amount,

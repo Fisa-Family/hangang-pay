@@ -24,6 +24,15 @@ public class RabbitMqConfig {
     public static final String DLQ_EXCHANGE = "blockchain-sync.dlq";
     public static final String DLQ_QUEUE = "blockchain-sync.dlq";
     public static final String DLQ_ROUTING_KEY = "blockchain-sync.dlq";
+    public static final String RETRY_10S_QUEUE = "blockchain-sync.retry.10s";
+    public static final String RETRY_10S_ROUTING_KEY = "blockchain.sync.retry.10s";
+    public static final int RETRY_10S_TTL_MS = 10_000;
+    public static final String RETRY_1M_QUEUE = "blockchain-sync.retry.1m";
+    public static final String RETRY_1M_ROUTING_KEY = "blockchain.sync.retry.1m";
+    public static final int RETRY_1M_TTL_MS = 60_000;
+    public static final String RETRY_5M_QUEUE = "blockchain-sync.retry.5m";
+    public static final String RETRY_5M_ROUTING_KEY = "blockchain.sync.retry.5m";
+    public static final int RETRY_5M_TTL_MS = 300_000;
 
     @Bean
     DirectExchange blockchainSyncExchange() {
@@ -63,6 +72,42 @@ public class RabbitMqConfig {
     }
 
     @Bean
+    Queue blockchainSyncRetry10sQueue() {
+        return retryQueue(RETRY_10S_QUEUE, RETRY_10S_TTL_MS);
+    }
+
+    @Bean
+    Binding blockchainSyncRetry10sBinding() {
+        return BindingBuilder.bind(blockchainSyncRetry10sQueue())
+                .to(blockchainSyncExchange())
+                .with(RETRY_10S_ROUTING_KEY);
+    }
+
+    @Bean
+    Queue blockchainSyncRetry1mQueue() {
+        return retryQueue(RETRY_1M_QUEUE, RETRY_1M_TTL_MS);
+    }
+
+    @Bean
+    Binding blockchainSyncRetry1mBinding() {
+        return BindingBuilder.bind(blockchainSyncRetry1mQueue())
+                .to(blockchainSyncExchange())
+                .with(RETRY_1M_ROUTING_KEY);
+    }
+
+    @Bean
+    Queue blockchainSyncRetry5mQueue() {
+        return retryQueue(RETRY_5M_QUEUE, RETRY_5M_TTL_MS);
+    }
+
+    @Bean
+    Binding blockchainSyncRetry5mBinding() {
+        return BindingBuilder.bind(blockchainSyncRetry5mQueue())
+                .to(blockchainSyncExchange())
+                .with(RETRY_5M_ROUTING_KEY);
+    }
+
+    @Bean
     MessageConverter jacksonMessageConverter(ObjectMapper objectMapper) {
         return new Jackson2JsonMessageConverter(objectMapper);
     }
@@ -75,14 +120,13 @@ public class RabbitMqConfig {
     }
 
     /**
-     * NACK 발생 시 메시지를 즉시 DLQ로 이동한다.
+     * 예상 밖 예외로 NACK 발생 시 메시지를 최종 DLQ로 이동한다.
      *
      * <p>Spring AMQP 기본값(defaultRequeueRejected=true)은 NACK 시 원래 큐로 재투입하는데, retryable 오류(RPC 장애 등)가
      * 해소되기 전까지 같은 메시지를 무한 반복 처리하는 문제가 생긴다.
      *
-     * <p>로컬 재시도(RetryInterceptor)를 두지 않는 이유: RPC 장애는 수십 초~수 분 단위 장애라 컨슈머 스레드를 블로킹하며 재시도해도 회복 가능성이
-     * 낮고, concurrency=1 구조에서 재시도 대기 중 다른 메시지를 처리하지 못하는 비용이 크다. DLQ에서 운영팀이 상황 확인 후 수동 재투입하는 방식이 더
-     * 안전하다.
+     * <p>retryable 오류는 listener가 명시적으로 retry queue에 republish하고 정상 반환해 원본 메시지를 ACK한다. 이 설정은 핸들러 누락
+     * 등 예상 밖 예외에 대한 안전망이다.
      */
     @Bean
     SimpleRabbitListenerContainerFactory rabbitListenerContainerFactory(
@@ -92,5 +136,13 @@ public class RabbitMqConfig {
         factory.setMessageConverter(converter);
         factory.setDefaultRequeueRejected(false);
         return factory;
+    }
+
+    private Queue retryQueue(String queueName, int ttlMs) {
+        return QueueBuilder.durable(queueName)
+                .ttl(ttlMs)
+                .deadLetterExchange(EXCHANGE)
+                .deadLetterRoutingKey(ROUTING_KEY)
+                .build();
     }
 }

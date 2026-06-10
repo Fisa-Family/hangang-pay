@@ -1,7 +1,6 @@
 package family.fisa.hangangpaybank.domain.transaction.service;
 
 import family.fisa.hangangpaybank.domain.blockchain.code.error.BlockchainErrorCode;
-import family.fisa.hangangpaybank.domain.blockchain.entity.BlockchainLedger;
 import family.fisa.hangangpaybank.domain.blockchainoutbox.dto.BlockchainSyncRequest;
 import family.fisa.hangangpaybank.domain.blockchainoutbox.dto.payload.CancelBlockchainPayload;
 import family.fisa.hangangpaybank.domain.blockchainoutbox.dto.payload.PaymentBlockchainPayload;
@@ -10,6 +9,7 @@ import family.fisa.hangangpaybank.domain.blockchainoutbox.port.BlockchainSyncReq
 import family.fisa.hangangpaybank.domain.institution.code.error.InstitutionErrorCode;
 import family.fisa.hangangpaybank.domain.institution.entity.BankWallet;
 import family.fisa.hangangpaybank.domain.institution.repository.BankWalletRepository;
+import family.fisa.hangangpaybank.domain.ledger.entity.WalletLedger;
 import family.fisa.hangangpaybank.domain.ledger.entity.WalletLedgerStatus;
 import family.fisa.hangangpaybank.domain.transaction.code.error.TransactionErrorCode;
 import family.fisa.hangangpaybank.domain.transaction.dto.request.CancelRequest;
@@ -50,10 +50,10 @@ public class PaymentExecutionService {
                 request.amount());
 
         // 1. 멱등성 확인 - DB lock 이전
-        Optional<BlockchainLedger> existingOpt =
+        Optional<WalletLedger> existingOpt =
                 paymentStateWriter.findExisting(request.transactionUuid());
         if (existingOpt.isPresent()) {
-            BlockchainLedger existing = existingOpt.get();
+            WalletLedger existing = existingOpt.get();
             switch (existing.getStatus()) {
                 case SUCCESS -> {
                     log.info(
@@ -115,10 +115,10 @@ public class PaymentExecutionService {
                 request.transactionUuid(),
                 request.originalTransactionUuid());
 
-        Optional<BlockchainLedger> existingOpt =
+        Optional<WalletLedger> existingOpt =
                 paymentStateWriter.findExisting(request.transactionUuid());
         if (existingOpt.isPresent()) {
-            BlockchainLedger existing = existingOpt.get();
+            WalletLedger existing = existingOpt.get();
             switch (existing.getStatus()) {
                 case SUCCESS -> {
                     log.info(

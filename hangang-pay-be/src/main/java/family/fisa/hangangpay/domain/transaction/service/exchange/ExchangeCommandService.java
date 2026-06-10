@@ -137,8 +137,7 @@ public class ExchangeCommandService {
     }
 
     private ExchangeExecuteResponse success(String uuid, ExchangeResponse body) {
-        return stateWriter.markSuccess(
-                uuid, body.txHash(), String.valueOf(body.bankTransactionId()));
+        return stateWriter.markSuccess(uuid, null, String.valueOf(body.bankTransactionId()));
     }
 
     /**

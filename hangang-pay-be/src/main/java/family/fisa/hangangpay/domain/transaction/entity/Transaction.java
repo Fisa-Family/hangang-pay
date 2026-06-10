@@ -9,7 +9,6 @@ import family.fisa.hangangpay.global.entity.BaseEntity;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
-import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -136,29 +135,6 @@ public class Transaction extends BaseEntity {
     @Column(name = "reconcile_attempt_count", nullable = false)
     @Builder.Default
     private Integer reconcileAttemptCount = 0;
-
-    /** 충전 실행 준비: 계좌, 금액, 할인액 설정 및 PROCESSING 전환 */
-    public void prepareChargeExecution(
-            Account fromAccount, BigDecimal amount, BigDecimal discountAmount) {
-        this.fromAccount = fromAccount;
-        this.amount = amount;
-        this.discountAmount = discountAmount;
-        this.status = TransactionStatus.PROCESSING;
-    }
-
-    /** CHARGE init: PENDING 거래 예약 (amount, fromAccount는 실행 시점에 채워짐) */
-    public static Transaction chargeInit(
-            Party fromParty, Wallet toWallet, BigDecimal discountRate) {
-        return Transaction.builder()
-                .transactionUuid(UUID.randomUUID().toString())
-                .transactionType(TransactionType.CHARGE)
-                .status(TransactionStatus.PENDING)
-                .fromParty(fromParty)
-                .toWallet(toWallet)
-                .amount(BigDecimal.ZERO)
-                .discountRate(discountRate)
-                .build();
-    }
 
     /** CHARGE: 계좌 → 토큰 mint */
     public static Transaction forCharge(

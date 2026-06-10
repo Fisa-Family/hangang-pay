@@ -104,8 +104,7 @@ class ExchangeCommandServiceTest {
     }
 
     private ExchangeResponse bankResponse() {
-        return new ExchangeResponse(
-                UUID, BANK_TX_ID, TX_HASH, 12345L, LocalDateTime.now(), new BigDecimal("50000"));
+        return new ExchangeResponse(UUID, BANK_TX_ID, "SUCCESS", new BigDecimal("50000"));
     }
 
     private void stubUserPinPass() {
@@ -251,7 +250,7 @@ class ExchangeCommandServiceTest {
             when(stateWriter.getBankRequest(UUID)).thenReturn(req);
             when(bankClient.exchange(req)).thenReturn(BankActResult.success(bankResponse()));
             ExchangeExecuteResponse resp = response(TransactionStatus.SUCCESS);
-            when(stateWriter.markSuccess(UUID, TX_HASH, BANK_TX_ID_STR)).thenReturn(resp);
+            when(stateWriter.markSuccess(UUID, null, BANK_TX_ID_STR)).thenReturn(resp);
 
             ExchangeExecuteResponse out =
                     exchangeCommandService.executeUserExchange(PARTY_ID, UUID, executeRequest());
@@ -292,7 +291,7 @@ class ExchangeCommandServiceTest {
                     .thenReturn(BankActResult.unknown())
                     .thenReturn(BankActResult.success(bankResponse()));
             ExchangeExecuteResponse resp = response(TransactionStatus.SUCCESS);
-            when(stateWriter.markSuccess(UUID, TX_HASH, BANK_TX_ID_STR)).thenReturn(resp);
+            when(stateWriter.markSuccess(UUID, null, BANK_TX_ID_STR)).thenReturn(resp);
 
             ExchangeExecuteResponse out =
                     exchangeCommandService.executeUserExchange(PARTY_ID, UUID, executeRequest());
@@ -350,7 +349,7 @@ class ExchangeCommandServiceTest {
             when(stateWriter.getBankRequest(UUID)).thenReturn(req);
             when(bankClient.exchange(req)).thenReturn(BankActResult.success(bankResponse()));
             ExchangeExecuteResponse resp = response(TransactionStatus.SUCCESS);
-            when(stateWriter.markSuccess(UUID, TX_HASH, BANK_TX_ID_STR)).thenReturn(resp);
+            when(stateWriter.markSuccess(UUID, null, BANK_TX_ID_STR)).thenReturn(resp);
 
             ExchangeExecuteResponse out =
                     exchangeCommandService.executeMerchantExchange(

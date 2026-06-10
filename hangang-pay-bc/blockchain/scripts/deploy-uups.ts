@@ -26,6 +26,7 @@ import { request as httpsRequest } from "node:https";
 import { dirname, resolve } from "node:path";
 import { URL } from "node:url";
 import type { BaseContract, ContractTransactionResponse } from "ethers";
+import "dotenv/config";
 
 type Institution = {
   id: bigint;
@@ -82,6 +83,8 @@ async function main() {
   const cbdc = await hre.upgrades.deployProxy(cbdcFactory, [bokAddress], {
     kind: "uups",
     initializer: "initialize",
+    timeout: 600000,
+    pollingInterval: 5000,
   });
   await cbdc.waitForDeployment();
   const cbdcDeployment = await logDeployment("CBDCToken", cbdc);
@@ -90,6 +93,8 @@ async function main() {
   const depositToken = await hre.upgrades.deployProxy(depositFactory, [wooriAddress], {
     kind: "uups",
     initializer: "initialize",
+    timeout: 600000,
+    pollingInterval: 5000,
   });
   await depositToken.waitForDeployment();
   const depositTokenDeployment = await logDeployment("DepositToken", depositToken);
@@ -98,7 +103,7 @@ async function main() {
   const settlement = await hre.upgrades.deployProxy(
     settlementFactory,
     [cbdcDeployment.proxyAddress, bokAddress],
-    { kind: "uups", initializer: "initialize" },
+    { kind: "uups", initializer: "initialize", timeout: 600000, pollingInterval: 5000 },
   );
   await settlement.waitForDeployment();
   const settlementDeployment = await logDeployment("Settlement", settlement);
@@ -107,7 +112,7 @@ async function main() {
   const localCurrency = await hre.upgrades.deployProxy(
     localCurrencyFactory,
     [depositTokenDeployment.proxyAddress, settlementDeployment.proxyAddress, bokAddress],
-    { kind: "uups", initializer: "initialize" },
+    { kind: "uups", initializer: "initialize", timeout: 600000, pollingInterval: 5000 },
   );
   await localCurrency.waitForDeployment();
   const localCurrencyDeployment = await logDeployment("LocalCurrencyPolicy", localCurrency);

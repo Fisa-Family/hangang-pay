@@ -1,7 +1,5 @@
 package family.fisa.hangangpaybank.domain.transaction.service;
 
-import family.fisa.hangangpaybank.domain.blockchain.entity.BlockchainLedger;
-import family.fisa.hangangpaybank.domain.blockchain.repository.BlockchainLedgerRepository;
 import family.fisa.hangangpaybank.domain.ledger.entity.AccountLedger;
 import family.fisa.hangangpaybank.domain.ledger.repository.AccountLedgerRepository;
 import family.fisa.hangangpaybank.domain.transaction.code.error.TransactionErrorCode;
@@ -12,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/** 환전 상태 조회. */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -19,13 +18,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class ExchangeQueryService {
 
     private final AccountLedgerRepository accountLedgerRepository;
-    private final BlockchainLedgerRepository blockchainLedgerRepository;
 
-    /** 플랫폼의 transactionUuid로 두 ledger 정합성을 확인하고 응답을 만든다 */
     public ExchangeStatusResponse getStatus(String transactionUuid) {
         log.info("환전 상태 조회 시작. transactionUuid={}", transactionUuid);
 
-        // 1. account ledger조회
+        // account_ledger 기준 조회 — DB 레벨 환전 결과가 기준 (blockchain은 async)
         AccountLedger accountLedger =
                 accountLedgerRepository
                         .findByIdempotentKey(transactionUuid)
@@ -34,25 +31,9 @@ public class ExchangeQueryService {
                                         new BusinessException(
                                                 TransactionErrorCode.TRANSACTION_NOT_FOUND));
 
-        // 2. blockchain_ledger 조회
-        BlockchainLedger blockchainLedger =
-                blockchainLedgerRepository
-                        .findByIdempotentKey(transactionUuid)
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                TransactionErrorCode.TRANSACTION_NOT_FOUND));
+        ExchangeStatusResponse response = ExchangeStatusResponse.of(transactionUuid, accountLedger);
 
-        // 3. 두 ledger 모두 있음 -> SUCCESS 응답
-        ExchangeStatusResponse response =
-                ExchangeStatusResponse.of(transactionUuid, accountLedger, blockchainLedger);
-
-        log.info(
-                "환전 상태 조회 완료. transactionUuid={}, bankTransactionId={}, txHash={}",
-                transactionUuid,
-                response.bankTransactionId(),
-                response.txHash());
-
+        log.info("환전 상태 조회 완료. transactionUuid={}, status={}", transactionUuid, response.status());
         return response;
     }
 }
