@@ -21,6 +21,7 @@ import {
   Toast,
 } from '@/components/common'
 import { formatDateTime, formatMaskedAccount, formatWon } from '@/lib/format'
+import { createUuid } from '@/lib/uuid'
 
 const PIN_LENGTH = 6
 
@@ -83,7 +84,7 @@ export function MerchantSettlementPage() {
     if (next.length === PIN_LENGTH && !redeemMutation.isPending) {
       setStep('processing')
       redeemMutation.mutate({
-        transactionUuid: crypto.randomUUID(),
+        transactionUuid: createUuid(),
         amount: availableAmount,
         paymentPin: next,
       })
