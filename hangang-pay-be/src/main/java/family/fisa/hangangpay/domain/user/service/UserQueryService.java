@@ -24,4 +24,11 @@ public class UserQueryService {
 
         return UserProfileResponse.from(user);
     }
+
+    @Transactional(readOnly = true)
+    public User getByPartyId(Long partyId) {
+        return userRepository
+                .findByParty_Id(partyId)
+                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+    }
 }
