@@ -14,6 +14,7 @@ public record ExchangeExecuteResponse(
         String accountNumber,
         String bankName,
         String txHash,
+        String approvalNumber,
         TransactionStatus status,
         LocalDateTime exchangedAt) {
     public static ExchangeExecuteResponse from(Transaction tx) {
@@ -24,6 +25,7 @@ public record ExchangeExecuteResponse(
                 .accountNumber(tx.getToAccount().getAccountNumber())
                 .bankName(tx.getToAccount().getInstitution().getInstitutionName())
                 .txHash(tx.getTxHash())
+                .approvalNumber(tx.getApprovalNumber())
                 .status(tx.getStatus())
                 .exchangedAt(tx.getUpdatedAt())
                 .build();

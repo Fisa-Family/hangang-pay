@@ -131,8 +131,13 @@ public class ExchangeStateWriter {
             String uuid, String txHash, String bankTransactionId) {
         Transaction tx = findByUuid(uuid);
         tx.completeSuccessWithResponse(txHash, bankTransactionId); // status=SUCCESS
+        tx.assignApprovalNumber(makeApvNumber(tx.getId()));
         log.info("환전 SUCCESS. transactionUuid={}, txHash={}", uuid, txHash);
         return ExchangeExecuteResponse.from(tx);
+    }
+
+    private String makeApvNumber(Long id) {
+        return "APV-" + LocalDateTime.now().getYear() + "-" + String.format("%08d", id);
     }
 
     /** FAILED 확정 + 응답 빌드 */
