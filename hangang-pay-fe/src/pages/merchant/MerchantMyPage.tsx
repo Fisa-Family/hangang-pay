@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Bell, Building2, Headphones, Info, LogOut, Store } from 'lucide-react'
+import { Bell, Building2, ChevronRight, Headphones, Info, LogOut, Store } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { ConfirmDialog, SettingsMenuCard } from '@/components/common'
@@ -7,7 +7,7 @@ import { fetchMerchantMyPage, type MerchantMyPageResponse } from '@/api/merchant
 import { logout } from '@/api/auth'
 import { ApiError } from '@/api/client'
 import { apiErrorMessages, isApiErrorCode } from '@/api/errorCodes'
-import { formatMaskedAccount } from '@/lib/format'
+import { formatMaskedAccount, formatPhoneNumber } from '@/lib/format'
 
 // 1. API 스펙 상수 정의
 const API_SPEC = {
@@ -102,22 +102,39 @@ export function MerchantMyPage() {
           className="h-[88px] animate-pulse rounded-2xl border border-border bg-muted/40"
         />
       ) : (
-        <section className="flex w-full items-center gap-3 rounded-2xl border border-border/40 bg-card p-4 shadow-sm">
+        <button
+          type="button"
+          onClick={noop}
+          className="flex w-full items-center gap-4 rounded-2xl border border-border/40 bg-card p-5 text-left shadow-sm transition-colors active:bg-surface"
+        >
           {/* 15. 상호 아이콘 */}
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-            <Store className="h-7 w-7" aria-hidden />
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <Store className="h-8 w-8" aria-hidden />
           </div>
           {/* 16. 상호명 + 사업자 정보 */}
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-foreground">{data.merchantName}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">{data.businessNumber}</p>
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">{data.address}</p>
+            <p className="text-lg font-bold text-foreground">{data.merchantName}</p>
+            <div className="mt-1.5 flex flex-col gap-1">
+              <p className="flex gap-2 text-xs">
+                <span className="w-16 shrink-0 text-muted-foreground/70">전화번호</span>
+                <span className="text-muted-foreground">{formatPhoneNumber(data.phoneNumber)}</span>
+              </p>
+              <p className="flex gap-2 text-xs">
+                <span className="w-16 shrink-0 text-muted-foreground/70">주소</span>
+                <span className="truncate text-muted-foreground">{data.address}</span>
+              </p>
+              <p className="flex gap-2 text-xs">
+                <span className="w-16 shrink-0 text-muted-foreground/70">사업자번호</span>
+                <span className="text-muted-foreground">{data.businessNumber}</span>
+              </p>
+            </div>
           </div>
-        </section>
+          <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+        </button>
       )}
 
-      {/* 17. 설정 메뉴 — 정산 계좌 관리 외 */}
-      <section className="mt-1 flex flex-col gap-2">
+      {/* 17-1. 정산 계좌 관리 — 핵심 업무 메뉴로 별도 분리 */}
+      <section className="mt-6 flex flex-col gap-2">
         <SettingsMenuCard
           items={[
             {
@@ -129,6 +146,14 @@ export function MerchantMyPage() {
               onClick: () => {},
               disabled: profileQuery.isLoading,
             },
+          ]}
+        />
+      </section>
+
+      {/* 17-2. 설정 메뉴 */}
+      <section className="mt-1 flex flex-col gap-2">
+        <SettingsMenuCard
+          items={[
             {
               id: 'notifications',
               label: '알림 설정',

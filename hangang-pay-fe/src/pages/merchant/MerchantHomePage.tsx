@@ -11,7 +11,7 @@ import {
   Menu,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { EmptyState, ErrorBoundary, HangangPayLogo } from '@/components/common'
+import { EmptyState, ErrorBoundary, GradientCard, HangangPayLogo } from '@/components/common'
 import { fetchMerchantDashboard, fetchMerchantMyPage, fetchMerchantPayments } from '@/api/merchant'
 import { formatWon } from '@/lib/format'
 
@@ -136,15 +136,8 @@ export function MerchantHomePage() {
         </h1>
       </header>
 
-      {/* 대시보드 카드: 흰 카드 + 우하단 블루 그라데이션 장식 / 매출·결제 건수 좌우 분할 */}
-      <div className="relative overflow-hidden rounded-2xl bg-card shadow-sm">
-        {/* 우측 하단 블루 그라데이션 장식 */}
-        <div
-          className="pointer-events-none absolute -bottom-12 -right-12 h-40 w-40 rounded-full"
-          style={{
-            background: 'radial-gradient(circle, #BFDBFE 0%, #DBEAFE 50%, transparent 80%)',
-          }}
-        />
+      {/* 대시보드 카드: 좌→우 블루 그라데이션 / 매출·결제 건수 좌우 분할 */}
+      <GradientCard>
         <div className="relative flex p-5">
           {/* 오늘 매출 */}
           <div className="flex-1 pr-5">
@@ -171,7 +164,7 @@ export function MerchantHomePage() {
             </p>
           </div>
         </div>
-      </div>
+      </GradientCard>
 
       {/* 주요 버튼: 2열 그리드 / 고정 높이 120px 파란 카드 */}
       <div className="grid grid-cols-2 gap-3">

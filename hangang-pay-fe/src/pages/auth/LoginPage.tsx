@@ -68,6 +68,7 @@ export function LoginPage() {
           {/* 브랜드 영역: 로고 + 서비스명 + 슬로건 */}
           <div className="flex flex-col items-center gap-3 pb-10 pt-6">
             <HangangPayLogo size={56} />
+            <span className="text-2xl font-bold tracking-tight text-primary">한강페이</span>
           </div>
 
           {/* 사용자 / 가맹점 세그먼트 탭 */}

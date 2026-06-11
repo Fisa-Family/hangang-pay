@@ -78,7 +78,7 @@ export function MerchantPaymentsPage() {
   const showEmpty = !query.isLoading && !query.error && filtered.length === 0 && !query.hasNextPage
 
   return (
-    <div className="flex h-full flex-col bg-card -mx-5 -my-5 px-5 py-5">
+    <div className="flex h-full flex-col">
       <BackTitleHeader title="결제 내역" onBack={() => navigate('/merchant/home')} />
       <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} />
 

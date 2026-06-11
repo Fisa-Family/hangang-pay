@@ -23,6 +23,7 @@ export { ResultState } from './feedback/ResultState'
 export { StatusBadge } from './feedback/StatusBadge'
 
 export { BalanceCard } from './card/BalanceCard'
+export { GradientCard } from './card/GradientCard'
 export { SummaryCard } from './card/SummaryCard'
 export { AccountRow } from './card/AccountRow'
 export { ListItem } from './card/ListItem'
