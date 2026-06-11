@@ -31,6 +31,7 @@ family.fisa.hangangpaybank
     ├── exception             # BusinessException, GlobalExceptionHandler
     ├── response              # ApiResponse 공통 래퍼
     ├── entity                # BaseEntity (createdAt, updatedAt)
+    ├── logging               # MDC 요청 로그 컨텍스트 (requestId, X-Request-Id 수신)
     └── config                # JpaConfig (auditing)
 ```
 

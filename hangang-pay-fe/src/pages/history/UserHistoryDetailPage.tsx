@@ -16,6 +16,7 @@ import { getChargeDetail, type ChargeDetail } from '@/api/chargeHistories'
 import { getPaymentHistoryDetail, type PaymentHistoryDetail } from '@/api/paymentHistories'
 import { getExchangeHistoryDetail, type ExchangeHistoryDetail } from '@/api/exchangeHistories'
 import { formatWon, formatDateTime } from '@/lib/format'
+import { resolveBackDestination } from '@/lib/navigation'
 import voucherIcon from '@/components/common/icons/icon.png'
 
 interface DetailRow {
@@ -106,6 +107,7 @@ export function UserHistoryDetailPage() {
   const location = useLocation()
   const segment = location.pathname.split('/')[3] // 'charges' | 'payments' | 'exchanges'
   const flow = FLOWS[segment]
+  const backPath = resolveBackDestination(location.pathname, location.state)
 
   const [detail, setDetail] = useState<unknown>(null)
   const [error, setError] = useState('')
@@ -125,7 +127,7 @@ export function UserHistoryDetailPage() {
   if (!detail && !error) {
     return (
       <div className="flex h-full flex-col">
-        <PageHeader title={title} onBack={() => navigate(-1)} />
+        <PageHeader title={title} onBack={() => navigate(backPath, { replace: true })} />
         <ProcessingState status="loading" loadingText="상세 조회중" errorTitle="" />
       </div>
     )
@@ -134,7 +136,7 @@ export function UserHistoryDetailPage() {
   if (error) {
     return (
       <div className="flex h-full flex-col">
-        <PageHeader title={title} onBack={() => navigate(-1)} />
+        <PageHeader title={title} onBack={() => navigate(backPath, { replace: true })} />
         <ResultState
           variant="error"
           title="상세 조회 실패"
@@ -142,7 +144,7 @@ export function UserHistoryDetailPage() {
           primaryText="다시 시도"
           secondaryText="이전으로"
           onPrimary={() => window.location.reload()}
-          onSecondary={() => navigate(-1)}
+          onSecondary={() => navigate(backPath, { replace: true })}
         />
       </div>
     )
@@ -155,7 +157,7 @@ export function UserHistoryDetailPage() {
   const prefix = flow.amountPrefix ?? ''
   return (
     <div className="flex h-full flex-col bg-background">
-      <PageHeader title={title} onBack={() => navigate(-1)} />
+      <PageHeader title={title} onBack={() => navigate(backPath, { replace: true })} />
 
       <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-4 pt-5">
         <section className="rounded-2xl border border-border bg-card px-5 py-5 shadow-sm">
@@ -208,7 +210,7 @@ export function UserHistoryDetailPage() {
       </main>
 
       <footer className="shrink-0 bg-background pt-3 pb-[calc(env(safe-area-inset-bottom)+0.25rem)]">
-        <Button size="lg" onClick={() => navigate(-1)}>
+        <Button size="lg" onClick={() => navigate(backPath, { replace: true })}>
           확인
         </Button>
       </footer>

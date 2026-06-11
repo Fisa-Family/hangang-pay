@@ -31,6 +31,7 @@ flowchart TD
   global --> code["code<br/>공통 성공/오류 코드"]
   global --> entity["entity<br/>BaseEntity"]
   global --> exception["exception<br/>BusinessException, GlobalExceptionHandler"]
+  global --> logging["logging<br/>MDC 요청 로그 컨텍스트(requestId, partyId, role)"]
   global --> pagination["pagination<br/>커서 페이지네이션"]
   global --> response["response<br/>공통 API 응답 래퍼"]
   global --> security["security<br/>세션 인증 필터"]

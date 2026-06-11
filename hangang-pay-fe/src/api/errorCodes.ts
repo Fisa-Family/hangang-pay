@@ -15,6 +15,7 @@ export const ApiErrorCode = {
   ACCOUNT_NOT_FOUND: 'ACCOUNT_NOT_FOUND',
 
   USER_NOT_FOUND: 'USER_NOT_FOUND',
+  INVALID_PIN_NUMBER: 'INVALID_PIN_NUMBER',
 
   EXCHANGE_NOT_ELIGIBLE: 'EXCHANGE_NOT_ELIGIBLE',
   EXCHANGE_IN_PROGRESS: 'EXCHANGE_IN_PROGRESS',
@@ -41,6 +42,7 @@ export const apiErrorMessages: Record<ApiErrorCode, string> = {
   [ApiErrorCode.ACCOUNT_NOT_FOUND]: '계좌를 찾을 수 없습니다.',
 
   [ApiErrorCode.USER_NOT_FOUND]: '사용자를 찾을 수 없습니다',
+  [ApiErrorCode.INVALID_PIN_NUMBER]: 'PIN이 올바르지 않습니다',
 
   [ApiErrorCode.EXCHANGE_NOT_ELIGIBLE]: '충전금의 60% 이상 사용 후 환불 가능합니다',
   [ApiErrorCode.EXCHANGE_IN_PROGRESS]: '이미 진행 중인 환불이 있습니다',

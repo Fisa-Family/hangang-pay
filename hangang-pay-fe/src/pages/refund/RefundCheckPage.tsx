@@ -61,6 +61,7 @@ export function RefundCheckPage() {
     navigate('/refund/pin', {
       state: {
         nextRoute: '/refund/processing',
+        cancelRoute: '/refund/check',
         transactionUuid: createUuid(),
         amount: data.walletBalance,
         accountId: effectiveSelectedId,
