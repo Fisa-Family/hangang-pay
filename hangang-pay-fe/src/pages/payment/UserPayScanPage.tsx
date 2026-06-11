@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { BrowserQRCodeReader, type IScannerControls } from '@zxing/browser'
+import { resolveBackDestination } from '@/lib/navigation'
 
 type ScanError =
   | { kind: 'permission' }
@@ -9,10 +10,23 @@ type ScanError =
 
 export function UserPayScanPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const videoRef = useRef<HTMLVideoElement>(null)
   const controlsRef = useRef<IScannerControls | null>(null)
+  const mediaStreamRef = useRef<MediaStream | null>(null)
   const [error, setError] = useState<ScanError | null>(null)
   const [restartKey, setRestartKey] = useState(0)
+  const backPath = resolveBackDestination(location.pathname, location.state)
+
+  const stopScanner = () => {
+    controlsRef.current?.stop()
+    controlsRef.current = null
+    mediaStreamRef.current?.getTracks().forEach((t) => t.stop())
+    mediaStreamRef.current = null
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
+    }
+  }
 
   useEffect(() => {
     const video = videoRef.current
@@ -26,9 +40,11 @@ export function UserPayScanPage() {
         mediaStream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: { ideal: 'environment' } },
         })
+        mediaStreamRef.current = mediaStream
         if (cancelled) {
           mediaStream.getTracks().forEach((t) => t.stop())
           mediaStream = null
+          mediaStreamRef.current = null
           return
         }
         video.srcObject = mediaStream
@@ -46,6 +62,7 @@ export function UserPayScanPage() {
               throw new Error('invalid merchantId')
             }
             cancelled = true
+            stopScanner()
             navigate(`/pay/amount/${parsed.merchantId}`, { replace: true })
           } catch {
             setError({ kind: 'parse', message: '유효하지 않은 QR 코드입니다.' })
@@ -74,11 +91,9 @@ export function UserPayScanPage() {
 
     return () => {
       cancelled = true
-      controlsRef.current?.stop()
-      controlsRef.current = null
+      stopScanner()
       mediaStream?.getTracks().forEach((t) => t.stop())
       mediaStream = null
-      video.srcObject = null
     }
   }, [navigate, restartKey])
 
@@ -96,26 +111,6 @@ export function UserPayScanPage() {
         muted
         className="absolute inset-0 h-full w-full object-cover"
       />
-
-      <button
-        type="button"
-        aria-label="뒤로가기"
-        onClick={() => navigate(-1)}
-        className="absolute left-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-lg text-white hover:bg-white/10"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="h-6 w-6"
-          aria-hidden
-        >
-          <path d="m15 18-6-6 6-6" />
-        </svg>
-      </button>
 
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-6 px-6">
         <div className="pointer-events-none relative aspect-square w-full max-w-[260px] rounded-2xl shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]">
@@ -146,7 +141,10 @@ export function UserPayScanPage() {
       <div className="relative z-10 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <button
           type="button"
-          onClick={() => navigate(-1)}
+          onClick={() => {
+            stopScanner()
+            navigate(backPath, { replace: true })
+          }}
           className="h-12 w-full rounded-2xl bg-black/60 text-base font-semibold text-white hover:bg-black/70"
         >
           닫기

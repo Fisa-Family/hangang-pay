@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { ApiError } from '@/api/client'
 import {
@@ -20,6 +20,7 @@ import {
   Toast,
 } from '@/components/common'
 import { formatDateTime, formatWon } from '@/lib/format'
+import { resolveBackDestination } from '@/lib/navigation'
 
 const PIN_LENGTH = 6
 
@@ -27,6 +28,8 @@ type Step = 'detail' | 'pin' | 'processing' | 'unknown' | 'result'
 
 export function MerchantPaymentDetailPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const backPath = resolveBackDestination(location.pathname, location.state)
   const { transactionId: rawId } = useParams<{ transactionId: string }>()
   const transactionId = Number(rawId)
   const isValidId = Number.isInteger(transactionId) && transactionId >= 1
@@ -184,7 +187,7 @@ export function MerchantPaymentDetailPage() {
 
   return (
     <div className="flex h-full flex-col bg-background">
-      <BackTitleHeader title="결제 상세" onBack={() => navigate(-1)} />
+      <BackTitleHeader title="결제 상세" onBack={() => navigate(backPath, { replace: true })} />
 
       <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-4 pt-5">
         {detailQuery.isLoading && (

@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useCurrentUser } from '@/auth/useCurrentUser'
 import { PageHeader } from '@/components/common'
 import { fetchMerchantQr } from '@/api/merchant'
 import { ApiError } from '@/api/client'
 import { apiErrorMessages, isApiErrorCode } from '@/api/errorCodes'
+import { resolveBackDestination } from '@/lib/navigation'
 
 const API_SPEC = {
   MERCHANT_QR: { id: 'MERCHANT-QR' },
@@ -22,7 +23,9 @@ const QR_STALE_TIME_MS = 1000 * 60 * 60
 
 export function MerchantQrPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { currentUser } = useCurrentUser()
+  const backPath = resolveBackDestination(location.pathname, location.state)
 
   const qrQuery = useQuery({
     queryKey: ['merchant', 'qr'],
@@ -35,7 +38,7 @@ export function MerchantQrPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <PageHeader title="내 QR 코드" onBack={() => navigate(-1)} />
+      <PageHeader title="내 QR 코드" onBack={() => navigate(backPath, { replace: true })} />
 
       <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 pb-8">
         <p className="text-base font-semibold text-foreground">{currentUser?.name ?? '가맹점'}</p>
