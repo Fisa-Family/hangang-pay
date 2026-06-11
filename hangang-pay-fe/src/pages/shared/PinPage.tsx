@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { PageHeader, PinEntry, Toast, type ToastState } from '@/components/common'
+import { resolveBackDestination } from '@/lib/navigation'
 
 interface LocationState {
   nextRoute: string
@@ -21,6 +22,7 @@ function PinPageContent() {
   const navigate = useNavigate()
   const location = useLocation()
   const state = location.state as LocationState | null
+  const backPath = resolveBackDestination(location.pathname, location.state)
 
   const [pin, setPin] = useState('')
   const [toast, setToast] = useState<ToastState | null>(
@@ -51,11 +53,7 @@ function PinPageContent() {
   }
 
   function handleCancel() {
-    if (state?.cancelRoute) {
-      navigate(state.cancelRoute, { replace: true })
-    } else {
-      navigate(-1)
-    }
+    navigate(backPath, { replace: true })
   }
 
   return (

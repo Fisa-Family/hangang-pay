@@ -1,7 +1,7 @@
 import type { FormEvent } from 'react'
 import { useEffect, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
   AppShell,
   Button,
@@ -16,6 +16,7 @@ import { addAccount, requestAccountVerification, verifyAccount } from '@/api/acc
 import { ApiError } from '@/api/client'
 import { apiErrorMessages, isApiErrorCode } from '@/api/errorCodes'
 import { useCurrentUser } from '@/auth/useCurrentUser'
+import { resolveBackDestination } from '@/lib/navigation'
 
 const BANK_OPTIONS = [
   { label: '우리은행', value: 'WR', institutionId: 2 },
@@ -62,6 +63,7 @@ function onlyDigits(value: string) {
 
 export function AddAccountPage({ onBack, onRequestVerification, onSubmit }: AddAccountPageProps) {
   const navigate = useNavigate()
+  const location = useLocation()
   const queryClient = useQueryClient()
   const { isAuthenticated, isLoading: isAuthLoading } = useCurrentUser()
   const [selectedBank, setSelectedBank] = useState('')
@@ -155,7 +157,7 @@ export function AddAccountPage({ onBack, onRequestVerification, onSubmit }: AddA
       return
     }
 
-    navigate(-1)
+    navigate(resolveBackDestination(location.pathname, location.state), { replace: true })
   }
 
   const handleAccountNumberChange = (value: string) => {

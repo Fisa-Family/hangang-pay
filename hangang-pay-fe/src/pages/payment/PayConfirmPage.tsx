@@ -5,6 +5,7 @@ import { createPaymentIntent, fetchMerchantForPayment } from '@/api/payment'
 import { fetchWalletBalance } from '@/api/wallet'
 import { ApiError } from '@/api/client'
 import { formatWon } from '@/lib/format'
+import { resolveBackDestination } from '@/lib/navigation'
 import { BackspaceIcon, BackTitleHeader, Button, Toast, type ToastState } from '@/components/common'
 
 interface LocationState {
@@ -22,6 +23,7 @@ export function PayConfirmPage() {
   const locationState = location.state as LocationState | null
   const merchantId = params.merchantId ?? locationState?.merchantId ?? ''
   const processingError = locationState?.error ?? ''
+  const backPath = resolveBackDestination(location.pathname, location.state)
 
   const [amountStr, setAmountStr] = useState(
     locationState?.amount != null ? String(locationState.amount) : ''
@@ -98,7 +100,7 @@ export function PayConfirmPage() {
 
   return (
     <div className="relative flex h-dvh flex-col bg-background">
-      <BackTitleHeader title="결제" onBack={() => navigate(-1)} />
+      <BackTitleHeader title="결제" onBack={() => navigate(backPath, { replace: true })} />
 
       {/* 가맹점 카드 */}
       <div className="mx-4 mt-2 rounded-2xl bg-card p-4 shadow-sm ring-1 ring-black/6">
