@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { ChevronLeft } from 'lucide-react'
 import { BrowserQRCodeReader, type IScannerControls } from '@zxing/browser'
 import { resolveBackDestination } from '@/lib/navigation'
 
@@ -109,8 +110,17 @@ export function UserPayScanPage() {
         autoPlay
         playsInline
         muted
-        className="absolute inset-0 h-full w-full object-cover"
+        className="pointer-events-none absolute inset-0 z-0 h-full w-full object-cover"
       />
+
+      <button
+        type="button"
+        aria-label="뒤로가기"
+        onClick={() => navigate('/home')}
+        className="absolute left-4 top-4 z-20 flex size-11 items-center justify-center rounded-lg text-white hover:bg-white/10"
+      >
+        <ChevronLeft className="h-6 w-6" aria-hidden />
+      </button>
 
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-6 px-6">
         <div className="pointer-events-none relative aspect-square w-full max-w-[260px] rounded-2xl shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]">

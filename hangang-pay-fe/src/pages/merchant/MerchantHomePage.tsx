@@ -1,8 +1,17 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { Suspense } from 'react'
-import { QrCode, ChevronRight, FileText, PieChart, BarChart2 } from 'lucide-react'
+import {
+  QrCode,
+  ChevronRight,
+  FileText,
+  PieChart,
+  BarChart2,
+  Search,
+  Bell,
+  Menu,
+} from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { EmptyState, ErrorBoundary } from '@/components/common'
+import { EmptyState, ErrorBoundary, HangangPayLogo } from '@/components/common'
 import { fetchMerchantDashboard, fetchMerchantMyPage, fetchMerchantPayments } from '@/api/merchant'
 import { formatWon } from '@/lib/format'
 
@@ -87,9 +96,44 @@ export function MerchantHomePage() {
   // CSS: 페이지 전체 — 세로 스크롤 flex 컨테이너
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-3 pt-5 pb-6">
-      {/* 헤더: 가맹점명 — 좌측 정렬, 상단 여백 */}
-      <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">{merchantName}</h1>
+      {/* 헤더: 로고 + 아이콘, 구분선, 가맹점명 */}
+      <header className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <HangangPayLogo size={26} />
+            <span className="text-sm font-bold text-primary">한강페이</span>
+          </div>
+          <div className="flex items-center gap-1 text-foreground">
+            <button
+              type="button"
+              aria-label="검색"
+              onClick={() => {}}
+              className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted"
+            >
+              <Search className="h-5 w-5" aria-hidden />
+            </button>
+            <button
+              type="button"
+              aria-label="알림"
+              onClick={() => {}}
+              className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted"
+            >
+              <Bell className="h-5 w-5" aria-hidden />
+            </button>
+            <button
+              type="button"
+              aria-label="설정"
+              onClick={() => {}}
+              className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted"
+            >
+              <Menu className="h-5 w-5" aria-hidden />
+            </button>
+          </div>
+        </div>
+        <h1 className="text-2xl font-bold text-foreground">
+          {merchantName}
+          <span className="font-normal text-muted-foreground">님</span>
+        </h1>
       </header>
 
       {/* 대시보드 카드: 흰 카드 + 우하단 블루 그라데이션 장식 / 매출·결제 건수 좌우 분할 */}

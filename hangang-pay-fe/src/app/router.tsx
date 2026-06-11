@@ -182,6 +182,8 @@ export const router = createBrowserRouter([
                 element: <MerchantPaymentDetailPage />,
               },
               { path: '/merchant/settlement', element: <MerchantSettlementPage /> },
+              { path: '/merchant/settlement/complete', element: <CompletePage /> },
+              { path: '/merchant/payments/cancel/complete', element: <CompletePage /> },
             ],
           },
         ],

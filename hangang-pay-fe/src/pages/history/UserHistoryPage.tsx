@@ -109,7 +109,7 @@ export function UserHistoryPage() {
   const showEmpty = !query.isLoading && !query.error && items.length === 0
 
   return (
-    <div className="flex h-full flex-col bg-card -mx-5 -my-5 px-5 py-5">
+    <div className="flex h-full flex-col">
       <PageHeader
         title="내역 조회"
         onBack={() => navigate('/home')}

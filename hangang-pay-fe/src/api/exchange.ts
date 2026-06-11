@@ -23,6 +23,7 @@ export interface ExchangeExecuteResult {
   accountNumber: string
   bankName: string
   txHash: string
+  approvalNumber: string
   status: string
   exchangedAt: string
 }

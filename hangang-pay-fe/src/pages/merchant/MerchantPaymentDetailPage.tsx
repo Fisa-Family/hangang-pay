@@ -6,7 +6,6 @@ import {
   cancelMerchantPayment,
   fetchMerchantPaymentDetail,
   recoverMerchantCancel,
-  type PaymentCancelResult,
 } from '@/api/merchant'
 import { Store } from 'lucide-react'
 import {
@@ -24,7 +23,7 @@ import { resolveBackDestination } from '@/lib/navigation'
 
 const PIN_LENGTH = 6
 
-type Step = 'detail' | 'pin' | 'processing' | 'unknown' | 'result'
+type Step = 'detail' | 'pin' | 'processing' | 'unknown'
 
 export function MerchantPaymentDetailPage() {
   const navigate = useNavigate()
@@ -37,7 +36,6 @@ export function MerchantPaymentDetailPage() {
   const [step, setStep] = useState<Step>('detail')
   const [pin, setPin] = useState('')
   const [toast, setToast] = useState<string | null>(null)
-  const [result, setResult] = useState<PaymentCancelResult | null>(null)
 
   const detailQuery = useQuery({
     queryKey: ['merchant', 'payment', transactionId],
@@ -50,8 +48,14 @@ export function MerchantPaymentDetailPage() {
     mutationFn: (paymentPin: string) => cancelMerchantPayment(transactionId, paymentPin),
     onSuccess: (res) => {
       if (res.status === 'SUCCESS') {
-        setResult(res)
-        setStep('result')
+        navigate('/merchant/payments/cancel/complete', {
+          replace: true,
+          state: {
+            amount: res.amount,
+            approvalNumber: res.approvalNumber,
+            confirmedAt: res.confirmedAt,
+          },
+        })
       } else {
         // 미확정(UNKNOWN/PROCESSING): 재시도(복구) 단계로 전환
         setPin('')
@@ -70,8 +74,14 @@ export function MerchantPaymentDetailPage() {
     mutationFn: () => recoverMerchantCancel(transactionId),
     onSuccess: (res) => {
       if (res.status === 'SUCCESS') {
-        setResult(res)
-        setStep('result')
+        navigate('/merchant/payments/cancel/complete', {
+          replace: true,
+          state: {
+            amount: res.amount,
+            approvalNumber: res.approvalNumber,
+            confirmedAt: res.confirmedAt,
+          },
+        })
       } else if (res.status === 'FAILED') {
         // 실패로 확정 → 토스트 후 상세 복귀
         setToast('취소가 실패로 확정되었습니다.')
@@ -112,7 +122,7 @@ export function MerchantPaymentDetailPage() {
   }
 
   const detail = detailQuery.data?.detail
-  const amount = result?.amount ?? detail?.amount ?? 0
+  const amount = detail?.amount ?? 0
 
   // 취소 처리중 (recover 대기 포함)
   if (step === 'processing' || recoverMutation.isPending) {
@@ -138,21 +148,6 @@ export function MerchantPaymentDetailPage() {
           onPrimary={() => recoverMutation.mutate()}
           secondaryText="닫기"
           onSecondary={() => setStep('detail')}
-        />
-      </div>
-    )
-  }
-
-  // 취소 완료
-  if (step === 'result' && result) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <ResultState
-          variant="success"
-          title={formatWon(result.amount)}
-          description="취소 완료"
-          primaryText="홈으로"
-          onPrimary={() => navigate('/merchant/home')}
         />
       </div>
     )

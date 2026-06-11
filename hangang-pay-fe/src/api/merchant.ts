@@ -199,6 +199,7 @@ export interface MerchantRedeemResult {
   accountNumber: string
   bankName: string
   txHash: string
+  approvalNumber: string
   status: string // 'SUCCESS' | 'PENDING' | 'PROCESSING' | 'UNKNOWN' | 'FAILED' | 'EXPIRED'
   exchangedAt: string
 }

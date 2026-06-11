@@ -7,7 +7,6 @@ import {
   createMerchantRedeemIntent,
   executeMerchantRedeem,
   fetchMerchantRedeemInit,
-  type MerchantRedeemResult,
 } from '@/api/merchant'
 import {
   BackTitleHeader,
@@ -16,16 +15,15 @@ import {
   PageHeader,
   PinEntry,
   ProcessingView,
-  ResultState,
   SummaryCard,
   Toast,
 } from '@/components/common'
-import { formatDateTime, formatMaskedAccount, formatWon } from '@/lib/format'
+import { formatMaskedAccount, formatWon } from '@/lib/format'
 import { createUuid } from '@/lib/uuid'
 
 const PIN_LENGTH = 6
 
-type Step = 'main' | 'pin' | 'processing' | 'result'
+type Step = 'main' | 'pin' | 'processing'
 
 export function MerchantSettlementPage() {
   const navigate = useNavigate()
@@ -33,7 +31,6 @@ export function MerchantSettlementPage() {
   const [step, setStep] = useState<Step>('main')
   const [pin, setPin] = useState('')
   const [toast, setToast] = useState<string | null>(null)
-  const [result, setResult] = useState<MerchantRedeemResult | null>(null)
 
   const initQuery = useQuery({
     queryKey: ['merchant', 'redeem'],
@@ -52,8 +49,14 @@ export function MerchantSettlementPage() {
     },
     onSuccess: (res) => {
       if (res.status === 'SUCCESS') {
-        setResult(res)
-        setStep('result')
+        navigate('/merchant/settlement/complete', {
+          replace: true,
+          state: {
+            amount: res.amount,
+            approvalNumber: res.approvalNumber,
+            exchangedAt: res.exchangedAt,
+          },
+        })
       } else {
         // 미확정(PENDING/UNKNOWN 등): 토스트 후 출금하기 복귀
         setToast('출금 상태를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.')
@@ -94,37 +97,6 @@ export function MerchantSettlementPage() {
   // 출금 처리중
   if (step === 'processing') {
     return <ProcessingView title="출금을 신청하고 있어요" amount={availableAmount} />
-  }
-
-  // 출금 완료
-  if (step === 'result' && result) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <ResultState
-          variant="success"
-          title={formatWon(result.amount)}
-          description="출금 신청 완료"
-          details={
-            <div className="space-y-1">
-              <div className="flex justify-between gap-4">
-                <span className="text-muted-foreground">출금 계좌</span>
-                <span className="font-medium text-foreground">
-                  {formatMaskedAccount(result.bankName, result.accountNumber)}
-                </span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-muted-foreground">신청 일시</span>
-                <span className="font-medium text-foreground">
-                  {formatDateTime(result.exchangedAt)}
-                </span>
-              </div>
-            </div>
-          }
-          primaryText="홈으로"
-          onPrimary={() => navigate('/merchant/home')}
-        />
-      </div>
-    )
   }
 
   // PIN 입력

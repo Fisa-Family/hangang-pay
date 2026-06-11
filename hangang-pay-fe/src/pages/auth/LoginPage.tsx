@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { ChevronLeft } from 'lucide-react'
 import { loginMerchant, loginUser } from '@/api/auth'
 import { ApiError } from '@/api/client'
-import { AppShell, BackTitleHeader, Button, TextField } from '@/components/common'
+import { AppShell, Button, HangangPayLogo, TextField } from '@/components/common'
 import { cn } from '@/lib/utils'
 
 type Tab = 'user' | 'merchant'
@@ -54,9 +55,22 @@ export function LoginPage() {
         }}
         className="flex h-full flex-col"
       >
-        <BackTitleHeader title="로그인" onBack={() => navigate('/')} />
+        <button
+          type="button"
+          aria-label="뒤로가기"
+          onClick={() => navigate('/')}
+          className="-ml-2 flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"
+        >
+          <ChevronLeft className="h-5 w-5" aria-hidden />
+        </button>
 
-        <div className="flex-1 space-y-6 overflow-y-auto py-2">
+        <div className="flex-1 overflow-y-auto">
+          {/* 브랜드 영역: 로고 + 서비스명 + 슬로건 */}
+          <div className="flex flex-col items-center gap-3 pb-10 pt-6">
+            <HangangPayLogo size={56} />
+          </div>
+
+          {/* 사용자 / 가맹점 세그먼트 탭 */}
           <div className="flex rounded-xl bg-muted p-1">
             {(['user', 'merchant'] as const).map((t) => (
               <button
@@ -64,8 +78,8 @@ export function LoginPage() {
                 type="button"
                 onClick={() => handleTabChange(t)}
                 className={cn(
-                  'flex-1 rounded-lg py-2 text-sm font-semibold transition-colors',
-                  tab === t ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground'
+                  'flex-1 rounded-lg py-2.5 text-sm font-semibold transition-colors',
+                  tab === t ? 'bg-card text-primary' : 'text-muted-foreground'
                 )}
               >
                 {t === 'user' ? '사용자' : '가맹점'}
@@ -73,7 +87,8 @@ export function LoginPage() {
             ))}
           </div>
 
-          <div className="space-y-4">
+          {/* 입력 영역 */}
+          <div className="mt-6 space-y-4">
             {tab === 'user' ? (
               <div className="space-y-1">
                 <TextField
@@ -82,6 +97,7 @@ export function LoginPage() {
                   onChange={setPhoneNumber}
                   type="tel"
                   placeholder="01012345678"
+                  inputClassName="h-14 rounded-2xl"
                 />
                 <p className="text-xs text-muted-foreground">'-' 없이 숫자만 입력해주세요</p>
               </div>
@@ -93,6 +109,7 @@ export function LoginPage() {
                   onChange={setBusinessNumber}
                   type="tel"
                   placeholder="1234567890"
+                  inputClassName="h-14 rounded-2xl"
                 />
                 <p className="text-xs text-muted-foreground">'-' 없이 숫자만 입력해주세요</p>
               </div>
@@ -104,31 +121,43 @@ export function LoginPage() {
               onChange={setPassword}
               type="password"
               placeholder="비밀번호를 입력하세요"
+              inputClassName="h-14 rounded-2xl"
             />
           </div>
 
-          <p className="text-center text-sm text-muted-foreground">
-            <span>비밀번호 찾기</span>
-            <span className="mx-2 text-border">|</span>
-            <button
-              type="button"
-              onClick={() =>
-                navigate(tab == 'user' ? '/register/terms' : '/merchant/register/terms')
-              }
-              className="font-medium text-foreground"
-            >
-              회원가입
+          {/* 비밀번호 찾기 */}
+          <div className="mt-3 text-right">
+            <button type="button" className="text-sm text-muted-foreground">
+              비밀번호 찾기
             </button>
-          </p>
+          </div>
         </div>
 
         <div className="pt-4">
           {errorMessage ? (
             <p className="mb-3 text-center text-sm font-medium text-destructive">{errorMessage}</p>
           ) : null}
-          <Button type="submit" size="lg" disabled={mutation.isPending}>
+          <Button
+            type="submit"
+            size="lg"
+            className="h-14 rounded-2xl"
+            disabled={mutation.isPending}
+          >
             {mutation.isPending ? '로그인 중...' : '로그인'}
           </Button>
+
+          <p className="mt-4 text-center text-sm text-muted-foreground">
+            계정이 없으신가요?{' '}
+            <button
+              type="button"
+              onClick={() =>
+                navigate(tab == 'user' ? '/register/terms' : '/merchant/register/terms')
+              }
+              className="font-semibold text-primary"
+            >
+              회원가입
+            </button>
+          </p>
         </div>
       </form>
     </AppShell>

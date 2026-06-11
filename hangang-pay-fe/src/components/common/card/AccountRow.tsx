@@ -39,7 +39,7 @@ export function AccountRow({
               <span className="rounded-md bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
                 주거래
               </span>
-            ) : (
+            ) : mode === 'manage' ? (
               <button
                 type="button"
                 onClick={onSetPrimary}
@@ -47,7 +47,7 @@ export function AccountRow({
               >
                 주거래 변경
               </button>
-            )}
+            ) : null}
           </div>
 
           <p className="mt-2 text-sm tabular-nums text-muted-foreground">{maskedAccountNumber}</p>
