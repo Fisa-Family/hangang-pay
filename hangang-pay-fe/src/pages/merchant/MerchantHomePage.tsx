@@ -171,7 +171,7 @@ export function MerchantHomePage() {
         <button
           type="button"
           onClick={() => navigate('/merchant/qr')}
-          className="flex h-[120px] flex-col justify-between rounded-2xl bg-action-1 p-4 text-left transition-opacity active:opacity-90"
+          className="flex h-[120px] flex-col justify-between rounded-2xl bg-action-2 p-4 text-left transition-opacity active:opacity-90"
         >
           <QrCode className="h-6 w-6 text-white" aria-hidden />
           <div className="flex items-end justify-between">
