@@ -67,8 +67,13 @@ export function LoginPage() {
         <div className="flex-1 overflow-y-auto">
           {/* 브랜드 영역: 로고 + 서비스명 + 슬로건 */}
           <div className="flex flex-col items-center gap-3 pb-10 pt-6">
-            <HangangPayLogo size={56} />
-            <span className="text-2xl font-bold tracking-tight text-primary">한강페이</span>
+            <div className="flex size-16 items-center justify-center rounded-2xl bg-primary/10 shadow-sm">
+              <HangangPayLogo size={40} />
+            </div>
+            <div className="text-center">
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">한강페이</h1>
+              <p className="mt-1 text-sm text-muted-foreground">더 스마트한 지역화폐</p>
+            </div>
           </div>
 
           {/* 사용자 / 가맹점 세그먼트 탭 */}
