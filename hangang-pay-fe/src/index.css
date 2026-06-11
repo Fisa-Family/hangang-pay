@@ -36,12 +36,11 @@
     --surface: #f8fafc;
     --surface-raised: #ffffff;
 
-    --action-1: #2563eb;
+    --action-1: #3b82f6;
     --action-1-foreground: #ffffff;
     --action-2: #1d4ed8;
     --action-2-foreground: #ffffff;
-    --action-2-pressed: #4f6fe8;
-    --action-3: #1e3a8a;
+    --action-3: #172554;
     --action-3-foreground: #ffffff;
 
     --radius: 0.5rem;
@@ -81,12 +80,11 @@
     --surface: #0b1220;
     --surface-raised: #111c33;
 
-    --action-1: #2563eb;
+    --action-1: #3b82f6;
     --action-1-foreground: #ffffff;
     --action-2: #1d4ed8;
     --action-2-foreground: #ffffff;
-    --action-2-pressed: #4f6fe8;
-    --action-3: #1e3a8a;
+    --action-3: #172554;
     --action-3-foreground: #ffffff;
   }
 }
@@ -124,7 +122,6 @@
   --color-action-1-foreground: var(--action-1-foreground);
   --color-action-2: var(--action-2);
   --color-action-2-foreground: var(--action-2-foreground);
-  --color-action-2-pressed: var(--action-2-pressed);
   --color-action-3: var(--action-3);
   --color-action-3-foreground: var(--action-3-foreground);
   --color-surface-raised: var(--surface-raised);

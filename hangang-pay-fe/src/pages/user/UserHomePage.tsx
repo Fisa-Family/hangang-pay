@@ -43,7 +43,7 @@ interface QuickActionProps {
 
 const tintClasses: Record<NonNullable<QuickActionProps['tint']>, string> = {
   'action-1': 'bg-action-1 text-action-1-foreground active:opacity-70',
-  'action-2': 'bg-action-2 text-action-2-foreground active:bg-action-2-pressed',
+  'action-2': 'bg-action-2 text-action-2-foreground active:opacity-70',
   'action-3': 'bg-action-3 text-action-3-foreground active:opacity-70',
 }
 
@@ -209,7 +209,7 @@ export function UserHomePage() {
             label="QR 결제"
             icon={<QrCode size={24} aria-hidden />}
             onClick={() => navigate('/pay/scan')}
-            tint="action-1"
+            tint="action-3"
           />
           <QuickAction
             label="충전"
@@ -221,7 +221,7 @@ export function UserHomePage() {
             label="환불"
             icon={<Undo2 size={24} aria-hidden />}
             onClick={() => navigate('/refund/check')}
-            tint="action-3"
+            tint="action-1"
           />
         </div>
       </section>
