@@ -263,7 +263,10 @@ class ExchangeStateWriterTest {
             assertThat(response.txHash()).isEqualTo(TX_HASH);
             assertThat(tx.getApprovalNumber())
                     .isEqualTo(
-                            "APV-" + LocalDateTime.now().getYear() + "-" + String.format("%08d", TRANSACTION_ID));
+                            "APV-"
+                                    + LocalDateTime.now().getYear()
+                                    + "-"
+                                    + String.format("%08d", TRANSACTION_ID));
             assertThat(response.approvalNumber()).isEqualTo(tx.getApprovalNumber());
         }
 
