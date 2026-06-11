@@ -7,7 +7,7 @@ import { fetchMerchantMyPage, type MerchantMyPageResponse } from '@/api/merchant
 import { logout } from '@/api/auth'
 import { ApiError } from '@/api/client'
 import { apiErrorMessages, isApiErrorCode } from '@/api/errorCodes'
-import { formatMaskedAccount, formatPhoneNumber } from '@/lib/format'
+import { formatBusinessNumber, formatPhoneNumber } from '@/lib/format'
 
 // 1. API 스펙 상수 정의
 const API_SPEC = {
@@ -78,10 +78,6 @@ export function MerchantMyPage() {
 
   // 12. API 응답 또는 폴백 데이터
   const data = profileQuery.data ?? EMPTY_DATA
-  const accountDescription = formatMaskedAccount(
-    data.settlementAccount.institutionName,
-    data.settlementAccount.accountNumber
-  )
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pb-4">
@@ -125,7 +121,9 @@ export function MerchantMyPage() {
               </p>
               <p className="flex gap-2 text-xs">
                 <span className="w-16 shrink-0 text-muted-foreground/70">사업자번호</span>
-                <span className="text-muted-foreground">{data.businessNumber}</span>
+                <span className="text-muted-foreground">
+                  {formatBusinessNumber(data.businessNumber)}
+                </span>
               </p>
             </div>
           </div>
@@ -139,9 +137,8 @@ export function MerchantMyPage() {
           items={[
             {
               id: 'settlement-account',
-              label: '정산 계좌 관리',
+              label: '계좌 관리',
               icon: <Building2 className="h-6 w-6 text-primary" aria-hidden />,
-              description: accountDescription || undefined,
               // 미구현 — 추후 /merchant/mypage/accounts 연결 예정
               onClick: () => {},
               disabled: profileQuery.isLoading,
