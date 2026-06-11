@@ -13,7 +13,10 @@ public class BankClientConfig {
 
     @Bean
     public RestClient bankRestClient() {
-        // 1. bank 서버와 통신할 RestClient 생성
-        return RestClient.builder().baseUrl(bankBaseUrl).build();
+        // 1. bank 서버와 통신할 RestClient 생성. requestId를 헤더로 전파해 로그를 묶는다.
+        return RestClient.builder()
+                .baseUrl(bankBaseUrl)
+                .requestInterceptor(new RequestIdPropagationInterceptor())
+                .build();
     }
 }
