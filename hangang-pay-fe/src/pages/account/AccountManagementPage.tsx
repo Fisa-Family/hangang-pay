@@ -1,12 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { AccountRow, AppShell, Button, PageHeader, ConfirmDialog } from '@/components/common'
 import { deleteAccount, fetchAccounts, setPrimaryAccount } from '@/api/accounts'
 import { useCurrentUser } from '@/auth/useCurrentUser'
+import { resolveBackDestination } from '@/lib/navigation'
 
 export function AccountManagementPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const queryClient = useQueryClient()
   const { isLoading: isAuthLoading } = useCurrentUser()
 
@@ -35,7 +37,7 @@ export function AccountManagementPage() {
   const isLoadingAccounts = isAuthLoading || accountsQuery.isLoading
 
   const handleBack = () => {
-    navigate(-1)
+    navigate(resolveBackDestination(location.pathname, location.state), { replace: true })
   }
 
   const handleAddAccount = () => {

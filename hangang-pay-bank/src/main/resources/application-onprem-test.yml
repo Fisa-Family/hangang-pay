@@ -7,7 +7,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: update
 
 blockchain:
   rpc-endpoint:
@@ -18,11 +18,10 @@ blockchain:
 
 logging:
   level:
-    root: WARN
-    org.hibernate.tool.schema.internal.ExceptionHandlerLoggedImpl: ERROR
+    family.fisa.hangangpay: INFO
   structured:
     format:
-      console: ecs                          # stdout을 ECS JSON으로 → Alloy가 docker 로그로 수집 후 Loki push
+      console: ecs # stdout을 ECS JSON으로 → Alloy가 docker 로그로 수집 후 Loki push
 
 # Sentry: 온프레 환경 식별 + 성능 트레이싱
 sentry:

@@ -138,7 +138,10 @@ public class BlockchainSyncProcessor {
             // 3. 성공 -> SUCCESS 즉시 커밋 (REQUIRES_NEW)
             ledgerStateWriter.markSuccess(ledger.getId(), message.transactionUuid(), receipt);
 
-            log.info(message.transactionUuid(), txHash);
+            log.info(
+                    "[consumer] EXCHANGE receipt 처리 완료. uuid={}, txHash={}",
+                    message.transactionUuid(),
+                    txHash);
 
         } catch (BusinessException e) {
             // retryable이면 NACK 후 DLQ, 아니면 FAILED 마킹.
@@ -159,7 +162,7 @@ public class BlockchainSyncProcessor {
             log.info("[consumer] 기존 txHash 재사용. uuid={}", message.transactionUuid());
             return ledger.getTxHash();
         }
-        // 환전(refund)은 charge와 동일하게 1e18 스케일. (pay/cancel은 스케일 없이 쓰는 것과 다름)
+
         BigInteger amount = toTokenUnit(payload.amount());
         SubmittedBlockchainTx submitted =
                 contractCallService.submitRefund(
@@ -189,7 +192,7 @@ public class BlockchainSyncProcessor {
             log.info("[consumer] 기존 txHash 재사용. uuid={}", message.transactionUuid());
             return ledger.getTxHash();
         }
-        BigInteger amount = payload.amount().toBigInteger();
+        BigInteger amount = toTokenUnit(payload.amount());
         SubmittedBlockchainTx submitted =
                 contractCallService.submitPayment(
                         message.transactionUuid(),
@@ -213,7 +216,7 @@ public class BlockchainSyncProcessor {
             log.info("[consumer] 기존 txHash 재사용. uuid={}", message.transactionUuid());
             return ledger.getTxHash();
         }
-        BigInteger amount = payload.amount().toBigInteger();
+        BigInteger amount = toTokenUnit(payload.amount());
         SubmittedBlockchainTx submitted =
                 contractCallService.submitCancelPayment(
                         message.transactionUuid(),

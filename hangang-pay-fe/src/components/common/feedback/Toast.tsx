@@ -33,9 +33,9 @@ export function Toast({
     <div
       role={variant === 'error' ? 'alert' : 'status'}
       className={cn(
-        'pointer-events-none absolute right-5 bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] left-5 z-20 rounded-lg border bg-card/75 px-4 py-3 text-sm font-semibold shadow-lg shadow-foreground/10 backdrop-blur-md',
+        'pointer-events-none absolute top-[calc(env(safe-area-inset-top)+1rem)] right-5 left-5 z-20 rounded-lg border bg-card/75 px-4 py-3 text-sm font-semibold shadow-lg shadow-foreground/10 backdrop-blur-md',
         'transition-all duration-300 ease-out',
-        open ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0',
+        open ? 'translate-y-0 opacity-100' : '-translate-y-3 opacity-0',
         toastVariantClasses[variant],
         className
       )}

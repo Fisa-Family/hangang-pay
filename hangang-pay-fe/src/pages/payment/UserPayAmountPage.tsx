@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ApiError } from '@/api/client'
 import { apiErrorMessages, isApiErrorCode } from '@/api/errorCodes'
@@ -7,6 +7,7 @@ import { fetchMerchantInfo } from '@/api/merchant'
 import { fetchWalletBalance } from '@/api/wallet'
 import { BackTitleHeader, EmptyState } from '@/components/common'
 import { formatWon } from '@/lib/format'
+import { resolveBackDestination } from '@/lib/navigation'
 import { cn } from '@/lib/utils'
 
 const MAX_AMOUNT_DIGITS = 9
@@ -26,9 +27,11 @@ function buildErrorMessage(spec: (typeof API_SPEC)[keyof typeof API_SPEC], error
 
 export function UserPayAmountPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { merchantId: rawMerchantId } = useParams<{ merchantId: string }>()
   const merchantId = Number(rawMerchantId)
   const isValidId = Number.isInteger(merchantId) && merchantId >= 1
+  const backPath = resolveBackDestination(location.pathname, location.state)
 
   const merchantQuery = useQuery({
     queryKey: ['merchant', merchantId],
@@ -48,7 +51,7 @@ export function UserPayAmountPage() {
   if (!isValidId) {
     return (
       <div className="flex h-full flex-col gap-4">
-        <BackTitleHeader title="결제" onBack={() => navigate(-1)} />
+        <BackTitleHeader title="결제" onBack={() => navigate(backPath, { replace: true })} />
         <EmptyState
           message="잘못된 가맹점 정보입니다."
           action={
@@ -75,7 +78,7 @@ export function UserPayAmountPage() {
 
   return (
     <div className="flex h-full flex-col gap-4 overflow-y-auto">
-      <BackTitleHeader title="결제" onBack={() => navigate(-1)} />
+      <BackTitleHeader title="결제" onBack={() => navigate(backPath, { replace: true })} />
 
       {merchantQuery.isLoading && (
         <div aria-hidden className="h-[72px] animate-pulse rounded-2xl bg-muted/40" />

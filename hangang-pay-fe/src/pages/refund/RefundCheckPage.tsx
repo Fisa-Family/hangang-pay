@@ -8,6 +8,7 @@ import { ApiError } from '@/api/client'
 import { apiErrorMessages, isApiErrorCode } from '@/api/errorCodes'
 import { AccountRow, BackTitleHeader, Button, StatusBadge } from '@/components/common'
 import { formatWon } from '@/lib/format'
+import { createUuid } from '@/lib/uuid'
 
 function buildErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
@@ -60,7 +61,8 @@ export function RefundCheckPage() {
     navigate('/refund/pin', {
       state: {
         nextRoute: '/refund/processing',
-        transactionUuid: crypto.randomUUID(),
+        cancelRoute: '/refund/check',
+        transactionUuid: createUuid(),
         amount: data.walletBalance,
         accountId: effectiveSelectedId,
       },

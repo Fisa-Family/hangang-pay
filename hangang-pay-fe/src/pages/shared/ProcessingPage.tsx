@@ -7,6 +7,7 @@ import { createChargeIntent, executeCharge } from '@/api/charge'
 import { createExchangeIntent, executeExchange } from '@/api/exchange'
 import { registerUser, registerMerchant } from '@/api/auth'
 import { ApiError } from '@/api/client'
+import { ApiErrorCode } from '@/api/errorCodes'
 import { ProcessingView, ResultState } from '@/components/common'
 
 type FlowState = Record<string, unknown>
@@ -15,6 +16,7 @@ interface FlowConfig {
   title: string
   caption?: (state: FlowState) => string | undefined
   completePath: string
+  pinPath?: string
   errorPath: string | ((state: FlowState) => string)
   defaultError: string
   run: (state: FlowState) => Promise<unknown>
@@ -32,11 +34,16 @@ function invalidateUserTransactionQueries(queryClient: QueryClient) {
   void queryClient.invalidateQueries({ queryKey: ['users', 'histories'] })
 }
 
+function isPinRetryableError(code?: string) {
+  return code === ApiErrorCode.INVALID_PAYMENT_PIN || code === ApiErrorCode.INVALID_PIN_NUMBER
+}
+
 const FLOWS: Record<string, FlowConfig> = {
   '/pay/processing': {
     title: '결제를 처리하고 있어요',
     caption: (s) => s.merchantName as string | undefined,
     completePath: '/pay/complete',
+    pinPath: '/pay/pin',
     errorPath: (s) => (s.merchantId ? `/pay/amount/${s.merchantId}` : '/pay/confirm'),
     defaultError: '결제 처리 중 오류가 발생했습니다.',
     run: (state) => executePayment(state.transactionUuid as string, state.pin as string),
@@ -50,6 +57,7 @@ const FLOWS: Record<string, FlowConfig> = {
   '/charge/processing': {
     title: '충전을 처리하고 있어요',
     completePath: '/charge/complete',
+    pinPath: '/charge/pin',
     errorPath: '/charge/amount',
     defaultError: '충전 처리 중 오류가 발생했습니다.',
     async run(state) {
@@ -70,6 +78,7 @@ const FLOWS: Record<string, FlowConfig> = {
   '/refund/processing': {
     title: '환불을 신청하고 있어요',
     completePath: '/refund/complete',
+    pinPath: '/refund/pin',
     errorPath: '/refund/check',
     defaultError: '환불 처리 중 오류가 발생했습니다.',
     async run(state) {
@@ -133,6 +142,17 @@ const FLOWS: Record<string, FlowConfig> = {
 }
 
 export function ProcessingPage() {
+  const location = useLocation()
+  const state = location.state as FlowState | null
+  const pageKey =
+    typeof state?.submitToken === 'string' && state.submitToken.length > 0
+      ? state.submitToken
+      : location.key
+
+  return <ProcessingPageContent key={pageKey} />
+}
+
+function ProcessingPageContent() {
   const navigate = useNavigate()
   const location = useLocation()
   const queryClient = useQueryClient()
@@ -181,9 +201,13 @@ export function ProcessingPage() {
     (err: unknown) => {
       const message =
         err instanceof ApiError ? err.message : (flow?.defaultError ?? '오류가 발생했습니다.')
+      if (err instanceof ApiError && isPinRetryableError(err.code) && flow?.pinPath) {
+        navigate(flow.pinPath, { state: { ...(state ?? {}), error: message }, replace: true })
+        return
+      }
       goError(message)
     },
-    [flow, goError]
+    [flow, goError, navigate, state]
   )
 
   useEffect(() => {

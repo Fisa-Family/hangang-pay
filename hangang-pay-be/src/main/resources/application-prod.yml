@@ -37,6 +37,7 @@ springdoc: # 운영에서는 API 문서 비활성(공격 표면 축소)
 logging:
   level:
     family.fisa.hangangpay: INFO            # 우리 애플리케이션 패키지만 INFO 유지
+    net.javacrumbs.shedlock: DEBUG
   structured:
     format:
       console: ecs                          # stdout을 ECS JSON으로 → Alloy가 docker 로그로 수집 후 Loki push
