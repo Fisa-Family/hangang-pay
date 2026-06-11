@@ -1,29 +1,54 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { PageHeader, PinEntry } from '@/components/common'
+import { PageHeader, PinEntry, Toast, type ToastState } from '@/components/common'
 
 interface LocationState {
   nextRoute: string
   cancelRoute?: string
+  error?: string
   [key: string]: unknown
 }
 
 const PIN_LENGTH = 6
 
 export function PinPage() {
+  const location = useLocation()
+
+  return <PinPageContent key={location.key} />
+}
+
+function PinPageContent() {
   const navigate = useNavigate()
   const location = useLocation()
   const state = location.state as LocationState | null
 
   const [pin, setPin] = useState('')
+  const [toast, setToast] = useState<ToastState | null>(
+    state?.error ? { message: state.error, variant: 'error' } : null
+  )
 
   useEffect(() => {
-    if (pin.length !== PIN_LENGTH || !state) return
-    const { nextRoute, ...rest } = state
+    if (!toast) return
+    const id = window.setTimeout(() => setToast(null), 3000)
+    return () => window.clearTimeout(id)
+  }, [toast])
 
-    delete rest.cancelRoute
-    navigate(nextRoute, { state: { ...rest, pin } })
-  }, [pin, navigate, state])
+  function handlePinChange(value: string) {
+    const next = value.slice(0, PIN_LENGTH)
+    setPin(next)
+
+    if (next.length !== PIN_LENGTH || !state) return
+
+    const { nextRoute, ...rest } = state
+    delete rest.error
+    navigate(nextRoute, {
+      state: {
+        ...rest,
+        pin: next,
+        submitToken: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      },
+    })
+  }
 
   function handleCancel() {
     if (state?.cancelRoute) {
@@ -34,7 +59,7 @@ export function PinPage() {
   }
 
   return (
-    <div className="flex h-dvh flex-col bg-background">
+    <div className="relative flex h-dvh flex-col bg-background">
       <PageHeader
         title="PIN번호 입력"
         className="px-5"
@@ -48,7 +73,8 @@ export function PinPage() {
           </button>
         }
       />
-      <PinEntry pin={pin} length={PIN_LENGTH} onChange={setPin} onForgot={() => {}} />
+      <PinEntry pin={pin} length={PIN_LENGTH} onChange={handlePinChange} onForgot={() => {}} />
+      <Toast open={toast !== null} message={toast?.message ?? ''} variant={toast?.variant} />
     </div>
   )
 }

@@ -1,14 +1,16 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { createPaymentIntent, fetchMerchantForPayment } from '@/api/payment'
 import { fetchWalletBalance } from '@/api/wallet'
 import { ApiError } from '@/api/client'
 import { formatWon } from '@/lib/format'
-import { BackspaceIcon, Button, PageHeader } from '@/components/common'
+import { BackspaceIcon, BackTitleHeader, Button, Toast, type ToastState } from '@/components/common'
 
 interface LocationState {
   merchantId: string
+  amount?: number
+  error?: string
 }
 
 const PAD_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0', '⌫']
@@ -17,9 +19,22 @@ export function PayConfirmPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const params = useParams<{ merchantId: string }>()
-  const merchantId = params.merchantId ?? (location.state as LocationState | null)?.merchantId ?? ''
+  const locationState = location.state as LocationState | null
+  const merchantId = params.merchantId ?? locationState?.merchantId ?? ''
+  const processingError = locationState?.error ?? ''
 
-  const [amountStr, setAmountStr] = useState('')
+  const [amountStr, setAmountStr] = useState(
+    locationState?.amount != null ? String(locationState.amount) : ''
+  )
+  const [toast, setToast] = useState<ToastState | null>(
+    processingError ? { message: processingError, variant: 'error' } : null
+  )
+
+  useEffect(() => {
+    if (!toast) return
+    const id = window.setTimeout(() => setToast(null), 3000)
+    return () => window.clearTimeout(id)
+  }, [toast])
 
   const merchantQuery = useQuery({
     queryKey: ['merchant', 'payment-target', merchantId],
@@ -82,12 +97,11 @@ export function PayConfirmPage() {
   const merchantInitial = merchant?.merchantName?.[0] ?? 'M'
 
   return (
-    <div className="flex h-dvh flex-col bg-background">
-      {/* 헤더 */}
-      <PageHeader title="결제" onBack={() => navigate(-1)} className="px-4 pt-14" />
+    <div className="relative flex h-dvh flex-col bg-background">
+      <BackTitleHeader title="결제" onBack={() => navigate(-1)} />
 
       {/* 가맹점 카드 */}
-      <div className="mx-4 rounded-2xl bg-card p-4 shadow-sm ring-1 ring-black/6">
+      <div className="mx-4 mt-2 rounded-2xl bg-card p-4 shadow-sm ring-1 ring-black/6">
         {merchantQuery.isLoading ? (
           <div className="h-14 animate-pulse rounded-lg bg-muted/40" />
         ) : merchant ? (
@@ -160,6 +174,8 @@ export function PayConfirmPage() {
           {intentMutation.isPending ? '처리 중…' : '결제하기'}
         </Button>
       </div>
+
+      <Toast open={!!toast} message={toast?.message ?? ''} variant={toast?.variant ?? 'error'} />
     </div>
   )
 }
