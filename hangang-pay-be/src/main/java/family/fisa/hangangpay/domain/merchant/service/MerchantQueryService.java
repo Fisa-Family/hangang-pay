@@ -163,4 +163,11 @@ public class MerchantQueryService {
                 .findByParty_Id(partyId)
                 .orElseThrow(() -> new BusinessException(MerchantErrorCode.MERCHANT_NOT_FOUND));
     }
+
+    @Transactional(readOnly = true)
+    public Merchant getByPartyId(Long partyId) {
+        return merchantRepository
+                .findByParty_Id(partyId)
+                .orElseThrow(() -> new BusinessException(MerchantErrorCode.MERCHANT_NOT_FOUND));
+    }
 }

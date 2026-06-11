@@ -1,6 +1,7 @@
 package family.fisa.hangangpay.domain.account.service;
 
 import family.fisa.hangangpay.client.bank.BankClient;
+import family.fisa.hangangpay.client.bank.dto.CreateBankAccountRequest;
 import family.fisa.hangangpay.domain.account.dto.AccountAddRequest;
 import family.fisa.hangangpay.domain.account.dto.AccountListResponse;
 import family.fisa.hangangpay.domain.account.dto.AccountResponse;
@@ -10,10 +11,16 @@ import family.fisa.hangangpay.domain.account.entity.AccountType;
 import family.fisa.hangangpay.domain.account.repository.AccountRepository;
 import family.fisa.hangangpay.domain.institution.entity.Institution;
 import family.fisa.hangangpay.domain.institution.service.InstitutionQueryService;
+import family.fisa.hangangpay.domain.merchant.entity.Merchant;
+import family.fisa.hangangpay.domain.merchant.service.MerchantQueryService;
 import family.fisa.hangangpay.domain.party.entity.Party;
+import family.fisa.hangangpay.domain.party.entity.PartyType;
 import family.fisa.hangangpay.domain.party.repository.PartyRepository;
+import family.fisa.hangangpay.domain.user.entity.User;
+import family.fisa.hangangpay.domain.user.service.UserQueryService;
 import family.fisa.hangangpay.global.code.error.AccountErrorCode;
 import family.fisa.hangangpay.global.exception.BusinessException;
+import java.math.BigDecimal;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,10 +33,15 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AccountService {
 
+    private static final BigDecimal USER_ACCOUNT_INITIAL_BALANCE = new BigDecimal(1_000_000);
+    private static final BigDecimal MERCHANT_ACCOUNT_INITIAL_BALANCE = BigDecimal.ZERO;
+
     private final AccountRepository accountRepository;
     private final PartyRepository partyRepository;
     private final InstitutionQueryService institutionQueryService;
     private final BankClient bankClient;
+    private final UserQueryService userQueryService;
+    private final MerchantQueryService merchantQueryService;
 
     /** 현재 로그인한 사용자의 등록 계좌 목록 조회 메서드 */
     @Transactional(readOnly = true)
@@ -66,16 +78,14 @@ public class AccountService {
             throw new BusinessException(AccountErrorCode.MAX_ACCOUNT_EXCEEDED);
         }
 
-        // 4. bank에서 계좌 존재 확인
-        bankClient.getBankAccount(institution.getId(), request.getAccountNumber());
-
-        // 5. 회원가입 시 생성된 주거래 계좌 이후 추가되는 계좌는 일반 계좌로 등록
+        // 4. 회원가입 시 생성된 주거래 계좌 이후 추가되는 계좌는 일반 계좌로 등록
         AccountType accountType = AccountType.SECONDARY;
 
-        // 6. 파티 프록시 참조 로드
+        // 5. 파티 프록시 참조 로드
         Party party = partyRepository.getReferenceById(partyId);
+        AccountOwner accountOwner = resolveAccountOwner(partyId, party.getPartyType());
 
-        // 7. 계좌 저장
+        // 6. 계좌 저장
         Account account =
                 Account.builder()
                         .party(party)
@@ -84,6 +94,13 @@ public class AccountService {
                         .accountNumber(request.getAccountNumber())
                         .build();
         Account saved = accountRepository.save(account);
+
+        bankClient.createBankAccount(
+                new CreateBankAccountRequest(
+                        institution.getId(),
+                        request.getAccountNumber(),
+                        accountOwner.ownerName(),
+                        accountOwner.initialBalance()));
         log.info(
                 "계좌 추가 완료: partyId={}, accountId={}, accountType={}",
                 partyId,
@@ -145,4 +162,16 @@ public class AccountService {
                 .previousPrimaryAccountId(previousPrimaryAccountId)
                 .build();
     }
+
+    private AccountOwner resolveAccountOwner(Long partyId, PartyType partyType) {
+        if (partyType == PartyType.USER) {
+            User user = userQueryService.getByPartyId(partyId);
+            return new AccountOwner(user.getUsername(), USER_ACCOUNT_INITIAL_BALANCE);
+        }
+
+        Merchant merchant = merchantQueryService.getByPartyId(partyId);
+        return new AccountOwner(merchant.getOwnerName(), MERCHANT_ACCOUNT_INITIAL_BALANCE);
+    }
+
+    private record AccountOwner(String ownerName, BigDecimal initialBalance) {}
 }
