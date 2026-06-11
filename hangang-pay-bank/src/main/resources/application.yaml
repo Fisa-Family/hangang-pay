@@ -24,6 +24,12 @@ management:
       exposure:
         include: health, info, prometheus
 
+# 로그 상관관계: 로컬/dev 콘솔 패턴에 MDC requestId 노출
+# prod의 ECS 구조화 로깅에서는 MDC가 JSON 필드로 자동 포함되므로 이 패턴은 무시된다.
+logging:
+  pattern:
+    correlation: "[%X{requestId:-}] "
+
 # Sentry (에러 추적 + 성능 트레이싱)
 # DSN은 환경변수로 주입. 미설정 시(local/dev) Sentry 비활성
 sentry:

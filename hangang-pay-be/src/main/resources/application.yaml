@@ -15,6 +15,12 @@ springdoc:
     path: /api-docs
 
 
+# 로그 상관관계: 로컬/dev 콘솔 패턴에 MDC requestId 노출
+# prod의 ECS 구조화 로깅에서는 MDC가 JSON 필드로 자동 포함되므로 이 패턴은 무시된다.
+logging:
+  pattern:
+    correlation: "[%X{requestId:-}] "
+
 # Actuator
 management:
   endpoints:
