@@ -82,8 +82,7 @@ export function BottomNav({ type, active, onNavigate, className }: BottomNavProp
               onClick={() => onNavigate(tab.path)}
               className={cn(
                 'flex flex-col items-center pb-1 transition-colors',
-                isActive ? 'text-primary' : 'text-muted-foreground',
-                tab.disabled && 'opacity-40'
+                isActive ? 'text-primary' : 'text-muted-foreground'
               )}
             >
               <div
