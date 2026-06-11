@@ -18,6 +18,7 @@ export const chargeHandlers = [
       chargeId: Date.now(),
       amount,
       finalAmount: amount - discountAmount,
+      walletBalance: mockChargeInit.balance + amount,
       chargedAt: new Date().toISOString(),
     })
   }),
