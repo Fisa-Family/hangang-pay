@@ -51,12 +51,14 @@ public class ExchangeExecutionService {
             return handleIdempotent(request, existingOpt.get());
         }
 
-        // 2. 기관/지갑/계좌 존재 검증
+        // 2. 기관 존재 검증 (lock 이전)
         findInstitution(request.institutionId());
-        BankWallet bankWallet = findBankWallet(request.walletAddress());
-        BankAccount bankAccount = findBankAccount(request.institutionId(), request.accountNumber());
 
-        // 3. 토큰 잔액 검증
+        // 3. wallet → account 순서로 잠금 획득 후 잔액 재검증
+        BankWallet bankWallet = findBankWalletWithLock(request.walletAddress());
+        BankAccount bankAccount =
+                findBankAccountWithLock(request.institutionId(), request.accountNumber());
+
         ensureSufficientBalance(bankWallet.getBalance(), request.amount());
 
         // 4. 토큰 차감
@@ -118,9 +120,9 @@ public class ExchangeExecutionService {
                         () -> new BusinessException(InstitutionErrorCode.INSTITUTION_NOT_FOUND));
     }
 
-    private BankWallet findBankWallet(String walletAddress) {
+    private BankWallet findBankWalletWithLock(String walletAddress) {
         return bankWalletRepository
-                .findByWalletAddress(normalizeAddress(walletAddress))
+                .findByWalletAddressWithLock(normalizeAddress(walletAddress))
                 .orElseThrow(
                         () -> new BusinessException(InstitutionErrorCode.BANK_WALLET_NOT_FOUND));
     }
@@ -128,6 +130,13 @@ public class ExchangeExecutionService {
     private BankAccount findBankAccount(Long institutionId, String accountNumber) {
         return bankAccountRepository
                 .findByInstitution_IdAndAccountNumber(institutionId, accountNumber)
+                .orElseThrow(
+                        () -> new BusinessException(InstitutionErrorCode.BANK_ACCOUNT_NOT_FOUND));
+    }
+
+    private BankAccount findBankAccountWithLock(Long institutionId, String accountNumber) {
+        return bankAccountRepository
+                .findByInstitution_IdAndAccountNumberWithLock(institutionId, accountNumber)
                 .orElseThrow(
                         () -> new BusinessException(InstitutionErrorCode.BANK_ACCOUNT_NOT_FOUND));
     }
