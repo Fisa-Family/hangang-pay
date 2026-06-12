@@ -14,8 +14,8 @@ export function AppShell({ children, bottomNav, fullBleed = false, className }: 
       <main
         className={cn(
           'flex h-full min-h-0 flex-col overflow-hidden',
-          bottomNav && 'pb-24',
-          fullBleed ? 'p-0' : 'px-5 py-4'
+          fullBleed ? 'p-0' : 'px-5 py-4',
+          bottomNav && 'pb-24'
         )}
       >
         {children}

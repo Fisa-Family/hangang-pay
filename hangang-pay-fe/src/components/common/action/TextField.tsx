@@ -11,6 +11,7 @@ interface TextFieldProps {
   error?: string
   disabled?: boolean
   className?: string
+  inputClassName?: string
 }
 
 function EyeIcon({ open }: { open: boolean }) {
@@ -26,6 +27,7 @@ export function TextField({
   error,
   disabled = false,
   className,
+  inputClassName,
 }: TextFieldProps) {
   const [showPassword, setShowPassword] = useState(false)
   const isPassword = type === 'password'
@@ -46,7 +48,8 @@ export function TextField({
             'focus:border-primary focus:ring-2 focus:ring-primary/15',
             error ? 'border-destructive' : 'border-input',
             disabled && 'bg-muted text-muted-foreground',
-            isPassword && 'pr-10'
+            isPassword && 'pr-10',
+            inputClassName
           )}
         />
         {isPassword && (

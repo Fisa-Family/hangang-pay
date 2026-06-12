@@ -8,7 +8,7 @@ import { createExchangeIntent, executeExchange } from '@/api/exchange'
 import { registerUser, registerMerchant } from '@/api/auth'
 import { ApiError } from '@/api/client'
 import { ApiErrorCode } from '@/api/errorCodes'
-import { ProcessingView, ResultState } from '@/components/common'
+import { ProcessingView, RetryState } from '@/components/common'
 
 type FlowState = Record<string, unknown>
 
@@ -224,7 +224,9 @@ function ProcessingPageContent() {
     flow
       .recover(state)
       .then(applyResult)
-      .catch(handleError)
+      // recover 자체가 실패(은행 서버 응답 없음 등)하면 화면을 이동하지 않고
+      // 재시도 화면(UNKNOWN)에 그대로 머무른다.
+      .catch(() => setUnknownResult(true))
       .finally(() => setIsRecovering(false))
   }
 
@@ -243,13 +245,10 @@ function ProcessingPageContent() {
   // UNKNOWN(미확정) 재시도 화면
   if (unknownResult) {
     return (
-      <div className="flex h-dvh items-center justify-center bg-background px-5">
-        <ResultState
-          variant="info"
+      <div className="h-dvh bg-background px-5">
+        <RetryState
           title="결제 상태를 확인 중이에요"
-          description={
-            '현재 서버 네트워크에 오류가 발생했어요.\n 서버가 복구되는 대로 바로 확인 가능해요!\n'
-          }
+          description={'결과를 다시 확인해주세요.\n같은 결제가 중복 처리되지는 않습니다.'}
           primaryText="다시 확인"
           onPrimary={handleRecover}
           secondaryText="홈으로"

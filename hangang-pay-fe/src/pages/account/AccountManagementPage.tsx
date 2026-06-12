@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useState } from 'react'
-import { AccountRow, AppShell, Button, PageHeader, ConfirmDialog } from '@/components/common'
+import { useEffect, useState } from 'react'
+import { AccountRow, AppShell, Button, PageHeader, ConfirmDialog, Toast } from '@/components/common'
 import { deleteAccount, fetchAccounts, setPrimaryAccount } from '@/api/accounts'
 import { useCurrentUser } from '@/auth/useCurrentUser'
 import { resolveBackDestination } from '@/lib/navigation'
+import { ApiError } from '@/api/client'
+import { apiErrorMessages, isApiErrorCode } from '@/api/errorCodes'
 
 export function AccountManagementPage() {
   const navigate = useNavigate()
@@ -13,6 +15,7 @@ export function AccountManagementPage() {
   const { isLoading: isAuthLoading } = useCurrentUser()
 
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
 
   const accountsQuery = useQuery({
     queryKey: ['accounts'],
@@ -25,7 +28,21 @@ export function AccountManagementPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounts'] })
     },
+    onError: (err) => {
+      if (err instanceof ApiError && err.code && isApiErrorCode(err.code)) {
+        setToast(apiErrorMessages[err.code])
+      } else {
+        setToast('계좌를 삭제하지 못했습니다.')
+      }
+    },
   })
+
+  // 토스트 자동 소멸
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(null), 2500)
+    return () => clearTimeout(t)
+  }, [toast])
 
   const primaryMutation = useMutation({
     mutationFn: setPrimaryAccount,
@@ -103,6 +120,7 @@ export function AccountManagementPage() {
         }}
         onCancel={() => setDeleteTargetId(null)}
       />
+      <Toast open={!!toast} message={toast ?? ''} variant="error" />
     </AppShell>
   )
 }

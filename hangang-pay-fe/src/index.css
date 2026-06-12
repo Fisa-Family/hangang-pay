@@ -30,10 +30,18 @@
     --success-foreground: #ffffff;
     --warning: #ea6d0e;
     --warning-foreground: #ffffff;
-    --info: #0f67b1;
+    --info: #2563eb;
     --info-foreground: #ffffff;
+    --neutral: #64748b;
     --surface: #f8fafc;
     --surface-raised: #ffffff;
+
+    --action-1: #3a91d8;
+    --action-1-foreground: #ffffff;
+    --action-2: #2a52d5;
+    --action-2-foreground: #ffffff;
+    --action-3: #27429a;
+    --action-3-foreground: #ffffff;
 
     --radius: 0.5rem;
     --app-max-width: 430px;
@@ -68,8 +76,16 @@
     --warning-foreground: #451a03;
     --info: #38bdf8;
     --info-foreground: #082f49;
+    --neutral: #94a3b8;
     --surface: #0b1220;
     --surface-raised: #111c33;
+
+    --action-1: #3a91d8;
+    --action-1-foreground: #ffffff;
+    --action-2: #2a52d5;
+    --action-2-foreground: #ffffff;
+    --action-3: #27429a;
+    --action-3-foreground: #ffffff;
   }
 }
 
@@ -100,7 +116,14 @@
   --color-warning-foreground: var(--warning-foreground);
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
+  --color-neutral: var(--neutral);
   --color-surface: var(--surface);
+  --color-action-1: var(--action-1);
+  --color-action-1-foreground: var(--action-1-foreground);
+  --color-action-2: var(--action-2);
+  --color-action-2-foreground: var(--action-2-foreground);
+  --color-action-3: var(--action-3);
+  --color-action-3-foreground: var(--action-3-foreground);
   --color-surface-raised: var(--surface-raised);
   --font-sans:
     'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo',

@@ -83,7 +83,7 @@ export function UserMyPage() {
         <UserProfileCard profile={profileQuery.data ?? EMPTY_PROFILE} />
       )}
 
-      <section className="mt-3 flex flex-col gap-2">
+      <section className="mt-6 flex flex-col gap-2">
         <HistoryEntryCard onClick={() => navigate('/mypage/payments')} />
       </section>
 

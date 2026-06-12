@@ -18,14 +18,22 @@ interface FlowConfig {
   actionPath?: string
 }
 
+/** 승인번호 + 일시 2행 — 결제/환불/취소/정산 완료 화면 공통 패턴 */
+function approvalRows(s: CompleteState, dateLabel: string, dateKey: string): ResultRow[] {
+  return [
+    { label: '승인번호', value: (s.approvalNumber as string) ?? '—' },
+    {
+      label: dateLabel,
+      value: s[dateKey] ? formatDateTimeDot(s[dateKey] as string) : '—',
+    },
+  ]
+}
+
 const FLOWS: Record<string, FlowConfig> = {
   '/pay/complete': {
-    title: (s) => (s.merchantName as string) || '결제 완료',
+    title: () => '결제 완료',
     amountLabel: '결제 금액',
-    rows: (s) => [
-      { label: '승인번호', value: (s.approvalNumber as string) ?? '—' },
-      { label: '일시', value: s.confirmedAt ? formatDateTimeDot(s.confirmedAt as string) : '—' },
-    ],
+    rows: (s) => approvalRows(s, '일시', 'confirmedAt'),
   },
   '/charge/complete': {
     title: () => '충전이 완료되었습니다',
@@ -42,16 +50,21 @@ const FLOWS: Record<string, FlowConfig> = {
   '/refund/complete': {
     title: () => '환불 신청이 완료되었습니다',
     amountLabel: '환불 금액',
-    rows: (s) => [
-      {
-        label: '입금 계좌',
-        value: s.bankName && s.accountNumber ? `${s.bankName} ${s.accountNumber}` : '—',
-      },
-      {
-        label: '신청일시',
-        value: s.exchangedAt ? formatDateTimeDot(s.exchangedAt as string) : '—',
-      },
-    ],
+    rows: (s) => approvalRows(s, '신청일시', 'exchangedAt'),
+  },
+  '/merchant/payments/cancel/complete': {
+    title: () => '결제가 취소되었습니다',
+    amountLabel: '취소 금액',
+    rows: (s) => approvalRows(s, '취소 일시', 'confirmedAt'),
+    actionLabel: '홈으로',
+    actionPath: '/merchant/home',
+  },
+  '/merchant/settlement/complete': {
+    title: () => '출금 신청이 완료되었습니다',
+    amountLabel: '출금 금액',
+    rows: (s) => approvalRows(s, '신청 일시', 'exchangedAt'),
+    actionLabel: '홈으로',
+    actionPath: '/merchant/home',
   },
   '/register/complete': {
     title: () => '회원가입이 완료되었습니다',

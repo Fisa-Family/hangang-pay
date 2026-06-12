@@ -31,7 +31,7 @@ import lombok.NoArgsConstructor;
  * amount                  |   ✓    |    ✓     |    ✓    |   ✓
  * discountAmount          |   ✓    |    ✓     |    -    |   -
  * discountRate            |   ✓    |    ✓     |    -    |   -
- * approvalNumber          |   -    |    -     |    ✓    |   ✓
+ * approvalNumber          |   -    |    ✓     |    ✓    |   ✓
  * itemName                |   -    |    -     |    ✓    |   -
  * txHash                  |   ✓    |    ✓     |    ✓    |   ✓ (BankClient 응답에서 채움)
  * bankTransactionId       |   ✓    |    ✓     |    ✓    |   ✓
@@ -113,7 +113,7 @@ public class Transaction extends BaseEntity {
     @Column(name = "discount_rate", precision = 5, scale = 2)
     private BigDecimal discountRate;
 
-    /** PAYMENT 전용 - 승인번호 (APV-YYYY-NNNNNNNN) */
+    /** PAYMENT/CANCEL/EXCHANGE 전용 - 승인번호 (APV-YYYY-NNNNNNNN) */
     @Column(name = "approval_number", unique = true, length = 50)
     private String approvalNumber;
 
