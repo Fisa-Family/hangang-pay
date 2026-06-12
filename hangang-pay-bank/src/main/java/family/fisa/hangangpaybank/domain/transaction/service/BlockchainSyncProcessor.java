@@ -244,6 +244,15 @@ public class BlockchainSyncProcessor {
                     e.getCode());
             throw e;
         }
+        // 컨트랙트가 AlreadyProcessed를 반환한 경우: 이전 tx가 이미 온체인에 확정됐음을 의미.
+        // 재시도해도 동일 결과이므로 SUCCESS로 마킹하고 ACK.
+        if (BlockchainErrorCode.BLOCKCHAIN_ALREADY_PROCESSED.equals(e.getCode())) {
+            log.warn(
+                    "[consumer] 온체인 AlreadyProcessed — 이전 tx 확정으로 SUCCESS 마킹. uuid={}",
+                    transactionUuid);
+            ledgerStateWriter.markAlreadyProcessed(ledgerId, transactionUuid);
+            return;
+        }
         // 코드/인프라 버그 또는 발생 확률이 사실상 없는 비즈니스 예외. 보상 없이 FAILED 마킹 후 ACK.
         log.error(
                 "[consumer] non-retryable 오류. 수동 조사 필요. uuid={}, code={}",

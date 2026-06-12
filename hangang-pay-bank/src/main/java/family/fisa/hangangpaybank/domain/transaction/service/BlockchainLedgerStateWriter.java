@@ -41,6 +41,14 @@ public class BlockchainLedgerStateWriter {
                 receipt.getTransactionHash());
     }
 
+    /** 온체인에서 AlreadyProcessed 반환 시: 이전 tx가 이미 확정됐음을 의미하므로 SUCCESS로 마킹. txHash는 불명이므로 null 유지. */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void markAlreadyProcessed(Long ledgerId, String transactionUuid) {
+        BlockchainLedger ledger = fetchById(ledgerId, transactionUuid);
+        ledger.markAlreadyProcessed();
+        log.info("[ledger] SUCCESS(already-processed). uuid={}", transactionUuid);
+    }
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markFailed(Long ledgerId, String transactionUuid) {
         BlockchainLedger ledger = fetchById(ledgerId, transactionUuid);

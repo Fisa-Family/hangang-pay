@@ -2,7 +2,17 @@ package family.fisa.hangangpaybank.domain.blockchain.entity;
 
 import family.fisa.hangangpaybank.domain.institution.entity.Institution;
 import family.fisa.hangangpaybank.global.entity.BaseEntity;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -63,6 +73,12 @@ public class BlockchainLedger extends BaseEntity {
         this.txHash = receipt.getTransactionHash();
         this.blockNumber =
                 receipt.getBlockNumber() != null ? receipt.getBlockNumber().longValueExact() : null;
+        this.confirmedAt = LocalDateTime.now();
+    }
+
+    /** 온체인 AlreadyProcessed: 이전 시도가 이미 확정된 경우. txHash는 불명이므로 null 유지. */
+    public void markAlreadyProcessed() {
+        this.status = BlockchainTxStatus.SUCCESS;
         this.confirmedAt = LocalDateTime.now();
     }
 

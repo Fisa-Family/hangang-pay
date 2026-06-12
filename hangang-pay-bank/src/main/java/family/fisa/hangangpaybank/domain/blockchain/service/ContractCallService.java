@@ -100,7 +100,10 @@ public class ContractCallService {
                             BlockchainErrorCode.BLOCKCHAIN_TRANSFER_FAILED),
                     Map.entry(
                             selector("BankNotRegistered()"),
-                            BlockchainErrorCode.BLOCKCHAIN_BANK_NOT_REGISTERED));
+                            BlockchainErrorCode.BLOCKCHAIN_BANK_NOT_REGISTERED),
+                    Map.entry(
+                            selector("AlreadyProcessed()"),
+                            BlockchainErrorCode.BLOCKCHAIN_ALREADY_PROCESSED));
 
     private static String selector(String signature) {
         return Hash.sha3String(signature).substring(0, 10); // 0x + 4 bytes
