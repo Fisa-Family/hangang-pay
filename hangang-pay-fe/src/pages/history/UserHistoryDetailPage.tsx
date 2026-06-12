@@ -17,7 +17,7 @@ import { getPaymentHistoryDetail, type PaymentHistoryDetail } from '@/api/paymen
 import { getExchangeHistoryDetail, type ExchangeHistoryDetail } from '@/api/exchangeHistories'
 import { formatWon, formatDateTime } from '@/lib/format'
 import { resolveBackDestination } from '@/lib/navigation'
-import voucherIcon from '@/components/common/icons/icon.png'
+import voucherIcon from '@/components/common/icons/icon.webp'
 
 interface DetailRow {
   label: string

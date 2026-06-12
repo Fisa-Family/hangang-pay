@@ -39,4 +39,27 @@ export default defineConfig({
       '/api': apiProxy,
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // 코어 라이브러리를 별도 청크로 분리해 캐싱 효율을 높인다.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined
+          if (id.includes('react-router') || id.includes('/react/') || id.includes('/react-dom/')) {
+            return 'vendor-react'
+          }
+          if (id.includes('@tanstack')) {
+            return 'vendor-query'
+          }
+          if (id.includes('zustand')) {
+            return 'vendor-zustand'
+          }
+          if (id.includes('@zxing') || id.includes('jsqr')) {
+            return 'vendor-qr'
+          }
+          return 'vendor'
+        },
+      },
+    },
+  },
 })

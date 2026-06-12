@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
-import { BrowserQRCodeReader, type IScannerControls } from '@zxing/browser'
+import type { IScannerControls } from '@zxing/browser'
 import { resolveBackDestination } from '@/lib/navigation'
 
 type ScanError =
@@ -52,7 +52,8 @@ export function UserPayScanPage() {
         await video.play()
         if (cancelled) return
 
-        // 이미 재생 중인 video element에서 ZXing은 디코딩만 담당.
+        // 이미 재생 중인 video element에서 ZXing은 디코딩만 담당. 메인 청크 크기를 줄이기 위해 동적 로드
+        const { BrowserQRCodeReader } = await import('@zxing/browser')
         const reader = new BrowserQRCodeReader()
         const controls = await reader.decodeFromVideoElement(video, (result, _err, ctrls) => {
           if (cancelled || !result) return

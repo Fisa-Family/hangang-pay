@@ -6,39 +6,130 @@ import {
   useNavigate,
   useRouteError,
 } from 'react-router-dom'
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect, type ComponentType } from 'react'
 import { useCurrentUser } from '@/auth/useCurrentUser'
 import { FullscreenLayout, MainLayout } from '@/routes/layouts'
 import { RequireAuth, RequireRole, RedirectIfAuth } from '@/routes/guards'
-import { LoginPage } from '@/pages/auth/LoginPage'
-import { RegisterTermsPage } from '@/pages/register/RegisterTermsPage'
-import { RegisterVerifyPage } from '@/pages/register/RegisterVerifyPage'
-import { RegisterPasswordPage } from '@/pages/register/RegisterPasswordPage'
-import { RegisterAccountPage } from '@/pages/register/RegisterAccountPage'
-import { RegisterPinPage } from '@/pages/register/RegisterPinPage'
-import { MerchantRegisterBusinessPage } from '@/pages/register/MerchantRegisterBusinessPage'
-import { UserHomePage } from '@/pages/user/UserHomePage'
-import { UserMyPage } from '@/pages/user/UserMyPage'
-import { UserHistoryPage } from '@/pages/history/UserHistoryPage'
-import { UserHistoryDetailPage } from '@/pages/history/UserHistoryDetailPage'
-import { UserPayScanPage } from '@/pages/payment/UserPayScanPage'
-import { PayConfirmPage } from '@/pages/payment/PayConfirmPage'
-import { PinPage } from '@/pages/shared/PinPage'
-import { ProcessingPage } from '@/pages/shared/ProcessingPage'
-import { CompletePage } from '@/pages/shared/CompletePage'
-import { ChargeAmountPage } from '@/pages/charge/ChargeAmountPage'
-import { RefundCheckPage } from '@/pages/refund/RefundCheckPage'
-import { AccountManagementPage } from '@/pages/account/AccountManagementPage'
-import { AddAccountPage } from '@/pages/account/AddAccountPage'
-import { MerchantHomePage } from '@/pages/merchant/MerchantHomePage'
-import { MerchantQrPage } from '@/pages/merchant/MerchantQrPage'
-import { MerchantPaymentsPage } from '@/pages/merchant/MerchantPaymentsPage'
-import { MerchantPaymentDetailPage } from '@/pages/merchant/MerchantPaymentDetailPage'
-import { MerchantMyPage } from '@/pages/merchant/MerchantMyPage'
-import { MerchantSettlementPage } from '@/pages/merchant/MerchantSettlementPage'
 import { AppShell } from '@/components/common'
-import { LandingPage } from '@/pages/landing/LandingPage'
-import { MerchantSettlementHistoryPage } from '@/pages/merchant/MerchantSettlementHistoryPage'
+
+// 페이지 단위 lazy import: 초기 청크에는 layout/guard만 포함하고
+// 역할(USER/MERCHANT)·플로우(AUTH/PAYMENT 등)별 화면은 진입 시점에 로드한다.
+const LoginPage = lazy(() =>
+  import('@/pages/auth/LoginPage').then((m) => ({ default: m.LoginPage }))
+)
+const RegisterTermsPage = lazy(() =>
+  import('@/pages/register/RegisterTermsPage').then((m) => ({ default: m.RegisterTermsPage }))
+)
+const RegisterVerifyPage = lazy(() =>
+  import('@/pages/register/RegisterVerifyPage').then((m) => ({ default: m.RegisterVerifyPage }))
+)
+const RegisterPasswordPage = lazy(() =>
+  import('@/pages/register/RegisterPasswordPage').then((m) => ({
+    default: m.RegisterPasswordPage,
+  }))
+)
+const RegisterAccountPage = lazy(() =>
+  import('@/pages/register/RegisterAccountPage').then((m) => ({ default: m.RegisterAccountPage }))
+)
+const RegisterPinPage = lazy(() =>
+  import('@/pages/register/RegisterPinPage').then((m) => ({ default: m.RegisterPinPage }))
+)
+const MerchantRegisterBusinessPage = lazy(() =>
+  import('@/pages/register/MerchantRegisterBusinessPage').then((m) => ({
+    default: m.MerchantRegisterBusinessPage,
+  }))
+)
+const UserHomePage = lazy(() =>
+  import('@/pages/user/UserHomePage').then((m) => ({ default: m.UserHomePage }))
+)
+const UserMyPage = lazy(() =>
+  import('@/pages/user/UserMyPage').then((m) => ({ default: m.UserMyPage }))
+)
+const UserHistoryPage = lazy(() =>
+  import('@/pages/history/UserHistoryPage').then((m) => ({ default: m.UserHistoryPage }))
+)
+const UserHistoryDetailPage = lazy(() =>
+  import('@/pages/history/UserHistoryDetailPage').then((m) => ({
+    default: m.UserHistoryDetailPage,
+  }))
+)
+const UserPayScanPage = lazy(() =>
+  import('@/pages/payment/UserPayScanPage').then((m) => ({ default: m.UserPayScanPage }))
+)
+const PayConfirmPage = lazy(() =>
+  import('@/pages/payment/PayConfirmPage').then((m) => ({ default: m.PayConfirmPage }))
+)
+const PinPage = lazy(() => import('@/pages/shared/PinPage').then((m) => ({ default: m.PinPage })))
+const ProcessingPage = lazy(() =>
+  import('@/pages/shared/ProcessingPage').then((m) => ({ default: m.ProcessingPage }))
+)
+const CompletePage = lazy(() =>
+  import('@/pages/shared/CompletePage').then((m) => ({ default: m.CompletePage }))
+)
+const ChargeAmountPage = lazy(() =>
+  import('@/pages/charge/ChargeAmountPage').then((m) => ({ default: m.ChargeAmountPage }))
+)
+const RefundCheckPage = lazy(() =>
+  import('@/pages/refund/RefundCheckPage').then((m) => ({ default: m.RefundCheckPage }))
+)
+const AccountManagementPage = lazy(() =>
+  import('@/pages/account/AccountManagementPage').then((m) => ({
+    default: m.AccountManagementPage,
+  }))
+)
+const AddAccountPage = lazy(() =>
+  import('@/pages/account/AddAccountPage').then((m) => ({ default: m.AddAccountPage }))
+)
+const MerchantHomePage = lazy(() =>
+  import('@/pages/merchant/MerchantHomePage').then((m) => ({ default: m.MerchantHomePage }))
+)
+const MerchantQrPage = lazy(() =>
+  import('@/pages/merchant/MerchantQrPage').then((m) => ({ default: m.MerchantQrPage }))
+)
+const MerchantPaymentsPage = lazy(() =>
+  import('@/pages/merchant/MerchantPaymentsPage').then((m) => ({
+    default: m.MerchantPaymentsPage,
+  }))
+)
+const MerchantPaymentDetailPage = lazy(() =>
+  import('@/pages/merchant/MerchantPaymentDetailPage').then((m) => ({
+    default: m.MerchantPaymentDetailPage,
+  }))
+)
+const MerchantMyPage = lazy(() =>
+  import('@/pages/merchant/MerchantMyPage').then((m) => ({ default: m.MerchantMyPage }))
+)
+const MerchantSettlementPage = lazy(() =>
+  import('@/pages/merchant/MerchantSettlementPage').then((m) => ({
+    default: m.MerchantSettlementPage,
+  }))
+)
+const MerchantSettlementHistoryPage = lazy(() =>
+  import('@/pages/merchant/MerchantSettlementHistoryPage').then((m) => ({
+    default: m.MerchantSettlementHistoryPage,
+  }))
+)
+const LandingPage = lazy(() =>
+  import('@/pages/landing/LandingPage').then((m) => ({ default: m.LandingPage }))
+)
+
+// lazy 페이지 전환 시 표시할 최소 fallback
+function PageFallback() {
+  return (
+    <div className="flex h-full w-full items-center justify-center">
+      <div className="size-10 animate-spin rounded-full border-4 border-muted border-t-primary" />
+    </div>
+  )
+}
+
+// lazy 컴포넌트를 Suspense로 감싸 route element로 사용
+function page(Component: ComponentType) {
+  return (
+    <Suspense fallback={<PageFallback />}>
+      <Component />
+    </Suspense>
+  )
+}
 
 // 미등록 경로 접근 시 경로 기반으로 해당 영역 홈으로 교체
 function GoBack() {
@@ -55,7 +146,7 @@ function GoBack() {
 function RoleRedirect() {
   const { role, isLoading, isAuthenticated } = useCurrentUser()
   if (isLoading) return null
-  if (!isAuthenticated) return <LandingPage />
+  if (!isAuthenticated) return page(LandingPage)
   return <Navigate to={role === 'MERCHANT' ? '/merchant/home' : '/home'} replace />
 }
 
@@ -88,22 +179,22 @@ export const router = createBrowserRouter([
   {
     element: <RedirectIfAuth />,
     children: [
-      { path: '/login', element: <LoginPage /> },
-      { path: '/register/terms', element: <RegisterTermsPage /> },
-      { path: '/register/verify', element: <RegisterVerifyPage /> },
-      { path: '/register/password', element: <RegisterPasswordPage /> },
-      { path: '/register/account', element: <RegisterAccountPage /> },
-      { path: '/register/pin', element: <RegisterPinPage /> },
-      { path: '/register/processing', element: <ProcessingPage /> },
-      { path: '/register/complete', element: <CompletePage /> },
-      { path: '/merchant/register/terms', element: <RegisterTermsPage /> },
-      { path: '/merchant/register/verify', element: <RegisterVerifyPage /> },
-      { path: '/merchant/register/password', element: <RegisterPasswordPage /> },
-      { path: '/merchant/register/business', element: <MerchantRegisterBusinessPage /> },
-      { path: '/merchant/register/account', element: <RegisterAccountPage /> },
-      { path: '/merchant/register/pin', element: <RegisterPinPage /> },
-      { path: '/merchant/register/processing', element: <ProcessingPage /> },
-      { path: '/merchant/register/complete', element: <CompletePage /> },
+      { path: '/login', element: page(LoginPage) },
+      { path: '/register/terms', element: page(RegisterTermsPage) },
+      { path: '/register/verify', element: page(RegisterVerifyPage) },
+      { path: '/register/password', element: page(RegisterPasswordPage) },
+      { path: '/register/account', element: page(RegisterAccountPage) },
+      { path: '/register/pin', element: page(RegisterPinPage) },
+      { path: '/register/processing', element: page(ProcessingPage) },
+      { path: '/register/complete', element: page(CompletePage) },
+      { path: '/merchant/register/terms', element: page(RegisterTermsPage) },
+      { path: '/merchant/register/verify', element: page(RegisterVerifyPage) },
+      { path: '/merchant/register/password', element: page(RegisterPasswordPage) },
+      { path: '/merchant/register/business', element: page(MerchantRegisterBusinessPage) },
+      { path: '/merchant/register/account', element: page(RegisterAccountPage) },
+      { path: '/merchant/register/pin', element: page(RegisterPinPage) },
+      { path: '/merchant/register/processing', element: page(ProcessingPage) },
+      { path: '/merchant/register/complete', element: page(CompletePage) },
     ],
   },
   // /merchant 단축 진입점 (홈으로 리다이렉트)
@@ -122,37 +213,37 @@ export const router = createBrowserRouter([
           {
             element: <MainLayout navType="user" />,
             children: [
-              { path: '/home', element: <UserHomePage /> },
-              { path: '/mypage/payments', element: <UserHistoryPage /> },
-              { path: '/mypage', element: <UserMyPage /> },
+              { path: '/home', element: page(UserHomePage) },
+              { path: '/mypage/payments', element: page(UserHistoryPage) },
+              { path: '/mypage', element: page(UserMyPage) },
             ],
           },
-          { path: '/mypage/accounts', element: <AccountManagementPage /> },
-          { path: '/mypage/accounts/add', element: <AddAccountPage /> },
+          { path: '/mypage/accounts', element: page(AccountManagementPage) },
+          { path: '/mypage/accounts/add', element: page(AddAccountPage) },
           // 결제 플로우 (하단 네비 없음)
           {
             element: <FullscreenLayout fullBleed />,
-            children: [{ path: '/pay/scan', element: <UserPayScanPage /> }],
+            children: [{ path: '/pay/scan', element: page(UserPayScanPage) }],
           },
           {
             element: <FullscreenLayout />,
             children: [
-              { path: '/pay/amount/:merchantId', element: <PayConfirmPage /> },
-              { path: '/pay/confirm', element: <PayConfirmPage /> },
-              { path: '/pay/pin', element: <PinPage /> },
-              { path: '/pay/processing', element: <ProcessingPage /> },
-              { path: '/pay/complete', element: <CompletePage /> },
-              { path: '/charge/amount', element: <ChargeAmountPage /> },
-              { path: '/charge/pin', element: <PinPage /> },
-              { path: '/charge/processing', element: <ProcessingPage /> },
-              { path: '/charge/complete', element: <CompletePage /> },
-              { path: '/mypage/history/charges/:id', element: <UserHistoryDetailPage /> },
-              { path: '/mypage/history/exchanges/:id', element: <UserHistoryDetailPage /> },
-              { path: '/mypage/history/payments/:id', element: <UserHistoryDetailPage /> },
-              { path: '/refund/check', element: <RefundCheckPage /> },
-              { path: '/refund/pin', element: <PinPage /> },
-              { path: '/refund/processing', element: <ProcessingPage /> },
-              { path: '/refund/complete', element: <CompletePage /> },
+              { path: '/pay/amount/:merchantId', element: page(PayConfirmPage) },
+              { path: '/pay/confirm', element: page(PayConfirmPage) },
+              { path: '/pay/pin', element: page(PinPage) },
+              { path: '/pay/processing', element: page(ProcessingPage) },
+              { path: '/pay/complete', element: page(CompletePage) },
+              { path: '/charge/amount', element: page(ChargeAmountPage) },
+              { path: '/charge/pin', element: page(PinPage) },
+              { path: '/charge/processing', element: page(ProcessingPage) },
+              { path: '/charge/complete', element: page(CompletePage) },
+              { path: '/mypage/history/charges/:id', element: page(UserHistoryDetailPage) },
+              { path: '/mypage/history/exchanges/:id', element: page(UserHistoryDetailPage) },
+              { path: '/mypage/history/payments/:id', element: page(UserHistoryDetailPage) },
+              { path: '/refund/check', element: page(RefundCheckPage) },
+              { path: '/refund/pin', element: page(PinPage) },
+              { path: '/refund/processing', element: page(ProcessingPage) },
+              { path: '/refund/complete', element: page(CompletePage) },
             ],
           },
         ],
@@ -164,13 +255,13 @@ export const router = createBrowserRouter([
           {
             element: <MainLayout navType="merchant" />,
             children: [
-              { path: '/merchant/home', element: <MerchantHomePage /> },
-              { path: '/merchant/qr', element: <MerchantQrPage /> },
-              { path: '/merchant/payments', element: <MerchantPaymentsPage /> },
-              { path: '/merchant/mypage', element: <MerchantMyPage /> },
+              { path: '/merchant/home', element: page(MerchantHomePage) },
+              { path: '/merchant/qr', element: page(MerchantQrPage) },
+              { path: '/merchant/payments', element: page(MerchantPaymentsPage) },
+              { path: '/merchant/mypage', element: page(MerchantMyPage) },
               {
                 path: '/merchant/settlements',
-                element: <MerchantSettlementHistoryPage />,
+                element: page(MerchantSettlementHistoryPage),
               },
             ],
           },
@@ -179,11 +270,11 @@ export const router = createBrowserRouter([
             children: [
               {
                 path: '/merchant/payments/:transactionId',
-                element: <MerchantPaymentDetailPage />,
+                element: page(MerchantPaymentDetailPage),
               },
-              { path: '/merchant/settlement', element: <MerchantSettlementPage /> },
-              { path: '/merchant/settlement/complete', element: <CompletePage /> },
-              { path: '/merchant/payments/cancel/complete', element: <CompletePage /> },
+              { path: '/merchant/settlement', element: page(MerchantSettlementPage) },
+              { path: '/merchant/settlement/complete', element: page(CompletePage) },
+              { path: '/merchant/payments/cancel/complete', element: page(CompletePage) },
             ],
           },
         ],
