@@ -66,28 +66,24 @@ public class LocalDataInitializer implements ApplicationRunner {
                         Institution.builder()
                                 .id(1L)
                                 .institutionCode("BoK")
-                                .institutionName("Bank of Korea")
+                                .institutionName("한국은행")
                                 .build());
         Institution woori =
                 institutionJpaRepository.save(
                         Institution.builder()
                                 .id(2L)
                                 .institutionCode("WR")
-                                .institutionName("Woori Bank")
+                                .institutionName("우리은행")
                                 .build());
         Institution shinhan =
                 institutionJpaRepository.save(
                         Institution.builder()
                                 .id(3L)
                                 .institutionCode("SH")
-                                .institutionName("Shinhan Bank")
+                                .institutionName("신한은행")
                                 .build());
         institutionJpaRepository.save(
-                Institution.builder()
-                        .id(4L)
-                        .institutionCode("HN")
-                        .institutionName("Hana Bank")
-                        .build());
+                Institution.builder().id(4L).institutionCode("HN").institutionName("하나은행").build());
 
         Party userParty = partyRepository.save(Party.of(PartyType.USER));
         userRepository.save(

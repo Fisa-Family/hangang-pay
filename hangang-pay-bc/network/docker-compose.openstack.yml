@@ -1,4 +1,37 @@
 services:
+  rpc-lb:
+    image: nginx:alpine
+    container_name: besu-rpc-lb
+    command:
+      - /bin/sh
+      - -c
+      - >
+        export RPC_FAIL_TIMEOUT="$${RPC_FAIL_TIMEOUT:-5s}"
+        RPC_KEEPALIVE="$${RPC_KEEPALIVE:-32}"
+        RPC_CONNECT_TIMEOUT="$${RPC_CONNECT_TIMEOUT:-2s}"
+        RPC_SEND_TIMEOUT="$${RPC_SEND_TIMEOUT:-30s}"
+        RPC_READ_TIMEOUT="$${RPC_READ_TIMEOUT:-30s}"
+        RPC_NEXT_UPSTREAM_TRIES="$${RPC_NEXT_UPSTREAM_TRIES:-4}";
+        envsubst '$$NODE1_IP $$NODE2_IP $$NODE3_IP $$NODE4_IP $$RPC_FAIL_TIMEOUT $$RPC_KEEPALIVE $$RPC_CONNECT_TIMEOUT $$RPC_SEND_TIMEOUT $$RPC_READ_TIMEOUT $$RPC_NEXT_UPSTREAM_TRIES'
+        < /etc/nginx/templates/default.conf.template
+        > /etc/nginx/conf.d/default.conf
+        && exec nginx -g 'daemon off;'
+    ports:
+      - "${RPC_LB_HOST_PORT:-18545}:8545"
+    volumes:
+      - ./nginx.conf:/etc/nginx/templates/default.conf.template:ro
+    environment:
+      NODE1_IP: ${NODE1_IP}
+      NODE2_IP: ${NODE2_IP}
+      NODE3_IP: ${NODE3_IP}
+      NODE4_IP: ${NODE4_IP}
+      RPC_FAIL_TIMEOUT: ${RPC_FAIL_TIMEOUT:-5s}
+      RPC_KEEPALIVE: ${RPC_KEEPALIVE:-32}
+      RPC_CONNECT_TIMEOUT: ${RPC_CONNECT_TIMEOUT:-2s}
+      RPC_SEND_TIMEOUT: ${RPC_SEND_TIMEOUT:-30s}
+      RPC_READ_TIMEOUT: ${RPC_READ_TIMEOUT:-30s}
+      RPC_NEXT_UPSTREAM_TRIES: ${RPC_NEXT_UPSTREAM_TRIES:-4}
+      
   node1:
     image: hyperledger/besu:26.4.0
     container_name: besu-node1
