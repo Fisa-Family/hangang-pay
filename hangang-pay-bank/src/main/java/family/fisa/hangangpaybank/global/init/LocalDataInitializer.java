@@ -25,16 +25,16 @@ public class LocalDataInitializer implements ApplicationRunner {
     private final InstitutionRepository institutionRepository;
     private final BankAccountRepository bankAccountRepository;
 
-    @Value("${blockchain.rpc-endpoint.bok:${BOK_RPC_ENDPOINT:http://localhost:8545}}")
+    @Value("${blockchain.rpc-endpoint.bok:${BOK_RPC_ENDPOINT:http://localhost:18545}}")
     private String bokRpcEndpoint;
 
-    @Value("${blockchain.rpc-endpoint.wr:${WR_RPC_ENDPOINT:http://localhost:8547}}")
+    @Value("${blockchain.rpc-endpoint.wr:${WR_RPC_ENDPOINT:http://localhost:18545}}")
     private String wrRpcEndpoint;
 
-    @Value("${blockchain.rpc-endpoint.sh:${SH_RPC_ENDPOINT:http://localhost:8549}}")
+    @Value("${blockchain.rpc-endpoint.sh:${SH_RPC_ENDPOINT:http://localhost:18545}}")
     private String shRpcEndpoint;
 
-    @Value("${blockchain.rpc-endpoint.hn:${HN_RPC_ENDPOINT:http://localhost:8551}}")
+    @Value("${blockchain.rpc-endpoint.hn:${HN_RPC_ENDPOINT:http://localhost:18545}}")
     private String hnRpcEndpoint;
 
     @Override
