@@ -7,5 +7,7 @@ public interface BlockchainSyncRequest {
 
     String transactionUuid();
 
+    String orderingKey();
+
     Object payload();
 }

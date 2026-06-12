@@ -41,6 +41,7 @@ class BlockchainOutboxSyncRequesterTest {
     @Mock private BlockchainLedgerRepository blockchainLedgerRepository;
     @Mock private BlockchainOutboxRepository blockchainOutboxRepository;
     @Mock private ContractRepository contractRepository;
+    @Mock private BlockchainOrderingSequenceAllocator sequenceAllocator;
 
     private BlockchainSyncRequester requester;
 
@@ -51,7 +52,8 @@ class BlockchainOutboxSyncRequesterTest {
                         blockchainLedgerRepository,
                         blockchainOutboxRepository,
                         contractRepository,
-                        new ObjectMapper());
+                        new ObjectMapper(),
+                        sequenceAllocator);
     }
 
     @Test
@@ -64,6 +66,7 @@ class BlockchainOutboxSyncRequesterTest {
         BlockchainOutbox savedOutbox = outboxWithId(20L);
         given(blockchainLedgerRepository.save(any())).willReturn(savedLedger);
         given(blockchainOutboxRepository.save(any())).willReturn(savedOutbox);
+        given(sequenceAllocator.allocate("0xfrom")).willReturn(1L);
 
         BlockchainSyncRequest request =
                 syncRequest(
@@ -88,6 +91,8 @@ class BlockchainOutboxSyncRequesterTest {
         assertThat(outboxCaptor.getValue().getStatus()).isEqualTo(BlockchainOutboxStatus.NEW);
         assertThat(outboxCaptor.getValue().getType()).isEqualTo(BlockchainSyncType.PAYMENT);
         assertThat(outboxCaptor.getValue().getTransactionUuid()).isEqualTo("uuid-1");
+        assertThat(outboxCaptor.getValue().getOrderingKey()).isEqualTo("0xfrom");
+        assertThat(outboxCaptor.getValue().getSeqNo()).isEqualTo(1L);
         assertThat(outboxCaptor.getValue().getRetryCount()).isZero();
     }
 
@@ -98,6 +103,7 @@ class BlockchainOutboxSyncRequesterTest {
         stubLocalCurrencyOwner(institution);
         given(blockchainLedgerRepository.save(any())).willReturn(ledgerWithId(11L, institution));
         given(blockchainOutboxRepository.save(any())).willReturn(outboxWithId(21L));
+        given(sequenceAllocator.allocate("0xuser")).willReturn(2L);
 
         CancelBlockchainPayload cancelPayload =
                 new CancelBlockchainPayload(
@@ -206,6 +212,8 @@ class BlockchainOutboxSyncRequesterTest {
                 .id(id)
                 .blockchainLedgerId(10L)
                 .transactionUuid("uuid-1")
+                .orderingKey("0xfrom")
+                .seqNo(1L)
                 .type(BlockchainSyncType.PAYMENT)
                 .status(BlockchainOutboxStatus.NEW)
                 .payload("{}")
@@ -217,6 +225,8 @@ class BlockchainOutboxSyncRequesterTest {
         return BlockchainOutbox.builder()
                 .blockchainLedgerId(1L)
                 .transactionUuid("uuid")
+                .orderingKey("0xfrom")
+                .seqNo(1L)
                 .type(BlockchainSyncType.PAYMENT)
                 .status(status)
                 .payload("{}")
@@ -235,6 +245,17 @@ class BlockchainOutboxSyncRequesterTest {
             @Override
             public String transactionUuid() {
                 return transactionUuid;
+            }
+
+            @Override
+            public String orderingKey() {
+                if (payload instanceof PaymentBlockchainPayload paymentPayload) {
+                    return paymentPayload.fromWalletAddress();
+                }
+                if (payload instanceof CancelBlockchainPayload cancelPayload) {
+                    return cancelPayload.toWalletAddress();
+                }
+                return "0xORDERING";
             }
 
             @Override

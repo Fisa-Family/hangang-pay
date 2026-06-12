@@ -8,7 +8,9 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,7 +18,18 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "blockchain_outbox")
+@Table(
+        name = "blockchain_outbox",
+        uniqueConstraints =
+                @UniqueConstraint(
+                        name = "uk_blockchain_outbox_ordering_seq",
+                        columnNames = {"ordering_key", "seq_no"}),
+        indexes = {
+            @Index(
+                    name = "idx_blockchain_outbox_status_ordering_seq",
+                    columnList = "status, ordering_key, seq_no"),
+            @Index(name = "idx_blockchain_outbox_ledger_id", columnList = "blockchain_ledger_id")
+        })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -34,6 +47,12 @@ public class BlockchainOutbox extends BaseEntity {
 
     @Column(name = "transaction_uuid", nullable = false, length = 36)
     private String transactionUuid;
+
+    @Column(name = "ordering_key", nullable = false, length = 100)
+    private String orderingKey;
+
+    @Column(name = "seq_no", nullable = false)
+    private Long seqNo;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false, length = 20)

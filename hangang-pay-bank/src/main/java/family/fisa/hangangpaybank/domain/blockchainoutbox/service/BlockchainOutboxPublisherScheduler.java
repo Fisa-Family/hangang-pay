@@ -4,23 +4,34 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import family.fisa.hangangpaybank.domain.blockchainoutbox.dto.BlockchainSyncMessage;
 import family.fisa.hangangpaybank.domain.blockchainoutbox.entity.BlockchainOutbox;
-import family.fisa.hangangpaybank.domain.blockchainoutbox.entity.BlockchainOutboxStatus;
 import family.fisa.hangangpaybank.domain.blockchainoutbox.port.BlockchainSyncMessagePublisher;
 import family.fisa.hangangpaybank.domain.blockchainoutbox.repository.BlockchainOutboxRepository;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class BlockchainOutboxPublisherScheduler {
     private final BlockchainOutboxRepository blockchainOutboxRepository;
     private final BlockchainSyncMessagePublisher publisher;
     private final ObjectMapper objectMapper;
+    private final int batchSize;
+
+    public BlockchainOutboxPublisherScheduler(
+            BlockchainOutboxRepository blockchainOutboxRepository,
+            BlockchainSyncMessagePublisher publisher,
+            ObjectMapper objectMapper,
+            // 한 주기에 처리할 최대 건수. 대량 적체 시 메모리 과부하와 주기 지연을 방지한다.
+            @Value("${outbox.publisher.batch-size:50}") int batchSize) {
+        this.blockchainOutboxRepository = blockchainOutboxRepository;
+        this.publisher = publisher;
+        this.objectMapper = objectMapper;
+        this.batchSize = batchSize;
+    }
 
     /**
      * outbox에서 status=NEW 상태인 항목을 찾아 발행한다. 요청 스레드가 DB 트랜잭션 안에서 outbox(NEW)를 발행하고, 스케줄러가 이를 감지하여 MQ에
@@ -30,7 +41,7 @@ public class BlockchainOutboxPublisherScheduler {
     @Transactional
     public void publishPending() {
         List<BlockchainOutbox> candidates =
-                blockchainOutboxRepository.findAllByStatus(BlockchainOutboxStatus.NEW);
+                blockchainOutboxRepository.findPublishableNew(batchSize);
 
         for (BlockchainOutbox outbox : candidates) {
             try {

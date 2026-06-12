@@ -214,6 +214,10 @@ public class PaymentExecutionService {
             return BlockchainSyncType.PAYMENT;
         }
 
+        public String orderingKey() {
+            return data.fromWalletAddress();
+        }
+
         public Object payload() {
             return data;
         }
@@ -223,6 +227,10 @@ public class PaymentExecutionService {
             implements BlockchainSyncRequest {
         public BlockchainSyncType type() {
             return BlockchainSyncType.CANCEL;
+        }
+
+        public String orderingKey() {
+            return data.toWalletAddress();
         }
 
         public Object payload() {

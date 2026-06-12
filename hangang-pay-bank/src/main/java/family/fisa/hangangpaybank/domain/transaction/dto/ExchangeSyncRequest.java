@@ -12,6 +12,11 @@ public record ExchangeSyncRequest(String transactionUuid, ExchangeBlockchainPayl
     }
 
     @Override
+    public String orderingKey() {
+        return data.walletAddress();
+    }
+
+    @Override
     public Object payload() {
         return data;
     }

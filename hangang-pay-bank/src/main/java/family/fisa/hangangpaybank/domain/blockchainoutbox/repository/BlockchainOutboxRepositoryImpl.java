@@ -1,5 +1,6 @@
 package family.fisa.hangangpaybank.domain.blockchainoutbox.repository;
 
+import family.fisa.hangangpaybank.domain.blockchain.entity.BlockchainTxStatus;
 import family.fisa.hangangpaybank.domain.blockchainoutbox.entity.BlockchainOutbox;
 import family.fisa.hangangpaybank.domain.blockchainoutbox.entity.BlockchainOutboxStatus;
 import family.fisa.hangangpaybank.domain.blockchainoutbox.repository.jpa.BlockchainOutboxJpaRepository;
@@ -24,6 +25,12 @@ public class BlockchainOutboxRepositoryImpl implements BlockchainOutboxRepositor
     @Override
     public List<BlockchainOutbox> findAllByStatus(BlockchainOutboxStatus status) {
         return jpaRepository.findAllByStatus(status);
+    }
+
+    @Override
+    public List<BlockchainOutbox> findPublishableNew(int limit) {
+        return jpaRepository.findPublishableNew(
+                BlockchainOutboxStatus.NEW, BlockchainTxStatus.SUCCESS, PageRequest.of(0, limit));
     }
 
     @Override
