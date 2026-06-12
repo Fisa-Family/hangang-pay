@@ -54,6 +54,9 @@ public interface TransactionRepository {
     /** 만료 대상 - CHARGE + PENDING + createdAt < threshold */
     List<Transaction> findStalePendingChargeIntents(LocalDateTime threshold);
 
+    /** 만료 대상 - PAYMENT + PENDING + createdAt < threshold */
+    int expireStalePendingPaymentIntents(LocalDateTime threshold, LocalDateTime now);
+
     /** 특정 시점 이전(exclusive)의 SUCCESS 거래 타입별 누적 금액 - 잔액 산정용 */
     BigDecimal sumSuccessByTypeBefore(Long partyId, TransactionType type, LocalDateTime before);
 

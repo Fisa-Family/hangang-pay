@@ -257,6 +257,9 @@ public class Transaction extends BaseEntity {
 
     /** 결제 실행 가능한 상태인지 검증 */
     public void validateExecutableStatus() {
+        if (this.status == TransactionStatus.EXPIRED) {
+            throw new BusinessException(TransactionErrorCode.PAYMENT_INTENT_EXPIRED);
+        }
         if (this.status != TransactionStatus.PENDING) {
             throw new BusinessException(TransactionErrorCode.INVALID_PAYMENT_STATUS);
         }

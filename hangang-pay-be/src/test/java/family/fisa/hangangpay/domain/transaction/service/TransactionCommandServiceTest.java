@@ -49,6 +49,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -58,6 +59,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientResponseException;
 
@@ -83,8 +85,10 @@ class TransactionCommandServiceTest {
     @Mock private BankClient bankClient;
 
     @Mock private PaymentIdempotencyStore paymentIdempotencyStore;
+    @Mock private PaymentIntentDedupStore paymentIntentDedupStore;
     @Mock private PaymentLockManager paymentLockManager;
     @Mock private PaymentRateLimiter paymentRateLimiter;
+    @Mock private PaymentRequestHashGenerator paymentRequestHashGenerator;
     @Mock private PaymentExecutionStateWriter paymentExecutionStateWriter;
     @Mock private CancelExecutionStateWriter cancelExecutionStateWriter;
     @Mock private CancelIdempotencyStore cancelIdempotencyStore;
@@ -103,8 +107,10 @@ class TransactionCommandServiceTest {
                         partyRepository,
                         bankClient,
                         paymentIdempotencyStore,
+                        paymentIntentDedupStore,
                         paymentLockManager,
                         paymentRateLimiter,
+                        paymentRequestHashGenerator,
                         cancelIdempotencyStore,
                         cancelLockManager,
                         paymentExecutionStateWriter,
@@ -135,6 +141,12 @@ class TransactionCommandServiceTest {
         given(walletRepository.findByParty_Id(USER_PARTY_ID)).willReturn(Optional.of(userWallet));
         given(walletRepository.findByParty_Id(MERCHANT_PARTY_ID))
                 .willReturn(Optional.of(merchantWallet));
+        given(
+                        paymentRequestHashGenerator.generateIntentExecutionHash(
+                                USER_PARTY_ID, MERCHANT_PARTY_ID, request.amount()))
+                .willReturn(REQUEST_HASH);
+        given(paymentIntentDedupStore.reserve(eq(REQUEST_HASH), anyString()))
+                .willReturn(Optional.empty());
         given(transactionRepository.save(any(Transaction.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
 
@@ -162,6 +174,72 @@ class TransactionCommandServiceTest {
         assertThat(saved.getToWallet()).isSameAs(merchantWallet);
         assertThat(saved.getAmount()).isEqualByComparingTo("10000");
         assertThat(saved.getItemName()).isEqualTo("아메리카노");
+    }
+
+    @Test
+    @DisplayName("30초 내 같은 결제 의도 요청은 새 거래를 저장하지 않고 기존 UUID를 반환한다")
+    void createPaymentIntent_duplicateFingerprintReturnsExistingTransactionUuid() {
+        Party userParty = party(USER_PARTY_ID, PartyType.USER);
+        Party merchantParty = party(MERCHANT_PARTY_ID, PartyType.MERCHANT);
+        Merchant merchant = merchant(merchantParty);
+        Wallet userWallet = wallet(1L, userParty, "0x-user");
+        Wallet merchantWallet = wallet(2L, merchantParty, "0x-merchant");
+        AtomicReference<String> firstTransactionUuid = new AtomicReference<>();
+        AtomicReference<Transaction> savedTransaction = new AtomicReference<>();
+
+        PaymentIntentCreateRequest request =
+                new PaymentIntentCreateRequest(
+                        MERCHANT_PARTY_ID, new BigDecimal("10000.00"), "아메리카노");
+
+        given(partyRepository.findById(USER_PARTY_ID)).willReturn(Optional.of(userParty));
+        given(merchantRepository.findByParty_Id(MERCHANT_PARTY_ID))
+                .willReturn(Optional.of(merchant));
+        given(walletRepository.findByParty_Id(USER_PARTY_ID)).willReturn(Optional.of(userWallet));
+        given(walletRepository.findByParty_Id(MERCHANT_PARTY_ID))
+                .willReturn(Optional.of(merchantWallet));
+        given(
+                        paymentRequestHashGenerator.generateIntentExecutionHash(
+                                USER_PARTY_ID, MERCHANT_PARTY_ID, request.amount()))
+                .willReturn(REQUEST_HASH);
+        given(paymentIntentDedupStore.reserve(eq(REQUEST_HASH), anyString()))
+                .willAnswer(
+                        invocation -> {
+                            String newUuid = invocation.getArgument(1);
+                            if (firstTransactionUuid.compareAndSet(null, newUuid)) {
+                                return Optional.empty();
+                            }
+                            return Optional.of(firstTransactionUuid.get());
+                        });
+        given(transactionRepository.save(any(Transaction.class)))
+                .willAnswer(
+                        invocation -> {
+                            Transaction transaction = invocation.getArgument(0);
+                            ReflectionTestUtils.setField(
+                                    transaction, "createdAt", LocalDateTime.of(2026, 6, 12, 10, 0));
+                            savedTransaction.set(transaction);
+                            return transaction;
+                        });
+        given(transactionRepository.findByTransactionUuid(anyString()))
+                .willAnswer(
+                        invocation -> {
+                            String transactionUuid = invocation.getArgument(0);
+                            Transaction transaction = savedTransaction.get();
+                            if (transaction != null
+                                    && transaction.getTransactionUuid().equals(transactionUuid)) {
+                                return Optional.of(transaction);
+                            }
+                            return Optional.empty();
+                        });
+
+        PaymentIntentResponse first =
+                transactionCommandService.createPaymentIntent(USER_PARTY_ID, request);
+        PaymentIntentResponse second =
+                transactionCommandService.createPaymentIntent(USER_PARTY_ID, request);
+
+        assertThat(second.transactionUuid()).isEqualTo(first.transactionUuid());
+        assertThat(second.expiresAt()).isEqualTo(LocalDateTime.of(2026, 6, 12, 10, 10));
+        verify(transactionRepository).save(any(Transaction.class));
+        verify(transactionRepository).findByTransactionUuid(first.transactionUuid());
     }
 
     @Test

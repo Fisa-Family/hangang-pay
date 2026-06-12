@@ -2,6 +2,7 @@ package family.fisa.hangangpay.domain.transaction.internal.payment;
 
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
 import family.fisa.hangangpay.domain.transaction.internal.RequestHashDigest;
+import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -24,5 +25,11 @@ public class PaymentRequestHashGenerator {
                 transaction.getFromParty().getId(),
                 transaction.getToParty().getId(),
                 normalizedAmount);
+    }
+
+    public String generateIntentExecutionHash(Long fromPartyId, Long toPartyId, BigDecimal amount) {
+        String normalizedAmount = amount.stripTrailingZeros().toPlainString();
+
+        return requestHashDigest.digest(fromPartyId, toPartyId, normalizedAmount);
     }
 }

@@ -13,6 +13,7 @@ import org.springframework.data.domain.ScrollPosition;
 import org.springframework.data.domain.Window;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -214,6 +215,18 @@ public interface TransactionJpaRepository extends JpaRepository<Transaction, Lon
     List<Transaction> findStalePendingExchangeIntents(
             @Param("type") TransactionType type,
             @Param("status") TransactionStatus status,
+            @Param("threshold") LocalDateTime threshold);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+            "UPDATE Transaction t "
+                    + "SET t.status = EXPIRED, t.updatedAt = :now "
+                    + "WHERE t.transactionType = :type "
+                    + "  AND t.status = PENDING "
+                    + "  AND t.createdAt < :threshold")
+    int expireStalePendingIntents(
+            @Param("type") TransactionType type,
+            @Param("now") LocalDateTime now,
             @Param("threshold") LocalDateTime threshold);
 
     /** 환전 reconcile 포기 대상 - PROCESSING/UNKNOWN + 시도 한도 소진 */
