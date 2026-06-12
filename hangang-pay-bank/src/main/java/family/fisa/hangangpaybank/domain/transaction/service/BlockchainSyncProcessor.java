@@ -12,6 +12,7 @@ import family.fisa.hangangpaybank.domain.blockchainoutbox.dto.payload.CancelBloc
 import family.fisa.hangangpaybank.domain.blockchainoutbox.dto.payload.ExchangeBlockchainPayload;
 import family.fisa.hangangpaybank.domain.blockchainoutbox.dto.payload.PaymentBlockchainPayload;
 import family.fisa.hangangpaybank.global.exception.BusinessException;
+import family.fisa.hangangpaybank.global.fault.FaultHookService;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Set;
@@ -45,6 +46,7 @@ public class BlockchainSyncProcessor {
     private final ContractCallService contractCallService;
     private final BlockchainLedgerStateWriter ledgerStateWriter;
     private final ObjectMapper objectMapper;
+    private final FaultHookService faultHook;
 
     public void processPayment(BlockchainSyncMessage message) {
         PaymentBlockchainPayload payload = parsePayload(message, PaymentBlockchainPayload.class);
@@ -62,6 +64,10 @@ public class BlockchainSyncProcessor {
         try {
             // 1. txHash 가져오기
             String txHash = resolvePaymentTxHash(ledger, message, payload);
+
+            // H5: SUBMITTED 커밋 직후, receipt 폴링 직전 — K-6(halt) / B-2(sleep) 재현
+            faultHook.hit(FaultHookService.AFTER_MARK_SUBMITTED_BEFORE_RECEIPT);
+            faultHook.sleep(FaultHookService.AFTER_MARK_SUBMITTED_BEFORE_RECEIPT);
 
             // 2. txHash로 receipt 가져오기 - 블록체인 노드 폴링
             TransactionReceipt receipt = contractCallService.waitForReceiptByHash(txHash);
@@ -98,6 +104,11 @@ public class BlockchainSyncProcessor {
 
         try {
             String txHash = resolveCancelTxHash(ledger, message, payload);
+
+            // H5: SUBMITTED 커밋 직후, receipt 폴링 직전
+            faultHook.hit(FaultHookService.AFTER_MARK_SUBMITTED_BEFORE_RECEIPT);
+            faultHook.sleep(FaultHookService.AFTER_MARK_SUBMITTED_BEFORE_RECEIPT);
+
             TransactionReceipt receipt = contractCallService.waitForReceiptByHash(txHash);
             if (receipt.isStatusOK()) {
                 ledgerStateWriter.markSuccess(ledger.getId(), message.transactionUuid(), receipt);
@@ -131,6 +142,10 @@ public class BlockchainSyncProcessor {
         try {
             // 1. txHash 확보 (미제출 시 refund submit 후 SUBMITTED 체크포인트 커밋)
             String txHash = resolveExchangeTxHash(ledger, message, payload);
+
+            // H5: SUBMITTED 커밋 직후, receipt 폴링 직전
+            faultHook.hit(FaultHookService.AFTER_MARK_SUBMITTED_BEFORE_RECEIPT);
+            faultHook.sleep(FaultHookService.AFTER_MARK_SUBMITTED_BEFORE_RECEIPT);
 
             // 2. txHash로 receipt 폴링
             TransactionReceipt receipt = contractCallService.waitForReceiptByHash(txHash);
@@ -167,6 +182,8 @@ public class BlockchainSyncProcessor {
         SubmittedBlockchainTx submitted =
                 contractCallService.submitRefund(
                         payload.institutionId(), payload.walletAddress(), amount);
+        // H4: 체인 submit 완료, markSubmitted(REQUIRES_NEW) 전 (K-5)
+        faultHook.hit(FaultHookService.AFTER_CHAIN_SUBMIT_BEFORE_MARK_SUBMITTED);
         ledgerStateWriter.markSubmitted(
                 ledger.getId(), message.transactionUuid(), submitted.txHash());
         log.info(
@@ -199,6 +216,8 @@ public class BlockchainSyncProcessor {
                         payload.fromWalletAddress(),
                         payload.toWalletAddress(),
                         amount);
+        // H4: 체인 submit 완료, markSubmitted(REQUIRES_NEW) 전 — 체인엔 tx 있음, DB에 txHash 없음 (K-5)
+        faultHook.hit(FaultHookService.AFTER_CHAIN_SUBMIT_BEFORE_MARK_SUBMITTED);
         ledgerStateWriter.markSubmitted(
                 ledger.getId(), message.transactionUuid(), submitted.txHash());
         log.info(
@@ -223,6 +242,8 @@ public class BlockchainSyncProcessor {
                         payload.fromWalletAddress(),
                         payload.toWalletAddress(),
                         amount);
+        // H4: 체인 submit 완료, markSubmitted(REQUIRES_NEW) 전 (K-5)
+        faultHook.hit(FaultHookService.AFTER_CHAIN_SUBMIT_BEFORE_MARK_SUBMITTED);
         ledgerStateWriter.markSubmitted(
                 ledger.getId(), message.transactionUuid(), submitted.txHash());
         log.info(

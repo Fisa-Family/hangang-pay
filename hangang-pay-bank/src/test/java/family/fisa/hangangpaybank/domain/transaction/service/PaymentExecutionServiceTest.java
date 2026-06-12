@@ -54,7 +54,8 @@ class PaymentExecutionServiceTest {
                         bankWalletRepository,
                         paymentStateWriter,
                         syncRequester,
-                        contractCallService);
+                        contractCallService,
+                        new family.fisa.hangangpaybank.global.fault.FaultHookService());
     }
 
     @Test

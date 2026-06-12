@@ -6,7 +6,19 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
+import java.math.BigDecimal;
+import java.util.Optional;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import family.fisa.hangangpaybank.domain.blockchain.code.error.BlockchainErrorCode;
 import family.fisa.hangangpaybank.domain.blockchain.entity.BlockchainLedger;
 import family.fisa.hangangpaybank.domain.blockchain.entity.BlockchainTxStatus;
@@ -25,35 +37,30 @@ import family.fisa.hangangpaybank.domain.institution.entity.ContractType;
 import family.fisa.hangangpaybank.domain.institution.entity.Institution;
 import family.fisa.hangangpaybank.domain.institution.repository.ContractRepository;
 import family.fisa.hangangpaybank.global.exception.BusinessException;
-import java.math.BigDecimal;
-import java.util.Optional;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class BlockchainOutboxSyncRequesterTest {
 
-    @Mock private BlockchainLedgerRepository blockchainLedgerRepository;
-    @Mock private BlockchainOutboxRepository blockchainOutboxRepository;
-    @Mock private ContractRepository contractRepository;
-    @Mock private BlockchainOrderingSequenceAllocator sequenceAllocator;
+    @Mock
+    private BlockchainLedgerRepository blockchainLedgerRepository;
+    @Mock
+    private BlockchainOutboxRepository blockchainOutboxRepository;
+    @Mock
+    private ContractRepository contractRepository;
+    @Mock
+    private BlockchainOrderingSequenceAllocator sequenceAllocator;
 
     private BlockchainSyncRequester requester;
 
     @BeforeEach
     void setUp() {
-        requester =
-                new BlockchainOutboxSyncRequester(
-                        blockchainLedgerRepository,
-                        blockchainOutboxRepository,
-                        contractRepository,
-                        new ObjectMapper(),
-                        sequenceAllocator);
+        requester = new BlockchainOutboxSyncRequester(
+                blockchainLedgerRepository,
+                blockchainOutboxRepository,
+                contractRepository,
+                new ObjectMapper(),
+                sequenceAllocator,
+                new family.fisa.hangangpaybank.global.fault.FaultHookService());
     }
 
     @Test
@@ -68,25 +75,22 @@ class BlockchainOutboxSyncRequesterTest {
         given(blockchainOutboxRepository.save(any())).willReturn(savedOutbox);
         given(sequenceAllocator.allocate("0xfrom")).willReturn(1L);
 
-        BlockchainSyncRequest request =
-                syncRequest(
-                        BlockchainSyncType.PAYMENT,
-                        "uuid-1",
-                        new PaymentBlockchainPayload("0xFROM", "0xTO", new BigDecimal("100")));
+        BlockchainSyncRequest request = syncRequest(
+                BlockchainSyncType.PAYMENT,
+                "uuid-1",
+                new PaymentBlockchainPayload("0xFROM", "0xTO", new BigDecimal("100")));
 
         BlockchainSyncRequestResult result = requester.request(request);
 
         assertThat(result.blockchainLedgerId()).isEqualTo(10L);
         assertThat(result.outboxId()).isEqualTo(20L);
 
-        ArgumentCaptor<BlockchainLedger> ledgerCaptor =
-                ArgumentCaptor.forClass(BlockchainLedger.class);
+        ArgumentCaptor<BlockchainLedger> ledgerCaptor = ArgumentCaptor.forClass(BlockchainLedger.class);
         verify(blockchainLedgerRepository).save(ledgerCaptor.capture());
         assertThat(ledgerCaptor.getValue().getStatus()).isEqualTo(BlockchainTxStatus.PENDING);
         assertThat(ledgerCaptor.getValue().getIdempotentKey()).isEqualTo("uuid-1");
 
-        ArgumentCaptor<BlockchainOutbox> outboxCaptor =
-                ArgumentCaptor.forClass(BlockchainOutbox.class);
+        ArgumentCaptor<BlockchainOutbox> outboxCaptor = ArgumentCaptor.forClass(BlockchainOutbox.class);
         verify(blockchainOutboxRepository).save(outboxCaptor.capture());
         assertThat(outboxCaptor.getValue().getStatus()).isEqualTo(BlockchainOutboxStatus.NEW);
         assertThat(outboxCaptor.getValue().getType()).isEqualTo(BlockchainSyncType.PAYMENT);
@@ -105,11 +109,9 @@ class BlockchainOutboxSyncRequesterTest {
         given(blockchainOutboxRepository.save(any())).willReturn(outboxWithId(21L));
         given(sequenceAllocator.allocate("0xuser")).willReturn(2L);
 
-        CancelBlockchainPayload cancelPayload =
-                new CancelBlockchainPayload(
-                        "orig-uuid", "0xMERCHANT", "0xUSER", new BigDecimal("50"));
-        BlockchainSyncRequest request =
-                syncRequest(BlockchainSyncType.CANCEL, "uuid-2", cancelPayload);
+        CancelBlockchainPayload cancelPayload = new CancelBlockchainPayload(
+                "orig-uuid", "0xMERCHANT", "0xUSER", new BigDecimal("50"));
+        BlockchainSyncRequest request = syncRequest(BlockchainSyncType.CANCEL, "uuid-2", cancelPayload);
 
         requester.request(request);
 
@@ -128,13 +130,12 @@ class BlockchainOutboxSyncRequesterTest {
                 .willReturn(Optional.empty());
 
         assertThatThrownBy(
-                        () ->
-                                requester.request(
-                                        syncRequest(
-                                                BlockchainSyncType.PAYMENT,
-                                                "uuid-3",
-                                                new PaymentBlockchainPayload(
-                                                        "0xA", "0xB", BigDecimal.ONE))))
+                () -> requester.request(
+                        syncRequest(
+                                BlockchainSyncType.PAYMENT,
+                                "uuid-3",
+                                new PaymentBlockchainPayload(
+                                        "0xA", "0xB", BigDecimal.ONE))))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
                 .isEqualTo(BlockchainErrorCode.BLOCKCHAIN_CONTRACT_NOT_FOUND);
@@ -177,12 +178,11 @@ class BlockchainOutboxSyncRequesterTest {
     }
 
     private void stubLocalCurrencyOwner(Institution institution) {
-        Contract contract =
-                Contract.builder()
-                        .name(ContractType.LOCAL_CURRENCY)
-                        .address("0xCONTRACT")
-                        .institution(institution)
-                        .build();
+        Contract contract = Contract.builder()
+                .name(ContractType.LOCAL_CURRENCY)
+                .address("0xCONTRACT")
+                .institution(institution)
+                .build();
         given(contractRepository.findFirstByNameOrderByIdAsc(ContractType.LOCAL_CURRENCY))
                 .willReturn(Optional.of(contract));
     }

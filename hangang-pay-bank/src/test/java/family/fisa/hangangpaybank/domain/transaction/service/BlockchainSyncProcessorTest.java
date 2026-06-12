@@ -49,7 +49,8 @@ class BlockchainSyncProcessorTest {
                         blockchainLedgerRepository,
                         contractCallService,
                         ledgerStateWriter,
-                        objectMapper);
+                        objectMapper,
+                        new family.fisa.hangangpaybank.global.fault.FaultHookService());
     }
 
     // ── PAYMENT ───────────────────────────────────────────────────────────────

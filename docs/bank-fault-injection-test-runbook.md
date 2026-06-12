@@ -471,31 +471,29 @@ curl -u guest:guest http://localhost:15672/api/queues
 
 - [ ] (참고) DB 흔적 없음 확인
 
-### K-2. `AFTER_WALLET_LEDGER_SAVE` hook — 결제 (wallet_ledger만 있고 outbox 없는 상태)
+### K-2. `AFTER_WALLET_LEDGER_SAVE` hook — TX 내부 atomicity 검증
+
+> **실제 동작**: H1은 메인 TX 내부에서 발화 → JVM halt → MySQL 롤백 → DB 흔적 없음  
+> K-1과 결과가 같다. "TX 중간 JVM 사망 시 부분 커밋이 없음"을 검증하는 케이스.
 
 ```
 hook:  --fault.hook.point=AFTER_WALLET_LEDGER_SAVE
 유도:  payment curl → 프로세스 halt
-확인:  DB 상태
-복구:  hook 없이 재기동, 같은 UUID로 재호출
 ```
 
 | 확인 항목 | 기대값 |
 |----------|-------|
-| `wallet_ledger.status` | `SUCCESS` (이미 커밋됨) |
-| `blockchain_outbox` | 없음 (커밋 전 halt) |
+| `wallet_ledger` | 없음 (TX rollback) |
 | `blockchain_ledger` | 없음 |
-| 재기동 후 재호출 | 멱등성 분기 — `SUCCESS` 반환, 잔액 선반영 상태 유지 |
-| outbox/ledger | 재호출 시에도 생성되는지 확인 |
+| `blockchain_outbox` | 없음 |
+| 재기동 후 재호출 | 새 요청으로 정상 처리 (이전 UUID 흔적 없음) |
 
-> 이 상태는 수동 정산이 필요한 불일치 케이스. 재호출 멱등성 처리가 이를 복구하는지 확인.
+- [ ] DB에 해당 UUID 없음 확인 (rollback 정상 동작)
+- [ ] 재기동 후 동일 UUID 재호출 → 정상 처리 확인
 
-- [ ] wallet_ledger SUCCESS 확인
-- [ ] blockchain_outbox 없음 확인
-- [ ] 재기동 후 재호출 → 멱등 응답 확인
-- [ ] outbox/ledger 미생성 확인 (멱등 분기에서 생성 여부 정책 확인 필요)
+### K-3. `AFTER_BLOCKCHAIN_LEDGER_SAVE` hook — TX 내부 atomicity 검증
 
-### K-3. `AFTER_BLOCKCHAIN_LEDGER_SAVE` hook — outbox 없이 ledger만 남는 상태
+> **실제 동작**: H2도 메인 TX 내부 → halt → MySQL 롤백 → DB 흔적 없음 (K-2와 동일)
 
 ```
 hook:  --fault.hook.point=AFTER_BLOCKCHAIN_LEDGER_SAVE
@@ -504,20 +502,19 @@ hook:  --fault.hook.point=AFTER_BLOCKCHAIN_LEDGER_SAVE
 
 | 확인 항목 | 기대값 |
 |----------|-------|
-| `wallet_ledger.status` | `SUCCESS` |
-| `blockchain_ledger.status` | `PENDING`, `tx_hash` 없음 |
-| `blockchain_outbox` | 없음 (save 전 halt) |
-| 재기동 후 reconcile | `reconcilePendingLedgers()` 실행 — outbox 없으면 에러 로그(`[reconcile] outbox 없음`) |
+| 모든 ledger | 없음 (TX rollback) |
+| 재기동 후 | 동일 UUID 재호출 → 정상 처리 |
 
-- [ ] blockchain_ledger PENDING 확인 (outbox 없음)
-- [ ] 재기동 후 reconcile 로그 `[reconcile] outbox 없음` 확인
-- [ ] 이 케이스의 수동 복구 방법 정의 필요 여부 확인
+- [ ] DB에 해당 UUID 없음 확인
 
-### K-4. `AFTER_OUTBOX_SAVE` hook — outbox NEW 남은 상태
+### K-4. `AFTER_OUTBOX_SAVE` hook — outbox NEW 남은 상태 (outbox 패턴 자가 복구)
+
+> **구현**: H3는 `TransactionSynchronization.afterCommit()`으로 등록 → TX 커밋 *이후* halt  
+> wallet_ledger + blockchain_ledger + blockchain_outbox 모두 커밋된 상태로 프로세스 종료.
 
 ```
 hook:  --fault.hook.point=AFTER_OUTBOX_SAVE
-유도:  payment curl → halt
+유도:  payment curl → 프로세스 halt (TX 커밋 후)
 ```
 
 | 확인 항목 | 기대값 |
@@ -525,7 +522,7 @@ hook:  --fault.hook.point=AFTER_OUTBOX_SAVE
 | `wallet_ledger.status` | `SUCCESS` |
 | `blockchain_ledger.status` | `PENDING` |
 | `blockchain_outbox.status` | `NEW` |
-| 재기동 후 | scheduler가 `publishPending()` 수행 → `SENT` 전환 → chain 반영 |
+| 재기동 후 | scheduler `publishPending()` → `SENT` → chain 반영 |
 
 - [ ] 재기동 후 outbox NEW → SENT 전환 확인
 - [ ] blockchain_ledger 최종 SUCCESS/FAILED 수렴 확인

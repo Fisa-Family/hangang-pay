@@ -17,6 +17,7 @@ import family.fisa.hangangpaybank.domain.transaction.dto.request.PaymentRequest;
 import family.fisa.hangangpaybank.domain.transaction.dto.response.CancelResponse;
 import family.fisa.hangangpaybank.domain.transaction.dto.response.PaymentResponse;
 import family.fisa.hangangpaybank.global.exception.BusinessException;
+import family.fisa.hangangpaybank.global.fault.FaultHookService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -42,6 +43,7 @@ public class PaymentExecutionService {
     private final BlockchainSyncRequester syncRequester;
     private final family.fisa.hangangpaybank.domain.blockchain.service.ContractCallService
             contractCallService;
+    private final FaultHookService faultHook;
 
     public PaymentResponse payment(PaymentRequest request) {
         log.info(
@@ -90,6 +92,8 @@ public class PaymentExecutionService {
         LocalDateTime confirmedAt =
                 paymentStateWriter.saveSuccessWalletLedgers(
                         fromWallet, toWallet, request.transactionUuid(), request.amount());
+
+        faultHook.hit(FaultHookService.AFTER_WALLET_LEDGER_SAVE);
 
         // 5. blockchain 비동기 요청
         syncRequester.request(
@@ -154,6 +158,8 @@ public class PaymentExecutionService {
         LocalDateTime confirmedAt =
                 paymentStateWriter.saveSuccessWalletLedgers(
                         fromWallet, toWallet, request.transactionUuid(), request.amount());
+
+        faultHook.hit(FaultHookService.AFTER_WALLET_LEDGER_SAVE);
 
         syncRequester.request(
                 new CancelSyncRequest(
