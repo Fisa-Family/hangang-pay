@@ -42,6 +42,7 @@ export interface ChargeExecuteResult {
   chargeId: number
   amount: number
   finalAmount: number
+  walletBalance: number | null
   chargedAt: string
 }
 

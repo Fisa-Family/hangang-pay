@@ -168,11 +168,12 @@ public class ChargeExecutionWriter {
             String transactionUuid,
             String txHash,
             String bankTransactionId,
-            LocalDateTime confirmedAt) {
+            LocalDateTime confirmedAt,
+            BigDecimal walletBalance) {
         Transaction transaction = getChargeTransaction(transactionUuid);
         transaction.completeSuccessWithResponse(txHash, bankTransactionId);
         log.info("충전 성공. transactionUuid={}, txHash={}", transactionUuid, txHash);
-        return ChargeExecuteResponse.from(transaction, confirmedAt);
+        return ChargeExecuteResponse.from(transaction, confirmedAt, walletBalance);
     }
 
     /** 충전 상태 불명 처리 */
