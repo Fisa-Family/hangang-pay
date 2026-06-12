@@ -75,7 +75,8 @@ public class ChargeCommandService {
                         prepared.transactionUuid(),
                         bankResponse.txHash(),
                         String.valueOf(bankResponse.bankTransactionId()),
-                        bankResponse.confirmedAt());
+                        bankResponse.confirmedAt(),
+                        bankResponse.walletBalance());
 
         chargeIdempotencyStore.completeExecution(prepared.transactionUuid(), response);
 

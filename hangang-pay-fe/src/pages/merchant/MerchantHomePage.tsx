@@ -1,8 +1,17 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { Suspense } from 'react'
-import { QrCode, ChevronRight, FileText, PieChart, BarChart2 } from 'lucide-react'
+import {
+  QrCode,
+  ChevronRight,
+  FileText,
+  PieChart,
+  BarChart2,
+  Search,
+  Bell,
+  Menu,
+} from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { EmptyState, ErrorBoundary } from '@/components/common'
+import { EmptyState, ErrorBoundary, GradientCard, HangangPayLogo } from '@/components/common'
 import { fetchMerchantDashboard, fetchMerchantMyPage, fetchMerchantPayments } from '@/api/merchant'
 import { formatWon } from '@/lib/format'
 
@@ -15,7 +24,7 @@ function formatPaymentTime(isoString: string): string {
 }
 
 // 최근 결제 표시 건수
-const PAYMENT_LIMIT = 4
+const PAYMENT_LIMIT = 3
 
 // 보조 메뉴 항목과 이동 경로
 const secondaryMenuItems = [
@@ -87,25 +96,53 @@ export function MerchantHomePage() {
   // CSS: 페이지 전체 — 세로 스크롤 flex 컨테이너
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-3 pt-5 pb-6">
-      {/* 헤더: 가맹점명 — 좌측 정렬, 상단 여백 */}
-      <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">{merchantName}</h1>
+      {/* 헤더: 로고 + 아이콘, 구분선, 가맹점명 */}
+      <header className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <HangangPayLogo size={26} />
+            <span className="text-sm font-bold text-primary">한강페이</span>
+          </div>
+          <div className="flex items-center gap-1 text-foreground">
+            <button
+              type="button"
+              aria-label="검색"
+              onClick={() => {}}
+              className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted"
+            >
+              <Search className="h-5 w-5" aria-hidden />
+            </button>
+            <button
+              type="button"
+              aria-label="알림"
+              onClick={() => {}}
+              className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted"
+            >
+              <Bell className="h-5 w-5" aria-hidden />
+            </button>
+            <button
+              type="button"
+              aria-label="설정"
+              onClick={() => {}}
+              className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted"
+            >
+              <Menu className="h-5 w-5" aria-hidden />
+            </button>
+          </div>
+        </div>
+        <h1 className="text-2xl font-bold text-foreground">
+          {merchantName}
+          <span className="font-normal text-muted-foreground">님</span>
+        </h1>
       </header>
 
-      {/* 대시보드 카드: 흰 카드 + 우하단 블루 그라데이션 장식 / 매출·결제 건수 좌우 분할 */}
-      <div className="relative overflow-hidden rounded-2xl bg-card shadow-sm">
-        {/* 우측 하단 블루 그라데이션 장식 */}
-        <div
-          className="pointer-events-none absolute -bottom-12 -right-12 h-40 w-40 rounded-full"
-          style={{
-            background: 'radial-gradient(circle, #BFDBFE 0%, #DBEAFE 50%, transparent 80%)',
-          }}
-        />
-        <div className="relative flex p-5">
+      {/* 대시보드 카드: 좌→우 블루 그라데이션 / 매출·결제 건수 좌우 분할 */}
+      <GradientCard>
+        <div className="relative flex p-5 pb-6">
           {/* 오늘 매출 */}
           <div className="flex-1 pr-5">
             <p className="text-sm text-muted-foreground">오늘 매출</p>
-            <p className="mt-1 text-[22px] font-bold leading-tight text-primary">
+            <p className="mt-1.5 text-[22px] font-bold leading-snug text-primary">
               {dashboardQuery.isLoading ? (
                 <span className="inline-block h-7 w-24 animate-pulse rounded bg-muted" />
               ) : (
@@ -118,7 +155,7 @@ export function MerchantHomePage() {
           {/* 오늘 결제 건수 */}
           <div className="flex-1 pl-5">
             <p className="text-sm text-muted-foreground">오늘 결제</p>
-            <p className="mt-1 text-[22px] font-bold leading-tight text-foreground">
+            <p className="mt-1.5 text-[22px] font-bold leading-snug text-foreground">
               {dashboardQuery.isLoading ? (
                 <span className="inline-block h-7 w-16 animate-pulse rounded bg-muted" />
               ) : (
@@ -127,14 +164,14 @@ export function MerchantHomePage() {
             </p>
           </div>
         </div>
-      </div>
+      </GradientCard>
 
       {/* 주요 버튼: 2열 그리드 / 고정 높이 120px 파란 카드 */}
       <div className="grid grid-cols-2 gap-3">
         <button
           type="button"
           onClick={() => navigate('/merchant/qr')}
-          className="flex h-[120px] flex-col justify-between rounded-2xl bg-primary p-4 text-left transition-opacity active:opacity-90"
+          className="flex h-[120px] flex-col justify-between rounded-2xl bg-action-2 p-4 text-left transition-opacity active:opacity-90"
         >
           <QrCode className="h-6 w-6 text-white" aria-hidden />
           <div className="flex items-end justify-between">
@@ -149,7 +186,7 @@ export function MerchantHomePage() {
         <button
           type="button"
           onClick={() => navigate('/merchant/settlement')}
-          className="flex h-[120px] flex-col justify-between rounded-2xl bg-accent-foreground p-4 text-left transition-opacity active:opacity-90"
+          className="flex h-[120px] flex-col justify-between rounded-2xl bg-action-3 p-4 text-left transition-opacity active:opacity-90"
         >
           {/* 원화 기호 원형 뱃지 */}
           <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white/70">

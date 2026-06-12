@@ -29,12 +29,15 @@ public class BlockchainOutboxSyncRequester implements BlockchainSyncRequester {
     private final BlockchainOutboxRepository blockchainOutboxRepository;
     private final ContractRepository contractRepository;
     private final ObjectMapper objectMapper;
+    private final BlockchainOrderingSequenceAllocator sequenceAllocator;
 
     /** 블록체인으로 요청을 전송하기 위한 준비 작업. 블록체인 원장과 outbox에 요청 기록을 남긴다. */
     @Override
     public BlockchainSyncRequestResult request(BlockchainSyncRequest request) {
         // LOCAL_CURRENCY 컨트랙트의 발행 기관을 찾는다.
         Institution institution = findLocalCurrencyOwner();
+        String orderingKey = normalizeOrderingKey(request.orderingKey());
+        Long seqNo = sequenceAllocator.allocate(orderingKey);
 
         // blockchain_ledger에 PENDING 상태의 거래를 기록한다.
         BlockchainLedger ledger =
@@ -50,6 +53,8 @@ public class BlockchainOutboxSyncRequester implements BlockchainSyncRequester {
                         BlockchainOutbox.builder()
                                 .blockchainLedgerId(ledger.getId())
                                 .transactionUuid(request.transactionUuid())
+                                .orderingKey(orderingKey)
+                                .seqNo(seqNo)
                                 .type(request.type())
                                 .status(BlockchainOutboxStatus.NEW)
                                 .payload(serializePayload(request.payload()))
@@ -75,5 +80,13 @@ public class BlockchainOutboxSyncRequester implements BlockchainSyncRequester {
         } catch (JsonProcessingException e) {
             throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_RPC_FAILED);
         }
+    }
+
+    private static String normalizeOrderingKey(String orderingKey) {
+        if (orderingKey == null || orderingKey.isBlank()) {
+            throw new BusinessException(BlockchainErrorCode.BLOCKCHAIN_INVALID_ADDRESS);
+        }
+        String lower = orderingKey.toLowerCase();
+        return lower.startsWith("0x") ? lower : "0x" + lower;
     }
 }

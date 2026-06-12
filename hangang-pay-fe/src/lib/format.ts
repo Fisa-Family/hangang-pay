@@ -61,13 +61,33 @@ export function formatMaskedAccount(institutionName: string, accountNumber: stri
 }
 
 export function formatPhoneNumber(raw: string): string {
-  if (raw.length !== 11) {
+  // 휴대전화 (010-XXXX-XXXX)
+  if (raw.length === 11) {
+    return `${raw.substring(0, 3)}-${raw.substring(3, 7)}-${raw.substring(7, 11)}`
+  }
+
+  // 서울 지역번호 유선전화 (02-XXX-XXXX / 02-XXXX-XXXX)
+  if (raw.startsWith('02') && (raw.length === 9 || raw.length === 10)) {
+    const middleEnd = raw.length - 4
+    return `${raw.substring(0, 2)}-${raw.substring(2, middleEnd)}-${raw.substring(middleEnd)}`
+  }
+
+  // 그 외 지역번호 유선전화 (0XX-XXX-XXXX)
+  if (raw.length === 10) {
+    return `${raw.substring(0, 3)}-${raw.substring(3, 6)}-${raw.substring(6, 10)}`
+  }
+
+  return raw
+}
+
+export function formatBusinessNumber(raw: string): string {
+  if (raw.length !== 10) {
     return raw
   }
 
   const part1 = raw.substring(0, 3)
-  const part2 = raw.substring(3, 7)
-  const part3 = raw.substring(7, 11)
+  const part2 = raw.substring(3, 5)
+  const part3 = raw.substring(5, 10)
 
   return `${part1}-${part2}-${part3}`
 }

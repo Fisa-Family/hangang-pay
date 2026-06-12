@@ -2,8 +2,8 @@ import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { ReactNode } from 'react'
-import { QrCode, Plus, Undo2 } from 'lucide-react'
-import { BalanceCard, EmptyState, ErrorBoundary } from '@/components/common'
+import { QrCode, Plus, Undo2, ChevronRight, Search, Bell, Menu } from 'lucide-react'
+import { BalanceCard, EmptyState, ErrorBoundary, HangangPayLogo } from '@/components/common'
 import { fetchRecentTransactions, useUserProfile, type HistoryListItem } from '@/api/user'
 import { fetchWalletBalance } from '@/api/wallet'
 import { ApiError } from '@/api/client'
@@ -25,7 +25,7 @@ function buildErrorMessage(spec: (typeof API_SPEC)[keyof typeof API_SPEC], error
   return `${spec.id} 요청에 실패했습니다. 네트워크 연결을 확인해 주세요.`
 }
 
-const HISTORY_FETCH_LIMIT = 6
+const HISTORY_FETCH_LIMIT = 5
 
 function formatHistoryDate(isoString: string): string {
   const d = new Date(isoString)
@@ -38,27 +38,30 @@ interface QuickActionProps {
   label: string
   icon: ReactNode
   onClick: () => void
-  tint?: 'primary' | 'success' | 'warning'
+  tint?: 'action-1' | 'action-2' | 'action-3'
 }
 
 const tintClasses: Record<NonNullable<QuickActionProps['tint']>, string> = {
-  primary: 'bg-primary/15 text-primary',
-  success: 'bg-success/15 text-success',
-  warning: 'bg-warning/15 text-warning',
+  'action-1': 'bg-action-1 text-action-1-foreground active:opacity-70',
+  'action-2': 'bg-action-2 text-action-2-foreground active:opacity-70',
+  'action-3': 'bg-action-3 text-action-3-foreground active:opacity-70',
 }
 
-function QuickAction({ label, icon, onClick, tint = 'primary' }: QuickActionProps) {
+function QuickAction({ label, icon, onClick, tint = 'action-1' }: QuickActionProps) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        'flex flex-col items-center gap-2 rounded-xl px-2 py-4 text-sm font-semibold shadow-sm transition-opacity active:opacity-70',
+        'flex h-[92px] flex-col justify-between rounded-xl p-3 text-left text-sm font-semibold shadow-sm transition-colors',
         tintClasses[tint]
       )}
     >
-      {icon}
-      <span>{label}</span>
+      <span>{icon}</span>
+      <span className="flex items-end justify-between gap-1">
+        {label}
+        <ChevronRight className="h-4 w-4 opacity-60" aria-hidden />
+      </span>
     </button>
   )
 }
@@ -149,9 +152,42 @@ export function UserHomePage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-3 pt-5 pb-6">
-      <header>
+      <header className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <HangangPayLogo size={26} />
+            <span className="text-sm font-bold text-primary">한강페이</span>
+          </div>
+          <div className="flex items-center gap-1 text-foreground">
+            <button
+              type="button"
+              aria-label="검색"
+              onClick={() => {}}
+              className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted"
+            >
+              <Search className="h-5 w-5" aria-hidden />
+            </button>
+            <button
+              type="button"
+              aria-label="알림"
+              onClick={() => {}}
+              className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted"
+            >
+              <Bell className="h-5 w-5" aria-hidden />
+            </button>
+            <button
+              type="button"
+              aria-label="설정"
+              onClick={() => {}}
+              className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted"
+            >
+              <Menu className="h-5 w-5" aria-hidden />
+            </button>
+          </div>
+        </div>
         <h1 className="text-2xl font-bold text-foreground">
-          {profileQuery.data?.username ?? '사용자'}님
+          {profileQuery.data?.username ?? '사용자'}
+          <span className="font-normal text-muted-foreground">님</span>
         </h1>
       </header>
 
@@ -173,18 +209,19 @@ export function UserHomePage() {
             label="QR 결제"
             icon={<QrCode size={24} aria-hidden />}
             onClick={() => navigate('/pay/scan')}
+            tint="action-3"
           />
           <QuickAction
             label="충전"
             icon={<Plus size={24} aria-hidden />}
             onClick={() => navigate('/charge/amount')}
-            tint="success"
+            tint="action-2"
           />
           <QuickAction
             label="환불"
             icon={<Undo2 size={24} aria-hidden />}
             onClick={() => navigate('/refund/check')}
-            tint="warning"
+            tint="action-1"
           />
         </div>
       </section>

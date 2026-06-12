@@ -34,15 +34,14 @@ class BlockchainOutboxPublisherSchedulerTest {
     void setUp() {
         scheduler =
                 new BlockchainOutboxPublisherScheduler(
-                        blockchainOutboxRepository, publisher, new ObjectMapper());
+                        blockchainOutboxRepository, publisher, new ObjectMapper(), 50);
     }
 
     @Test
     @DisplayName("NEW 상태 outbox를 publisher로 전달하고 SENT로 전환한다")
     void publishesPendingOutboxAndMarksSent() throws Exception {
         BlockchainOutbox outbox = newOutbox(1L);
-        given(blockchainOutboxRepository.findAllByStatus(BlockchainOutboxStatus.NEW))
-                .willReturn(List.of(outbox));
+        given(blockchainOutboxRepository.findPublishableNew(50)).willReturn(List.of(outbox));
 
         scheduler.publishPending();
 
@@ -54,8 +53,7 @@ class BlockchainOutboxPublisherSchedulerTest {
     @DisplayName("publish 실패 시 retryCount를 증가시킨다")
     void incrementsRetryCountOnPublishFailure() throws Exception {
         BlockchainOutbox outbox = newOutbox(2L);
-        given(blockchainOutboxRepository.findAllByStatus(BlockchainOutboxStatus.NEW))
-                .willReturn(List.of(outbox));
+        given(blockchainOutboxRepository.findPublishableNew(50)).willReturn(List.of(outbox));
         willThrow(new RuntimeException("MQ unavailable")).given(publisher).publish(any());
 
         scheduler.publishPending();
@@ -68,8 +66,7 @@ class BlockchainOutboxPublisherSchedulerTest {
     @DisplayName("publish 실패가 MAX_RETRY에 도달하면 FAILED로 전환한다")
     void marksFailedWhenMaxRetryReached() throws Exception {
         BlockchainOutbox outbox = newOutbox(3L);
-        given(blockchainOutboxRepository.findAllByStatus(BlockchainOutboxStatus.NEW))
-                .willReturn(List.of(outbox));
+        given(blockchainOutboxRepository.findPublishableNew(50)).willReturn(List.of(outbox));
         willThrow(new RuntimeException("MQ unavailable")).given(publisher).publish(any());
 
         for (int i = 0; i < 3; i++) {
@@ -82,8 +79,7 @@ class BlockchainOutboxPublisherSchedulerTest {
     @Test
     @DisplayName("NEW 상태 outbox가 없으면 publisher를 호출하지 않는다")
     void doesNotPublishWhenNoPendingOutbox() {
-        given(blockchainOutboxRepository.findAllByStatus(BlockchainOutboxStatus.NEW))
-                .willReturn(List.of());
+        given(blockchainOutboxRepository.findPublishableNew(50)).willReturn(List.of());
 
         scheduler.publishPending();
 
@@ -94,8 +90,7 @@ class BlockchainOutboxPublisherSchedulerTest {
     @DisplayName("publish 시 outboxId에서 파생된 messageId로 메시지를 전달한다")
     void publishesMessageWithStableMessageId() throws Exception {
         BlockchainOutbox outbox = newOutbox(42L);
-        given(blockchainOutboxRepository.findAllByStatus(BlockchainOutboxStatus.NEW))
-                .willReturn(List.of(outbox));
+        given(blockchainOutboxRepository.findPublishableNew(50)).willReturn(List.of(outbox));
 
         scheduler.publishPending();
 
@@ -114,6 +109,8 @@ class BlockchainOutboxPublisherSchedulerTest {
                 .id(id)
                 .blockchainLedgerId(100L)
                 .transactionUuid("uuid-" + id)
+                .orderingKey("0xa")
+                .seqNo(id)
                 .type(BlockchainSyncType.PAYMENT)
                 .status(BlockchainOutboxStatus.NEW)
                 .payload(

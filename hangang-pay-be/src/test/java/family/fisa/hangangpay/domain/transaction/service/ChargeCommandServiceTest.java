@@ -57,6 +57,7 @@ class ChargeCommandServiceTest {
                 100L,
                 new BigDecimal("50000"),
                 new BigDecimal("45000"),
+                new BigDecimal("45000"),
                 LocalDateTime.now());
     }
 
@@ -92,7 +93,8 @@ class ChargeCommandServiceTest {
                         UUID, 999L, "0xhash", 1L, LocalDateTime.now(), new BigDecimal("45000"));
         when(bankClient.charge(any())).thenReturn(bankResponse);
         ChargeExecuteResponse expected = response();
-        when(chargeExecutionWriter.completeSuccess(eq(UUID), eq("0xhash"), eq("999"), any()))
+        when(chargeExecutionWriter.completeSuccess(
+                        eq(UUID), eq("0xhash"), eq("999"), any(), eq(new BigDecimal("45000"))))
                 .thenReturn(expected);
 
         ChargeExecuteResponse result =

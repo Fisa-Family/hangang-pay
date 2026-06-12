@@ -1,6 +1,7 @@
 import { RefreshCw } from 'lucide-react'
 import { formatWon } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { GradientCard } from './GradientCard'
 
 interface BalanceCardProps {
   balance: number
@@ -18,8 +19,8 @@ export function BalanceCard({
   className,
 }: BalanceCardProps) {
   return (
-    <section className={cn('rounded-2xl bg-card p-5 shadow-sm', className)}>
-      <div className="flex items-center justify-between gap-3">
+    <GradientCard className={cn('p-5', className)}>
+      <div className="relative flex items-center justify-between gap-3">
         <div className="flex items-center gap-1.5">
           <p className="text-sm font-medium text-muted-foreground">{label}</p>
           {onRefresh ? (
@@ -36,6 +37,6 @@ export function BalanceCard({
         </div>
         <p className="text-2xl font-bold tabular-nums">{formatWon(balance)}</p>
       </div>
-    </section>
+    </GradientCard>
   )
 }

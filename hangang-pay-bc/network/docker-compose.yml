@@ -1,4 +1,40 @@
 services:
+  rpc-lb:
+    image: nginx:alpine
+    container_name: besu-rpc-lb
+    command:
+      - /bin/sh
+      - -c
+      - >
+        export RPC_FAIL_TIMEOUT="$${RPC_FAIL_TIMEOUT:-5s}"
+        RPC_KEEPALIVE="$${RPC_KEEPALIVE:-32}"
+        RPC_CONNECT_TIMEOUT="$${RPC_CONNECT_TIMEOUT:-2s}"
+        RPC_SEND_TIMEOUT="$${RPC_SEND_TIMEOUT:-30s}"
+        RPC_READ_TIMEOUT="$${RPC_READ_TIMEOUT:-30s}"
+        RPC_NEXT_UPSTREAM_TRIES="$${RPC_NEXT_UPSTREAM_TRIES:-4}";
+        envsubst '$$NODE1_IP $$NODE2_IP $$NODE3_IP $$NODE4_IP $$RPC_FAIL_TIMEOUT $$RPC_KEEPALIVE $$RPC_CONNECT_TIMEOUT $$RPC_SEND_TIMEOUT $$RPC_READ_TIMEOUT $$RPC_NEXT_UPSTREAM_TRIES'
+        < /etc/nginx/templates/default.conf.template
+        > /etc/nginx/conf.d/default.conf
+        && exec nginx -g 'daemon off;'
+    ports:
+      - "18545:8545"
+    volumes:
+      - ./nginx.conf:/etc/nginx/templates/default.conf.template:ro
+    environment:
+      NODE1_IP: node1
+      NODE2_IP: node2
+      NODE3_IP: node3
+      NODE4_IP: node4
+    depends_on:
+      - node1
+      - node2
+      - node3
+      - node4
+    networks:
+      besu-network:
+        ipv4_address: 172.16.239.20
+    restart: unless-stopped
+
   node1: # Bank of Korea (BoK) — CBDC issuer
     image: hyperledger/besu:26.4.0
     container_name: besu-node1

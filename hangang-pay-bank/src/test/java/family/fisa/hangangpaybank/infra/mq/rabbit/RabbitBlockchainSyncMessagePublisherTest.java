@@ -22,7 +22,7 @@ class RabbitBlockchainSyncMessagePublisherTest {
     @InjectMocks private RabbitBlockchainSyncMessagePublisher publisher;
 
     @Test
-    @DisplayName("publish 시 blockchain-sync exchange와 blockchain.sync routing key로 전달한다")
+    @DisplayName("publish 시 blockchain-sync exchange와 orderingKey를 routing key로 전달한다")
     void publishSendsToCorrectExchangeAndRoutingKey() {
         BlockchainSyncMessage message =
                 new BlockchainSyncMessage(
@@ -31,12 +31,12 @@ class RabbitBlockchainSyncMessagePublisherTest {
                         10L,
                         "uuid-1",
                         BlockchainSyncType.PAYMENT,
+                        "0xabc123",
                         new ObjectMapper().createObjectNode());
 
         publisher.publish(message);
 
         verify(rabbitTemplate)
-                .convertAndSend(
-                        eq(RabbitMqConfig.EXCHANGE), eq(RabbitMqConfig.ROUTING_KEY), eq(message));
+                .convertAndSend(eq(RabbitMqConfig.EXCHANGE), eq("0xabc123"), eq(message));
     }
 }

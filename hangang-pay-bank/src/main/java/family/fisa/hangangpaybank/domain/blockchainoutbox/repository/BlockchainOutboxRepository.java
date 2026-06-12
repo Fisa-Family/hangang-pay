@@ -12,6 +12,8 @@ public interface BlockchainOutboxRepository {
 
     List<BlockchainOutbox> findAllByStatus(BlockchainOutboxStatus status);
 
+    List<BlockchainOutbox> findPublishableNew(int limit);
+
     Optional<BlockchainOutbox> findByBlockchainLedgerId(Long blockchainLedgerId);
 
     List<BlockchainOutbox> findStaleByStatus(
