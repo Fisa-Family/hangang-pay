@@ -25,7 +25,7 @@ function buildErrorMessage(spec: (typeof API_SPEC)[keyof typeof API_SPEC], error
   return `${spec.id} 요청에 실패했습니다. 네트워크 연결을 확인해 주세요.`
 }
 
-const HISTORY_FETCH_LIMIT = 6
+const HISTORY_FETCH_LIMIT = 5
 
 function formatHistoryDate(isoString: string): string {
   const d = new Date(isoString)

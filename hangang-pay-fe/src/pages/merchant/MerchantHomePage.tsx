@@ -24,7 +24,7 @@ function formatPaymentTime(isoString: string): string {
 }
 
 // 최근 결제 표시 건수
-const PAYMENT_LIMIT = 4
+const PAYMENT_LIMIT = 3
 
 // 보조 메뉴 항목과 이동 경로
 const secondaryMenuItems = [
@@ -138,11 +138,11 @@ export function MerchantHomePage() {
 
       {/* 대시보드 카드: 좌→우 블루 그라데이션 / 매출·결제 건수 좌우 분할 */}
       <GradientCard>
-        <div className="relative flex p-5">
+        <div className="relative flex p-5 pb-6">
           {/* 오늘 매출 */}
           <div className="flex-1 pr-5">
             <p className="text-sm text-muted-foreground">오늘 매출</p>
-            <p className="mt-1 text-[22px] font-bold leading-tight text-primary">
+            <p className="mt-1.5 text-[22px] font-bold leading-snug text-primary">
               {dashboardQuery.isLoading ? (
                 <span className="inline-block h-7 w-24 animate-pulse rounded bg-muted" />
               ) : (
@@ -155,7 +155,7 @@ export function MerchantHomePage() {
           {/* 오늘 결제 건수 */}
           <div className="flex-1 pl-5">
             <p className="text-sm text-muted-foreground">오늘 결제</p>
-            <p className="mt-1 text-[22px] font-bold leading-tight text-foreground">
+            <p className="mt-1.5 text-[22px] font-bold leading-snug text-foreground">
               {dashboardQuery.isLoading ? (
                 <span className="inline-block h-7 w-16 animate-pulse rounded bg-muted" />
               ) : (
