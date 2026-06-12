@@ -73,6 +73,7 @@ public class BlockchainOutboxPublisherScheduler {
                 outbox.getBlockchainLedgerId(),
                 outbox.getTransactionUuid(),
                 outbox.getType(),
+                outbox.getOrderingKey(),
                 payload);
     }
 }

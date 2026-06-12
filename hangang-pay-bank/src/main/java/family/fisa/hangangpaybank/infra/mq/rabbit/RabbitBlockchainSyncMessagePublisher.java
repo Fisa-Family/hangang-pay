@@ -18,9 +18,11 @@ public class RabbitBlockchainSyncMessagePublisher implements BlockchainSyncMessa
 
     private final RabbitTemplate rabbitTemplate;
 
-    /** 블록체인 동기화 메시지를 RabbitMQ로 발행한다. */
+    /**
+     * 블록체인 동기화 메시지를 RabbitMQ로 발행한다. ordering_key를 routing key로 사용해 같은 사용자는 같은 shard queue로 라우팅한다.
+     */
     @Override
     public void publish(BlockchainSyncMessage message) {
-        rabbitTemplate.convertAndSend(RabbitMqConfig.EXCHANGE, RabbitMqConfig.ROUTING_KEY, message);
+        rabbitTemplate.convertAndSend(RabbitMqConfig.EXCHANGE, message.orderingKey(), message);
     }
 }

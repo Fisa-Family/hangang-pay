@@ -23,7 +23,7 @@ public class RabbitBlockchainSyncMessageListener {
 
     private final BlockchainSyncHandlerRegistry registry;
 
-    @RabbitListener(queues = RabbitMqConfig.QUEUE, concurrency = "1")
+    @RabbitListener(queues = "#{@blockchainSyncShardQueueNames}", concurrency = "1")
     public void onMessage(BlockchainSyncMessage message) {
         log.info("[listener] 메시지 수신. type={}, uuid={}", message.type(), message.transactionUuid());
 

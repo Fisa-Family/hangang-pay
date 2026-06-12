@@ -46,6 +46,9 @@ wallet:
 blockchain:
   private-network:
     chain-id: 1337
+  sync:
+    shard-count: 4
+    queue-prefix: blockchain-sync
 
 mq:
   provider: rabbit
