@@ -76,6 +76,7 @@ public enum TransactionErrorCode implements BaseErrorCode {
             HttpStatus.INTERNAL_SERVER_ERROR,
             "PAYMENT_IDEMPOTENCY_RECORD_INVALID",
             "결제 멱등성 기록이 올바르지 않습니다."),
+    PAYMENT_INTENT_EXPIRED(HttpStatus.GONE, "PAYMENT_INTENT_EXPIRED", "만료된 결제 요청입니다. 다시 시도해주세요."),
 
     // ===== 취소 (CANCEL) =====
     PAYMENT_CANCEL_FORBIDDEN(HttpStatus.FORBIDDEN, "PAYMENT_CANCEL_FORBIDDEN", "취소 권한이 없는 결제입니다."),

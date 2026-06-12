@@ -13,6 +13,10 @@ class SchedulerLockAnnotationTest {
         assertLock(ReconcileScheduler.class, "reconcileExchanges", "reconcileExchanges");
         assertLock(ReconcileScheduler.class, "expireStaleIntents", "expireStaleIntents");
         assertLock(
+                PaymentIntentExpiryScheduler.class,
+                "expireStaleIntents",
+                "expireStalePaymentIntents");
+        assertLock(
                 UnknownPaymentRecoveryScheduler.class,
                 "resolveUnknownPayments",
                 "resolveUnknownPayments");
