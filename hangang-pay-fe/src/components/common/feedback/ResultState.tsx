@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { AlertCircle, CheckCircle, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '../action/Button'
 
@@ -19,10 +20,10 @@ const iconClasses = {
   info: 'bg-info/10 text-info',
 }
 
-const iconText = {
-  success: '✓',
-  error: '!',
-  info: 'i',
+const VariantIcon = {
+  success: CheckCircle,
+  error: AlertCircle,
+  info: XCircle,
 }
 
 export function ResultState({
@@ -35,15 +36,17 @@ export function ResultState({
   onPrimary,
   onSecondary,
 }: ResultStateProps) {
+  const Icon = VariantIcon[variant]
+
   return (
     <section className="mx-auto w-full max-w-sm rounded-lg border border-border bg-card p-5 text-center">
       <div
         className={cn(
-          'mx-auto flex size-12 items-center justify-center rounded-full text-xl font-bold',
+          'mx-auto flex size-12 items-center justify-center rounded-full',
           iconClasses[variant]
         )}
       >
-        {iconText[variant]}
+        <Icon className="size-6" aria-hidden />
       </div>
       <h2 className="mt-4 text-xl font-bold">{title}</h2>
       {description ? (

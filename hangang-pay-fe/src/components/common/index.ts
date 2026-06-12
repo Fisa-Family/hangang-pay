@@ -20,6 +20,7 @@ export { ErrorBoundary } from './feedback/ErrorBoundary'
 export { ProcessingState } from './feedback/ProcessingState'
 export { ProcessingView } from './feedback/ProcessingView'
 export { ResultState } from './feedback/ResultState'
+export { RetryState } from './feedback/RetryState'
 export { StatusBadge } from './feedback/StatusBadge'
 
 export { BalanceCard } from './card/BalanceCard'

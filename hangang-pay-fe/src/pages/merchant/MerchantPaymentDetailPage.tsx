@@ -15,7 +15,7 @@ import {
   PageHeader,
   PinEntry,
   ProcessingView,
-  ResultState,
+  RetryState,
   Toast,
 } from '@/components/common'
 import { formatDateTime, formatWon } from '@/lib/format'
@@ -137,19 +137,16 @@ export function MerchantPaymentDetailPage() {
   // 취소 미확정(UNKNOWN) → 재시도(복구) 화면
   if (step === 'unknown') {
     return (
-      <div className="flex h-full items-center justify-center px-5">
-        <ResultState
-          variant="info"
-          title="취소 상태를 확인 중이에요"
-          description={
-            '네트워크 지연으로 취소 결과가 아직 확정되지 않았어요.\n다시 확인해 취소 상태를 조회해 주세요.\n같은 취소가 중복 처리되지는 않습니다.'
-          }
-          primaryText="다시 확인"
-          onPrimary={() => recoverMutation.mutate()}
-          secondaryText="닫기"
-          onSecondary={() => setStep('detail')}
-        />
-      </div>
+      <RetryState
+        title="취소 상태를 확인 중이에요"
+        description={
+          '네트워크 지연으로 취소 결과가 아직 확정되지 않았어요.\n다시 확인해 취소 상태를 조회해 주세요.\n같은 취소가 중복 처리되지는 않습니다.'
+        }
+        primaryText="다시 확인"
+        onPrimary={() => recoverMutation.mutate()}
+        secondaryText="닫기"
+        onSecondary={() => setStep('detail')}
+      />
     )
   }
 
