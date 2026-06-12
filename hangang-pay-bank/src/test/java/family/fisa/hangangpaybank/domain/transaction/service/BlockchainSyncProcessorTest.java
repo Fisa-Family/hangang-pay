@@ -317,6 +317,7 @@ class BlockchainSyncProcessorTest {
                 Long.parseLong(uuid.replaceAll("[^0-9]", "").substring(0, 1)),
                 uuid,
                 BlockchainSyncType.PAYMENT,
+                from,
                 objectMapper.valueToTree(payload));
     }
 
@@ -331,6 +332,7 @@ class BlockchainSyncProcessorTest {
                 Long.parseLong(uuid.replaceAll("[^0-9]", "").substring(0, 1)),
                 uuid,
                 BlockchainSyncType.CANCEL,
+                to,
                 objectMapper.valueToTree(payload));
     }
 
@@ -344,6 +346,7 @@ class BlockchainSyncProcessorTest {
                 ledgerId,
                 uuid,
                 BlockchainSyncType.EXCHANGE,
+                wallet,
                 objectMapper.valueToTree(payload));
     }
 

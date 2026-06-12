@@ -57,10 +57,10 @@ class ExchangeExecutionServiceTest {
         given(accountLedgerRepository.findByIdempotentKey(UUID)).willReturn(Optional.empty());
         given(institutionRepository.findById(INSTITUTION_ID))
                 .willReturn(Optional.of(institution()));
-        given(bankWalletRepository.findByWalletAddress(WALLET_ADDRESS))
+        given(bankWalletRepository.findByWalletAddressWithLock(WALLET_ADDRESS))
                 .willReturn(Optional.of(wallet));
         given(
-                        bankAccountRepository.findByInstitution_IdAndAccountNumber(
+                        bankAccountRepository.findByInstitution_IdAndAccountNumberWithLock(
                                 INSTITUTION_ID, ACCOUNT_NUMBER))
                 .willReturn(Optional.of(account));
         given(accountLedgerRepository.save(any(AccountLedger.class)))
@@ -84,10 +84,10 @@ class ExchangeExecutionServiceTest {
         given(accountLedgerRepository.findByIdempotentKey(UUID)).willReturn(Optional.empty());
         given(institutionRepository.findById(INSTITUTION_ID))
                 .willReturn(Optional.of(institution()));
-        given(bankWalletRepository.findByWalletAddress(WALLET_ADDRESS))
+        given(bankWalletRepository.findByWalletAddressWithLock(WALLET_ADDRESS))
                 .willReturn(Optional.of(wallet));
         given(
-                        bankAccountRepository.findByInstitution_IdAndAccountNumber(
+                        bankAccountRepository.findByInstitution_IdAndAccountNumberWithLock(
                                 INSTITUTION_ID, ACCOUNT_NUMBER))
                 .willReturn(Optional.of(account));
 

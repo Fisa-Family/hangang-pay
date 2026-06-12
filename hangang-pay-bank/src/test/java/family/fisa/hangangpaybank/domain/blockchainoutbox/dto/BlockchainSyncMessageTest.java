@@ -26,7 +26,13 @@ class BlockchainSyncMessageTest {
 
         BlockchainSyncMessage message =
                 new BlockchainSyncMessage(
-                        "outbox-7", 7L, 3L, "uuid-1111", BlockchainSyncType.PAYMENT, payload);
+                        "outbox-7",
+                        7L,
+                        3L,
+                        "uuid-1111",
+                        BlockchainSyncType.PAYMENT,
+                        "0xuser",
+                        payload);
 
         String json = objectMapper.writeValueAsString(message);
         BlockchainSyncMessage deserialized =

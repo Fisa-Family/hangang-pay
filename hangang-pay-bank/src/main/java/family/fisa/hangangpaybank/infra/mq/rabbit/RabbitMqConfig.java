@@ -1,8 +1,13 @@
 package family.fisa.hangangpaybank.infra.mq.rabbit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.ArrayList;
+import java.util.List;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.CustomExchange;
+import org.springframework.amqp.core.Declarable;
+import org.springframework.amqp.core.Declarables;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
@@ -11,6 +16,7 @@ import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -18,31 +24,57 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RabbitMqConfig {
 
-    public static final String EXCHANGE = "blockchain-sync";
-    public static final String QUEUE = "blockchain-sync";
-    public static final String ROUTING_KEY = "blockchain.sync";
+    public static final String EXCHANGE = "blockchain-sync-shard";
     public static final String DLQ_EXCHANGE = "blockchain-sync.dlq";
     public static final String DLQ_QUEUE = "blockchain-sync.dlq";
     public static final String DLQ_ROUTING_KEY = "blockchain-sync.dlq";
 
+    @Value("${blockchain.sync.shard-count:4}")
+    private int shardCount;
+
+    @Value("${blockchain.sync.queue-prefix:blockchain-sync}")
+    private String queuePrefix;
+
+    /**
+     * x-modulus-hash exchange와 shard queue N개를 한 번에 선언한다.
+     *
+     * <p>같은 ordering_key(routing key)는 hash(orderingKey) % total_weight 로 항상 같은 shard queue로 라우팅되어,
+     * 사용자 내 순서를 유지하면서 사용자 간 병렬 처리가 가능하다. (requires: rabbitmq_consistent_hash_exchange plugin)
+     *
+     * <p>각 shard queue는 Single Active Consumer를 활성화해 queue 내부에서 동시 처리가 일어나지 않도록 보장한다.
+     */
     @Bean
-    DirectExchange blockchainSyncExchange() {
-        return new DirectExchange(EXCHANGE);
+    Declarables blockchainSyncDeclarables() {
+        List<Declarable> declarables = new ArrayList<>();
+
+        CustomExchange exchange = new CustomExchange(EXCHANGE, "x-modulus-hash", true, false);
+        declarables.add(exchange);
+
+        for (int i = 0; i < shardCount; i++) {
+            String queueName = queuePrefix + "." + i;
+            Queue queue =
+                    QueueBuilder.durable(queueName)
+                            .singleActiveConsumer()
+                            .deadLetterExchange(DLQ_EXCHANGE)
+                            .deadLetterRoutingKey(DLQ_ROUTING_KEY)
+                            .build();
+            // binding key = weight. "1"은 각 queue가 동등한 비율로 메시지를 수신함을 의미한다.
+            Binding binding = BindingBuilder.bind(queue).to(exchange).with("1").noargs();
+            declarables.add(queue);
+            declarables.add(binding);
+        }
+
+        return new Declarables(declarables);
     }
 
+    /** 리스너가 구독할 shard queue 이름 목록. */
     @Bean
-    Queue blockchainSyncQueue() {
-        return QueueBuilder.durable(QUEUE)
-                .deadLetterExchange(DLQ_EXCHANGE)
-                .deadLetterRoutingKey(DLQ_ROUTING_KEY)
-                .build();
-    }
-
-    @Bean
-    Binding blockchainSyncBinding() {
-        return BindingBuilder.bind(blockchainSyncQueue())
-                .to(blockchainSyncExchange())
-                .with(ROUTING_KEY);
+    List<String> blockchainSyncShardQueueNames() {
+        List<String> names = new ArrayList<>();
+        for (int i = 0; i < shardCount; i++) {
+            names.add(queuePrefix + "." + i);
+        }
+        return names;
     }
 
     @Bean

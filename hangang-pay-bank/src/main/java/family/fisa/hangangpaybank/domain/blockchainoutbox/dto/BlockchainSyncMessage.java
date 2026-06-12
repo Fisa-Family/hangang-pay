@@ -10,4 +10,5 @@ public record BlockchainSyncMessage(
         Long blockchainLedgerId,
         String transactionUuid,
         BlockchainSyncType type,
+        String orderingKey, // ordering key로 routing하기 위해 필요
         JsonNode payload) {}
