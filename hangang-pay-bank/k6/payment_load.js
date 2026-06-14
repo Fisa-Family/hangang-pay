@@ -190,7 +190,7 @@ export default function () {
 
   // 잔액 보충: CHARGE_EVERY 이터레이션마다 1회 충전
   // account ↔ wallet 이 같은 유저가 아닐 수 있음 → 잔액 부족 400도 테스트 포함
-  if (iterCount % CHARGE_EVERY === 1) {
+  if (CHARGE_EVERY > 0 && iterCount % CHARGE_EVERY === 1) {
     doCharge(account, wallet.walletAddress);
     sleep(0.2);
   }
