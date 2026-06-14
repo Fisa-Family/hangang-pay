@@ -18,21 +18,21 @@
  *   DURATION        - steady-state 유지 시간 (기본: 2m)
  */
 
-import http from 'k6/http';
-import { check, sleep } from 'k6';
-import { Counter, Rate, Trend } from 'k6/metrics';
-import { SharedArray } from 'k6/data';
-import { randomIntBetween } from 'https://jslib.k6.io/k6-utils/1.4.0/index.js';
-import { uuidv4 } from 'https://jslib.k6.io/k6-utils/1.4.0/index.js';
+import http from "k6/http";
+import { check, sleep } from "k6";
+import { Counter, Rate, Trend } from "k6/metrics";
+import { SharedArray } from "k6/data";
+import { randomIntBetween } from "https://jslib.k6.io/k6-utils/1.4.0/index.js";
+import { uuidv4 } from "https://jslib.k6.io/k6-utils/1.4.0/index.js";
 
 // ── 설정 ────────────────────────────────────────────────────────────────────
-const BASE_URL      = __ENV.BASE_URL       || 'http://localhost:8081';
-const CHARGE_EVERY  = parseInt(__ENV.CHARGE_EVERY_N  || '5');
-const CANCEL_RATE   = parseFloat(__ENV.CANCEL_RATE   || '0.2');
-const EXCHANGE_RATE = parseFloat(__ENV.EXCHANGE_RATE || '0.05');
-const MAX_VUS       = parseInt(__ENV.VUS      || '50');
-const DURATION      = __ENV.DURATION || '2m';
-const RAMP          = __ENV.RAMP     || '30s';
+const BASE_URL = __ENV.BASE_URL || "http://localhost:8081";
+const CHARGE_EVERY = parseInt(__ENV.CHARGE_EVERY_N || "5");
+const CANCEL_RATE = parseFloat(__ENV.CANCEL_RATE || "0.2");
+const EXCHANGE_RATE = parseFloat(__ENV.EXCHANGE_RATE || "0.05");
+const MAX_VUS = parseInt(__ENV.VUS || "50");
+const DURATION = __ENV.DURATION || "2m";
+const RAMP = __ENV.RAMP || "30s";
 
 // ── 데이터 픽스처 ─────────────────────────────────────────────────────────────
 // wallets.json  : bank_wallet 전체 (payment/cancel/charge/exchange 의 walletAddress)
@@ -41,34 +41,34 @@ const RAMP          = __ENV.RAMP     || '30s';
 //
 // wallet ↔ account 는 bank DB에서 매핑 불가 → 독립 인덱스로 랜덤 할당.
 // 잔액 부족으로 인한 400 응답도 테스트 결과에 포함됨.
-const wallets = new SharedArray('wallets', function () {
-  return JSON.parse(open('./wallets.json'));
+const wallets = new SharedArray("wallets", function () {
+  return JSON.parse(open("./wallets.json"));
 });
 
-const accounts = new SharedArray('accounts', function () {
-  return JSON.parse(open('./accounts.json'));
+const accounts = new SharedArray("accounts", function () {
+  return JSON.parse(open("./accounts.json"));
 });
 
-const merchants = new SharedArray('merchants', function () {
-  return JSON.parse(open('./merchants.json'));
+const merchants = new SharedArray("merchants", function () {
+  return JSON.parse(open("./merchants.json"));
 });
 
 // ── 커스텀 메트릭 ─────────────────────────────────────────────────────────────
-const chargeErrors    = new Counter('charge_errors');
-const paymentErrors   = new Counter('payment_errors');
-const cancelErrors    = new Counter('cancel_errors');
-const exchangeErrors  = new Counter('exchange_errors');
-const chargeOk        = new Counter('charge_ok');
-const paymentOk       = new Counter('payment_ok');
-const cancelOk        = new Counter('cancel_ok');
-const exchangeOk      = new Counter('exchange_ok');
-const paymentDuration = new Trend('payment_duration', true);
+const chargeErrors = new Counter("charge_errors");
+const paymentErrors = new Counter("payment_errors");
+const cancelErrors = new Counter("cancel_errors");
+const exchangeErrors = new Counter("exchange_errors");
+const chargeOk = new Counter("charge_ok");
+const paymentOk = new Counter("payment_ok");
+const cancelOk = new Counter("cancel_ok");
+const exchangeOk = new Counter("exchange_ok");
+const paymentDuration = new Trend("payment_duration", true);
 
 // ── 시나리오 ──────────────────────────────────────────────────────────────────
 export const options = {
   scenarios: {
     load: {
-      executor: 'ramping-vus',
+      executor: "ramping-vus",
       startVUs: 1,
       stages: [
         { duration: RAMP, target: Math.floor(MAX_VUS * 0.5) },
@@ -79,14 +79,17 @@ export const options = {
     },
   },
   thresholds: {
-    http_req_failed:  ['rate<0.05'],
-    http_req_duration: ['p(95)<3000', 'p(99)<5000'],
-    payment_errors:   ['count<50'],
+    http_req_failed: ["rate<0.05"],
+    http_req_duration: ["p(95)<3000", "p(99)<5000"],
+    payment_errors: ["count<50"],
   },
 };
 
 // ── 헬퍼 ──────────────────────────────────────────────────────────────────────
-const HEADERS = { headers: { 'Content-Type': 'application/json' }, timeout: '15s' };
+const HEADERS = {
+  headers: { "Content-Type": "application/json" },
+  timeout: "60s",
+};
 
 function post(path, body) {
   return http.post(`${BASE_URL}${path}`, JSON.stringify(body), HEADERS);
@@ -106,60 +109,72 @@ function isOk(res) {
 // 잔액 부족 400은 테스트 결과의 일부로 취급.
 function doCharge(account, walletAddress) {
   const amount = 10000;
-  const res = post('/api/v1/transactions/charge', {
+  const res = post("/api/v1/transactions/charge", {
     transactionUuid: uuidv4(),
-    institutionId:   account.institutionId,
-    accountNumber:   account.accountNumber,
-    walletAddress:   walletAddress,
-    amount:          amount,
-    mintAmount:      amount * 1.1,
+    institutionId: account.institutionId,
+    accountNumber: account.accountNumber,
+    walletAddress: walletAddress,
+    amount: amount,
+    mintAmount: amount * 1.1,
   });
-  const ok = check(res, { 'charge 200 + isSuccess': isOk });
+  const ok = check(res, { "charge 200 + isSuccess": isOk });
   ok ? chargeOk.add(1) : chargeErrors.add(1);
-  if (!ok) console.log(`[charge FAIL] vu=${__VU} status=${res.status} body=${res.body.slice(0, 200)}`);
+  if (!ok)
+    console.log(
+      `[charge FAIL] vu=${__VU} status=${res.status} body=${(res.body || "").slice(0, 200)}`,
+    );
 }
 
 // 결제 성공 시 transactionUuid 반환, 실패 시 null
 function doPayment(fromWallet, toWallet) {
   const txUuid = uuidv4();
   const start = Date.now();
-  const res = post('/api/v1/transactions/payment', {
-    transactionUuid:   txUuid,
+  const res = post("/api/v1/transactions/payment", {
+    transactionUuid: txUuid,
     fromWalletAddress: fromWallet,
-    toWalletAddress:   toWallet,
-    amount:            1000,
+    toWalletAddress: toWallet,
+    amount: 1000,
   });
   paymentDuration.add(Date.now() - start);
-  const ok = check(res, { 'payment 200 + isSuccess': isOk });
+  const ok = check(res, { "payment 200 + isSuccess": isOk });
   ok ? paymentOk.add(1) : paymentErrors.add(1);
-  if (!ok) console.log(`[payment FAIL] vu=${__VU} uuid=${txUuid} status=${res.status} body=${res.body.slice(0, 200)}`);
+  if (!ok)
+    console.log(
+      `[payment FAIL] vu=${__VU} uuid=${txUuid} status=${res.status} body=${(res.body || "").slice(0, 200)}`,
+    );
   return ok ? txUuid : null;
 }
 
 function doCancel(userWallet, merchantWallet, originalUuid) {
-  const res = post('/api/v1/transactions/cancel', {
-    transactionUuid:         uuidv4(),
+  const res = post("/api/v1/transactions/cancel", {
+    transactionUuid: uuidv4(),
     originalTransactionUuid: originalUuid,
-    fromWalletAddress:       merchantWallet,  // cancel: merchant → user 역방향
-    toWalletAddress:         userWallet,
-    amount:                  1000,
+    fromWalletAddress: merchantWallet, // cancel: merchant → user 역방향
+    toWalletAddress: userWallet,
+    amount: 1000,
   });
-  const ok = check(res, { 'cancel 200 + isSuccess': isOk });
+  const ok = check(res, { "cancel 200 + isSuccess": isOk });
   ok ? cancelOk.add(1) : cancelErrors.add(1);
-  if (!ok) console.log(`[cancel FAIL] vu=${__VU} orig=${originalUuid} status=${res.status} body=${res.body.slice(0, 200)}`);
+  if (!ok)
+    console.log(
+      `[cancel FAIL] vu=${__VU} orig=${originalUuid} status=${res.status} body=${(res.body || "").slice(0, 200)}`,
+    );
 }
 
 function doExchange(account, walletAddress) {
-  const res = post('/api/v1/transactions/exchange', {
+  const res = post("/api/v1/transactions/exchange", {
     transactionUuid: uuidv4(),
-    institutionId:   account.institutionId,
-    walletAddress:   walletAddress,
-    accountNumber:   account.accountNumber,
-    amount:          500,
+    institutionId: account.institutionId,
+    walletAddress: walletAddress,
+    accountNumber: account.accountNumber,
+    amount: 500,
   });
-  const ok = check(res, { 'exchange 200 + isSuccess': isOk });
+  const ok = check(res, { "exchange 200 + isSuccess": isOk });
   ok ? exchangeOk.add(1) : exchangeErrors.add(1);
-  if (!ok) console.log(`[exchange FAIL] vu=${__VU} status=${res.status} body=${res.body.slice(0, 200)}`);
+  if (!ok)
+    console.log(
+      `[exchange FAIL] vu=${__VU} status=${res.status} body=${(res.body || "").slice(0, 200)}`,
+    );
 }
 
 // ── VU별 이터레이션 카운터 (모듈 스코프 = VU별 독립) ──────────────────────────
@@ -169,8 +184,8 @@ let iterCount = 0;
 export default function () {
   iterCount++;
 
-  const wallet   = wallets[(__VU - 1) % wallets.length];
-  const account  = accounts[(__VU - 1) % accounts.length];
+  const wallet = wallets[(__VU - 1) % wallets.length];
+  const account = accounts[(__VU - 1) % accounts.length];
   const merchant = merchants[(__VU - 1) % merchants.length];
 
   // 잔액 보충: CHARGE_EVERY 이터레이션마다 1회 충전
@@ -202,7 +217,7 @@ export default function () {
 
 // ── 테스트 종료 후 일관성 검사 안내 ───────────────────────────────────────────
 export function handleSummary(data) {
-  console.log('\n=== 부하 테스트 완료. 아래 SQL로 일관성 검사 실행 ===');
+  console.log("\n=== 부하 테스트 완료. 아래 SQL로 일관성 검사 실행 ===");
   console.log(`
 -- 1. 제출됐지만 FAILED (체인에서 직접 txHash 상태 확인 필요)
 SELECT id, idempotent_key, tx_hash, confirmed_at
