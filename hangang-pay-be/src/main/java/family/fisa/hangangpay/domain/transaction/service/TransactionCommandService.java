@@ -71,8 +71,10 @@ public class TransactionCommandService {
     private final PartyRepository partyRepository;
     private final BankClient bankClient;
     private final PaymentIdempotencyStore paymentIdempotencyStore;
+    private final PaymentIntentDedupStore paymentIntentDedupStore;
     private final PaymentLockManager paymentLockManager;
     private final PaymentRateLimiter paymentRateLimiter;
+    private final PaymentRequestHashGenerator paymentRequestHashGenerator;
     private final CancelIdempotencyStore cancelIdempotencyStore;
     private final CancelLockManager cancelLockManager;
     private final PaymentExecutionStateWriter paymentExecutionStateWriter;
@@ -93,7 +95,22 @@ public class TransactionCommandService {
         Wallet merchantWallet = getWallet(request.merchantPartyId());
 
         /** 결제 실행 전에 서버 발급 transactionUuid로 PENDING 결제 의도를 생성한다 */
+        String fingerprint =
+                paymentRequestHashGenerator.generateIntentExecutionHash(
+                        userParty.getId(), merchant.getParty().getId(), request.amount());
         String transactionUuid = UUID.randomUUID().toString();
+        Optional<String> existingTransactionUuid =
+                paymentIntentDedupStore.reserve(fingerprint, transactionUuid);
+
+        if (existingTransactionUuid.isPresent()) {
+            Optional<Transaction> existing =
+                    transactionRepository.findByTransactionUuid(existingTransactionUuid.get());
+
+            if (existing.isPresent()) {
+                LocalDateTime expiresAt = intentExpiresAt(existing.get());
+                return PaymentIntentResponse.from(existing.get(), merchant, expiresAt);
+            }
+        }
 
         Transaction transaction =
                 Transaction.forPayment(
@@ -370,6 +387,10 @@ public class TransactionCommandService {
         return walletRepository
                 .findByParty_Id(partyId)
                 .orElseThrow(() -> new BusinessException(WalletErrorCode.WALLET_NOT_FOUND));
+    }
+
+    private LocalDateTime intentExpiresAt(Transaction transaction) {
+        return transaction.getCreatedAt().plusMinutes(PAYMENT_INTENT_TTL_MINUTES);
     }
 
     /** Bank 쓰기 호출 + 일시적 오류 1회 재시도를 한다. bank가 transactionUuid로 멱등 처리를 하므로 재호출은 안전하다. */

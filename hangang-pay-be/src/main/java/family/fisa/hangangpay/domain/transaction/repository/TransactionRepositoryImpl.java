@@ -112,6 +112,12 @@ public class TransactionRepositoryImpl implements TransactionRepository {
                 TransactionType.CHARGE, TransactionStatus.PENDING, threshold);
     }
 
+    /** 만료 대상 - PAYMENT + PENDING + createdAt < threshold */
+    @Override
+    public int expireStalePendingPaymentIntents(LocalDateTime threshold, LocalDateTime now) {
+        return jpaRepository.expireStalePendingIntents(TransactionType.PAYMENT, now, threshold);
+    }
+
     /** 특정 시점 이전(exclusive) SUCCESS 거래 유형별 누적 금액 */
     @Override
     public BigDecimal sumSuccessByTypeBefore(

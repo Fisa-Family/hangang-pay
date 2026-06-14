@@ -50,6 +50,16 @@ class PaymentRequestHashGeneratorTest {
     }
 
     @Test
+    @DisplayName("intent 생성 해시도 금액 scale 차이를 같은 해시로 정규화한다")
+    void intent_금액_scale_무관() {
+        String noScale = generator.generateIntentExecutionHash(1L, 2L, new BigDecimal("10000"));
+        String withScale =
+                generator.generateIntentExecutionHash(1L, 2L, new BigDecimal("10000.00"));
+
+        assertThat(noScale).isEqualTo(withScale);
+    }
+
+    @Test
     @DisplayName("수신 가맹점(toParty)이 다르면 해시가 달라진다")
     void 다른_수신자_다른_해시() {
         String to2 = generator.generatePaymentExecuteHash(payment(1L, 2L, "10000"));

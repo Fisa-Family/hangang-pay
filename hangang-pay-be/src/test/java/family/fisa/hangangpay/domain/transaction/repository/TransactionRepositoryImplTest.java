@@ -271,6 +271,88 @@ class TransactionRepositoryImplTest {
                 .isFalse();
     }
 
+    @Test
+    @DisplayName("만료 처리: PAYMENT + PENDING + threshold 이전만 EXPIRED, PROCESSING/SUCCESS/타 타입은 제외")
+    void expireStalePendingPaymentIntents_onlyPaymentPendingBeforeThreshold() {
+        Party user = persistParty(PartyType.USER);
+        Party merchant = persistParty(PartyType.MERCHANT);
+        LocalDateTime threshold = LocalDateTime.of(2026, 6, 12, 10, 10);
+        LocalDateTime now = LocalDateTime.of(2026, 6, 12, 10, 20);
+        LocalDateTime stale = LocalDateTime.of(2026, 6, 12, 10, 0);
+
+        // 대상: PAYMENT + PENDING + threshold 이전
+        persistTransaction(
+                "stale-payment-pending",
+                TransactionType.PAYMENT,
+                TransactionStatus.PENDING,
+                user,
+                merchant,
+                new BigDecimal("10000"),
+                null,
+                stale);
+        // 제외: threshold 이후 PENDING
+        persistTransaction(
+                "fresh-payment-pending",
+                TransactionType.PAYMENT,
+                TransactionStatus.PENDING,
+                user,
+                merchant,
+                new BigDecimal("10000"),
+                null,
+                threshold);
+        // 제외: PROCESSING (레이스 핵심 - 진행 중인 결제는 절대 만료시키지 않는다)
+        persistTransaction(
+                "stale-payment-processing",
+                TransactionType.PAYMENT,
+                TransactionStatus.PROCESSING,
+                user,
+                merchant,
+                new BigDecimal("10000"),
+                null,
+                stale);
+        // 제외: SUCCESS
+        persistTransaction(
+                "stale-payment-success",
+                TransactionType.PAYMENT,
+                TransactionStatus.SUCCESS,
+                user,
+                merchant,
+                new BigDecimal("10000"),
+                "APV-2026-00000011",
+                stale);
+        // 제외: 다른 타입(CHARGE)
+        persistTransaction(
+                "stale-charge-pending",
+                TransactionType.CHARGE,
+                TransactionStatus.PENDING,
+                user,
+                null,
+                new BigDecimal("10000"),
+                null,
+                stale);
+
+        entityManager.flush();
+        entityManager.clear();
+
+        int affected = transactionRepository.expireStalePendingPaymentIntents(threshold, now);
+
+        entityManager.clear();
+
+        assertThat(affected).isEqualTo(1);
+        assertThat(status("stale-payment-pending")).isEqualTo(TransactionStatus.EXPIRED);
+        assertThat(status("fresh-payment-pending")).isEqualTo(TransactionStatus.PENDING);
+        assertThat(status("stale-payment-processing")).isEqualTo(TransactionStatus.PROCESSING);
+        assertThat(status("stale-payment-success")).isEqualTo(TransactionStatus.SUCCESS);
+        assertThat(status("stale-charge-pending")).isEqualTo(TransactionStatus.PENDING);
+    }
+
+    private TransactionStatus status(String transactionUuid) {
+        return transactionRepository
+                .findByTransactionUuid(transactionUuid)
+                .orElseThrow()
+                .getStatus();
+    }
+
     private Party persistParty(PartyType partyType) {
         Party party = Party.builder().partyType(partyType).build();
         entityManager.persist(party);
