@@ -68,6 +68,9 @@ public enum BlockchainErrorCode implements BaseErrorCode {
     BLOCKCHAIN_BANK_NOT_REGISTERED(
             HttpStatus.BAD_REQUEST, "BLOCKCHAIN_BANK_NOT_REGISTERED", "등록되지 않은 은행입니다."),
 
+    BLOCKCHAIN_ALREADY_PROCESSED(
+            HttpStatus.CONFLICT, "BLOCKCHAIN_ALREADY_PROCESSED", "이미 온체인에서 처리된 트랜잭션입니다."),
+
     BLOCKCHAIN_SYNC_HANDLER_NOT_FOUND(
             HttpStatus.INTERNAL_SERVER_ERROR,
             "BLOCKCHAIN_SYNC_HANDLER_NOT_FOUND",

@@ -39,6 +39,8 @@
 ## Payment Flow
 
 QR에는 가맹점 id가 들어있다. 소비자가 QR을 스캔하면 가맹점 정보를 조회하고, 금액 입력 화면으로 전환한 뒤 결제를 실행한다.
+결제 의도 생성은 서버가 소비자·가맹점·금액 fingerprint 기준으로 30초 dedup을 적용한다. 같은 fingerprint가 30초 안에 다시 들어오면 새 거래를 만들지 않고 기존 `transactionUuid`를 반환한다.
+실행되지 않은 `PENDING` 결제 의도는 10분 TTL 경과 후 5분 주기 스케줄러가 `EXPIRED`로 닫는다.
 
 ```mermaid
 sequenceDiagram
@@ -146,7 +148,7 @@ SMS 인증과 계좌 1원 인증은 mock으로 처리한다. 백엔드는 인증
 | `ACCOUNT-003` | 계좌 삭제 | `DELETE` | `/accounts/{accountId}` | `O` | `USER \| MERCHANT` | 본인 계좌만 삭제 |
 | `ACCOUNT-004` | 주거래 계좌 변경 | `PATCH` | `/accounts/{accountId}/primary` | `O` | `USER \| MERCHANT` | 본인 계좌만 변경 |
 | `PAY-001` | QR 가맹점 정보 조회 | `GET` | `/merchant/{merchantId}` | `O` | `USER` | QR 스캔 후 결제 플로우 진입 |
-| `PAY-002` | 결제 의도 생성 | `POST` | `/payment/intents` | `O` | `USER` | 금액·가맹점 정보 전달; transactionUuid 반환 |
+| `PAY-002` | 결제 의도 생성 | `POST` | `/payment/intents` | `O` | `USER` | 금액·가맹점 정보 전달; 서버 fingerprint 30초 dedup 후 transactionUuid 반환 |
 | `PAY-003` | 결제 실행 | `POST` | `/payment/execute` | `O` | `USER` | 소비자 전용; 결과 SUCCESS/UNKNOWN=200, FAILED=4xx (상세는 Payment Flow) |
 | `PAY-004` | 결제 상태 복구 | `POST` | `/payment/{transactionUuid}/recover` | `O` | `USER` | 결제 실패·중단 시 상태 복구 |
 | `CHARGE-001` | 충전 정보 조회 | `GET` | `/charge/init` | `O` | `USER` | 충전 한도·할인 계산 (조회 전용) |
