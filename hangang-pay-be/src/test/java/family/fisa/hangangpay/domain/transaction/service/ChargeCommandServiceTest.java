@@ -13,6 +13,7 @@ import family.fisa.hangangpay.domain.transaction.dto.request.ChargeIntentCreateR
 import family.fisa.hangangpay.domain.transaction.dto.response.ChargeExecuteResponse;
 import family.fisa.hangangpay.domain.transaction.dto.response.ChargeIntentResponse;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
+import family.fisa.hangangpay.domain.transaction.internal.IntentCreationGuard;
 import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeExecutionPreparationResult;
 import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeExecutionPrepared;
 import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeIdempotencyStore;
@@ -34,6 +35,7 @@ class ChargeCommandServiceTest {
     @Mock BankClient bankClient;
     @Mock ChargeIdempotencyStore chargeIdempotencyStore;
     @Mock ChargeExecutionWriter chargeExecutionWriter;
+    @Mock IntentCreationGuard intentCreationGuard;
 
     @InjectMocks ChargeCommandService service;
 
@@ -65,7 +67,7 @@ class ChargeCommandServiceTest {
     @DisplayName("createIntent -> writer 위임")
     void createIntent_위임() {
         ChargeIntentCreateRequest request =
-                new ChargeIntentCreateRequest(UUID, 1L, 1L, new BigDecimal("50000"));
+                new ChargeIntentCreateRequest(1L, 1L, new BigDecimal("50000"));
         ChargeIntentResponse expected =
                 new ChargeIntentResponse(
                         UUID,

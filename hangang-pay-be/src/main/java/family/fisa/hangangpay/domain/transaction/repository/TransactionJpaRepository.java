@@ -13,6 +13,7 @@ import org.springframework.data.domain.ScrollPosition;
 import org.springframework.data.domain.Window;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -30,6 +31,15 @@ public interface TransactionJpaRepository extends JpaRepository<Transaction, Lon
                 "toWallet"
             })
     Optional<Transaction> findByTransactionUuid(String transactionUuid);
+
+    /** 실행 선점 CAS - PENDING -> PROCESSING 원자적 전이. 영향 행 1=선점 성공, 0=비-PENDING */
+    @Modifying(clearAutomatically = true)
+    @Query(
+            "UPDATE Transaction t "
+                    + "SET t.status = family.fisa.hangangpay.domain.transaction.entity.TransactionStatus.PROCESSING "
+                    + "WHERE t.transactionUuid = :uuid "
+                    + "AND t.status = family.fisa.hangangpay.domain.transaction.entity.TransactionStatus.PENDING")
+    int claimForExecution(@Param("uuid") String uuid);
 
     /** 거래 이력 페이징 - 수취자(toParty) fetch join */
     @EntityGraph(attributePaths = {"toParty"})

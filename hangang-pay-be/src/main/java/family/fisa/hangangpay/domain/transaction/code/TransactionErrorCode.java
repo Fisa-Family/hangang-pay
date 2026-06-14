@@ -13,6 +13,8 @@ public enum TransactionErrorCode implements BaseErrorCode {
     INVALID_UNIT(HttpStatus.BAD_REQUEST, "INVALID_UNIT", "만원 단위로 입력해주세요."),
     INVALID_PAYMENT_PIN(HttpStatus.UNAUTHORIZED, "INVALID_PAYMENT_PIN", "결제 비밀번호가 일치하지 않습니다."),
     IDEMPOTENCY_CONFLICT(HttpStatus.CONFLICT, "IDEMPOTENCY_CONFLICT", "이미 처리된 결제 요청과 다른 요청입니다."),
+    INTENT_DUPLICATE_REQUEST(
+            HttpStatus.TOO_MANY_REQUESTS, "INTENT_DUPLICATE_REQUEST", "잠시 후 다시 시도해주세요."),
     WALLET_NOT_FOUND(HttpStatus.NOT_FOUND, "WALLET_NOT_FOUND", "지갑을 찾을 수 없습니다."),
 
     // ===== 충전 (CHARGE) =====

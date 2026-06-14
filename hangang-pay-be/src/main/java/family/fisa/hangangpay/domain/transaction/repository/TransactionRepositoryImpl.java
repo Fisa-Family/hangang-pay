@@ -43,6 +43,12 @@ public class TransactionRepositoryImpl implements TransactionRepository {
         return jpaRepository.findByTransactionUuid(transactionUuid);
     }
 
+    /** 실행 선점 CAS - PENDING -> PROCESSING */
+    @Override
+    public int claimForExecution(String transactionUuid) {
+        return jpaRepository.claimForExecution(transactionUuid);
+    }
+
     /** 사용자 거래 이력 커서 페이징 (상태, 유형 필터) */
     @Override
     public Window<Transaction> findTransactionByPartyId(
