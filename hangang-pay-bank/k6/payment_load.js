@@ -32,6 +32,7 @@ const CANCEL_RATE   = parseFloat(__ENV.CANCEL_RATE   || '0.2');
 const EXCHANGE_RATE = parseFloat(__ENV.EXCHANGE_RATE || '0.05');
 const MAX_VUS       = parseInt(__ENV.VUS      || '50');
 const DURATION      = __ENV.DURATION || '2m';
+const RAMP          = __ENV.RAMP     || '30s';
 
 // ── 데이터 픽스처 ─────────────────────────────────────────────────────────────
 // wallets.json  : bank_wallet 전체 (payment/cancel/charge/exchange 의 walletAddress)
@@ -70,10 +71,10 @@ export const options = {
       executor: 'ramping-vus',
       startVUs: 1,
       stages: [
-        { duration: '30s', target: Math.floor(MAX_VUS * 0.5) },
-        { duration: '30s', target: MAX_VUS },
+        { duration: RAMP, target: Math.floor(MAX_VUS * 0.5) },
+        { duration: RAMP, target: MAX_VUS },
         { duration: DURATION, target: MAX_VUS },
-        { duration: '30s', target: 0 },
+        { duration: RAMP, target: 0 },
       ],
     },
   },
