@@ -7,6 +7,8 @@ import family.fisa.hangangpay.domain.transaction.dto.request.ChargeIntentCreateR
 import family.fisa.hangangpay.domain.transaction.dto.response.ChargeExecuteResponse;
 import family.fisa.hangangpay.domain.transaction.dto.response.ChargeIntentResponse;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
+import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
+import family.fisa.hangangpay.domain.transaction.internal.IntentCreationGuard;
 import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeExecutionPreparationResult;
 import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeExecutionPrepared;
 import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeIdempotencyStore;
@@ -30,12 +32,14 @@ public class ChargeCommandService {
     private final ChargeIdempotencyStore chargeIdempotencyStore;
     private final ChargeExecutionWriter chargeExecutionWriter;
 
+    // 의도 중복 생성 가드 (best-effort 부하 제어)
+    private final IntentCreationGuard intentCreationGuard;
+
     /** 충전 intent - 금액·출금 계좌 바인딩 후 PENDING 생성 */
     public ChargeIntentResponse createIntent(Long partyId, ChargeIntentCreateRequest request) {
-        log.info(
-                "충전 intent 생성 시작. partyId={}, transactionUuid={}",
-                partyId,
-                request.transactionUuid());
+        intentCreationGuard.check(
+                TransactionType.CHARGE, partyId, request.amount(), request.accountId());
+        log.info("충전 intent 생성 시작. partyId={}", partyId);
         return chargeExecutionWriter.createIntent(partyId, request, expiresAt());
     }
 

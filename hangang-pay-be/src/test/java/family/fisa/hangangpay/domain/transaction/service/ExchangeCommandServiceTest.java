@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -24,6 +25,7 @@ import family.fisa.hangangpay.domain.transaction.dto.request.ExchangeIntentCreat
 import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeExecuteResponse;
 import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeIntentResponse;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
+import family.fisa.hangangpay.domain.transaction.internal.IntentCreationGuard;
 import family.fisa.hangangpay.domain.transaction.internal.exchange.ExchangeIdempotencyDecision;
 import family.fisa.hangangpay.domain.transaction.internal.exchange.ExchangeIdempotencyStore;
 import family.fisa.hangangpay.domain.transaction.internal.exchange.ExchangeRequestHashGenerator;
@@ -57,6 +59,7 @@ class ExchangeCommandServiceTest {
     @Mock PasswordEncoder passwordEncoder;
     @Mock ExchangeIdempotencyStore idempotencyStore;
     @Mock ExchangeRequestHashGenerator requestHashGenerator;
+    @Mock IntentCreationGuard intentCreationGuard;
 
     @InjectMocks ExchangeCommandService exchangeCommandService;
 
@@ -69,7 +72,7 @@ class ExchangeCommandServiceTest {
     private static final String PIN = "123456";
 
     private ExchangeIntentCreateRequest intentRequest() {
-        return new ExchangeIntentCreateRequest(UUID, new BigDecimal("50000"));
+        return new ExchangeIntentCreateRequest(new BigDecimal("50000"));
     }
 
     private ExchangeExecuteRequest executeRequest() {
@@ -356,6 +359,26 @@ class ExchangeCommandServiceTest {
                             PARTY_ID, UUID, executeRequest());
 
             assertThat(out).isSameAs(resp);
+        }
+
+        @Test
+        @DisplayName("타인 거래 실행 -> validateOwner 거절(NOT_OWNER), claim 미진입")
+        void 소유자_불일치() {
+            stubUserPinPass();
+            stubGate(ExchangeIdempotencyDecision.newRequest());
+            doThrow(new BusinessException(UserErrorCode.NOT_OWNER))
+                    .when(stateWriter)
+                    .validateOwner(UUID, PARTY_ID);
+
+            assertThatThrownBy(
+                            () ->
+                                    exchangeCommandService.executeUserExchange(
+                                            PARTY_ID, UUID, executeRequest()))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("code")
+                    .isEqualTo(UserErrorCode.NOT_OWNER);
+
+            verify(stateWriter, never()).claimForExecution(any());
         }
     }
 

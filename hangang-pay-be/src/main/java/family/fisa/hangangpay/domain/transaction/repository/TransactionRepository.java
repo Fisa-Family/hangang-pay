@@ -22,6 +22,9 @@ public interface TransactionRepository {
     /** 비즈니스 식별자(transaction_uuid)로 단건 조회 - CANCEL 시 원본 PAYMENT 조회용 */
     Optional<Transaction> findByTransactionUuid(String transactionUuid);
 
+    /** 실행 선점 CAS - PENDING -> PROCESSING 원자적 전이. 영향 행 수(1=선점 성공, 0=비-PENDING) */
+    int claimForExecution(String transactionUuid);
+
     /** 거래 이력 페이징 (TransactionStatus=SUCCESS, TransactionType= ?) */
     Window<Transaction> findTransactionByPartyId(
             Long partyId,

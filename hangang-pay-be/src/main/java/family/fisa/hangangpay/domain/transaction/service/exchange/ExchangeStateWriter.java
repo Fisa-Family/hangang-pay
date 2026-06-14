@@ -18,7 +18,7 @@ import family.fisa.hangangpay.global.code.error.AccountErrorCode;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -39,19 +39,15 @@ public class ExchangeStateWriter {
     private final WalletRepository walletRepository;
     private final AccountRepository accountRepository;
 
-    /** intent 생성 = PENDING */
+    /** intent 생성 = PENDING. transactionUuid는 서버가 발급한다(FE 신뢰 안 함). */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public ExchangeIntentResponse createIntent(
             Long partyId,
             ExchangeIntentCreateRequest request,
             AccountType depositType,
             LocalDateTime expiresAt) {
-        // 1. 같은 uuid 거래가 이미 있으면 그 상태를 그대로 반환
-        Optional<Transaction> existing =
-                transactionRepository.findByTransactionUuid(request.transactionUuid());
-        if (existing.isPresent()) {
-            return ExchangeIntentResponse.from(existing.get(), expiresAt);
-        }
+        // 1. 거래 식별자 서버 발급
+        String transactionUuid = UUID.randomUUID().toString();
 
         // 2. 입금 지갑/계좌 조회
         Wallet fromWallet =
@@ -65,11 +61,11 @@ public class ExchangeStateWriter {
                         .orElseThrow(
                                 () -> new BusinessException(AccountErrorCode.ACCOUNT_NOT_FOUND));
 
-        // 3. PENDING insert
+        // 3. PENDING insert (transaction_uuid UNIQUE가 최종 방어선)
         Transaction saved =
                 transactionRepository.save(
                         Transaction.forExchange(
-                                request.transactionUuid(),
+                                transactionUuid,
                                 fromWallet.getParty(),
                                 fromWallet,
                                 toAccount,
@@ -79,23 +75,28 @@ public class ExchangeStateWriter {
 
         log.info(
                 "환전 intent 생성. transactionUuid={}, transactionId={}",
-                request.transactionUuid(),
+                transactionUuid,
                 saved.getId());
         return ExchangeIntentResponse.from(saved, expiresAt);
     }
 
     /**
-     * 실행 선점: PENDING이면 PROCESSING으로 전이하고 PROCESSING을 반환한다. PENDING이 아니면 (이미 종단/진행중) 전이 없이 현재
-     * status를 반환한다.
+     * 실행 선점(CAS): PENDING -> PROCESSING 원자적 전이. 영향 행 1이면 내가 선점한 것이므로 PROCESSING을 반환하고, 0이면 이미
+     * 비-PENDING(종단/진행중)이므로 현재 상태를 재조회해 반환한다. read-then-write race를 제거한다.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public TransactionStatus claimForExecution(String uuid) {
-        Transaction tx = findByUuid(uuid);
-        if (tx.getStatus() == TransactionStatus.PENDING) {
-            tx.markProcessing(); // PENDING -> PROCESSING
+        int affected = transactionRepository.claimForExecution(uuid);
+        if (affected == 1) {
             return TransactionStatus.PROCESSING;
         }
-        return tx.getStatus();
+        return findByUuid(uuid).getStatus();
+    }
+
+    /** 소유자 검증 - 남의 거래 실행 차단. claim 전에 호출한다. */
+    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
+    public void validateOwner(String uuid, Long partyId) {
+        findByUuid(uuid).validateOwner(partyId);
     }
 
     /** bank 호출용 요청 빌드 (트랜잭션 내부에서 수행) */
