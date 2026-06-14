@@ -60,6 +60,10 @@ public interface TransactionRepository {
     /** 만료 대상 - PAYMENT + PENDING + createdAt < threshold */
     int expireStalePendingPaymentIntents(LocalDateTime threshold, LocalDateTime now);
 
+    /** 재사용 대상 - PAYMENT + PENDING + 같은 from/to/amount + createdAt > threshold(만료 전) */
+    Optional<Transaction> findLivePendingPayment(
+            Long fromPartyId, Long toPartyId, BigDecimal amount, LocalDateTime threshold);
+
     /** 특정 시점 이전(exclusive)의 SUCCESS 거래 타입별 누적 금액 - 잔액 산정용 */
     BigDecimal sumSuccessByTypeBefore(Long partyId, TransactionType type, LocalDateTime before);
 

@@ -124,6 +124,20 @@ public class TransactionRepositoryImpl implements TransactionRepository {
         return jpaRepository.expireStalePendingIntents(TransactionType.PAYMENT, now, threshold);
     }
 
+    /** 재사용 대상 - PAYMENT + PENDING + 같은 from/to/amount + createdAt > threshold(만료 전) 최신 1건 */
+    @Override
+    public Optional<Transaction> findLivePendingPayment(
+            Long fromPartyId, Long toPartyId, BigDecimal amount, LocalDateTime threshold) {
+        return jpaRepository
+                .findFirstByFromParty_IdAndToParty_IdAndAmountAndTransactionTypeAndStatusAndCreatedAtAfterOrderByCreatedAtDesc(
+                        fromPartyId,
+                        toPartyId,
+                        amount,
+                        TransactionType.PAYMENT,
+                        TransactionStatus.PENDING,
+                        threshold);
+    }
+
     /** 특정 시점 이전(exclusive) SUCCESS 거래 유형별 누적 금액 */
     @Override
     public BigDecimal sumSuccessByTypeBefore(
