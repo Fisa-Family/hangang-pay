@@ -52,7 +52,7 @@ public class ContractCallService {
 
     private static final BigInteger DEFAULT_GAS_LIMIT = BigInteger.valueOf(300_000);
     private static final BigInteger PRIVATE_NETWORK_GAS_PRICE = BigInteger.ZERO;
-    private static final int RECEIPT_POLLING_ATTEMPTS = 60;
+    private static final int RECEIPT_POLLING_ATTEMPTS = 15;
     private static final long RECEIPT_POLLING_INTERVAL_MS = 1_000L;
     private static final int MAX_LOG_DATA_LENGTH = 300;
 
