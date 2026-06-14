@@ -243,6 +243,61 @@ class TransactionCommandServiceTest {
     }
 
     @Test
+    @DisplayName("10분 내 살아있는 PENDING이 DB에 있으면 save 없이 기존 거래를 재사용해 반환한다")
+    void createPaymentIntent_reusesLivePendingPaymentFromDb() {
+        // 1. 준비 - 만료 전(살아있는) PENDING 결제 의도 1건이 DB에 존재
+        Party userParty = party(USER_PARTY_ID, PartyType.USER);
+        Party merchantParty = party(MERCHANT_PARTY_ID, PartyType.MERCHANT);
+        Merchant merchant = merchant(merchantParty);
+        Wallet userWallet = wallet(1L, userParty, "0x-user");
+        Wallet merchantWallet = wallet(2L, merchantParty, "0x-merchant");
+
+        LocalDateTime createdAt = LocalDateTime.of(2026, 6, 14, 10, 0);
+        Transaction livePending =
+                Transaction.builder()
+                        .id(TRANSACTION_ID)
+                        .transactionUuid(TRANSACTION_UUID)
+                        .transactionType(TransactionType.PAYMENT)
+                        .status(TransactionStatus.PENDING)
+                        .fromParty(userParty)
+                        .toParty(merchantParty)
+                        .fromWallet(userWallet)
+                        .toWallet(merchantWallet)
+                        .amount(new BigDecimal("10000"))
+                        .itemName("아메리카노")
+                        .build();
+        ReflectionTestUtils.setField(livePending, "createdAt", createdAt);
+
+        PaymentIntentCreateRequest request =
+                new PaymentIntentCreateRequest(MERCHANT_PARTY_ID, new BigDecimal("10000"), "아메리카노");
+
+        given(partyRepository.findById(USER_PARTY_ID)).willReturn(Optional.of(userParty));
+        given(merchantRepository.findByParty_Id(MERCHANT_PARTY_ID))
+                .willReturn(Optional.of(merchant));
+        given(walletRepository.findByParty_Id(USER_PARTY_ID)).willReturn(Optional.of(userWallet));
+        given(walletRepository.findByParty_Id(MERCHANT_PARTY_ID))
+                .willReturn(Optional.of(merchantWallet));
+        given(
+                        transactionRepository.findLivePendingPayment(
+                                eq(USER_PARTY_ID),
+                                eq(MERCHANT_PARTY_ID),
+                                eq(request.amount()),
+                                any(LocalDateTime.class)))
+                .willReturn(Optional.of(livePending));
+
+        // 2. 실행
+        PaymentIntentResponse response =
+                transactionCommandService.createPaymentIntent(USER_PARTY_ID, request);
+
+        // 3. 검증 - 기존 거래 재사용, 새 저장/선점 없음
+        assertThat(response.transactionUuid()).isEqualTo(TRANSACTION_UUID);
+        assertThat(response.status()).isEqualTo(TransactionStatus.PENDING);
+        assertThat(response.expiresAt()).isEqualTo(createdAt.plusMinutes(10));
+        verify(transactionRepository, never()).save(any(Transaction.class));
+        verify(paymentIntentDedupStore, never()).reserve(anyString(), anyString());
+    }
+
+    @Test
     @DisplayName("정상 실행 시 PENDING -> PROCESSING -> SUCCESS 상태로 끝난다")
     void executePayment_success() {
         // given

@@ -112,6 +112,16 @@ public interface TransactionJpaRepository extends JpaRepository<Transaction, Lon
             findFirstByFromParty_IdAndTransactionTypeAndStatusOrderByCreatedAtDescIdDesc(
                     Long fromPartyId, TransactionType transactionType, TransactionStatus status);
 
+    /** 살아있는 PENDING 결제 의도 재사용 - 같은 from+to+amount, createdAt 이후(=만료 전) 가장 최근 1건 */
+    Optional<Transaction>
+            findFirstByFromParty_IdAndToParty_IdAndAmountAndTransactionTypeAndStatusAndCreatedAtAfterOrderByCreatedAtDesc(
+                    Long fromPartyId,
+                    Long toPartyId,
+                    BigDecimal amount,
+                    TransactionType transactionType,
+                    TransactionStatus status,
+                    LocalDateTime threshold);
+
     /** 특정 시점 이전(exclusive)의 SUCCESS 거래 타입별 누적 금액 */
     @Query(
             "SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t "
