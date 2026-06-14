@@ -27,8 +27,8 @@ public class RedisPaymentRateLimiter implements PaymentRateLimiter {
     private static final long INTENT_CAPACITY = 10L;
     private static final double INTENT_REFILL_RATE_PER_MS = 1.0d / 60_000;
 
-    private static final long EXECUTE_CAPACITY = 5L;
-    private static final double EXECUTE_REFILL_RATE_PER_MS = 1.0d / 120_000;
+    private static final Duration EXECUTE_WINDOW = Duration.ofMinutes(10);
+    private static final long EXECUTE_LIMIT = 5L;
 
     private static final long BANK_OUTBOUND_CAPACITY = 50L;
     private static final double BANK_OUTBOUND_REFILL_RATE_PER_MS = 10.0d / 1_000;
@@ -111,11 +111,7 @@ public class RedisPaymentRateLimiter implements PaymentRateLimiter {
     @Override
     public void checkExecutionRateLimit(
             Long partyId, Long merchantPartyId, String transactionUuid) {
-        checkTokenBucket(
-                EXECUTE_KEY_PREFIX + partyId,
-                EXECUTE_CAPACITY,
-                EXECUTE_REFILL_RATE_PER_MS,
-                TOKEN_BUCKET_TTL);
+        checkSlidingWindow(EXECUTE_KEY_PREFIX + partyId, EXECUTE_WINDOW, EXECUTE_LIMIT);
     }
 
     @Override
