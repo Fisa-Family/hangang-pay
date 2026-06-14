@@ -79,10 +79,11 @@ class RedisPaymentRateLimiterTest {
                         redisTemplate.execute(
                                 any(RedisScript.class),
                                 eq(List.of("payment:rate:execute:" + PARTY_ID)),
-                                anyString(),
-                                eq("5"),
-                                anyString(),
-                                anyString()))
+                                anyString(), // now_ms
+                                anyString(), // window_ms
+                                eq("5"), // limit
+                                anyString(), // member
+                                anyString())) // ttl_ms
                 .willReturn(0L);
 
         assertThatThrownBy(
