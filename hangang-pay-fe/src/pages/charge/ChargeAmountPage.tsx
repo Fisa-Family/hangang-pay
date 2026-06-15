@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query'
 import { fetchChargeInit } from '@/api/charge'
 import { BackspaceIcon, BackTitleHeader, Button, Toast, type ToastState } from '@/components/common'
 import { formatWon } from '@/lib/format'
-import { createUuid } from '@/lib/uuid'
 import { cn } from '@/lib/utils'
 
 const PAD_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0', '⌫'] as const
@@ -99,7 +98,6 @@ export function ChargeAmountPage() {
       state: {
         nextRoute: '/charge/processing',
         cancelRoute: '/charge/amount',
-        transactionUuid: createUuid(),
         institutionId: selectedAccount.institutionId,
         accountId: selectedAccount.accountId,
         amount,

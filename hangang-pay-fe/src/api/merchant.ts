@@ -232,9 +232,8 @@ export interface MerchantRedeemIntentResult {
   expiresAt: string
 }
 
-// MERCHANT-007: 출금 의도 생성 (PIN 없음). transactionUuid는 클라 생성 멱등키, amount는 전액.
+// MERCHANT-007: 출금 의도 생성 (PIN 없음). transactionUuid는 서버가 발급해 응답으로 반환한다. amount는 전액.
 export function createMerchantRedeemIntent(body: {
-  transactionUuid: string
   amount: number
 }): Promise<MerchantRedeemIntentResult> {
   return apiFetch<MerchantRedeemIntentResult>('/merchant/redeem/intents', {
