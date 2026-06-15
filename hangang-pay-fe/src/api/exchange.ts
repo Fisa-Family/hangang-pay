@@ -32,11 +32,8 @@ export function fetchExchangeInit(): Promise<ExchangeInitResult> {
   return apiFetch<ExchangeInitResult>('/exchange/init')
 }
 
-// EXCHANGE-002: 환전 의도 생성 (PIN 없음). transactionUuid는 클라 생성 멱등키.
-export function createExchangeIntent(body: {
-  transactionUuid: string
-  amount: number
-}): Promise<ExchangeIntentResult> {
+// EXCHANGE-002: 환전 의도 생성 (PIN 없음). transactionUuid는 서버가 발급해 응답으로 반환한다.
+export function createExchangeIntent(body: { amount: number }): Promise<ExchangeIntentResult> {
   return apiFetch<ExchangeIntentResult>('/exchange/intents', {
     method: 'POST',
     body: JSON.stringify(body),

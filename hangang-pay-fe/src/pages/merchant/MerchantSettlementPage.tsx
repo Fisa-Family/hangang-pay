@@ -19,7 +19,6 @@ import {
   Toast,
 } from '@/components/common'
 import { formatMaskedAccount, formatWon } from '@/lib/format'
-import { createUuid } from '@/lib/uuid'
 
 const PIN_LENGTH = 6
 
@@ -40,12 +39,10 @@ export function MerchantSettlementPage() {
 
   const redeemMutation = useMutation({
     // 1) intent 생성(PENDING 커밋, PIN 없음) → 2) 실행(PIN). bank 실패 시 intent가 남아 복구된다.
-    mutationFn: async (input: { transactionUuid: string; amount: number; paymentPin: string }) => {
-      await createMerchantRedeemIntent({
-        transactionUuid: input.transactionUuid,
-        amount: input.amount,
-      })
-      return executeMerchantRedeem(input.transactionUuid, input.paymentPin)
+    // transactionUuid는 서버가 intent 응답으로 발급한 값을 그대로 execute에 사용한다.
+    mutationFn: async (input: { amount: number; paymentPin: string }) => {
+      const intent = await createMerchantRedeemIntent({ amount: input.amount })
+      return executeMerchantRedeem(intent.transactionUuid, input.paymentPin)
     },
     onSuccess: (res) => {
       if (res.status === 'SUCCESS') {
@@ -87,7 +84,6 @@ export function MerchantSettlementPage() {
     if (next.length === PIN_LENGTH && !redeemMutation.isPending) {
       setStep('processing')
       redeemMutation.mutate({
-        transactionUuid: createUuid(),
         amount: availableAmount,
         paymentPin: next,
       })

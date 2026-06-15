@@ -62,13 +62,13 @@ const FLOWS: Record<string, FlowConfig> = {
     defaultError: '충전 처리 중 오류가 발생했습니다.',
     async run(state) {
       // 1) intent 생성(PENDING 커밋, PIN 없음) → 2) 실행(PIN). bank 실패 시 intent가 남아 복구된다.
-      await createChargeIntent({
-        transactionUuid: state.transactionUuid as string,
+      // transactionUuid는 서버가 intent 응답으로 발급한 값을 그대로 execute에 사용한다.
+      const intent = await createChargeIntent({
         institutionId: state.institutionId as number,
         accountId: state.accountId as number,
         amount: state.amount as number,
       })
-      return executeCharge(state.transactionUuid as string, state.pin as string)
+      return executeCharge(intent.transactionUuid, state.pin as string)
     },
     onComplete: (queryClient) => {
       invalidateUserTransactionQueries(queryClient)
@@ -83,11 +83,11 @@ const FLOWS: Record<string, FlowConfig> = {
     defaultError: '환불 처리 중 오류가 발생했습니다.',
     async run(state) {
       // 1) intent 생성(PENDING 커밋, PIN 없음) → 2) 실행(PIN). bank 실패 시 intent가 남아 복구된다.
-      await createExchangeIntent({
-        transactionUuid: state.transactionUuid as string,
+      // transactionUuid는 서버가 intent 응답으로 발급한 값을 그대로 execute에 사용한다.
+      const intent = await createExchangeIntent({
         amount: state.amount as number,
       })
-      return executeExchange(state.transactionUuid as string, state.pin as string)
+      return executeExchange(intent.transactionUuid, state.pin as string)
     },
     onComplete: (queryClient) => {
       invalidateUserTransactionQueries(queryClient)

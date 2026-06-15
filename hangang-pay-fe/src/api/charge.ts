@@ -46,9 +46,8 @@ export interface ChargeExecuteResult {
   chargedAt: string
 }
 
-// CHARGE-002: 충전 의도 생성 (PIN 없음). transactionUuid는 클라 생성 멱등키.
+// CHARGE-002: 충전 의도 생성 (PIN 없음). transactionUuid는 서버가 발급해 응답으로 반환한다.
 export function createChargeIntent(body: {
-  transactionUuid: string
   institutionId: number
   accountId: number
   amount: number
