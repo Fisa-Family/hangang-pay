@@ -22,6 +22,9 @@ public interface TransactionRepository {
     /** 비즈니스 식별자(transaction_uuid)로 단건 조회 - CANCEL 시 원본 PAYMENT 조회용 */
     Optional<Transaction> findByTransactionUuid(String transactionUuid);
 
+    /** 실행 선점 CAS - PENDING -> PROCESSING 원자적 전이. 영향 행 수(1=선점 성공, 0=비-PENDING) */
+    int claimForExecution(String transactionUuid);
+
     /** 거래 이력 페이징 (TransactionStatus=SUCCESS, TransactionType= ?) */
     Window<Transaction> findTransactionByPartyId(
             Long partyId,
@@ -56,6 +59,10 @@ public interface TransactionRepository {
 
     /** 만료 대상 - PAYMENT + PENDING + createdAt < threshold */
     int expireStalePendingPaymentIntents(LocalDateTime threshold, LocalDateTime now);
+
+    /** 재사용 대상 - PAYMENT + PENDING + 같은 from/to/amount + createdAt > threshold(만료 전) */
+    Optional<Transaction> findLivePendingPayment(
+            Long fromPartyId, Long toPartyId, BigDecimal amount, LocalDateTime threshold);
 
     /** 특정 시점 이전(exclusive)의 SUCCESS 거래 타입별 누적 금액 - 잔액 산정용 */
     BigDecimal sumSuccessByTypeBefore(Long partyId, TransactionType type, LocalDateTime before);

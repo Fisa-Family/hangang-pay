@@ -26,7 +26,7 @@ import family.fisa.hangangpay.global.exception.BusinessException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -50,15 +50,11 @@ public class ChargeExecutionWriter {
     private final ChargeIdempotencyStore chargeIdempotencyStore;
     private final ChargeRequestHashGenerator chargeRequestHashGenerator;
 
-    /** intent 생성 = PENDING (금액·출금 계좌·할인액 바인딩) */
+    /** intent 생성 = PENDING (금액·출금 계좌·할인액 바인딩). transactionUuid는 서버가 발급한다. */
     public ChargeIntentResponse createIntent(
             Long partyId, ChargeIntentCreateRequest request, LocalDateTime expiresAt) {
-        // 1. 같은 uuid 거래가 이미 있으면 그 상태를 그대로 반환
-        Optional<Transaction> existing =
-                transactionRepository.findByTransactionUuid(request.transactionUuid());
-        if (existing.isPresent()) {
-            return ChargeIntentResponse.from(existing.get(), expiresAt);
-        }
+        // 1. 거래 식별자 서버 발급
+        String transactionUuid = UUID.randomUUID().toString();
 
         // 2. 출금 계좌(본인 소유) / 입금 지갑 조회
         Account fromAccount =
@@ -76,11 +72,11 @@ public class ChargeExecutionWriter {
         BigDecimal amount = request.amount();
         BigDecimal discountAmount = amount.multiply(DISCOUNT_RATE).setScale(0, RoundingMode.DOWN);
 
-        // 4. PENDING insert
+        // 4. PENDING insert (transaction_uuid UNIQUE가 최종 방어선)
         Transaction saved =
                 transactionRepository.save(
                         Transaction.forCharge(
-                                request.transactionUuid(),
+                                transactionUuid,
                                 fromAccount.getParty(),
                                 fromAccount,
                                 toWallet,
@@ -90,7 +86,7 @@ public class ChargeExecutionWriter {
 
         log.info(
                 "충전 intent 생성. transactionUuid={}, transactionId={}",
-                request.transactionUuid(),
+                transactionUuid,
                 saved.getId());
         return ChargeIntentResponse.from(saved, expiresAt);
     }

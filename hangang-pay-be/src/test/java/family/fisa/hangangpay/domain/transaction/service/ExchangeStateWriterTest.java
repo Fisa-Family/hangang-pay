@@ -1,6 +1,7 @@
 package family.fisa.hangangpay.domain.transaction.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -23,6 +24,7 @@ import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
 import family.fisa.hangangpay.domain.transaction.service.exchange.ExchangeStateWriter;
+import family.fisa.hangangpay.domain.user.code.error.UserErrorCode;
 import family.fisa.hangangpay.domain.wallet.code.error.WalletErrorCode;
 import family.fisa.hangangpay.domain.wallet.entity.Wallet;
 import family.fisa.hangangpay.domain.wallet.repository.WalletRepository;
@@ -59,7 +61,7 @@ class ExchangeStateWriterTest {
     private static final String BANK_TX_ID_STR = "999";
 
     private ExchangeIntentCreateRequest intentRequest() {
-        return new ExchangeIntentCreateRequest(UUID, new BigDecimal("50000"));
+        return new ExchangeIntentCreateRequest(new BigDecimal("50000"));
     }
 
     private Party party() {
@@ -112,9 +114,8 @@ class ExchangeStateWriterTest {
     class CreateIntent {
 
         @Test
-        @DisplayName("uuid 없음 -> PENDING insert 후 intent 응답(PENDING)")
+        @DisplayName("서버 발급 uuid로 PENDING insert 후 intent 응답(PENDING)")
         void 신규_PENDING() {
-            when(transactionRepository.findByTransactionUuid(UUID)).thenReturn(Optional.empty());
             when(walletRepository.findByParty_Id(PARTY_ID)).thenReturn(Optional.of(wallet()));
             when(accountRepository.findByParty_IdAndAccountType(PARTY_ID, AccountType.PRIMARY))
                     .thenReturn(Optional.of(primaryAccount()));
@@ -126,31 +127,35 @@ class ExchangeStateWriterTest {
                             PARTY_ID, intentRequest(), AccountType.PRIMARY, LocalDateTime.now());
 
             assertThat(response.status()).isEqualTo(TransactionStatus.PENDING);
-            assertThat(response.transactionUuid()).isEqualTo(UUID);
+            assertThat(response.transactionUuid()).isNotBlank();
             assertThat(response.accountNumber()).isEqualTo(ACCOUNT_NUMBER);
             assertThat(response.bankName()).isEqualTo(BANK_NAME);
             verify(transactionRepository).save(any(Transaction.class));
         }
 
         @Test
-        @DisplayName("uuid 이미 존재 -> 기존 intent 그대로 반환, insert 안 함")
-        void 기존_반환() {
-            when(transactionRepository.findByTransactionUuid(UUID))
-                    .thenReturn(Optional.of(exchange(TransactionStatus.SUCCESS)));
+        @DisplayName("두 번 호출하면 서로 다른 uuid가 발급된다")
+        void 두_번_호출_다른_uuid() {
+            when(walletRepository.findByParty_Id(PARTY_ID)).thenReturn(Optional.of(wallet()));
+            when(accountRepository.findByParty_IdAndAccountType(PARTY_ID, AccountType.PRIMARY))
+                    .thenReturn(Optional.of(primaryAccount()));
+            when(transactionRepository.save(any(Transaction.class)))
+                    .thenAnswer(inv -> inv.getArgument(0));
 
-            ExchangeIntentResponse response =
+            ExchangeIntentResponse first =
+                    stateWriter.createIntent(
+                            PARTY_ID, intentRequest(), AccountType.PRIMARY, LocalDateTime.now());
+            ExchangeIntentResponse second =
                     stateWriter.createIntent(
                             PARTY_ID, intentRequest(), AccountType.PRIMARY, LocalDateTime.now());
 
-            assertThat(response.status()).isEqualTo(TransactionStatus.SUCCESS);
-            verify(transactionRepository, never()).save(any());
-            verify(walletRepository, never()).findByParty_Id(any());
+            assertThat(first.transactionUuid()).isNotBlank();
+            assertThat(first.transactionUuid()).isNotEqualTo(second.transactionUuid());
         }
 
         @Test
         @DisplayName("wallet 없음 -> WALLET_NOT_FOUND")
         void wallet_없음() {
-            when(transactionRepository.findByTransactionUuid(UUID)).thenReturn(Optional.empty());
             when(walletRepository.findByParty_Id(PARTY_ID)).thenReturn(Optional.empty());
 
             assertThatThrownBy(
@@ -170,7 +175,6 @@ class ExchangeStateWriterTest {
         @Test
         @DisplayName("계좌 없음 -> ACCOUNT_NOT_FOUND")
         void 계좌_없음() {
-            when(transactionRepository.findByTransactionUuid(UUID)).thenReturn(Optional.empty());
             when(walletRepository.findByParty_Id(PARTY_ID)).thenReturn(Optional.of(wallet()));
             when(accountRepository.findByParty_IdAndAccountType(PARTY_ID, AccountType.PRIMARY))
                     .thenReturn(Optional.empty());
@@ -191,31 +195,69 @@ class ExchangeStateWriterTest {
     }
 
     @Nested
-    @DisplayName("claimForExecution")
+    @DisplayName("claimForExecution (CAS)")
     class ClaimForExecution {
 
         @Test
-        @DisplayName("PENDING -> PROCESSING 전이 후 PROCESSING 반환")
-        void pending_선점() {
-            Transaction tx = exchange(TransactionStatus.PENDING);
-            when(transactionRepository.findByTransactionUuid(UUID)).thenReturn(Optional.of(tx));
+        @DisplayName("CAS 1행 선점 성공 -> PROCESSING 반환 (현재 상태 재조회 안 함)")
+        void 선점_성공() {
+            when(transactionRepository.claimForExecution(UUID)).thenReturn(1);
 
             TransactionStatus status = stateWriter.claimForExecution(UUID);
 
             assertThat(status).isEqualTo(TransactionStatus.PROCESSING);
-            assertThat(tx.getStatus()).isEqualTo(TransactionStatus.PROCESSING);
+            verify(transactionRepository, never()).findByTransactionUuid(any());
         }
 
         @Test
-        @DisplayName("이미 SUCCESS -> 전이 없이 SUCCESS 반환")
+        @DisplayName("CAS 0행(이미 SUCCESS) -> 현재 상태 반환")
         void 이미_종단() {
-            Transaction tx = exchange(TransactionStatus.SUCCESS);
-            when(transactionRepository.findByTransactionUuid(UUID)).thenReturn(Optional.of(tx));
+            when(transactionRepository.claimForExecution(UUID)).thenReturn(0);
+            when(transactionRepository.findByTransactionUuid(UUID))
+                    .thenReturn(Optional.of(exchange(TransactionStatus.SUCCESS)));
 
             TransactionStatus status = stateWriter.claimForExecution(UUID);
 
             assertThat(status).isEqualTo(TransactionStatus.SUCCESS);
-            assertThat(tx.getStatus()).isEqualTo(TransactionStatus.SUCCESS);
+        }
+
+        @Test
+        @DisplayName("CAS 0행 + tx 없음 -> EXCHANGE_NOT_FOUND")
+        void tx_없음() {
+            when(transactionRepository.claimForExecution(UUID)).thenReturn(0);
+            when(transactionRepository.findByTransactionUuid(UUID)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> stateWriter.claimForExecution(UUID))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("code")
+                    .isEqualTo(TransactionErrorCode.EXCHANGE_NOT_FOUND);
+        }
+    }
+
+    @Nested
+    @DisplayName("validateOwner")
+    class ValidateOwner {
+
+        @Test
+        @DisplayName("본인 거래 -> 통과")
+        void 본인() {
+            when(transactionRepository.findByTransactionUuid(UUID))
+                    .thenReturn(Optional.of(exchange(TransactionStatus.PENDING)));
+
+            assertThatCode(() -> stateWriter.validateOwner(UUID, PARTY_ID))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("타인 거래 -> NOT_OWNER")
+        void 타인() {
+            when(transactionRepository.findByTransactionUuid(UUID))
+                    .thenReturn(Optional.of(exchange(TransactionStatus.PENDING)));
+
+            assertThatThrownBy(() -> stateWriter.validateOwner(UUID, 999L))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("code")
+                    .isEqualTo(UserErrorCode.NOT_OWNER);
         }
 
         @Test
@@ -223,7 +265,7 @@ class ExchangeStateWriterTest {
         void tx_없음() {
             when(transactionRepository.findByTransactionUuid(UUID)).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> stateWriter.claimForExecution(UUID))
+            assertThatThrownBy(() -> stateWriter.validateOwner(UUID, PARTY_ID))
                     .isInstanceOf(BusinessException.class)
                     .extracting("code")
                     .isEqualTo(TransactionErrorCode.EXCHANGE_NOT_FOUND);

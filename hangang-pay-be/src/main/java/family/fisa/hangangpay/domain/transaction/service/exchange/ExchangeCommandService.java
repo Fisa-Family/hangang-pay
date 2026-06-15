@@ -14,6 +14,8 @@ import family.fisa.hangangpay.domain.transaction.dto.request.ExchangeIntentCreat
 import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeExecuteResponse;
 import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeIntentResponse;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
+import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
+import family.fisa.hangangpay.domain.transaction.internal.IntentCreationGuard;
 import family.fisa.hangangpay.domain.transaction.internal.exchange.ExchangeIdempotencyDecision;
 import family.fisa.hangangpay.domain.transaction.internal.exchange.ExchangeIdempotencyStore;
 import family.fisa.hangangpay.domain.transaction.internal.exchange.ExchangeRequestHashGenerator;
@@ -44,6 +46,9 @@ public class ExchangeCommandService {
     private final MerchantRepository merchantRepository;
     private final PasswordEncoder passwordEncoder;
 
+    // 의도 중복 생성 가드 (best-effort 부하 제어)
+    private final IntentCreationGuard intentCreationGuard;
+
     // Redis 멱등 게이트
     private final ExchangeIdempotencyStore idempotencyStore;
     private final ExchangeRequestHashGenerator requestHashGenerator;
@@ -51,10 +56,8 @@ public class ExchangeCommandService {
     /** 사용자 환전 intent - PRIMARY, 자격 검증 후 PENDING 생성 */
     public ExchangeIntentResponse createUserIntent(
             Long partyId, ExchangeIntentCreateRequest request) {
-        log.info(
-                "환전 intent 생성 시작. partyId={}, transactionUuid={}",
-                partyId,
-                request.transactionUuid());
+        intentCreationGuard.check(TransactionType.EXCHANGE, partyId, request.amount());
+        log.info("환전 intent 생성 시작. partyId={}", partyId);
         verifyEligibility(partyId);
         return stateWriter.createIntent(partyId, request, AccountType.PRIMARY, expiresAt());
     }
@@ -62,10 +65,8 @@ public class ExchangeCommandService {
     /** 가맹점 환전 intent */
     public ExchangeIntentResponse createMerchantIntent(
             Long partyId, ExchangeIntentCreateRequest request) {
-        log.info(
-                "환전 intent 생성 시작(merchant). partyId={}, transactionUuid={}",
-                partyId,
-                request.transactionUuid());
+        intentCreationGuard.check(TransactionType.EXCHANGE, partyId, request.amount());
+        log.info("환전 intent 생성 시작(merchant). partyId={}", partyId);
         return stateWriter.createIntent(partyId, request, AccountType.SETTLEMENT, expiresAt());
     }
 
@@ -94,7 +95,10 @@ public class ExchangeCommandService {
             return hit.get();
         }
 
-        // 2. intent 선점: PENDING이면 PROCESSING으로 전이
+        // 2. 소유자 검증 - 남의 PENDING 거래 실행 차단
+        stateWriter.validateOwner(uuid, partyId);
+
+        // 3. intent 선점(CAS): PENDING -> PROCESSING
         TransactionStatus status = stateWriter.claimForExecution(uuid);
 
         return switch (status) {

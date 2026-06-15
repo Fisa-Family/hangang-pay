@@ -91,8 +91,7 @@ class ChargeExecutionWriterTest {
     }
 
     private ChargeIntentCreateRequest request() {
-        return new ChargeIntentCreateRequest(
-                UUID, INSTITUTION_ID, ACCOUNT_ID, new BigDecimal("50000"));
+        return new ChargeIntentCreateRequest(INSTITUTION_ID, ACCOUNT_ID, new BigDecimal("50000"));
     }
 
     private Transaction charge(TransactionStatus status) {
@@ -115,9 +114,8 @@ class ChargeExecutionWriterTest {
     class CreateIntent {
 
         @Test
-        @DisplayName("uuid 없음 -> PENDING insert 후 intent 응답(PENDING, finalAmount=충전가-할인)")
+        @DisplayName("서버 발급 uuid로 PENDING insert 후 intent 응답(PENDING, finalAmount=충전가-할인)")
         void 신규_PENDING() {
-            when(transactionRepository.findByTransactionUuid(UUID)).thenReturn(Optional.empty());
             when(accountRepository.findByIdAndParty_Id(ACCOUNT_ID, PARTY_ID))
                     .thenReturn(Optional.of(account()));
             when(walletRepository.findByParty_Id(PARTY_ID)).thenReturn(Optional.of(wallet()));
@@ -128,7 +126,7 @@ class ChargeExecutionWriterTest {
                     writer.createIntent(PARTY_ID, request(), LocalDateTime.now());
 
             assertThat(response.status()).isEqualTo(TransactionStatus.PENDING);
-            assertThat(response.transactionUuid()).isEqualTo(UUID);
+            assertThat(response.transactionUuid()).isNotBlank();
             assertThat(response.accountNumber()).isEqualTo(ACCOUNT_NUMBER);
             assertThat(response.bankName()).isEqualTo(BANK_NAME);
             assertThat(response.amount()).isEqualByComparingTo(new BigDecimal("50000"));
@@ -137,23 +135,26 @@ class ChargeExecutionWriterTest {
         }
 
         @Test
-        @DisplayName("uuid 이미 존재 -> 기존 intent 그대로 반환, insert 안 함")
-        void 기존_반환() {
-            when(transactionRepository.findByTransactionUuid(UUID))
-                    .thenReturn(Optional.of(charge(TransactionStatus.SUCCESS)));
+        @DisplayName("두 번 호출하면 서로 다른 uuid가 발급된다")
+        void 두_번_호출_다른_uuid() {
+            when(accountRepository.findByIdAndParty_Id(ACCOUNT_ID, PARTY_ID))
+                    .thenReturn(Optional.of(account()));
+            when(walletRepository.findByParty_Id(PARTY_ID)).thenReturn(Optional.of(wallet()));
+            when(transactionRepository.save(any(Transaction.class)))
+                    .thenAnswer(inv -> inv.getArgument(0));
 
-            ChargeIntentResponse response =
+            ChargeIntentResponse first =
+                    writer.createIntent(PARTY_ID, request(), LocalDateTime.now());
+            ChargeIntentResponse second =
                     writer.createIntent(PARTY_ID, request(), LocalDateTime.now());
 
-            assertThat(response.status()).isEqualTo(TransactionStatus.SUCCESS);
-            verify(transactionRepository, never()).save(any());
-            verify(accountRepository, never()).findByIdAndParty_Id(any(), any());
+            assertThat(first.transactionUuid()).isNotBlank();
+            assertThat(first.transactionUuid()).isNotEqualTo(second.transactionUuid());
         }
 
         @Test
         @DisplayName("계좌 없음 -> ACCOUNT_NOT_FOUND")
         void 계좌_없음() {
-            when(transactionRepository.findByTransactionUuid(UUID)).thenReturn(Optional.empty());
             when(accountRepository.findByIdAndParty_Id(ACCOUNT_ID, PARTY_ID))
                     .thenReturn(Optional.empty());
 

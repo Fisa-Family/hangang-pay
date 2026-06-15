@@ -94,6 +94,18 @@ public class TransactionCommandService {
         Wallet userWallet = getWallet(partyId);
         Wallet merchantWallet = getWallet(request.merchantPartyId());
 
+        // 1. 살아있는 PENDING 재사용 (DB가 진실 = 30초~10분 구간도 정확히 재사용)
+        LocalDateTime liveThreshold = LocalDateTime.now().minusMinutes(PAYMENT_INTENT_TTL_MINUTES);
+        Optional<Transaction> live =
+                transactionRepository.findLivePendingPayment(
+                        userParty.getId(),
+                        merchant.getParty().getId(),
+                        request.amount(),
+                        liveThreshold);
+        if (live.isPresent()) {
+            return PaymentIntentResponse.from(live.get(), merchant, intentExpiresAt(live.get()));
+        }
+
         /** 결제 실행 전에 서버 발급 transactionUuid로 PENDING 결제 의도를 생성한다 */
         String fingerprint =
                 paymentRequestHashGenerator.generateIntentExecutionHash(
