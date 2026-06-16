@@ -1,15 +1,6 @@
-import { createElement, type ReactNode, useEffect, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import {
-  Coffee,
-  Cookie,
-  Croissant,
-  Pizza,
-  Sandwich,
-  Soup,
-  Utensils,
-  UtensilsCrossed,
-} from 'lucide-react'
+import { Store } from 'lucide-react'
 import { Button, PageHeader, ProcessingState, ResultState } from '@/components/common'
 import { ApiError } from '@/api/client'
 import { getChargeDetail, type ChargeDetail } from '@/api/chargeHistories'
@@ -32,15 +23,8 @@ interface FlowConfig {
   amountLabel: string
   amount: (detail: unknown) => number
   amountPrefix?: string
-  iconType: 'voucher' | 'food'
+  iconType: 'voucher' | 'store'
   rows: (detail: unknown) => DetailRow[]
-}
-
-const FOOD_ICONS = [Utensils, UtensilsCrossed, Coffee, Pizza, Sandwich, Cookie, Croissant, Soup]
-
-function pickFoodIcon(id: string) {
-  const seed = id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
-  return FOOD_ICONS[seed % FOOD_ICONS.length]
 }
 
 const FLOWS: Record<string, FlowConfig> = {
@@ -73,7 +57,7 @@ const FLOWS: Record<string, FlowConfig> = {
     amountLabel: '결제 금액',
     amount: (d) => (d as PaymentHistoryDetail).amount,
     amountPrefix: '-',
-    iconType: 'food',
+    iconType: 'store',
     rows: (d) => {
       const detail = d as PaymentHistoryDetail
       return [
@@ -163,11 +147,8 @@ export function UserHistoryDetailPage() {
         <section className="rounded-2xl border border-border bg-card px-5 py-5 shadow-sm">
           <div className="flex min-h-18 items-center gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-muted">
-              {flow.iconType === 'food' ? (
-                createElement(pickFoodIcon(id ?? '0'), {
-                  size: 24,
-                  className: 'text-muted-foreground',
-                })
+              {flow.iconType === 'store' ? (
+                <Store size={24} className="text-muted-foreground" />
               ) : (
                 <img
                   src={voucherIcon}

@@ -8,8 +8,8 @@ import { merchantHandlers } from './merchant'
 export const handlers = [
   ...authHandlers,
   ...userHandlers,
+  ...merchantHandlers,
   ...paymentHandlers,
   ...chargeHandlers,
   ...exchangeHandlers,
-  ...merchantHandlers,
 ]

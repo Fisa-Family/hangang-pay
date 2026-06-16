@@ -60,7 +60,8 @@ export function formatMaskedAccount(institutionName: string, accountNumber: stri
   return `${institutionName} ****${accountNumber.slice(-4)}`
 }
 
-export function formatPhoneNumber(raw: string): string {
+export function formatPhoneNumber(raw: string | undefined | null): string {
+  if (!raw) return ''
   // 휴대전화 (010-XXXX-XXXX)
   if (raw.length === 11) {
     return `${raw.substring(0, 3)}-${raw.substring(3, 7)}-${raw.substring(7, 11)}`
@@ -80,7 +81,8 @@ export function formatPhoneNumber(raw: string): string {
   return raw
 }
 
-export function formatBusinessNumber(raw: string): string {
+export function formatBusinessNumber(raw: string | undefined | null): string {
+  if (!raw) return ''
   if (raw.length !== 10) {
     return raw
   }

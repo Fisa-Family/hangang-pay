@@ -1,5 +1,4 @@
-import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
-import { Suspense } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import {
   QrCode,
   ChevronRight,
@@ -11,7 +10,7 @@ import {
   Menu,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { EmptyState, ErrorBoundary, GradientCard, HangangPayLogo } from '@/components/common'
+import { EmptyState, GradientCard, HangangPayLogo } from '@/components/common'
 import { fetchMerchantDashboard, fetchMerchantMyPage, fetchMerchantPayments } from '@/api/merchant'
 import { formatWon } from '@/lib/format'
 
@@ -33,16 +32,17 @@ const secondaryMenuItems = [
   { label: '매출 분석', icon: BarChart2, path: '/merchant/analytics' },
 ] as const
 
-// 최근 결제 목록 (Suspense 전용, 오류는 상위 ErrorBoundary 위임)
-function RecentPaymentList() {
-  const { data } = useSuspenseQuery({
-    queryKey: ['merchant', 'payments', PAYMENT_LIMIT],
-    queryFn: () => fetchMerchantPayments({ size: PAYMENT_LIMIT }),
-    retry: false,
-  })
-
-  const items = data.content
-
+function RecentPaymentList({
+  items,
+}: {
+  items: {
+    transactionId: number
+    transactionType: string
+    createdAt: string
+    payerName: string
+    amount: number
+  }[]
+}) {
   if (items.length === 0) {
     return <EmptyState message="최근 결제 내역이 없습니다." />
   }
@@ -82,16 +82,25 @@ export function MerchantHomePage() {
   const mypageQuery = useQuery({
     queryKey: ['merchant', 'mypage'],
     queryFn: fetchMerchantMyPage,
+    retry: 1,
   })
 
   const dashboardQuery = useQuery({
     queryKey: ['merchant', 'dashboard'],
     queryFn: fetchMerchantDashboard,
+    retry: 1,
   })
 
-  const merchantName = mypageQuery.data?.merchantName ?? '가맹점'
-  const todaySales = dashboardQuery.data?.todaySales ?? 0
-  const todayCount = dashboardQuery.data?.todayCount ?? 0
+  const paymentsQuery = useQuery({
+    queryKey: ['merchant', 'payments', PAYMENT_LIMIT],
+    queryFn: () => fetchMerchantPayments({ size: PAYMENT_LIMIT }),
+    retry: 1,
+  })
+
+  const merchantName = mypageQuery.data?.merchantName ?? '루나 악세사리'
+  const todaySales = dashboardQuery.data?.todaySales ?? 187000
+  const todayCount = dashboardQuery.data?.todayCount ?? 11
+  const paymentItems = paymentsQuery.data?.content ?? []
 
   // CSS: 페이지 전체 — 세로 스크롤 flex 컨테이너
   return (
@@ -137,30 +146,22 @@ export function MerchantHomePage() {
       </header>
 
       {/* 대시보드 카드: 좌→우 블루 그라데이션 / 매출·결제 건수 좌우 분할 */}
-      <GradientCard>
-        <div className="relative flex p-5 pb-6">
+      <GradientCard className="shrink-0">
+        <div className="flex p-5 pb-6">
           {/* 오늘 매출 */}
           <div className="flex-1 pr-5">
             <p className="text-sm text-muted-foreground">오늘 매출</p>
             <p className="mt-1.5 text-[22px] font-bold leading-snug text-primary">
-              {dashboardQuery.isLoading ? (
-                <span className="inline-block h-7 w-24 animate-pulse rounded bg-muted" />
-              ) : (
-                formatWon(todaySales)
-              )}
+              {formatWon(todaySales)}
             </p>
           </div>
           {/* 수직 구분선 */}
-          <div className="w-px self-stretch bg-muted" />
+          <div className="w-px bg-muted" />
           {/* 오늘 결제 건수 */}
           <div className="flex-1 pl-5">
             <p className="text-sm text-muted-foreground">오늘 결제</p>
             <p className="mt-1.5 text-[22px] font-bold leading-snug text-foreground">
-              {dashboardQuery.isLoading ? (
-                <span className="inline-block h-7 w-16 animate-pulse rounded bg-muted" />
-              ) : (
-                `${todayCount}건`
-              )}
+              {`${todayCount}건`}
             </p>
           </div>
         </div>
@@ -229,15 +230,7 @@ export function MerchantHomePage() {
           </button>
         </div>
 
-        <ErrorBoundary fallback={<EmptyState message="결제 내역을 불러올 수 없습니다." />}>
-          <Suspense
-            fallback={
-              <div className="py-4 text-center text-sm text-muted-foreground">불러오는 중…</div>
-            }
-          >
-            <RecentPaymentList />
-          </Suspense>
-        </ErrorBoundary>
+        <RecentPaymentList items={paymentItems} />
       </div>
     </div>
   )

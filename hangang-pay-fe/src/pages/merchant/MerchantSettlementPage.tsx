@@ -141,18 +141,20 @@ export function MerchantSettlementPage() {
               </div>
             </section>
 
-            <SummaryCard
-              divided
-              rows={[
-                {
-                  label: '출금 계좌',
-                  value: formatMaskedAccount(
-                    initQuery.data.settlementAccount.institutionName,
-                    initQuery.data.settlementAccount.accountNumber
-                  ),
-                },
-              ]}
-            />
+            {initQuery.data.settlementAccount && (
+              <SummaryCard
+                divided
+                rows={[
+                  {
+                    label: '출금 계좌',
+                    value: formatMaskedAccount(
+                      initQuery.data.settlementAccount.institutionName,
+                      initQuery.data.settlementAccount.accountNumber
+                    ),
+                  },
+                ]}
+              />
+            )}
 
             <section className="flex gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-4">
               <Info size={16} className="mt-0.5 shrink-0 text-primary" />

@@ -41,11 +41,11 @@ export function MerchantPaymentsPage() {
       }),
     initialPageParam: null as MerchantPaymentsCursor | null,
     getNextPageParam,
-    retry: false,
+    retry: 1,
   })
 
   const items = useMemo(
-    () => (query.data?.pages.flatMap((p) => p.content) ?? []).map(toDisplayItem),
+    () => (query.data?.pages.flatMap((p) => p.content ?? []) ?? []).map(toDisplayItem),
     [query.data]
   )
   // BE에 타입 필터 파라미터가 없어 혼합 스트림을 탭별로 클라이언트 필터

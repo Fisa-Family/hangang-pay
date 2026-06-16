@@ -25,7 +25,11 @@ export const merchantHandlers = [
 
   http.get(`${BASE}/merchant/settlements`, () => ok(mockMerchantSettlements)),
 
-  http.get(`${BASE}/merchant/payments`, () => ok(mockMerchantPayments)),
+  http.get(`${BASE}/merchant/payments`, ({ request }) => {
+    const url = new URL(request.url)
+    const size = Number(url.searchParams.get('size') ?? 20)
+    return ok({ ...mockMerchantPayments, content: mockMerchantPayments.content.slice(0, size) })
+  }),
 
   http.get(`${BASE}/merchant/payments/:transactionId`, () => ok(mockMerchantPaymentDetail)),
 
