@@ -26,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -34,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Component
 @Profile({"local", "onprem-test"})
+@Order(1) // 부하 테스트 시 LoadTestDataInitializer(@Order(2))보다 먼저 실행되어 기준 시드(가맹점 등)를 만든다
 @RequiredArgsConstructor
 @SuppressWarnings("java:S2068") // 로컬 전용 시드 테스트 계정, 운영 환경에 배포되지 않음
 public class LocalDataInitializer implements ApplicationRunner {

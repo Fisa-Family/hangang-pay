@@ -46,6 +46,24 @@ blockchain:
   private-network:
     chain-id: 1337 # 트랜잭션 서명 시 사용하는 private blockchain 네트워크 식별자
 
+# 결제 rate limit (RedisPaymentRateLimiter). 기본값은 운영 한도와 동일.
+# 부하 테스트 시 loadtest-off / loadtest-on 프로필로 override 한다.
+payment:
+  rate-limit:
+    enabled: true
+    intent: # 결제 의도 — 사용자별 토큰 버킷
+      capacity: 10
+      refill-per-minute: 1
+    execute: # 결제 실행 — 사용자별 슬라이딩 윈도우
+      window-minutes: 10
+      limit: 5
+    recovery: # 결제 복구 — 사용자별 슬라이딩 윈도우
+      window-seconds: 60
+      limit: 3
+    bank-outbound: # 은행 아웃바운드 — 전역 토큰 버킷
+      capacity: 50
+      refill-per-second: 10
+
 wallet:
   key-cipher:
     secret: ${WALLET_KEY_CIPHER_SECRET:hangang-pay-local-wallet-key-cipher-secret}

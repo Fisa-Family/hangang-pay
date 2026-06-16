@@ -1,0 +1,15 @@
+# 부하 테스트 로컬 모니터링용 Prometheus 설정
+# - BE actuator(/actuator/prometheus)를 5초 주기로 스크랩 → 앱 내부 메트릭(Tomcat/Hikari/JVM/p99)
+# - k6는 remote-write로 직접 밀어넣는다(아래 docker-compose의 --web.enable-remote-write-receiver)
+global:
+  scrape_interval: 5s # 2분짜리 부하라 30s는 너무 거침. 5s로 해상도 확보
+  evaluation_interval: 5s
+
+scrape_configs:
+  # 1. BE 앱 메트릭. gradle bootRun은 호스트에서 도므로 host.docker.internal로 접근
+  - job_name: "hangang-pay-be"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["host.docker.internal:8080"]
+        labels:
+          application: hangang-pay-be

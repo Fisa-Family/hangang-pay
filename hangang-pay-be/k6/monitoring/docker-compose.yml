@@ -1,0 +1,39 @@
+# 부하 테스트 로컬 모니터링 스택 (Prometheus + Grafana)
+# 배포용 deploy/alloy(Grafana Cloud)와 별개. 로컬에서 k6 측정 중 메트릭을 보기 위한 self-contained 스택.
+#
+# 사용:
+#   cd hangang-pay-be/k6/monitoring && docker compose up -d
+#   Grafana  → http://localhost:3001  (anonymous Admin, 로그인 불필요)
+#   Prometheus → http://localhost:9090
+#   측정 끝나면: docker compose down
+
+services:
+  # 1. Prometheus: 앱 actuator 스크랩 + k6 remote-write 수신
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: loadtest-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.enable-remote-write-receiver # k6 -o experimental-prometheus-rw 수신용
+      - --storage.tsdb.retention.time=6h # 부하 측정용이라 짧게
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # 리눅스 호환(맥은 기본 지원)
+
+  # 2. Grafana: Prometheus 데이터소스 자동 프로비저닝
+  grafana:
+    image: grafana/grafana:latest
+    container_name: loadtest-grafana
+    ports:
+      - "3001:3000" # FE dev server(3000) 충돌 회피로 3001
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true # 로컬 측정용 — 로그인 생략
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus

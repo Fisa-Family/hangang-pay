@@ -20,20 +20,9 @@ public class RedisPaymentRateLimiter implements PaymentRateLimiter {
     private static final String RECOVERY_KEY_PREFIX = "payment:rate:recovery:";
     private static final String BANK_OUTBOUND_KEY = "payment:rate:bank-outbound";
 
+    // 버킷/윈도우 TTL은 운영상 고정값으로 유지. 한도·충전율만 설정으로 외부화한다.
     private static final Duration TOKEN_BUCKET_TTL = Duration.ofMinutes(30);
     private static final Duration BANK_OUTBOUND_TTL = Duration.ofMinutes(1);
-    private static final Duration RECOVERY_WINDOW = Duration.ofSeconds(60);
-
-    private static final long INTENT_CAPACITY = 10L;
-    private static final double INTENT_REFILL_RATE_PER_MS = 1.0d / 60_000;
-
-    private static final Duration EXECUTE_WINDOW = Duration.ofMinutes(10);
-    private static final long EXECUTE_LIMIT = 5L;
-
-    private static final long BANK_OUTBOUND_CAPACITY = 50L;
-    private static final double BANK_OUTBOUND_REFILL_RATE_PER_MS = 10.0d / 1_000;
-
-    private static final long RECOVERY_LIMIT = 3L;
 
     private static final DefaultRedisScript<Long> TOKEN_BUCKET_SCRIPT =
             new DefaultRedisScript<>(
@@ -98,33 +87,56 @@ public class RedisPaymentRateLimiter implements PaymentRateLimiter {
                     Long.class);
 
     private final StringRedisTemplate redisTemplate;
+    private final PaymentRateLimitProperties props;
 
     @Override
     public void checkIntentRateLimit(Long partyId, Long merchantPartyId) {
+        if (!props.enabled()) {
+            return;
+        }
+        PaymentRateLimitProperties.Intent intent = props.intent();
         checkTokenBucket(
                 INTENT_KEY_PREFIX + partyId,
-                INTENT_CAPACITY,
-                INTENT_REFILL_RATE_PER_MS,
+                intent.capacity(),
+                intent.refillPerMinute() / 60_000,
                 TOKEN_BUCKET_TTL);
     }
 
     @Override
     public void checkExecutionRateLimit(
             Long partyId, Long merchantPartyId, String transactionUuid) {
-        checkSlidingWindow(EXECUTE_KEY_PREFIX + partyId, EXECUTE_WINDOW, EXECUTE_LIMIT);
+        if (!props.enabled()) {
+            return;
+        }
+        PaymentRateLimitProperties.Execute execute = props.execute();
+        checkSlidingWindow(
+                EXECUTE_KEY_PREFIX + partyId,
+                Duration.ofMinutes(execute.windowMinutes()),
+                execute.limit());
     }
 
     @Override
     public void checkRecoveryRateLimit(Long partyId, String transactionUuid) {
-        checkSlidingWindow(RECOVERY_KEY_PREFIX + partyId, RECOVERY_WINDOW, RECOVERY_LIMIT);
+        if (!props.enabled()) {
+            return;
+        }
+        PaymentRateLimitProperties.Recovery recovery = props.recovery();
+        checkSlidingWindow(
+                RECOVERY_KEY_PREFIX + partyId,
+                Duration.ofSeconds(recovery.windowSeconds()),
+                recovery.limit());
     }
 
     @Override
     public void checkBankOutboundRateLimit() {
+        if (!props.enabled()) {
+            return;
+        }
+        PaymentRateLimitProperties.BankOutbound bankOutbound = props.bankOutbound();
         checkTokenBucket(
                 BANK_OUTBOUND_KEY,
-                BANK_OUTBOUND_CAPACITY,
-                BANK_OUTBOUND_REFILL_RATE_PER_MS,
+                bankOutbound.capacity(),
+                bankOutbound.refillPerSecond() / 1_000,
                 BANK_OUTBOUND_TTL);
     }
 

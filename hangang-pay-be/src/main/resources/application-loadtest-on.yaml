@@ -1,0 +1,56 @@
+# 부하 테스트 [ON 런]: 차단이 보이게 튜닝 → 로드셰딩 효과 + 429 정상동작 확인
+# 전역 bank-outbound를 셰딩 지점으로 두고, 사용자별 한도는 비병목으로 넉넉히 설정한다.
+# 사용법: --spring.profiles.active=local,loadtest,loadtest-on
+
+# DB 커넥션 풀. CPU 코어 10개 기준 HikariCP 권장 사이징(cores×2)으로 10→20. 기본 10.
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 20
+  # 부하 시드가 느려(가맹점/유저 온체인 ~1200건) 재시작마다 재생성하지 않도록 create-drop → update.
+  # 콜드 시드 1회 후엔 LoadTestDataInitializer가 기존 가맹점/유저를 findBy로 확인하고 스킵 → 빠르게 기동.
+  jpa:
+    hibernate:
+      ddl-auto: update
+    # 부하 시 SQL 로깅은 매 쿼리 포맷·바인드 출력으로 힙 폭주(OOM)+지연 유발 → local 프로필 설정을 끈다.
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+# local 프로필의 org.hibernate.SQL=DEBUG / jdbc.bind=TRACE override (OOM 방지)
+logging:
+  level:
+    org.hibernate.SQL: WARN
+    org.hibernate.orm.jdbc.bind: WARN
+
+payment:
+  rate-limit:
+    enabled: true
+    intent: # 비병목
+      capacity: 1000
+      refill-per-minute: 6000
+    execute: # 사용자별 넉넉
+      window-minutes: 1
+      limit: 60
+    recovery:
+      window-seconds: 60
+      limit: 3
+    bank-outbound: # ★ 전역 천장 = 셰딩 지점. OFF 포화 처리량(~47 TPS) 아래로 낮춰 로드셰딩을 유도
+      capacity: 40
+      refill-per-second: 20
+
+# Tomcat 스레드풀 메트릭(tomcat_threads_busy 등) 노출 — 스레드 포화 관측용. 기본은 비활성.
+server:
+  tomcat:
+    mbeanregistry:
+      enabled: true
+
+# execute 엔드포인트 latency 분위수를 actuator/prometheus로 노출 (k6 p99 교차검증용)
+management:
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles:
+        http.server.requests: 0.95, 0.99

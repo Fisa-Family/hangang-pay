@@ -6,8 +6,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
+import family.fisa.hangangpay.domain.transaction.infra.redis.payment.PaymentRateLimitProperties;
 import family.fisa.hangangpay.domain.transaction.infra.redis.payment.RedisPaymentRateLimiter;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import java.util.List;
@@ -31,9 +33,19 @@ class RedisPaymentRateLimiterTest {
 
     private RedisPaymentRateLimiter rateLimiter;
 
+    // 운영 기본값과 동일한 한도 설정 (application.yaml의 기본값)
+    private static PaymentRateLimitProperties props(boolean enabled) {
+        return new PaymentRateLimitProperties(
+                enabled,
+                new PaymentRateLimitProperties.Intent(10L, 1.0d),
+                new PaymentRateLimitProperties.Execute(10L, 5L),
+                new PaymentRateLimitProperties.Recovery(60L, 3L),
+                new PaymentRateLimitProperties.BankOutbound(50L, 10.0d));
+    }
+
     @BeforeEach
     void setUp() {
-        rateLimiter = new RedisPaymentRateLimiter(redisTemplate);
+        rateLimiter = new RedisPaymentRateLimiter(redisTemplate, props(true));
     }
 
     @Test
@@ -132,5 +144,23 @@ class RedisPaymentRateLimiterTest {
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue(
                         "code", TransactionErrorCode.PAYMENT_RATE_LIMIT_EXCEEDED);
+    }
+
+    @Test
+    @DisplayName("enabled=false면 모든 rate limit 검사를 건너뛰고 Redis를 호출하지 않는다")
+    void disabled_shortCircuitsAllChecksWithoutRedis() {
+        RedisPaymentRateLimiter disabled = new RedisPaymentRateLimiter(redisTemplate, props(false));
+
+        assertThatCode(
+                        () -> {
+                            disabled.checkIntentRateLimit(PARTY_ID, MERCHANT_PARTY_ID);
+                            disabled.checkExecutionRateLimit(
+                                    PARTY_ID, MERCHANT_PARTY_ID, TRANSACTION_UUID);
+                            disabled.checkRecoveryRateLimit(PARTY_ID, TRANSACTION_UUID);
+                            disabled.checkBankOutboundRateLimit();
+                        })
+                .doesNotThrowAnyException();
+
+        verifyNoInteractions(redisTemplate);
     }
 }
