@@ -59,7 +59,7 @@
 
 ---
 ### Blockscout를 통한 모니터링
-
+![alt text](docs/readme/blockscout.png)
 
 ---
 ## 산출물
