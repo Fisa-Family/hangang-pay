@@ -1,6 +1,6 @@
 package family.fisa.hangangpay.domain.transaction.internal.cancel;
 
-import family.fisa.hangangpay.domain.transaction.dto.response.PaymentCancelResponse;
+import family.fisa.hangangpay.domain.transaction.dto.user.response.PaymentCancelResponse;
 
 public record CancelIdempotencyDecision(
         CancelIdempotencyDecisionType type, PaymentCancelResponse responseSnapshot) {

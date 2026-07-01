@@ -1,11 +1,11 @@
 package family.fisa.hangangpay.domain.transaction.controller;
 
 import family.fisa.hangangpay.domain.transaction.code.TransactionSuccessCode;
-import family.fisa.hangangpay.domain.transaction.dto.request.PaymentExecuteRequest;
-import family.fisa.hangangpay.domain.transaction.dto.request.PaymentIntentCreateRequest;
-import family.fisa.hangangpay.domain.transaction.dto.response.PaymentExecutionResponse;
-import family.fisa.hangangpay.domain.transaction.dto.response.PaymentIntentResponse;
-import family.fisa.hangangpay.domain.transaction.service.TransactionCommandService;
+import family.fisa.hangangpay.domain.transaction.dto.user.request.PaymentExecuteRequest;
+import family.fisa.hangangpay.domain.transaction.dto.user.request.PaymentIntentCreateRequest;
+import family.fisa.hangangpay.domain.transaction.dto.user.response.PaymentExecutionResponse;
+import family.fisa.hangangpay.domain.transaction.dto.user.response.PaymentIntentResponse;
+import family.fisa.hangangpay.domain.transaction.service.payment.PaymentCommandService;
 import family.fisa.hangangpay.global.response.ApiResponse;
 import family.fisa.hangangpay.global.session.SessionAttributeNames;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -25,14 +25,14 @@ import org.springframework.web.bind.annotation.SessionAttribute;
 @RequiredArgsConstructor
 public class PaymentController {
 
-    private final TransactionCommandService transactionCommandService;
+    private final PaymentCommandService paymentCommandService;
 
     @PostMapping("/intents")
     public ResponseEntity<ApiResponse<PaymentIntentResponse>> createPaymentIntent(
             @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId,
             @Valid @RequestBody PaymentIntentCreateRequest request) {
         PaymentIntentResponse response =
-                transactionCommandService.createPaymentIntent(partyId, request);
+                paymentCommandService.createPaymentIntent(partyId, request);
 
         return ResponseEntity.status(TransactionSuccessCode.PAYMENT_INTENT_CREATED.getStatus())
                 .body(
@@ -47,7 +47,7 @@ public class PaymentController {
             @PathVariable String transactionUuid,
             @Valid @RequestBody PaymentExecuteRequest request) {
         PaymentExecutionResponse response =
-                transactionCommandService.executePayment(userId, partyId, transactionUuid, request);
+                paymentCommandService.executePayment(userId, partyId, transactionUuid, request);
 
         return ResponseEntity.ok(
                 ApiResponse.onSuccess(TransactionSuccessCode.PAYMENT_EXECUTED, response));
@@ -59,7 +59,7 @@ public class PaymentController {
             @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId,
             @PathVariable String transactionUuid) {
         PaymentExecutionResponse response =
-                transactionCommandService.recoverPayment(partyId, transactionUuid);
+                paymentCommandService.recoverPayment(partyId, transactionUuid);
 
         return ResponseEntity.ok(
                 ApiResponse.onSuccess(TransactionSuccessCode.PAYMENT_RECOVERED, response));

@@ -10,7 +10,7 @@ import static org.mockito.Mockito.verify;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import family.fisa.hangangpay.domain.transaction.dto.response.PaymentCancelResponse;
+import family.fisa.hangangpay.domain.transaction.dto.user.response.PaymentCancelResponse;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.infra.redis.cancel.CancelIdempotencyRecord;
 import family.fisa.hangangpay.domain.transaction.infra.redis.cancel.RedisCancelIdempotencyStore;

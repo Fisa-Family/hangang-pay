@@ -1,6 +1,6 @@
 package family.fisa.hangangpay.domain.transaction.infra.redis.cancel;
 
-import family.fisa.hangangpay.domain.transaction.dto.response.PaymentCancelResponse;
+import family.fisa.hangangpay.domain.transaction.dto.user.response.PaymentCancelResponse;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 
 public record CancelIdempotencyRecord(

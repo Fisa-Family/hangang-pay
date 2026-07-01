@@ -3,7 +3,7 @@ package family.fisa.hangangpay.domain.transaction.entity;
 import family.fisa.hangangpay.domain.account.entity.Account;
 import family.fisa.hangangpay.domain.party.entity.Party;
 import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
-import family.fisa.hangangpay.domain.user.code.error.UserErrorCode;
+import family.fisa.hangangpay.domain.user.code.UserErrorCode;
 import family.fisa.hangangpay.domain.wallet.entity.Wallet;
 import family.fisa.hangangpay.global.entity.BaseEntity;
 import family.fisa.hangangpay.global.exception.BusinessException;

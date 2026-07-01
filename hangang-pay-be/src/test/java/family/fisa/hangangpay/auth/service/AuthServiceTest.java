@@ -8,7 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 
-import family.fisa.hangangpay.auth.code.error.AuthErrorCode;
+import family.fisa.hangangpay.auth.code.AuthErrorCode;
 import family.fisa.hangangpay.auth.dto.LoginRequest;
 import family.fisa.hangangpay.auth.dto.LoginResponse;
 import family.fisa.hangangpay.auth.dto.MerchantLoginRequest;

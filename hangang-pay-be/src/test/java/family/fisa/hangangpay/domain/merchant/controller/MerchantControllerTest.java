@@ -9,11 +9,12 @@ import family.fisa.hangangpay.domain.account.service.AccountCommandService;
 import family.fisa.hangangpay.domain.merchant.dto.MerchantPaymentDetailResponse;
 import family.fisa.hangangpay.domain.merchant.service.MerchantQrService;
 import family.fisa.hangangpay.domain.merchant.service.MerchantQueryService;
-import family.fisa.hangangpay.domain.transaction.dto.response.MerchantPaymentDetail;
+import family.fisa.hangangpay.domain.transaction.dto.user.response.MerchantPaymentDetail;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
-import family.fisa.hangangpay.domain.transaction.service.TransactionCommandService;
-import family.fisa.hangangpay.domain.transaction.service.TransactionQueryService;
+import family.fisa.hangangpay.domain.transaction.service.cancel.CancelCommandService;
 import family.fisa.hangangpay.domain.transaction.service.exchange.ExchangeCommandService;
+import family.fisa.hangangpay.domain.transaction.service.exchange.ExchangeQueryService;
+import family.fisa.hangangpay.domain.transaction.service.payment.PaymentQueryService;
 import family.fisa.hangangpay.global.exception.handler.GlobalExceptionHandler;
 import family.fisa.hangangpay.global.session.SessionAttributeNames;
 import java.math.BigDecimal;
@@ -37,9 +38,10 @@ class MerchantControllerTest {
     @MockitoBean private MerchantQrService qrService;
     @MockitoBean private MerchantQueryService merchantQueryService;
     @MockitoBean private AccountCommandService accountCommandService;
-    @MockitoBean private TransactionQueryService transactionQueryService;
+    @MockitoBean private PaymentQueryService paymentQueryService;
+    @MockitoBean private ExchangeQueryService exchangeQueryService;
     @MockitoBean private ExchangeCommandService exchangeCommandService;
-    @MockitoBean private TransactionCommandService transactionCommandService;
+    @MockitoBean private CancelCommandService cancelCommandService;
 
     @Test
     @DisplayName("가맹점 결제 상세 조회는 PAYMENT/CANCEL 타입과 detail을 함께 반환한다")
@@ -55,7 +57,7 @@ class MerchantControllerTest {
                         LocalDateTime.of(2026, 5, 14, 14, 23),
                         false);
 
-        given(transactionQueryService.getMerchantPaymentDetail(10L, 25L))
+        given(paymentQueryService.getMerchantPaymentDetail(10L, 25L))
                 .willReturn(MerchantPaymentDetailResponse.of(TransactionType.CANCEL, detail));
 
         mockMvc.perform(

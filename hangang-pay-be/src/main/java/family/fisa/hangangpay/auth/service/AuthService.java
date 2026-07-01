@@ -5,7 +5,7 @@ import static family.fisa.hangangpay.global.session.SessionAttributeNames.PARTY_
 import static family.fisa.hangangpay.global.session.SessionAttributeNames.ROLE;
 import static family.fisa.hangangpay.global.session.SessionAttributeNames.USER_ID;
 
-import family.fisa.hangangpay.auth.code.error.AuthErrorCode;
+import family.fisa.hangangpay.auth.code.AuthErrorCode;
 import family.fisa.hangangpay.auth.dto.LoginRequest;
 import family.fisa.hangangpay.auth.dto.LoginResponse;
 import family.fisa.hangangpay.auth.dto.MerchantLoginRequest;

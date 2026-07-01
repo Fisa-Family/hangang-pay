@@ -1,6 +1,6 @@
 package family.fisa.hangangpay.auth.controller;
 
-import family.fisa.hangangpay.auth.code.success.AuthSuccessCode;
+import family.fisa.hangangpay.auth.code.AuthSuccessCode;
 import family.fisa.hangangpay.auth.dto.UserRegisterRequest;
 import family.fisa.hangangpay.auth.dto.UserRegisterResponse;
 import family.fisa.hangangpay.auth.service.BusinessInfoQueryService;

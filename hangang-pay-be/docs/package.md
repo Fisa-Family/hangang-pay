@@ -53,6 +53,41 @@ service/
 
 Repository는 Port & Adapter 패턴을 따른다. 도메인별 포트 인터페이스는 `domain/{domain}/repository`에, Spring Data JPA 인터페이스는 필요 시 `domain/{domain}/repository/jpa`에 둔다.
 
+## Code 패키지 규칙
+
+- 도메인·`auth`·`client`의 응답 코드 enum은 `code/` 바로 아래에 둔다. 예: `domain/user/code/UserErrorCode`, `domain/user/code/UserSuccessCode`, `auth/code/AuthErrorCode`, `auth/code/AuthSuccessCode`.
+- `code/error/`·`code/success/` 하위 패키지는 두지 않는다.
+- 예외: `global/code`만 공통 베이스/공통 분류를 위해 `global/code/error`, `global/code/success`를 유지한다.
+
+## Transaction 하위 패키지
+
+`transaction` 도메인은 플로우(PAYMENT/CHARGE/EXCHANGE/CANCEL)가 공통 구조를 공유하므로 아래 추가 하위 패키지를 둔다.
+
+```text
+transaction/
+  controller/
+  service/
+    payment/   PaymentCommandService, PaymentQueryService, PaymentStateWriter
+    charge/    ChargeCommandService, ChargeQueryService, ChargeStateWriter
+    exchange/  ExchangeCommandService, ExchangeQueryService, ExchangeReconcileService, ExchangeStateWriter
+    cancel/    CancelCommandService, CancelStateWriter        # 취소 조회는 결제 내역에 흡수 → QueryService 없음
+    history/   HistoryQueryService                            # 전 플로우 통합 내역(getAllHistories)
+    support/   BankCallExecutor                               # payment·cancel 공용 은행 재시도 엔진
+    #  각 폴더: 인터페이스(루트) + v1/{이름}V1(현재 구현) + v0/(향후 대체 구현 예약)
+  scheduler/
+    TransactionRecoveryScheduler   # 결제·취소 복구 + 환전 reconcile
+    IntentExpiryScheduler          # 결제·충전·환전 intent 만료
+  dto/
+    user/request/    # 사용자 → BE 요청
+    user/response/   # BE → 사용자 응답
+    bank/            # BE ↔ hangang-pay-bank 연동 보조 DTO (BankOutcome, BankErrorBody, ReconcileResult)
+  internal/, infra/redis/, entity/, repository/, code/
+```
+
+- 서비스 컴포넌트(Command/Query/StateWriter, ExchangeReconcileService, BankCallExecutor)는 **인터페이스 + 버전 구현체**로 둔다. 인터페이스는 플로우 폴더 루트에 원래 이름으로, 현재 구현은 `v1/{이름}V1`에 두고 `@Service`/`@Component`를 붙인다. 호출처·상호 참조는 **인터페이스 타입**을 주입한다(단일 구현이라 `@Qualifier` 불필요, 대체 구현 추가 시 `@Primary`/`@Qualifier`). `v0/`는 향후 대체 구현용 예약 폴더(`.gitkeep`).
+- 플로우별 폴더(payment/charge/exchange/cancel)에 Command·Query·StateWriter를 모으고 이름을 `{Flow}CommandService`/`{Flow}QueryService`/`{Flow}StateWriter`로 통일한다. 통합 내역은 `history/HistoryQueryService`, payment·cancel 공용 은행 재시도 엔진은 `support/BankCallExecutor`로 분리한다. (구 `TransactionCommandService`/`TransactionQueryService`/`service/writer/`는 제거됨.)
+- 스케줄러는 관심사(복구 / intent 만료)별로 나눈다. `@SchedulerLock`의 `name`은 전역 고유해야 한다.
+
 ## Domain Ownership
 
 | Domain | Responsibility |

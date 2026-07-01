@@ -1,6 +1,6 @@
 package family.fisa.hangangpay.domain.transaction.internal.exchange;
 
-import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeExecuteResponse;
+import family.fisa.hangangpay.domain.transaction.dto.user.response.ExchangeExecuteResponse;
 
 /** 멱등 게이트 판정 결과. RETURN_SNAPSHOT일 때만 responseSnapshot이 채워진다. */
 public record ExchangeIdempotencyDecision(

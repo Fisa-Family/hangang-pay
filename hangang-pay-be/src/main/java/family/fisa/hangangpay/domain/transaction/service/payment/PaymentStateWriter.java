@@ -1,0 +1,35 @@
+package family.fisa.hangangpay.domain.transaction.service.payment;
+
+import family.fisa.hangangpay.client.bank.dto.BankTransactionStatusResponse;
+import family.fisa.hangangpay.domain.transaction.dto.user.response.PaymentExecutionResponse;
+import family.fisa.hangangpay.domain.transaction.internal.payment.PaymentExecutionPreparationResult;
+import java.time.LocalDateTime;
+
+/** PAYMENT 상태 쓰기 전담. 각 메서드는 REQUIRES_NEW로 독립 트랜잭션을 커밋한다. */
+public interface PaymentStateWriter {
+
+    PaymentExecutionPreparationResult prepareExecution(
+            Long userId, Long partyId, String transactionUuid, String paymentPin);
+
+    PaymentExecutionResponse markUnknown(String transactionUuid);
+
+    PaymentExecutionResponse completeSuccess(
+            String transactionUuid,
+            String txHash,
+            String bankTransactionId,
+            LocalDateTime confirmedAt);
+
+    /** Bank가 결정적으로 거부한 경우 결제를 FAILED로 확정한다. */
+    void completeFailed(String transactionUuid);
+
+    /** 복구했지만 은행이 아직 처리 중일 때 재조정 시도 횟수를 1 올린다. (cap 진행용) */
+    void incrementRecoveryAttempt(String transactionUuid);
+
+    /** 자동 복구 시도 한도를 소진한 결제를 EXPIRED 터미널로 닫는다. */
+    void markExpired(String transactionUuid);
+
+    String prepareRecovery(Long partyId, String transactionUuid);
+
+    PaymentExecutionResponse applyRecoveryResult(
+            String transactionUuid, BankTransactionStatusResponse bankStatus);
+}

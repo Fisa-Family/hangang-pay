@@ -1,6 +1,6 @@
 package family.fisa.hangangpay.domain.transaction.internal.charge;
 
-import family.fisa.hangangpay.domain.transaction.dto.response.ChargeExecuteResponse;
+import family.fisa.hangangpay.domain.transaction.dto.user.response.ChargeExecuteResponse;
 
 /** 충전 실행 준비 결과 (신규 실행 또는 멱등 재사용) */
 public record ChargeExecutionPreparationResult(

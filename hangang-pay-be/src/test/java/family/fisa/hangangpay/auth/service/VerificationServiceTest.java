@@ -10,7 +10,7 @@ import static family.fisa.hangangpay.global.session.SessionAttributeNames.SIGNUP
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import family.fisa.hangangpay.auth.code.error.AuthErrorCode;
+import family.fisa.hangangpay.auth.code.AuthErrorCode;
 import family.fisa.hangangpay.client.bank.BankClient;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import java.time.LocalDateTime;

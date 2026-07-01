@@ -1,6 +1,6 @@
 package family.fisa.hangangpay.auth.service;
 
-import family.fisa.hangangpay.auth.code.error.AuthErrorCode;
+import family.fisa.hangangpay.auth.code.AuthErrorCode;
 import family.fisa.hangangpay.auth.dto.UserRegisterRequest;
 import family.fisa.hangangpay.auth.dto.UserRegisterResponse;
 import family.fisa.hangangpay.client.bank.BankClient;

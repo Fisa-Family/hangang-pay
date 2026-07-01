@@ -13,17 +13,18 @@ import family.fisa.hangangpay.domain.merchant.dto.MerchantSettlementHistoryItem;
 import family.fisa.hangangpay.domain.merchant.service.MerchantQrService;
 import family.fisa.hangangpay.domain.merchant.service.MerchantQueryService;
 import family.fisa.hangangpay.domain.transaction.code.TransactionSuccessCode;
-import family.fisa.hangangpay.domain.transaction.dto.request.ExchangeExecuteRequest;
-import family.fisa.hangangpay.domain.transaction.dto.request.ExchangeIntentCreateRequest;
-import family.fisa.hangangpay.domain.transaction.dto.request.PaymentCancelRequest;
-import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeExecuteResponse;
-import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeIntentResponse;
-import family.fisa.hangangpay.domain.transaction.dto.response.MerchantPaymentDetail;
-import family.fisa.hangangpay.domain.transaction.dto.response.MerchantPaymentHistoryItem;
-import family.fisa.hangangpay.domain.transaction.dto.response.PaymentCancelResponse;
-import family.fisa.hangangpay.domain.transaction.service.TransactionCommandService;
-import family.fisa.hangangpay.domain.transaction.service.TransactionQueryService;
+import family.fisa.hangangpay.domain.transaction.dto.user.request.ExchangeExecuteRequest;
+import family.fisa.hangangpay.domain.transaction.dto.user.request.ExchangeIntentCreateRequest;
+import family.fisa.hangangpay.domain.transaction.dto.user.request.PaymentCancelRequest;
+import family.fisa.hangangpay.domain.transaction.dto.user.response.ExchangeExecuteResponse;
+import family.fisa.hangangpay.domain.transaction.dto.user.response.ExchangeIntentResponse;
+import family.fisa.hangangpay.domain.transaction.dto.user.response.MerchantPaymentDetail;
+import family.fisa.hangangpay.domain.transaction.dto.user.response.MerchantPaymentHistoryItem;
+import family.fisa.hangangpay.domain.transaction.dto.user.response.PaymentCancelResponse;
+import family.fisa.hangangpay.domain.transaction.service.cancel.CancelCommandService;
 import family.fisa.hangangpay.domain.transaction.service.exchange.ExchangeCommandService;
+import family.fisa.hangangpay.domain.transaction.service.exchange.ExchangeQueryService;
+import family.fisa.hangangpay.domain.transaction.service.payment.PaymentQueryService;
 import family.fisa.hangangpay.global.code.success.GeneralSuccessCode;
 import family.fisa.hangangpay.global.pagination.CursorPageRequest;
 import family.fisa.hangangpay.global.pagination.CursorPageResponse;
@@ -53,9 +54,10 @@ public class MerchantController {
     private final MerchantQrService qrService;
     private final MerchantQueryService merchantQueryService;
     private final AccountCommandService accountCommandService;
-    private final TransactionQueryService transactionQueryService;
+    private final PaymentQueryService paymentQueryService;
+    private final ExchangeQueryService exchangeQueryService;
     private final ExchangeCommandService exchangeCommandService;
-    private final TransactionCommandService transactionCommandService;
+    private final CancelCommandService cancelCommandService;
 
     /** QR에서 추출한 merchantId로 결제 진입에 필요한 가맹점 정보를 조회한다. */
     @Operation(
@@ -78,7 +80,7 @@ public class MerchantController {
                     @RequestParam(defaultValue = "20") int size) {
 
         CursorPageResponse<MerchantSettlementHistoryItem> page =
-                transactionQueryService.getMerchantSettlementHistory(partyId, cursor, size);
+                exchangeQueryService.getMerchantSettlementHistory(partyId, cursor, size);
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, page));
     }
 
@@ -101,7 +103,7 @@ public class MerchantController {
                     @RequestParam(defaultValue = "20") int size) {
 
         CursorPageResponse<MerchantPaymentHistoryItem> page =
-                transactionQueryService.getMerchantPaymentHistory(partyId, cursor, size);
+                paymentQueryService.getMerchantPaymentHistory(partyId, cursor, size);
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, page));
     }
 
@@ -114,7 +116,7 @@ public class MerchantController {
                     @PathVariable Long transactionId) {
 
         MerchantPaymentDetailResponse<MerchantPaymentDetail> response =
-                transactionQueryService.getMerchantPaymentDetail(partyId, transactionId);
+                paymentQueryService.getMerchantPaymentDetail(partyId, transactionId);
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK, response));
     }
 
@@ -199,7 +201,7 @@ public class MerchantController {
             @PathVariable Long transactionId,
             @Valid @RequestBody PaymentCancelRequest request) {
         PaymentCancelResponse response =
-                transactionCommandService.executeCancel(partyId, transactionId, request);
+                cancelCommandService.executeCancel(partyId, transactionId, request);
         return ResponseEntity.ok(
                 ApiResponse.onSuccess(TransactionSuccessCode.PAYMENT_CANCELLED, response));
     }
@@ -211,8 +213,7 @@ public class MerchantController {
     public ResponseEntity<ApiResponse<PaymentCancelResponse>> recoverCancel(
             @SessionAttribute(SessionAttributeNames.PARTY_ID) Long partyId,
             @PathVariable Long transactionId) {
-        PaymentCancelResponse response =
-                transactionCommandService.recoverCancel(partyId, transactionId);
+        PaymentCancelResponse response = cancelCommandService.recoverCancel(partyId, transactionId);
         return ResponseEntity.ok(
                 ApiResponse.onSuccess(TransactionSuccessCode.CANCEL_RECOVERED, response));
     }

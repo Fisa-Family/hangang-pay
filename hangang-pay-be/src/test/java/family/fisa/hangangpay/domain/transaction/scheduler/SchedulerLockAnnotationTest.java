@@ -10,20 +10,14 @@ class SchedulerLockAnnotationTest {
 
     @Test
     void 모든_스케줄러_메서드에_SchedulerLock이_정확히_설정된다() throws NoSuchMethodException {
-        assertLock(ReconcileScheduler.class, "reconcileExchanges", "reconcileExchanges");
-        assertLock(ReconcileScheduler.class, "expireStaleIntents", "expireStaleIntents");
+        assertLock(TransactionRecoveryScheduler.class, "recoverPayments", "resolveUnknownPayments");
+        assertLock(TransactionRecoveryScheduler.class, "recoverCancels", "resolveUnknownCancels");
+        assertLock(TransactionRecoveryScheduler.class, "reconcileExchanges", "reconcileExchanges");
         assertLock(
-                PaymentIntentExpiryScheduler.class,
-                "expireStaleIntents",
-                "expireStalePaymentIntents");
+                IntentExpiryScheduler.class, "expirePaymentIntents", "expireStalePaymentIntents");
+        assertLock(IntentExpiryScheduler.class, "expireChargeIntents", "expireStaleChargeIntents");
         assertLock(
-                UnknownPaymentRecoveryScheduler.class,
-                "resolveUnknownPayments",
-                "resolveUnknownPayments");
-        assertLock(
-                UnknownPaymentRecoveryScheduler.class,
-                "resolveUnknownCancels",
-                "resolveUnknownCancels");
+                IntentExpiryScheduler.class, "expireExchangeIntents", "expireStaleExchangeIntents");
     }
 
     private void assertLock(Class<?> type, String method, String expectedName)

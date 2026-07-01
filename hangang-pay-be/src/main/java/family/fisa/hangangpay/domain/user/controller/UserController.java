@@ -2,12 +2,15 @@ package family.fisa.hangangpay.domain.user.controller;
 
 import static family.fisa.hangangpay.domain.user.dto.UserHistoryType.*;
 
-import family.fisa.hangangpay.domain.transaction.dto.response.AllHistoryItem;
-import family.fisa.hangangpay.domain.transaction.dto.response.ChargeHistoryItem;
-import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeHistoryItem;
-import family.fisa.hangangpay.domain.transaction.dto.response.PaymentHistoryItem;
-import family.fisa.hangangpay.domain.transaction.service.TransactionQueryService;
-import family.fisa.hangangpay.domain.user.code.error.UserErrorCode;
+import family.fisa.hangangpay.domain.transaction.dto.user.response.AllHistoryItem;
+import family.fisa.hangangpay.domain.transaction.dto.user.response.ChargeHistoryItem;
+import family.fisa.hangangpay.domain.transaction.dto.user.response.ExchangeHistoryItem;
+import family.fisa.hangangpay.domain.transaction.dto.user.response.PaymentHistoryItem;
+import family.fisa.hangangpay.domain.transaction.service.charge.ChargeQueryService;
+import family.fisa.hangangpay.domain.transaction.service.exchange.ExchangeQueryService;
+import family.fisa.hangangpay.domain.transaction.service.history.HistoryQueryService;
+import family.fisa.hangangpay.domain.transaction.service.payment.PaymentQueryService;
+import family.fisa.hangangpay.domain.user.code.UserErrorCode;
 import family.fisa.hangangpay.domain.user.dto.UserHistoryDetailResponse;
 import family.fisa.hangangpay.domain.user.dto.UserHistoryResponse;
 import family.fisa.hangangpay.domain.user.dto.UserHistoryType;
@@ -37,7 +40,10 @@ import org.springframework.web.bind.annotation.SessionAttribute;
 public class UserController {
 
     private final UserQueryService userQueryService;
-    private final TransactionQueryService transactionQueryService;
+    private final PaymentQueryService paymentQueryService;
+    private final ChargeQueryService chargeQueryService;
+    private final ExchangeQueryService exchangeQueryService;
+    private final HistoryQueryService historyQueryService;
 
     @Operation(summary = "프로필 조회 (MY-001)", description = "로그인한 소비자의 닉네임, 지역, 가입일을 반환한다.")
     @GetMapping("/profile")
@@ -58,23 +64,22 @@ public class UserController {
                 switch (type) {
                     case ALL -> {
                         CursorPageResponse<AllHistoryItem> page =
-                                transactionQueryService.getAllHistories(partyId, cursor, size);
+                                historyQueryService.getAllHistories(partyId, cursor, size);
                         yield UserHistoryResponse.of(ALL, page);
                     }
                     case PAYMENT, CANCEL -> {
                         CursorPageResponse<PaymentHistoryItem> page =
-                                transactionQueryService.getUserPaymentHistory(
-                                        partyId, cursor, size);
+                                paymentQueryService.getUserPaymentHistory(partyId, cursor, size);
                         yield UserHistoryResponse.of(PAYMENT, page);
                     }
                     case CHARGE -> {
                         CursorPageResponse<ChargeHistoryItem> page =
-                                transactionQueryService.getChargeHistories(partyId, cursor, size);
+                                chargeQueryService.getChargeHistories(partyId, cursor, size);
                         yield UserHistoryResponse.of(CHARGE, page);
                     }
                     case EXCHANGE -> {
                         CursorPageResponse<ExchangeHistoryItem> page =
-                                transactionQueryService.getExchangeHistories(partyId, cursor, size);
+                                exchangeQueryService.getExchangeHistories(partyId, cursor, size);
                         yield UserHistoryResponse.of(EXCHANGE, page);
                     }
                 };
@@ -94,17 +99,17 @@ public class UserController {
                     case PAYMENT, CANCEL ->
                             UserHistoryDetailResponse.of(
                                     type,
-                                    transactionQueryService.getUserPaymentHistoryDetail(
+                                    paymentQueryService.getUserPaymentHistoryDetail(
                                             partyId, historyId));
                     case CHARGE ->
                             UserHistoryDetailResponse.of(
                                     type,
-                                    transactionQueryService.getUserChargeHistoryDetail(
+                                    chargeQueryService.getUserChargeHistoryDetail(
                                             partyId, historyId));
                     case EXCHANGE ->
                             UserHistoryDetailResponse.of(
                                     type,
-                                    transactionQueryService.getUserExchangeHistoryDetail(
+                                    exchangeQueryService.getUserExchangeHistoryDetail(
                                             partyId, historyId));
                     case ALL -> throw new BusinessException(UserErrorCode.INVALID_HISTORY_TYPE);
                 };
