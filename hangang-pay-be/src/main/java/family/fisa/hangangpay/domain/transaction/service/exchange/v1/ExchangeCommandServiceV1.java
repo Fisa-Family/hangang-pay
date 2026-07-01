@@ -2,8 +2,8 @@ package family.fisa.hangangpay.domain.transaction.service.exchange.v1;
 
 import family.fisa.hangangpay.client.bank.BankClient;
 import family.fisa.hangangpay.client.bank.dto.BankActResult;
-import family.fisa.hangangpay.client.bank.dto.ExchangeRequest;
-import family.fisa.hangangpay.client.bank.dto.ExchangeResponse;
+import family.fisa.hangangpay.client.bank.dto.request.ExchangeRequest;
+import family.fisa.hangangpay.client.bank.dto.response.ExchangeResponse;
 import family.fisa.hangangpay.domain.account.entity.AccountType;
 import family.fisa.hangangpay.domain.merchant.code.MerchantErrorCode;
 import family.fisa.hangangpay.domain.merchant.entity.Merchant;
@@ -187,7 +187,7 @@ public class ExchangeCommandServiceV1 implements ExchangeCommandService {
                 userRepository
                         .findByParty_Id(partyId)
                         .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
-        if (!user.matchesPaymentPin(paymentPin, passwordEncoder)) {
+        if (!passwordEncoder.matches(paymentPin, user.getPaymentPinHash())) {
             log.warn("환전 PIN 불일치(user). partyId={}", partyId);
             throw new BusinessException(TransactionErrorCode.INVALID_PAYMENT_PIN);
         }
@@ -200,7 +200,7 @@ public class ExchangeCommandServiceV1 implements ExchangeCommandService {
                         .findByParty_Id(partyId)
                         .orElseThrow(
                                 () -> new BusinessException(MerchantErrorCode.MERCHANT_NOT_FOUND));
-        if (!merchant.matchesPaymentPin(paymentPin, passwordEncoder)) {
+        if (!passwordEncoder.matches(paymentPin, merchant.getPaymentPinHash())) {
             log.warn("환전 PIN 불일치(merchant). partyId={}", partyId);
             throw new BusinessException(TransactionErrorCode.INVALID_PAYMENT_PIN);
         }

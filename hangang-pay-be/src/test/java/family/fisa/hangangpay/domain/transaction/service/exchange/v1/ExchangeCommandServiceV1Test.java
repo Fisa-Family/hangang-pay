@@ -14,8 +14,8 @@ import static org.mockito.Mockito.when;
 
 import family.fisa.hangangpay.client.bank.BankClient;
 import family.fisa.hangangpay.client.bank.dto.BankActResult;
-import family.fisa.hangangpay.client.bank.dto.ExchangeRequest;
-import family.fisa.hangangpay.client.bank.dto.ExchangeResponse;
+import family.fisa.hangangpay.client.bank.dto.request.ExchangeRequest;
+import family.fisa.hangangpay.client.bank.dto.response.ExchangeResponse;
 import family.fisa.hangangpay.domain.account.entity.AccountType;
 import family.fisa.hangangpay.domain.merchant.entity.Merchant;
 import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
@@ -112,13 +112,13 @@ class ExchangeCommandServiceV1Test {
     private void stubUserPinPass() {
         User user = mock(User.class);
         when(userRepository.findByParty_Id(PARTY_ID)).thenReturn(Optional.of(user));
-        when(user.matchesPaymentPin(anyString(), eq(passwordEncoder))).thenReturn(true);
+        when(passwordEncoder.matches(anyString(), any())).thenReturn(true);
     }
 
     private void stubMerchantPinPass() {
         Merchant merchant = mock(Merchant.class);
         when(merchantRepository.findByParty_Id(PARTY_ID)).thenReturn(Optional.of(merchant));
-        when(merchant.matchesPaymentPin(anyString(), eq(passwordEncoder))).thenReturn(true);
+        when(passwordEncoder.matches(anyString(), any())).thenReturn(true);
     }
 
     private void stubGate(ExchangeIdempotencyDecision decision) {
@@ -392,7 +392,7 @@ class ExchangeCommandServiceV1Test {
         void user_불일치() {
             User user = mock(User.class);
             when(userRepository.findByParty_Id(PARTY_ID)).thenReturn(Optional.of(user));
-            when(user.matchesPaymentPin(anyString(), eq(passwordEncoder))).thenReturn(false);
+            when(passwordEncoder.matches(anyString(), any())).thenReturn(false);
 
             assertThatThrownBy(
                             () ->

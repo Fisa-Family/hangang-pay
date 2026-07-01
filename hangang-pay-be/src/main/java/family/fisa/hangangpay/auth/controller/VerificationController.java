@@ -1,10 +1,10 @@
 package family.fisa.hangangpay.auth.controller;
 
-import family.fisa.hangangpay.auth.dto.AccountSendRequest;
-import family.fisa.hangangpay.auth.dto.AccountVerifyRequest;
-import family.fisa.hangangpay.auth.dto.SmsSendRequest;
-import family.fisa.hangangpay.auth.dto.SmsVerifyRequest;
-import family.fisa.hangangpay.auth.dto.VerificationCodeResponse;
+import family.fisa.hangangpay.auth.dto.request.AccountSendRequest;
+import family.fisa.hangangpay.auth.dto.request.AccountVerifyRequest;
+import family.fisa.hangangpay.auth.dto.request.SmsSendRequest;
+import family.fisa.hangangpay.auth.dto.request.SmsVerifyRequest;
+import family.fisa.hangangpay.auth.dto.response.VerificationCodeResponse;
 import family.fisa.hangangpay.auth.service.VerificationService;
 import family.fisa.hangangpay.global.code.success.GeneralSuccessCode;
 import family.fisa.hangangpay.global.response.ApiResponse;
@@ -33,7 +33,7 @@ public class VerificationController {
     @PostMapping("/sms/send")
     public ResponseEntity<ApiResponse<VerificationCodeResponse>> sendSms(
             @Valid @RequestBody SmsSendRequest request, HttpSession session) {
-        String code = verificationService.sendSms(request.getPhoneNumber(), session);
+        String code = verificationService.sendSms(request.phoneNumber(), session);
         return ResponseEntity.ok(
                 ApiResponse.onSuccess(
                         GeneralSuccessCode.COMMON_OK, new VerificationCodeResponse(code)));
@@ -44,7 +44,7 @@ public class VerificationController {
     @PostMapping("/sms/verify")
     public ResponseEntity<ApiResponse<?>> verifySms(
             @Valid @RequestBody SmsVerifyRequest request, HttpSession session) {
-        verificationService.verifySms(request.getPhoneNumber(), request.getCode(), session);
+        verificationService.verifySms(request.phoneNumber(), request.code(), session);
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK));
     }
 
@@ -55,7 +55,7 @@ public class VerificationController {
             @Valid @RequestBody AccountSendRequest request, HttpSession session) {
         String code =
                 verificationService.sendAccountVerification(
-                        request.getInstitutionId(), request.getAccountNumber(), session);
+                        request.institutionId(), request.accountNumber(), session);
         return ResponseEntity.ok(
                 ApiResponse.onSuccess(
                         GeneralSuccessCode.COMMON_OK, new VerificationCodeResponse(code)));
@@ -67,7 +67,7 @@ public class VerificationController {
     public ResponseEntity<ApiResponse<?>> verifyAccount(
             @Valid @RequestBody AccountVerifyRequest request, HttpSession session) {
         verificationService.verifyAccount(
-                request.getInstitutionId(), request.getAccountNumber(), request.getCode(), session);
+                request.institutionId(), request.accountNumber(), request.code(), session);
         return ResponseEntity.ok(ApiResponse.onSuccess(GeneralSuccessCode.COMMON_OK));
     }
 }

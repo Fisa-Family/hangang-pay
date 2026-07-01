@@ -6,9 +6,9 @@ import static family.fisa.hangangpay.global.session.SessionAttributeNames.ROLE;
 import static family.fisa.hangangpay.global.session.SessionAttributeNames.USER_ID;
 
 import family.fisa.hangangpay.auth.code.AuthErrorCode;
-import family.fisa.hangangpay.auth.dto.LoginRequest;
-import family.fisa.hangangpay.auth.dto.LoginResponse;
-import family.fisa.hangangpay.auth.dto.MerchantLoginRequest;
+import family.fisa.hangangpay.auth.dto.request.LoginRequest;
+import family.fisa.hangangpay.auth.dto.request.MerchantLoginRequest;
+import family.fisa.hangangpay.auth.dto.response.LoginResponse;
 import family.fisa.hangangpay.domain.merchant.entity.Merchant;
 import family.fisa.hangangpay.domain.merchant.repository.MerchantRepository;
 import family.fisa.hangangpay.domain.party.entity.PartyType;
@@ -42,7 +42,7 @@ public class AuthService {
                         .orElseThrow(
                                 () -> new BusinessException(AuthErrorCode.INVALID_CREDENTIALS));
 
-        if (!user.matchesPassword(request.password(), passwordEncoder)) {
+        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw new BusinessException(AuthErrorCode.INVALID_CREDENTIALS);
         }
         saveLoginSession(session, USER_ID, user.getId(), user.getParty().getId(), PartyType.USER);
@@ -61,7 +61,7 @@ public class AuthService {
                         .orElseThrow(
                                 () -> new BusinessException(AuthErrorCode.INVALID_CREDENTIALS));
 
-        if (!merchant.matchesPassword(request.password(), passwordEncoder)) {
+        if (!passwordEncoder.matches(request.password(), merchant.getPasswordHash())) {
             throw new BusinessException(AuthErrorCode.INVALID_CREDENTIALS);
         }
         saveLoginSession(

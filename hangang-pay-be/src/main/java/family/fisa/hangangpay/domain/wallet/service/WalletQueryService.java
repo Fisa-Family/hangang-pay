@@ -1,8 +1,8 @@
 package family.fisa.hangangpay.domain.wallet.service;
 
 import family.fisa.hangangpay.client.bank.BankClient;
-import family.fisa.hangangpay.client.bank.dto.BankWalletResponse;
-import family.fisa.hangangpay.domain.wallet.dto.WalletBalanceResponse;
+import family.fisa.hangangpay.client.bank.dto.response.BankWalletResponse;
+import family.fisa.hangangpay.domain.wallet.dto.response.WalletBalanceResponse;
 import family.fisa.hangangpay.domain.wallet.entity.Wallet;
 import family.fisa.hangangpay.domain.wallet.repository.WalletRepository;
 import family.fisa.hangangpay.global.code.error.GeneralErrorCode;
@@ -45,11 +45,7 @@ public class WalletQueryService {
                 wallet.getAddress(),
                 bankWallet.balance());
 
-        return WalletBalanceResponse.builder()
-                .walletAddress(wallet.getAddress())
-                .balance(bankWallet.balance())
-                .unit(UNIT)
-                .updatedAt(wallet.getUpdatedAt())
-                .build();
+        return new WalletBalanceResponse(
+                wallet.getAddress(), bankWallet.balance(), UNIT, wallet.getUpdatedAt());
     }
 }
