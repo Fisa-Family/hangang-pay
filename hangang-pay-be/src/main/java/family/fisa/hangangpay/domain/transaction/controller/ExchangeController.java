@@ -1,11 +1,11 @@
 package family.fisa.hangangpay.domain.transaction.controller;
 
 import family.fisa.hangangpay.domain.transaction.code.TransactionSuccessCode;
-import family.fisa.hangangpay.domain.transaction.dto.request.ExchangeExecuteRequest;
-import family.fisa.hangangpay.domain.transaction.dto.request.ExchangeIntentCreateRequest;
-import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeExecuteResponse;
-import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeInitResponse;
-import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeIntentResponse;
+import family.fisa.hangangpay.domain.transaction.dto.user.request.ExchangeExecuteRequest;
+import family.fisa.hangangpay.domain.transaction.dto.user.request.ExchangeIntentCreateRequest;
+import family.fisa.hangangpay.domain.transaction.dto.user.response.ExchangeExecuteResponse;
+import family.fisa.hangangpay.domain.transaction.dto.user.response.ExchangeInitResponse;
+import family.fisa.hangangpay.domain.transaction.dto.user.response.ExchangeIntentResponse;
 import family.fisa.hangangpay.domain.transaction.service.exchange.ExchangeCommandService;
 import family.fisa.hangangpay.domain.transaction.service.exchange.ExchangeQueryService;
 import family.fisa.hangangpay.global.response.ApiResponse;

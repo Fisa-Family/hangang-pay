@@ -1,6 +1,6 @@
 package family.fisa.hangangpay.domain.transaction.internal.charge;
 
-import family.fisa.hangangpay.domain.transaction.dto.response.ChargeExecuteResponse;
+import family.fisa.hangangpay.domain.transaction.dto.user.response.ChargeExecuteResponse;
 import family.fisa.hangangpay.domain.transaction.internal.payment.PaymentIdempotencyDecisionType;
 
 /** 충전 멱등성 판단 결과 */

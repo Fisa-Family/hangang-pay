@@ -1,6 +1,6 @@
 package family.fisa.hangangpay.domain.institution.service;
 
-import family.fisa.hangangpay.domain.institution.code.error.InstitutionErrorCode;
+import family.fisa.hangangpay.domain.institution.code.InstitutionErrorCode;
 import family.fisa.hangangpay.domain.institution.entity.Institution;
 import family.fisa.hangangpay.domain.institution.repository.InstitutionRepository;
 import family.fisa.hangangpay.global.exception.BusinessException;

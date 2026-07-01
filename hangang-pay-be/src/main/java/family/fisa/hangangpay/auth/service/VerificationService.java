@@ -1,6 +1,6 @@
 package family.fisa.hangangpay.auth.service;
 
-import family.fisa.hangangpay.auth.code.error.AuthErrorCode;
+import family.fisa.hangangpay.auth.code.AuthErrorCode;
 import family.fisa.hangangpay.client.bank.BankClient;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import family.fisa.hangangpay.global.session.SessionAttributeNames;

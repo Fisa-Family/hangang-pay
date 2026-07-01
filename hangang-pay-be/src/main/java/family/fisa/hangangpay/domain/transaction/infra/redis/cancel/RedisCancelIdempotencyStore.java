@@ -3,7 +3,7 @@ package family.fisa.hangangpay.domain.transaction.infra.redis.cancel;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
-import family.fisa.hangangpay.domain.transaction.dto.response.PaymentCancelResponse;
+import family.fisa.hangangpay.domain.transaction.dto.user.response.PaymentCancelResponse;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelIdempotencyDecision;
 import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelIdempotencyStore;

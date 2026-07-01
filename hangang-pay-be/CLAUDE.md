@@ -108,31 +108,8 @@ flowchart TD
 4. 타깃 테스트 식별자
 5. 검증 명령
 6. 응답 포맷
-7. 중간 체크포인트: 코드 변경 전 설계 확인, RED 실패 확인 후, GREEN 통과 후
 
 변경 권한 범위에는 수정 가능 파일/디렉터리, 수정 금지 파일/디렉터리, 리네이밍 허용 여부를 포함한다. 리네이밍은 명시적 승인 없으면 금지한다.
-
-## TDD Workflow
-
-모든 코드 변경은 `RED -> GREEN -> REFACTOR` 순서를 따른다.
-
-- RED: 실패하는 테스트를 먼저 추가/수정하고 실패를 확인한다.
-- GREEN: 테스트를 통과시키는 최소 구현만 적용한다.
-- REFACTOR: 동작을 유지한 채 중복 제거/구조 개선을 수행한다.
-- 실패 테스트 증거 없이 구현부터 시작하지 않는다.
-- 테스트 미갱신 상태에서 기능/계약 변경을 완료 처리하지 않는다.
-
-작업 시작 시 아래 형식을 우선 채운다. 이 양식은 `Mandatory Work Intake`의 축약형이며, 코드 작업에서는 이 양식을 사용한다.
-
-```text
-Goal: 한 줄 목표
-DoD: 완료 조건
-Module: 대상 모듈
-Target Test: ./gradlew test --tests ...
-Allowed: 변경 허용 범위
-Forbidden: 변경 금지 범위
-Checkpoints: 설계 확인 -> RED 실패 확인 -> GREEN 통과 확인
-```
 
 ## Default Change Permission Policy
 
@@ -155,10 +132,9 @@ Checkpoints: 설계 확인 -> RED 실패 확인 -> GREEN 통과 확인
 최종 응답은 아래 순서로 보고한다.
 
 1. 변경 요약 3줄
-2. RED / GREEN / REFACTOR 요약
-3. 파일 목록
-4. 리스크
-5. 다음 액션
+2. 파일 목록
+3. 리스크
+4. 다음 액션
 
 ## Service Naming Convention
 

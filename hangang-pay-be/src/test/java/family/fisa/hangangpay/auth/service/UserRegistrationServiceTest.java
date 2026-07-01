@@ -12,7 +12,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
-import family.fisa.hangangpay.auth.code.error.AuthErrorCode;
+import family.fisa.hangangpay.auth.code.AuthErrorCode;
 import family.fisa.hangangpay.auth.dto.UserRegisterRequest;
 import family.fisa.hangangpay.auth.dto.UserRegisterResponse;
 import family.fisa.hangangpay.client.bank.BankClient;

@@ -1,71 +1,28 @@
 package family.fisa.hangangpay.domain.transaction.service.exchange;
 
-import family.fisa.hangangpay.domain.transaction.dto.response.ExchangeInitResponse;
-import family.fisa.hangangpay.domain.transaction.entity.Transaction;
-import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
-import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
-import family.fisa.hangangpay.domain.wallet.service.WalletQueryService;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.LocalDateTime;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import family.fisa.hangangpay.domain.merchant.dto.MerchantSettlementHistoryItem;
+import family.fisa.hangangpay.domain.transaction.dto.user.response.ExchangeHistoryItem;
+import family.fisa.hangangpay.domain.transaction.dto.user.response.ExchangeInitResponse;
+import family.fisa.hangangpay.domain.transaction.dto.user.response.UserExchangeHistoryDetail;
+import family.fisa.hangangpay.global.pagination.CursorPageRequest;
+import family.fisa.hangangpay.global.pagination.CursorPageResponse;
 
-@Slf4j
-@Service
-@RequiredArgsConstructor
-@Transactional(readOnly = true)
-public class ExchangeQueryService {
+/** EXCHANGE(환전) 조회 전용. 정산(가맹점) 내역도 EXCHANGE 기록으로 함께 조회한다. */
+public interface ExchangeQueryService {
 
-    private static final BigDecimal USAGE_THRESHOLD_RATE = new BigDecimal("0.60");
+    ExchangeInitResponse getExchangeInit(Long partyId);
 
-    private final TransactionRepository transactionRepository;
-    private final WalletQueryService walletQueryService;
+    /** 환전 자격(최근 충전액의 60% 이상 사용) 여부. ExchangeCommandService도 사용. */
+    boolean checkEligibility(Long partyId);
 
-    public ExchangeInitResponse getExchangeInit(Long partyId) {
-        // 잔액은 현재 지갑 잔액으로부터 가져옴
-        BigDecimal walletBalance = walletQueryService.getBalance(partyId).getBalance();
-        boolean eligible = checkEligibility(partyId);
+    /** 사용자 환전 내역 커서 페이지 */
+    CursorPageResponse<ExchangeHistoryItem> getExchangeHistories(
+            Long partyId, CursorPageRequest request, int size);
 
-        log.info(
-                "환전 정보 조회. partyId={}, eligible={}, walletBalance={}",
-                partyId,
-                eligible,
-                walletBalance);
+    /** 사용자 환전 상세 내역 */
+    UserExchangeHistoryDetail getUserExchangeHistoryDetail(Long partyId, Long transactionId);
 
-        return new ExchangeInitResponse(eligible, walletBalance);
-    }
-
-    public boolean checkEligibility(Long partyId) {
-        Transaction latestCharge =
-                transactionRepository.findLatestSuccessCharge(partyId).orElse(null);
-        if (latestCharge == null) {
-            return false;
-        }
-
-        LocalDateTime chargeAt = latestCharge.getCreatedAt();
-
-        BigDecimal chargedBefore =
-                transactionRepository.sumSuccessByTypeBefore(
-                        partyId, TransactionType.CHARGE, chargeAt);
-        BigDecimal paidBefore =
-                transactionRepository.sumSuccessByTypeBefore(
-                        partyId, TransactionType.PAYMENT, chargeAt);
-        BigDecimal exchangedBefore =
-                transactionRepository.sumSuccessByTypeBefore(
-                        partyId, TransactionType.EXCHANGE, chargeAt);
-
-        BigDecimal balanceBefore = chargedBefore.subtract(paidBefore).subtract(exchangedBefore);
-        BigDecimal balanceAfter = balanceBefore.add(latestCharge.getAmount());
-        BigDecimal threshold =
-                balanceAfter.multiply(USAGE_THRESHOLD_RATE).setScale(0, RoundingMode.UP);
-
-        BigDecimal usedSinceCharge =
-                transactionRepository.sumSuccessByTypeSince(
-                        partyId, TransactionType.PAYMENT, chargeAt);
-
-        return usedSinceCharge.compareTo(threshold) >= 0;
-    }
+    /** 가맹점 정산 내역(EXCHANGE) 커서 페이지 */
+    CursorPageResponse<MerchantSettlementHistoryItem> getMerchantSettlementHistory(
+            Long partyId, CursorPageRequest cursor, int size);
 }

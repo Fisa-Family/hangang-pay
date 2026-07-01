@@ -26,6 +26,23 @@ flowchart LR
 
 - `hangang-pay-blockchain/`에 코드 생성 금지 (모듈 설계 확정 전)
 
+## 확정 배포 아키텍처 (Deployment Architecture)
+
+**실제 배포 대상.** 리팩토링·설정은 이 토폴로지를 기준으로 한다. (아래 Deploy/Operations Diagram은 참고용 설계.)
+
+| 영역 | 구성 | 위치 |
+|---|---|---|
+| 플랫폼 | `hangang-pay-be` + DB + Redis | **AWS** (전부) |
+| 은행 | `hangang-pay-bank` + DB + Redis + RabbitMQ + besu ×4 | **on-prem OpenStack** (전부) |
+| Blockscout | postgres + backend + frontend + nginx | **로컬 확인용 · 배포 X** |
+| FE | `hangang-pay-fe` (React) | **Vercel** |
+| 연결 | AWS ↔ on-prem | **Tailscale** 사설 메시 |
+
+- **on-prem 실행 환경**: OpenStack 2025.1 (Epoxy) 단일노드 AIO / Ubuntu 24.04 Hyper-V VM / **qemu** / VM RAM 20GB (인스턴스용 예산 ~10GB).
+- **메모리 제약**: OpenStack 인스턴스의 JVM(bank·besu)은 **`-Xmx512m`**. DB·Redis·RabbitMQ는 **인스턴스가 아닌 컨테이너**로 운영.
+- **설정 외부화(필수)**: DB/Redis/RabbitMQ/besu 엔드포인트 하드코딩 금지 → **프로파일/환경변수**(`local`/`aws`/`onprem`). 플랫폼→AWS(RDS·ElastiCache), 은행→on-prem(컨테이너·besu RPC). AWS↔on-prem 통신은 **Tailscale 사설 IP**.
+- **Blockscout**(블록체인 익스플로러 = postgres+backend+frontend+nginx)는 **개발 확인용 로컬 스택**이며 프로덕션 배포 대상 아님.
+
 ## Deploy Diagram
 
 ```mermaid
