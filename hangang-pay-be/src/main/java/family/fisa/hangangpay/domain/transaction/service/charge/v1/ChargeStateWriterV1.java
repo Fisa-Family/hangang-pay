@@ -1,5 +1,6 @@
 package family.fisa.hangangpay.domain.transaction.service.charge.v1;
 
+import family.fisa.hangangpay.client.bank.dto.response.BankTransactionStatusResponse;
 import family.fisa.hangangpay.domain.account.entity.Account;
 import family.fisa.hangangpay.domain.account.repository.AccountRepository;
 import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
@@ -7,13 +8,15 @@ import family.fisa.hangangpay.domain.transaction.dto.user.request.ChargeIntentCr
 import family.fisa.hangangpay.domain.transaction.dto.user.response.ChargeExecuteResponse;
 import family.fisa.hangangpay.domain.transaction.dto.user.response.ChargeIntentResponse;
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
+import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
+import family.fisa.hangangpay.domain.transaction.internal.IdempotencyDecision;
+import family.fisa.hangangpay.domain.transaction.internal.IdempotencyDecisionType;
+import family.fisa.hangangpay.domain.transaction.internal.IdempotencyKey;
 import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeExecutionPreparationResult;
 import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeExecutionPrepared;
-import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeIdempotencyDecision;
 import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeIdempotencyStore;
 import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeRequestHashGenerator;
-import family.fisa.hangangpay.domain.transaction.internal.payment.PaymentIdempotencyDecisionType;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
 import family.fisa.hangangpay.domain.transaction.service.charge.ChargeStateWriter;
 import family.fisa.hangangpay.domain.user.code.UserErrorCode;
@@ -124,17 +127,17 @@ public class ChargeStateWriterV1 implements ChargeStateWriter {
                 chargeRequestHashGenerator.generate(
                         transactionUuid, partyId, account.getId(), transaction.getAmount());
 
-        ChargeIdempotencyDecision decision =
+        IdempotencyDecision<ChargeExecuteResponse> decision =
                 chargeIdempotencyStore.beginExecution(
-                        transactionUuid, requestHash, transaction.getId());
+                        new IdempotencyKey(transactionUuid, requestHash), transaction.getId());
 
-        if (decision.type() == PaymentIdempotencyDecisionType.RETURN_SNAPSHOT) {
+        if (decision.type() == IdempotencyDecisionType.RETURN_SNAPSHOT) {
             return ChargeExecutionPreparationResult.snapshot(decision.responseSnapshot());
         }
-        if (decision.type() == PaymentIdempotencyDecisionType.CONFLICT) {
+        if (decision.type() == IdempotencyDecisionType.CONFLICT) {
             throw new BusinessException(TransactionErrorCode.IDEMPOTENCY_CONFLICT);
         }
-        if (decision.type() == PaymentIdempotencyDecisionType.PROCESSING) {
+        if (decision.type() == IdempotencyDecisionType.PROCESSING) {
             throw new BusinessException(TransactionErrorCode.CHARGE_ALREADY_PROCESSING);
         }
 
@@ -194,6 +197,36 @@ public class ChargeStateWriterV1 implements ChargeStateWriter {
         Transaction transaction = getChargeTransaction(transactionUuid);
         transaction.markExpired();
         log.info("충전 intent 만료(EXPIRED). transactionUuid={}", transactionUuid);
+    }
+
+    /** reconcile: 은행 재조회 결과 반영 (SUCCESS/FAILED만 상태 전환, PROCESSING은 무변경). */
+    public ChargeExecuteResponse applyReconcileResult(
+            String transactionUuid, BankTransactionStatusResponse bankStatus) {
+        Transaction transaction = getChargeTransaction(transactionUuid);
+
+        if (bankStatus.status() == TransactionStatus.SUCCESS) {
+            validateBankSuccessReconcileResult(bankStatus);
+            transaction.reconcileSuccess(
+                    bankStatus.txHash(), String.valueOf(bankStatus.bankTransactionId()));
+        }
+
+        if (bankStatus.status() == TransactionStatus.FAILED) {
+            transaction.reconcileFailed();
+        }
+
+        // PROCESSING(은행 아직 처리 중)이면 상태를 바꾸지 않고 현재 상태 그대로 반환한다.
+        return ChargeExecuteResponse.from(transaction, bankStatus.confirmedAt());
+    }
+
+    /** reconcile 시도 횟수 증가 (PROCESSING 유지) */
+    public void incrementReconcileAttempt(String transactionUuid) {
+        getChargeTransaction(transactionUuid).incrementReconcileAttempt();
+    }
+
+    private void validateBankSuccessReconcileResult(BankTransactionStatusResponse bankStatus) {
+        if (bankStatus.bankTransactionId() == null) {
+            throw new BusinessException(TransactionErrorCode.CHARGE_RECOVERY_RESULT_INVALID);
+        }
     }
 
     /* 충전 거래 조회 */

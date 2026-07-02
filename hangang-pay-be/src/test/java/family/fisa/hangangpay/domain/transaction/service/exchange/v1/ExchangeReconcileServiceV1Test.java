@@ -1,6 +1,7 @@
 package family.fisa.hangangpay.domain.transaction.service.exchange.v1;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -12,7 +13,10 @@ import family.fisa.hangangpay.domain.transaction.entity.Transaction;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
 import family.fisa.hangangpay.domain.transaction.internal.exchange.ExchangeIdempotencyStore;
+import family.fisa.hangangpay.domain.transaction.internal.exchange.ExchangeLockManager;
 import family.fisa.hangangpay.domain.transaction.service.exchange.ExchangeStateWriter;
+import java.util.function.Supplier;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,8 +30,16 @@ class ExchangeReconcileServiceV1Test {
     @Mock ExchangeStateWriter stateWriter;
     @Mock ExchangeIdempotencyStore idempotencyStore;
     @Mock BankClient bankClient;
+    @Mock ExchangeLockManager exchangeLockManager;
 
     @InjectMocks ExchangeReconcileServiceV1 exchangeReconcileService;
+
+    @BeforeEach
+    void setUp() {
+        lenient()
+                .when(exchangeLockManager.withExchangeLock(any(), any()))
+                .thenAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
+    }
 
     private static final Long TRANSACTION_ID = 100L;
     private static final String UUID = "550e8400-e29b-41d4-a716-446655440000";

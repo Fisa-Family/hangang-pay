@@ -6,6 +6,8 @@ import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
 import family.fisa.hangangpay.domain.transaction.service.cancel.CancelReconcileService;
 import family.fisa.hangangpay.domain.transaction.service.cancel.CancelStateWriter;
+import family.fisa.hangangpay.domain.transaction.service.charge.ChargeReconcileService;
+import family.fisa.hangangpay.domain.transaction.service.charge.ChargeStateWriter;
 import family.fisa.hangangpay.domain.transaction.service.exchange.ExchangeReconcileService;
 import family.fisa.hangangpay.domain.transaction.service.exchange.ExchangeStateWriter;
 import family.fisa.hangangpay.domain.transaction.service.payment.PaymentReconcileService;
@@ -40,9 +42,11 @@ public class ReconcileScheduler {
     private final PaymentReconcileService paymentReconcileService;
     private final CancelReconcileService cancelReconcileService;
     private final ExchangeReconcileService exchangeReconcileService;
+    private final ChargeReconcileService chargeReconcileService;
     private final PaymentStateWriter paymentStateWriter;
     private final CancelStateWriter cancelStateWriter;
     private final ExchangeStateWriter exchangeStateWriter;
+    private final ChargeStateWriter chargeStateWriter;
 
     @Scheduled(cron = "0 * * * * *")
     @SchedulerLock(name = "reconcilePayments", lockAtMostFor = "5m", lockAtLeastFor = "5s")
@@ -83,6 +87,49 @@ public class ReconcileScheduler {
                     abandoned.getTransactionUuid(),
                     abandoned.getReconcileAttemptCount());
             paymentStateWriter.markExpired(abandoned.getTransactionUuid());
+        }
+    }
+
+    /** PROCESSING/UNKNOWN 충전을 bank 조회로 확정 */
+    @Scheduled(cron = "0 * * * * *")
+    @SchedulerLock(name = "reconcileCharges", lockAtMostFor = "5m", lockAtLeastFor = "5s")
+    public void reconcileCharges() {
+        LocalDateTime threshold = LocalDateTime.now().minusMinutes(PROCESSING_STALE_MINUTES);
+
+        List<Transaction> targets =
+                transactionRepository.findReconcileTargets(
+                        TransactionType.CHARGE, MAX_RECONCILE_ATTEMPTS, threshold);
+        log.info("충전 reconcile 스케줄러 실행: 대상 건수={}", targets.size());
+
+        for (Transaction tx : targets) {
+            String transactionUuid = tx.getTransactionUuid();
+            try {
+                chargeReconcileService.reconcile(tx);
+                log.info("충전 reconcile 성공: transactionUuid={}", transactionUuid);
+            } catch (BankException e) {
+                // 은행 조회 실패(5xx/타임아웃 등) → 다음 주기 재시도. 은행 status·code를 남긴다.
+                log.warn(
+                        "충전 reconcile - 은행 조회 실패(다음 주기 재시도): transactionUuid={}, bankStatus={}, bankCode={}",
+                        transactionUuid,
+                        e.getError().status(),
+                        e.getError().code());
+            } catch (Exception e) {
+                log.warn(
+                        "충전 reconcile 실패 (다음 실행에 재시도): transactionUuid={}, reason={}",
+                        transactionUuid,
+                        e.getMessage());
+            }
+        }
+
+        // 포기 대상(시도 횟수 한도 소진) alert 후 EXPIRED 터미널로 닫는다(다음 주기 sweep·재알림에서 제외).
+        for (Transaction abandoned :
+                transactionRepository.findAbandonedTargets(
+                        TransactionType.CHARGE, MAX_RECONCILE_ATTEMPTS)) {
+            log.error(
+                    "[ALERT] 충전 자동 reconcile 포기 - 수기 확인 필요. transactionUuid={}, attempts={}",
+                    abandoned.getTransactionUuid(),
+                    abandoned.getReconcileAttemptCount());
+            chargeStateWriter.markExpired(abandoned.getTransactionUuid());
         }
     }
 

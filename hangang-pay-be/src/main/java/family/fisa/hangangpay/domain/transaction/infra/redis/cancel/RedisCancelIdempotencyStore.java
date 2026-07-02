@@ -1,109 +1,65 @@
 package family.fisa.hangangpay.domain.transaction.infra.redis.cancel;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
 import family.fisa.hangangpay.domain.transaction.dto.user.response.PaymentCancelResponse;
-import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
-import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelIdempotencyDecision;
+import family.fisa.hangangpay.domain.transaction.infra.redis.AbstractRedisIdempotencyStore;
+import family.fisa.hangangpay.domain.transaction.internal.IdempotencyDecision;
+import family.fisa.hangangpay.domain.transaction.internal.IdempotencyKey;
 import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelIdempotencyStore;
-import family.fisa.hangangpay.global.exception.BusinessException;
-import java.time.Duration;
-import lombok.RequiredArgsConstructor;
+import family.fisa.hangangpay.global.code.error.BaseErrorCode;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
-@RequiredArgsConstructor
-public class RedisCancelIdempotencyStore implements CancelIdempotencyStore {
-    private static final Duration IDEMPOTENCY_TTL = Duration.ofDays(7);
-    private static final String KEY_PREFIX = "cancel:idempotency:";
+public class RedisCancelIdempotencyStore
+        extends AbstractRedisIdempotencyStore<PaymentCancelResponse, CancelIdempotencyRecord>
+        implements CancelIdempotencyStore {
 
-    private final StringRedisTemplate redisTemplate;
-    private final ObjectMapper objectMapper;
+    public RedisCancelIdempotencyStore(
+            StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
+        super(redisTemplate, objectMapper);
+    }
 
     @Override
-    public CancelIdempotencyDecision beginCancel(String originalPaymentUuid, String requestHash) {
+    protected String keyPrefix() {
+        return "cancel:idempotency:";
+    }
 
-        String key = KEY_PREFIX + originalPaymentUuid;
+    @Override
+    protected Class<CancelIdempotencyRecord> recordType() {
+        return CancelIdempotencyRecord.class;
+    }
 
-        // 1. 첫 요청은 PROCESSING 상태로 원자적 선점
-        CancelIdempotencyRecord newRecord =
-                CancelIdempotencyRecord.processing(originalPaymentUuid, requestHash);
-        Boolean created =
-                redisTemplate.opsForValue().setIfAbsent(key, serialize(newRecord), IDEMPOTENCY_TTL);
+    @Override
+    protected BaseErrorCode notFoundError() {
+        return TransactionErrorCode.CANCEL_IDEMPOTENCY_RECORD_NOT_FOUND;
+    }
 
-        if (Boolean.TRUE.equals(created)) {
-            return CancelIdempotencyDecision.newRequest();
-        }
+    @Override
+    protected BaseErrorCode invalidError() {
+        return TransactionErrorCode.CANCEL_IDEMPOTENCY_RECORD_INVALID;
+    }
 
-        // 2. 기존 record 조회
-        CancelIdempotencyRecord existing = readRecord(key);
-
-        // 3. requestHash 불일치 — 같은 결제를 다른 주체가 취소하려는 충돌
-        if (!existing.requestHash().equals(requestHash)) {
-            return CancelIdempotencyDecision.conflict();
-        }
-
-        // 4. snapshot 있음 — 완료된 동일 요청, Bank 재호출 없이 저장된 응답 반환
-        if (existing.responseSnapshot() != null) {
-            return CancelIdempotencyDecision.returnSnapshot(existing.responseSnapshot());
-        }
-
-        // 4-1. snapshot 없고 status가 FAILED - 복구가 실패로 확정된 취소 -> 재시도 거절 (은행 호출 전, 서버가 죽었을 때 PROCESSING
-        // 레코드를 스케줄러에서 처리함.)
-        if (existing.status() == TransactionStatus.FAILED) {
-            return CancelIdempotencyDecision.alreadyFailed();
-        }
-
-        // 5. snapshot 없음 — 기존 요청이 아직 처리 중
-        return CancelIdempotencyDecision.processing();
+    @Override
+    public IdempotencyDecision<PaymentCancelResponse> beginCancel(IdempotencyKey idempotencyKey) {
+        return begin(
+                idempotencyKey,
+                CancelIdempotencyRecord.processing(
+                        idempotencyKey.idempotencyId(), idempotencyKey.requestHash()));
     }
 
     @Override
     public void completeCancel(String originalPaymentUuid, PaymentCancelResponse responseSnapshot) {
-        String key = KEY_PREFIX + originalPaymentUuid;
-        CancelIdempotencyRecord existing = readRecord(key);
-
-        // 6. SUCCESS snapshot 저장 — 이후 동일 요청 재시도에 그대로 반환
-        redisTemplate
-                .opsForValue()
-                .set(key, serialize(existing.complete(responseSnapshot)), IDEMPOTENCY_TTL);
+        // SUCCESS snapshot 저장 — 이후 동일 요청 재시도에 그대로 반환
+        String key = key(originalPaymentUuid);
+        save(key, readRecord(key).complete(responseSnapshot));
     }
 
     @Override
     public void failCancel(String originalPaymentUuid) {
-        // 1. 기존 선점 record를 꺼낸다.
-        String key = KEY_PREFIX + originalPaymentUuid;
-        CancelIdempotencyRecord existing = readRecord(key);
-
-        // 2. FAILED 마킹 + snapshot 제거한다.
-        // 이후 같은 uuid 재요청은 beginExecution에서 ALREADY_FAILED
-        redisTemplate.opsForValue().set(key, serialize(existing.fail()), IDEMPOTENCY_TTL);
-    }
-
-    private CancelIdempotencyRecord readRecord(String key) {
-        // Redis에서 JSON 문자열로 저장된 멱등성 record를 꺼낸다
-        String value = redisTemplate.opsForValue().get(key);
-        // null이면 completeCancel/markCancelStatus 호출 전에 record가 만료됐거나 저장 안 된 것 — 서버 내부 오류
-        if (value == null) {
-            throw new BusinessException(TransactionErrorCode.CANCEL_IDEMPOTENCY_RECORD_NOT_FOUND);
-        }
-        try {
-            // JSON → CancelIdempotencyRecord 역직렬화
-            return objectMapper.readValue(value, CancelIdempotencyRecord.class);
-        } catch (JsonProcessingException e) {
-            // 역직렬화 실패는 Redis에 깨진 데이터가 저장된 것 — 서버 내부 오류
-            throw new BusinessException(TransactionErrorCode.CANCEL_IDEMPOTENCY_RECORD_INVALID);
-        }
-    }
-
-    private String serialize(CancelIdempotencyRecord record) {
-        try {
-            // CancelIdempotencyRecord → JSON 문자열로 직렬화해 Redis에 저장 가능한 형태로 변환
-            return objectMapper.writeValueAsString(record);
-        } catch (JsonProcessingException e) {
-            throw new BusinessException(TransactionErrorCode.CANCEL_IDEMPOTENCY_RECORD_INVALID);
-        }
+        // FAILED 마킹 + snapshot 제거. 이후 같은 원본결제 재취소 요청은 ALREADY_FAILED.
+        String key = key(originalPaymentUuid);
+        save(key, readRecord(key).fail());
     }
 }

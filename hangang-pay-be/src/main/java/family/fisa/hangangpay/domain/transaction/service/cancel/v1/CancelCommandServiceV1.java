@@ -6,6 +6,9 @@ import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
 import family.fisa.hangangpay.domain.transaction.dto.bank.BankOutcome;
 import family.fisa.hangangpay.domain.transaction.dto.user.request.PaymentCancelRequest;
 import family.fisa.hangangpay.domain.transaction.dto.user.response.PaymentCancelResponse;
+import family.fisa.hangangpay.domain.transaction.internal.IdempotencyDecision;
+import family.fisa.hangangpay.domain.transaction.internal.IdempotencyDecisionType;
+import family.fisa.hangangpay.domain.transaction.internal.IdempotencyKey;
 import family.fisa.hangangpay.domain.transaction.internal.cancel.*;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
 import family.fisa.hangangpay.domain.transaction.service.cancel.CancelCommandService;
@@ -60,21 +63,21 @@ public class CancelCommandServiceV1 implements CancelCommandService {
         String requestHash =
                 cancelRequestHashGenerator.generate(originalTransactionUuid, merchantPartyId);
 
-        CancelIdempotencyDecision decision =
-                cancelIdempotencyStore.beginCancel(originalTransactionUuid, requestHash);
+        IdempotencyDecision<PaymentCancelResponse> decision =
+                cancelIdempotencyStore.beginCancel(new IdempotencyKey(originalTransactionUuid, requestHash));
 
-        if (decision.type() == CancelIdempotencyDecisionType.RETURN_SNAPSHOT) {
+        if (decision.type() == IdempotencyDecisionType.RETURN_SNAPSHOT) {
             return decision.responseSnapshot();
         }
 
-        if (decision.type() == CancelIdempotencyDecisionType.ALREADY_FAILED) {
+        if (decision.type() == IdempotencyDecisionType.ALREADY_FAILED) {
             throw new BusinessException(TransactionErrorCode.CANCEL_ALREADY_FAILED);
         }
 
-        if (decision.type() == CancelIdempotencyDecisionType.PROCESSING) {
+        if (decision.type() == IdempotencyDecisionType.PROCESSING) {
             throw new BusinessException(TransactionErrorCode.CANCEL_ALREADY_PROCESSING);
         }
-        if (decision.type() == CancelIdempotencyDecisionType.CONFLICT) {
+        if (decision.type() == IdempotencyDecisionType.CONFLICT) {
             throw new BusinessException(TransactionErrorCode.IDEMPOTENCY_CONFLICT);
         }
 

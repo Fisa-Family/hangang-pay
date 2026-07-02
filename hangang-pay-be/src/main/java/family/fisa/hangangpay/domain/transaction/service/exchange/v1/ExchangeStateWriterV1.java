@@ -10,6 +10,7 @@ import family.fisa.hangangpay.domain.transaction.dto.user.response.ExchangeExecu
 import family.fisa.hangangpay.domain.transaction.dto.user.response.ExchangeIntentResponse;
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
+import family.fisa.hangangpay.domain.transaction.internal.ApprovalNumberGenerator;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
 import family.fisa.hangangpay.domain.transaction.service.exchange.ExchangeStateWriter;
 import family.fisa.hangangpay.domain.wallet.code.WalletErrorCode;
@@ -133,13 +134,9 @@ public class ExchangeStateWriterV1 implements ExchangeStateWriter {
             String uuid, String txHash, String bankTransactionId) {
         Transaction tx = findByUuid(uuid);
         tx.markSuccess(txHash, bankTransactionId); // status=SUCCESS
-        tx.assignApprovalNumber(makeApvNumber(tx.getId()));
+        tx.assignApprovalNumber(ApprovalNumberGenerator.generate(tx.getId()));
         log.info("환전 SUCCESS. transactionUuid={}, txHash={}", uuid, txHash);
         return ExchangeExecuteResponse.from(tx);
-    }
-
-    private String makeApvNumber(Long id) {
-        return "APV-" + LocalDateTime.now().getYear() + "-" + String.format("%08d", id);
     }
 
     /** FAILED 확정 + 응답 빌드 */

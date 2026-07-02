@@ -1,10 +1,12 @@
 package family.fisa.hangangpay.domain.transaction.internal.payment;
 
 import family.fisa.hangangpay.domain.transaction.dto.user.response.PaymentExecuteResponse;
+import family.fisa.hangangpay.domain.transaction.internal.IdempotencyDecision;
+import family.fisa.hangangpay.domain.transaction.internal.IdempotencyKey;
 
 public interface PaymentIdempotencyStore {
-    PaymentIdempotencyDecision beginExecution(
-            String transactionUuid, String requestHash, Long transactionId);
+    IdempotencyDecision<PaymentExecuteResponse> beginExecution(
+            IdempotencyKey idempotencyKey, Long transactionId);
 
     // Bank 결제 완료(SUCCESS/UNKNOWN) 후 최종 응답 snapshot 저장
     void completeExecution(String transactionUuid, PaymentExecuteResponse responseSnapshot);

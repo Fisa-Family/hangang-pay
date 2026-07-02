@@ -7,9 +7,11 @@ import family.fisa.hangangpaybank.domain.transaction.dto.request.ExchangeRequest
 import family.fisa.hangangpaybank.domain.transaction.dto.request.PaymentRequest;
 import family.fisa.hangangpaybank.domain.transaction.dto.response.CancelResponse;
 import family.fisa.hangangpaybank.domain.transaction.dto.response.ChargeResponse;
+import family.fisa.hangangpaybank.domain.transaction.dto.response.ChargeStatusResponse;
 import family.fisa.hangangpaybank.domain.transaction.dto.response.ExchangeResponse;
 import family.fisa.hangangpaybank.domain.transaction.dto.response.PaymentResponse;
 import family.fisa.hangangpaybank.domain.transaction.dto.response.PaymentStatusResponse;
+import family.fisa.hangangpaybank.domain.transaction.service.ChargeQueryService;
 import family.fisa.hangangpaybank.domain.transaction.service.ExchangeOrchestrator;
 import family.fisa.hangangpaybank.domain.transaction.service.PaymentQueryService;
 import family.fisa.hangangpaybank.domain.transaction.service.TransactionCommandService;
@@ -33,6 +35,7 @@ public class TransactionController {
 
     private final TransactionCommandService transactionCommandService;
     private final PaymentQueryService paymentQueryService;
+    private final ChargeQueryService chargeQueryService;
     private final ExchangeOrchestrator exchangeOrchestrator;
 
     @Operation(summary = "충전", description = "은행 계좌 잔액을 차감하고 한강페이 토큰을 mint한다.")
@@ -99,6 +102,22 @@ public class TransactionController {
             @PathVariable String transactionUuid) {
         // 1. 결제 상태 조회
         PaymentStatusResponse response = paymentQueryService.getStatus(transactionUuid);
+
+        // 2. 성공 응답 반환
+        return ResponseEntity.ok(
+                ApiResponse.onSuccess(TransactionSuccessCode.TRANSACTION_STATUS_OK, response));
+    }
+
+    @Operation(
+            summary = "충전 상태 조회",
+            description =
+                    "BE가 발행한 transactionUuid로 충전 wallet_ledger 상태를 조회한다."
+                            + " SUCCESS→SUCCESS, FAILED→FAILED, PENDING→PROCESSING.")
+    @GetMapping("/{transactionUuid}/charge/status")
+    public ResponseEntity<ApiResponse<ChargeStatusResponse>> getChargeStatus(
+            @PathVariable String transactionUuid) {
+        // 1. 충전 상태 조회
+        ChargeStatusResponse response = chargeQueryService.getStatus(transactionUuid);
 
         // 2. 성공 응답 반환
         return ResponseEntity.ok(

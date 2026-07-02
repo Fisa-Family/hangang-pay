@@ -14,8 +14,9 @@ import family.fisa.hangangpay.domain.transaction.dto.user.response.PaymentCancel
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.infra.redis.cancel.CancelIdempotencyRecord;
 import family.fisa.hangangpay.domain.transaction.infra.redis.cancel.RedisCancelIdempotencyStore;
-import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelIdempotencyDecision;
-import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelIdempotencyDecisionType;
+import family.fisa.hangangpay.domain.transaction.internal.IdempotencyDecision;
+import family.fisa.hangangpay.domain.transaction.internal.IdempotencyDecisionType;
+import family.fisa.hangangpay.domain.transaction.internal.IdempotencyKey;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -64,10 +65,11 @@ class RedisCancelIdempotencyStoreTest {
                 .willReturn(true);
 
         // 2. 첫 요청이므로 NEW_REQUEST 결정이 반환된다
-        CancelIdempotencyDecision decision =
-                redisCancelIdempotencyStore.beginCancel(ORIGINAL_PAYMENT_UUID, REQUEST_HASH);
+        IdempotencyDecision<PaymentCancelResponse> decision =
+                redisCancelIdempotencyStore.beginCancel(
+                        new IdempotencyKey(ORIGINAL_PAYMENT_UUID, REQUEST_HASH));
 
-        assertThat(decision.type()).isEqualTo(CancelIdempotencyDecisionType.NEW_REQUEST);
+        assertThat(decision.type()).isEqualTo(IdempotencyDecisionType.NEW_REQUEST);
         assertThat(decision.responseSnapshot()).isNull();
 
         // 3. 첫 요청 선점 시 Redis에는 snapshot 없이 PROCESSING 상태만 저장한다
@@ -94,11 +96,11 @@ class RedisCancelIdempotencyStoreTest {
         given(valueOperations.get(KEY)).willReturn(writeRecord(existing));
 
         // 2. requestHash가 다르면 같은 결제 취소 재시도가 아니다
-        CancelIdempotencyDecision decision =
+        IdempotencyDecision<PaymentCancelResponse> decision =
                 redisCancelIdempotencyStore.beginCancel(
-                        ORIGINAL_PAYMENT_UUID, DIFFERENT_REQUEST_HASH);
+                        new IdempotencyKey(ORIGINAL_PAYMENT_UUID, DIFFERENT_REQUEST_HASH));
 
-        assertThat(decision.type()).isEqualTo(CancelIdempotencyDecisionType.CONFLICT);
+        assertThat(decision.type()).isEqualTo(IdempotencyDecisionType.CONFLICT);
         assertThat(decision.responseSnapshot()).isNull();
     }
 
@@ -115,10 +117,11 @@ class RedisCancelIdempotencyStoreTest {
         given(valueOperations.get(KEY)).willReturn(writeRecord(existing));
 
         // 2. 완료된 동일 요청은 Bank를 다시 호출하지 않고 저장된 응답을 돌려준다
-        CancelIdempotencyDecision decision =
-                redisCancelIdempotencyStore.beginCancel(ORIGINAL_PAYMENT_UUID, REQUEST_HASH);
+        IdempotencyDecision<PaymentCancelResponse> decision =
+                redisCancelIdempotencyStore.beginCancel(
+                        new IdempotencyKey(ORIGINAL_PAYMENT_UUID, REQUEST_HASH));
 
-        assertThat(decision.type()).isEqualTo(CancelIdempotencyDecisionType.RETURN_SNAPSHOT);
+        assertThat(decision.type()).isEqualTo(IdempotencyDecisionType.RETURN_SNAPSHOT);
         assertThat(decision.responseSnapshot()).isEqualTo(snapshot);
     }
 
@@ -133,10 +136,11 @@ class RedisCancelIdempotencyStoreTest {
         given(valueOperations.get(KEY)).willReturn(writeRecord(existing));
 
         // 2. snapshot 없이 PROCESSING이면 이미 처리 중인 요청 — 재진입 거부
-        CancelIdempotencyDecision decision =
-                redisCancelIdempotencyStore.beginCancel(ORIGINAL_PAYMENT_UUID, REQUEST_HASH);
+        IdempotencyDecision<PaymentCancelResponse> decision =
+                redisCancelIdempotencyStore.beginCancel(
+                        new IdempotencyKey(ORIGINAL_PAYMENT_UUID, REQUEST_HASH));
 
-        assertThat(decision.type()).isEqualTo(CancelIdempotencyDecisionType.PROCESSING);
+        assertThat(decision.type()).isEqualTo(IdempotencyDecisionType.PROCESSING);
         assertThat(decision.responseSnapshot()).isNull();
     }
 

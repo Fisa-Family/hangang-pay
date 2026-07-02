@@ -17,6 +17,8 @@ import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
 import family.fisa.hangangpay.domain.transaction.service.cancel.CancelReconcileService;
 import family.fisa.hangangpay.domain.transaction.service.cancel.CancelStateWriter;
+import family.fisa.hangangpay.domain.transaction.service.charge.ChargeReconcileService;
+import family.fisa.hangangpay.domain.transaction.service.charge.ChargeStateWriter;
 import family.fisa.hangangpay.domain.transaction.service.exchange.ExchangeReconcileService;
 import family.fisa.hangangpay.domain.transaction.service.exchange.ExchangeStateWriter;
 import family.fisa.hangangpay.domain.transaction.service.payment.PaymentReconcileService;
@@ -37,14 +39,17 @@ class ReconcileSchedulerTest {
     private static final String PAYMENT_UUID = "11111111-1111-1111-1111-111111111111";
     private static final String CANCEL_UUID = "22222222-2222-2222-2222-222222222222";
     private static final String EXCHANGE_UUID = "33333333-3333-3333-3333-333333333333";
+    private static final String CHARGE_UUID = "44444444-4444-4444-4444-444444444444";
 
     @Mock private TransactionRepository transactionRepository;
     @Mock private PaymentReconcileService paymentReconcileService;
     @Mock private CancelReconcileService cancelReconcileService;
     @Mock private ExchangeReconcileService exchangeReconcileService;
+    @Mock private ChargeReconcileService chargeReconcileService;
     @Mock private PaymentStateWriter paymentStateWriter;
     @Mock private CancelStateWriter cancelStateWriter;
     @Mock private ExchangeStateWriter exchangeStateWriter;
+    @Mock private ChargeStateWriter chargeStateWriter;
 
     @InjectMocks private ReconcileScheduler scheduler;
 
@@ -128,6 +133,25 @@ class ReconcileSchedulerTest {
         verify(cancelStateWriter).markExpired(CANCEL_UUID);
     }
 
+    // ===== 충전 reconcile =====
+
+    @Test
+    @DisplayName("충전: 대상은 reconcile하고, 포기 대상은 EXPIRED로 닫는다")
+    void reconcileCharges_reconcilesTargetsAndExpiresAbandoned() {
+        Transaction target = chargeTransaction(TransactionStatus.UNKNOWN, 0);
+        given(
+                        transactionRepository.findReconcileTargets(
+                                eq(TransactionType.CHARGE), anyInt(), any()))
+                .willReturn(List.of(target));
+        given(transactionRepository.findAbandonedTargets(eq(TransactionType.CHARGE), anyInt()))
+                .willReturn(List.of(chargeTransaction(TransactionStatus.UNKNOWN, 10)));
+
+        scheduler.reconcileCharges();
+
+        verify(chargeReconcileService).reconcile(target);
+        verify(chargeStateWriter).markExpired(CHARGE_UUID);
+    }
+
     // ===== 환전 reconcile =====
 
     @Test
@@ -192,6 +216,16 @@ class ReconcileSchedulerTest {
                 .status(TransactionStatus.PROCESSING)
                 .amount(new BigDecimal("10000"))
                 .reconcileAttemptCount(0)
+                .build();
+    }
+
+    private Transaction chargeTransaction(TransactionStatus status, int attemptCount) {
+        return Transaction.builder()
+                .transactionUuid(CHARGE_UUID)
+                .transactionType(TransactionType.CHARGE)
+                .status(status)
+                .amount(new BigDecimal("50000"))
+                .reconcileAttemptCount(attemptCount)
                 .build();
     }
 }

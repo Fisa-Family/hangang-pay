@@ -14,6 +14,7 @@ import family.fisa.hangangpay.domain.transaction.internal.IntentCreationGuard;
 import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeExecutionPreparationResult;
 import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeExecutionPrepared;
 import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeIdempotencyStore;
+import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeLockManager;
 import family.fisa.hangangpay.domain.transaction.service.charge.ChargeCommandService;
 import family.fisa.hangangpay.domain.transaction.service.charge.ChargeStateWriter;
 import family.fisa.hangangpay.domain.transaction.service.support.BankCallExecutor;
@@ -45,6 +46,7 @@ public class ChargeCommandServiceV1 implements ChargeCommandService {
 
     private final BankClient bankClient;
     private final ChargeIdempotencyStore chargeIdempotencyStore;
+    private final ChargeLockManager chargeLockManager;
     private final ChargeStateWriter chargeStateWriter;
     private final BankCallExecutor bankCallExecutor;
 
@@ -59,9 +61,15 @@ public class ChargeCommandServiceV1 implements ChargeCommandService {
         return chargeStateWriter.createIntent(partyId, request, expiresAt());
     }
 
-    /** 충전 실행 오케스트레이션: 멱등성 판단 → 은행 충전 요청 → 상태 전환 */
+    /** 충전 실행 오케스트레이션: 분산 락 → 멱등성 판단 → 은행 충전 요청 → 상태 전환 */
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public ChargeExecuteResponse execute(
+            Long partyId, String transactionUuid, ChargeExecuteRequest request) {
+        return chargeLockManager.withChargeLock(
+                transactionUuid, () -> doExecute(partyId, transactionUuid, request));
+    }
+
+    private ChargeExecuteResponse doExecute(
             Long partyId, String transactionUuid, ChargeExecuteRequest request) {
 
         ChargeExecutionPreparationResult result =

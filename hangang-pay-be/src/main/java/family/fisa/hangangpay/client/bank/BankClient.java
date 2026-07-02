@@ -19,6 +19,9 @@ public interface BankClient {
     // 거래 시, Bank 관련
     BankTransactionStatusResponse getTransactionStatus(String transactionUuid);
 
+    /** 충전 상태 조회. SUCCESS/FAILED/PROCESSING/NOT_FOUND reconcile에서 사용 */
+    BankTransactionStatusResponse getChargeStatus(String transactionUuid);
+
     // 거래
     ChargeResponse charge(ChargeRequest request);
 

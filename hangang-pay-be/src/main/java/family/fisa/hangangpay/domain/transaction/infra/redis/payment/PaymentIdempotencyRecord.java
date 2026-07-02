@@ -2,13 +2,15 @@ package family.fisa.hangangpay.domain.transaction.infra.redis.payment;
 
 import family.fisa.hangangpay.domain.transaction.dto.user.response.PaymentExecuteResponse;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
+import family.fisa.hangangpay.domain.transaction.infra.redis.IdempotencyRecord;
 
 public record PaymentIdempotencyRecord(
         String transactionUuid,
         String requestHash,
         TransactionStatus status,
         Long transactionId,
-        PaymentExecuteResponse responseSnapshot) {
+        PaymentExecuteResponse responseSnapshot)
+        implements IdempotencyRecord<PaymentExecuteResponse> {
 
     public static PaymentIdempotencyRecord processing(
             String transactionUuid, String requestHash, Long transactionId) {

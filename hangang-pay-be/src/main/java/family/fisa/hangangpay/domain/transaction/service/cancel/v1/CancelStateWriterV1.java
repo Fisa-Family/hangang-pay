@@ -9,6 +9,7 @@ import family.fisa.hangangpay.domain.transaction.dto.user.response.PaymentCancel
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
+import family.fisa.hangangpay.domain.transaction.internal.ApprovalNumberGenerator;
 import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelExecutionPrepared;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
 import family.fisa.hangangpay.domain.transaction.service.cancel.CancelStateWriter;
@@ -112,7 +113,7 @@ public class CancelStateWriterV1 implements CancelStateWriter {
         transaction.markSuccess(txHash, bankTransactionId);
 
         // 3. 승인번호 생성 — id는 prepareCancel 시점에 이미 채번됨
-        transaction.assignApprovalNumber(makeApvNumber(transaction.getId()));
+        transaction.assignApprovalNumber(ApprovalNumberGenerator.generate(transaction.getId()));
 
         log.info("결제 취소 완료. cancelUuid={}, txHash={}", cancelTransactionUuid, txHash);
 
@@ -191,10 +192,6 @@ public class CancelStateWriterV1 implements CancelStateWriter {
         return merchantRepository
                 .findByParty_Id(merchantPartyId)
                 .orElseThrow(() -> new BusinessException(MerchantErrorCode.MERCHANT_NOT_FOUND));
-    }
-
-    private String makeApvNumber(Long id) {
-        return "APV-" + LocalDateTime.now().getYear() + "-" + String.format("%08d", id);
     }
 
     private void validateBankSuccessReconcileResult(BankTransactionStatusResponse bankStatus) {

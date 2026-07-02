@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -21,11 +22,14 @@ import family.fisa.hangangpay.domain.transaction.internal.IntentCreationGuard;
 import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeExecutionPreparationResult;
 import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeExecutionPrepared;
 import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeIdempotencyStore;
+import family.fisa.hangangpay.domain.transaction.internal.charge.ChargeLockManager;
 import family.fisa.hangangpay.domain.transaction.service.charge.ChargeStateWriter;
 import family.fisa.hangangpay.domain.transaction.service.support.BankCallExecutor;
 import family.fisa.hangangpay.global.exception.BusinessException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.function.Supplier;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,8 +45,16 @@ class ChargeCommandServiceV1Test {
     @Mock ChargeIdempotencyStore chargeIdempotencyStore;
     @Mock ChargeStateWriter chargeStateWriter;
     @Mock IntentCreationGuard intentCreationGuard;
+    @Mock ChargeLockManager chargeLockManager;
 
     @InjectMocks ChargeCommandServiceV1 service;
+
+    @BeforeEach
+    void setUp() {
+        lenient()
+                .when(chargeLockManager.withChargeLock(any(), any()))
+                .thenAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
+    }
 
     private static final Long PARTY_ID = 10L;
     private static final String UUID = "550e8400-e29b-41d4-a716-446655440000";

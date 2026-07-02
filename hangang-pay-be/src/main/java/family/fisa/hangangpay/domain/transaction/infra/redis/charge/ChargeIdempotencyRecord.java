@@ -1,7 +1,8 @@
-package family.fisa.hangangpay.domain.transaction.infra.redis;
+package family.fisa.hangangpay.domain.transaction.infra.redis.charge;
 
 import family.fisa.hangangpay.domain.transaction.dto.user.response.ChargeExecuteResponse;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
+import family.fisa.hangangpay.domain.transaction.infra.redis.IdempotencyRecord;
 
 /** Redis 충전 멱등성 레코드 */
 public record ChargeIdempotencyRecord(
@@ -9,7 +10,8 @@ public record ChargeIdempotencyRecord(
         String requestHash, // 요청 해시 (충돌 감지용 SHA-256)
         TransactionStatus status, // 현재 거래 상태
         Long transactionId, // DB transaction PK
-        ChargeExecuteResponse responseSnapshot) { // 멱등 재사용 응답 (완료 전 null)
+        ChargeExecuteResponse responseSnapshot) // 멱등 재사용 응답 (완료 전 null)
+        implements IdempotencyRecord<ChargeExecuteResponse> {
 
     /** PROCESSING 상태의 초기 레코드 생성 */
     public static ChargeIdempotencyRecord processing(

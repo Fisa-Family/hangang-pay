@@ -24,8 +24,9 @@ import family.fisa.hangangpay.domain.transaction.dto.user.response.PaymentCancel
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
+import family.fisa.hangangpay.domain.transaction.internal.IdempotencyDecision;
+import family.fisa.hangangpay.domain.transaction.internal.IdempotencyKey;
 import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelExecutionPrepared;
-import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelIdempotencyDecision;
 import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelIdempotencyStore;
 import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelLockManager;
 import family.fisa.hangangpay.domain.transaction.internal.cancel.CancelRequestHashGenerator;
@@ -111,8 +112,8 @@ class CancelCommandServiceV1Test {
                 .willReturn(Optional.of(paymentTransaction(TransactionStatus.SUCCESS)));
         given(cancelLockManager.withCancelLock(anyString(), any()))
                 .willAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
-        given(cancelIdempotencyStore.beginCancel(anyString(), anyString()))
-                .willReturn(CancelIdempotencyDecision.newRequest());
+        given(cancelIdempotencyStore.beginCancel(any(IdempotencyKey.class)))
+                .willReturn(IdempotencyDecision.newRequest());
         given(cancelStateWriter.prepareCancel(MERCHANT_PARTY_ID, TRANSACTION_ID, "123456"))
                 .willReturn(prepared);
         given(bankClient.cancel(prepared.toBankCancelRequest())).willReturn(bankResponse);
@@ -139,8 +140,8 @@ class CancelCommandServiceV1Test {
                 .willReturn(Optional.of(paymentTransaction(TransactionStatus.SUCCESS)));
         given(cancelLockManager.withCancelLock(anyString(), any()))
                 .willAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
-        given(cancelIdempotencyStore.beginCancel(anyString(), anyString()))
-                .willReturn(CancelIdempotencyDecision.newRequest());
+        given(cancelIdempotencyStore.beginCancel(any(IdempotencyKey.class)))
+                .willReturn(IdempotencyDecision.newRequest());
         given(cancelStateWriter.prepareCancel(OTHER_PARTY_ID, TRANSACTION_ID, "123456"))
                 .willThrow(new BusinessException(TransactionErrorCode.PAYMENT_CANCEL_FORBIDDEN));
 
@@ -163,8 +164,8 @@ class CancelCommandServiceV1Test {
                 .willReturn(Optional.of(paymentTransaction(TransactionStatus.SUCCESS)));
         given(cancelLockManager.withCancelLock(anyString(), any()))
                 .willAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
-        given(cancelIdempotencyStore.beginCancel(anyString(), anyString()))
-                .willReturn(CancelIdempotencyDecision.newRequest());
+        given(cancelIdempotencyStore.beginCancel(any(IdempotencyKey.class)))
+                .willReturn(IdempotencyDecision.newRequest());
         given(cancelStateWriter.prepareCancel(MERCHANT_PARTY_ID, TRANSACTION_ID, "123456"))
                 .willThrow(new BusinessException(TransactionErrorCode.PAYMENT_NOT_CANCELLABLE));
 
@@ -187,8 +188,8 @@ class CancelCommandServiceV1Test {
                 .willReturn(Optional.of(paymentTransaction(TransactionStatus.SUCCESS)));
         given(cancelLockManager.withCancelLock(anyString(), any()))
                 .willAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
-        given(cancelIdempotencyStore.beginCancel(anyString(), anyString()))
-                .willReturn(CancelIdempotencyDecision.newRequest());
+        given(cancelIdempotencyStore.beginCancel(any(IdempotencyKey.class)))
+                .willReturn(IdempotencyDecision.newRequest());
         given(cancelStateWriter.prepareCancel(MERCHANT_PARTY_ID, TRANSACTION_ID, "123456"))
                 .willThrow(new BusinessException(TransactionErrorCode.PAYMENT_ALREADY_CANCELLED));
 
@@ -230,8 +231,8 @@ class CancelCommandServiceV1Test {
                 .willReturn(Optional.of(paymentTransaction(TransactionStatus.SUCCESS)));
         given(cancelLockManager.withCancelLock(anyString(), any()))
                 .willAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
-        given(cancelIdempotencyStore.beginCancel(anyString(), anyString()))
-                .willReturn(CancelIdempotencyDecision.newRequest());
+        given(cancelIdempotencyStore.beginCancel(any(IdempotencyKey.class)))
+                .willReturn(IdempotencyDecision.newRequest());
         given(cancelStateWriter.prepareCancel(MERCHANT_PARTY_ID, TRANSACTION_ID, "123456"))
                 .willReturn(prepared);
         // 3. Bank 네트워크 오류 — 요청이 도달했는지 알 수 없다
@@ -270,8 +271,8 @@ class CancelCommandServiceV1Test {
                 .willReturn(Optional.of(paymentTransaction(TransactionStatus.SUCCESS)));
         given(cancelLockManager.withCancelLock(anyString(), any()))
                 .willAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
-        given(cancelIdempotencyStore.beginCancel(anyString(), anyString()))
-                .willReturn(CancelIdempotencyDecision.newRequest());
+        given(cancelIdempotencyStore.beginCancel(any(IdempotencyKey.class)))
+                .willReturn(IdempotencyDecision.newRequest());
         given(cancelStateWriter.prepareCancel(MERCHANT_PARTY_ID, TRANSACTION_ID, "123456"))
                 .willReturn(prepared);
         given(bankClient.cancel(prepared.toBankCancelRequest()))
@@ -317,8 +318,8 @@ class CancelCommandServiceV1Test {
                 .willReturn(Optional.of(paymentTransaction(TransactionStatus.SUCCESS)));
         given(cancelLockManager.withCancelLock(anyString(), any()))
                 .willAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
-        given(cancelIdempotencyStore.beginCancel(anyString(), anyString()))
-                .willReturn(CancelIdempotencyDecision.newRequest());
+        given(cancelIdempotencyStore.beginCancel(any(IdempotencyKey.class)))
+                .willReturn(IdempotencyDecision.newRequest());
         given(cancelStateWriter.prepareCancel(MERCHANT_PARTY_ID, TRANSACTION_ID, "123456"))
                 .willReturn(prepared);
         // 3. Bank 5xx

@@ -15,9 +15,11 @@ import family.fisa.hangangpay.domain.transaction.dto.user.response.ExchangeExecu
 import family.fisa.hangangpay.domain.transaction.dto.user.response.ExchangeIntentResponse;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
+import family.fisa.hangangpay.domain.transaction.internal.IdempotencyDecision;
+import family.fisa.hangangpay.domain.transaction.internal.IdempotencyKey;
 import family.fisa.hangangpay.domain.transaction.internal.IntentCreationGuard;
-import family.fisa.hangangpay.domain.transaction.internal.exchange.ExchangeIdempotencyDecision;
 import family.fisa.hangangpay.domain.transaction.internal.exchange.ExchangeIdempotencyStore;
+import family.fisa.hangangpay.domain.transaction.internal.exchange.ExchangeLockManager;
 import family.fisa.hangangpay.domain.transaction.internal.exchange.ExchangeRequestHashGenerator;
 import family.fisa.hangangpay.domain.transaction.service.exchange.ExchangeCommandService;
 import family.fisa.hangangpay.domain.transaction.service.exchange.ExchangeQueryService;
@@ -63,6 +65,9 @@ public class ExchangeCommandServiceV1 implements ExchangeCommandService {
     private final ExchangeIdempotencyStore idempotencyStore;
     private final ExchangeRequestHashGenerator requestHashGenerator;
 
+    // Redis 분산 락 (실행/복구 직렬화). CAS와 병행하는 방어적 이중 가드.
+    private final ExchangeLockManager exchangeLockManager;
+
     /** 사용자 환전 intent - PRIMARY, 자격 검증 후 PENDING 생성 */
     public ExchangeIntentResponse createUserIntent(
             Long partyId, ExchangeIntentCreateRequest request) {
@@ -96,8 +101,12 @@ public class ExchangeCommandServiceV1 implements ExchangeCommandService {
         return doExecute(partyId, uuid);
     }
 
-    /** 게이트 → 선점(PENDING→PROCESSING) → bank */
+    /** 분산 락 → 게이트 → 선점(PENDING→PROCESSING) → bank */
     private ExchangeExecuteResponse doExecute(Long partyId, String uuid) {
+        return exchangeLockManager.withExchangeLock(uuid, () -> doExecuteLocked(partyId, uuid));
+    }
+
+    private ExchangeExecuteResponse doExecuteLocked(Long partyId, String uuid) {
         // 1. Redis 멱등 게이트 (동시 실행 직렬화 + 완료/실패 재요청 쳐내기)
         Optional<ExchangeExecuteResponse> hit = openIdempotencyGate(partyId, uuid);
         if (hit.isPresent()) {
@@ -163,7 +172,8 @@ public class ExchangeCommandServiceV1 implements ExchangeCommandService {
     /** Redis 멱등 게이트. 첫 요청이면 empty(진행), 그 외에는 분기. */
     private Optional<ExchangeExecuteResponse> openIdempotencyGate(Long partyId, String uuid) {
         String requestHash = requestHashGenerator.generate(partyId, uuid);
-        ExchangeIdempotencyDecision decision = idempotencyStore.beginExecution(uuid, requestHash);
+        IdempotencyDecision<ExchangeExecuteResponse> decision =
+                idempotencyStore.beginExecution(new IdempotencyKey(uuid, requestHash));
 
         return switch (decision.type()) {
             case NEW_REQUEST -> Optional.empty();

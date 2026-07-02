@@ -1,5 +1,6 @@
 package family.fisa.hangangpay.domain.transaction.service.charge;
 
+import family.fisa.hangangpay.client.bank.dto.response.BankTransactionStatusResponse;
 import family.fisa.hangangpay.domain.transaction.dto.user.request.ChargeIntentCreateRequest;
 import family.fisa.hangangpay.domain.transaction.dto.user.response.ChargeExecuteResponse;
 import family.fisa.hangangpay.domain.transaction.dto.user.response.ChargeIntentResponse;
@@ -34,4 +35,11 @@ public interface ChargeStateWriter {
 
     /** TTL 지난 PENDING intent를 EXPIRED 처리 */
     void markExpired(String transactionUuid);
+
+    /** reconcile: 은행 재조회 결과를 반영하고 응답을 만든다(SUCCESS/FAILED만 상태 전환, PROCESSING은 무변경). */
+    ChargeExecuteResponse applyReconcileResult(
+            String transactionUuid, BankTransactionStatusResponse bankStatus);
+
+    /** reconcile 시도 횟수 증가 (PROCESSING 유지) */
+    void incrementReconcileAttempt(String transactionUuid);
 }

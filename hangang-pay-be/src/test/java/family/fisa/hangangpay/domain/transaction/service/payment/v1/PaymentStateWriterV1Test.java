@@ -17,8 +17,9 @@ import family.fisa.hangangpay.domain.transaction.dto.user.response.PaymentExecut
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionType;
+import family.fisa.hangangpay.domain.transaction.internal.IdempotencyDecision;
+import family.fisa.hangangpay.domain.transaction.internal.IdempotencyKey;
 import family.fisa.hangangpay.domain.transaction.internal.payment.PaymentExecutionPreparationResult;
-import family.fisa.hangangpay.domain.transaction.internal.payment.PaymentIdempotencyDecision;
 import family.fisa.hangangpay.domain.transaction.internal.payment.PaymentIdempotencyStore;
 import family.fisa.hangangpay.domain.transaction.internal.payment.PaymentRateLimiter;
 import family.fisa.hangangpay.domain.transaction.internal.payment.PaymentRequestHashGenerator;
@@ -94,8 +95,8 @@ class PaymentStateWriterV1Test {
                 .willReturn(REQUEST_HASH);
         given(
                         paymentIdempotencyStore.beginExecution(
-                                TRANSACTION_UUID, REQUEST_HASH, TRANSACTION_ID))
-                .willReturn(PaymentIdempotencyDecision.returnSnapshot(snapshot));
+                                new IdempotencyKey(TRANSACTION_UUID, REQUEST_HASH), TRANSACTION_ID))
+                .willReturn(IdempotencyDecision.returnSnapshot(snapshot));
 
         PaymentExecutionPreparationResult result =
                 paymentStateWriter.prepareExecution(
@@ -118,8 +119,8 @@ class PaymentStateWriterV1Test {
         givenExecutionBase(transaction);
         given(
                         paymentIdempotencyStore.beginExecution(
-                                TRANSACTION_UUID, REQUEST_HASH, TRANSACTION_ID))
-                .willReturn(PaymentIdempotencyDecision.conflict());
+                                new IdempotencyKey(TRANSACTION_UUID, REQUEST_HASH), TRANSACTION_ID))
+                .willReturn(IdempotencyDecision.conflict());
 
         assertThatThrownBy(
                         () ->
@@ -140,8 +141,8 @@ class PaymentStateWriterV1Test {
         givenExecutionBase(transaction);
         given(
                         paymentIdempotencyStore.beginExecution(
-                                TRANSACTION_UUID, REQUEST_HASH, TRANSACTION_ID))
-                .willReturn(PaymentIdempotencyDecision.processing());
+                                new IdempotencyKey(TRANSACTION_UUID, REQUEST_HASH), TRANSACTION_ID))
+                .willReturn(IdempotencyDecision.processing());
 
         assertThatThrownBy(
                         () ->

@@ -12,8 +12,9 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import family.fisa.hangangpay.domain.transaction.dto.user.response.ExchangeExecuteResponse;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
-import family.fisa.hangangpay.domain.transaction.internal.exchange.ExchangeIdempotencyDecision;
-import family.fisa.hangangpay.domain.transaction.internal.exchange.ExchangeIdempotencyDecisionType;
+import family.fisa.hangangpay.domain.transaction.internal.IdempotencyDecision;
+import family.fisa.hangangpay.domain.transaction.internal.IdempotencyDecisionType;
+import family.fisa.hangangpay.domain.transaction.internal.IdempotencyKey;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -62,10 +63,11 @@ class RedisExchangeIdempotencyStoreTest {
         given(valueOperations.setIfAbsent(eq(KEY), anyString(), eq(IDEMPOTENCY_TTL)))
                 .willReturn(true);
 
-        ExchangeIdempotencyDecision decision =
-                redisExchangeIdempotencyStore.beginExecution(TRANSACTION_UUID, REQUEST_HASH);
+        IdempotencyDecision<ExchangeExecuteResponse> decision =
+                redisExchangeIdempotencyStore.beginExecution(
+                        new IdempotencyKey(TRANSACTION_UUID, REQUEST_HASH));
 
-        assertThat(decision.type()).isEqualTo(ExchangeIdempotencyDecisionType.NEW_REQUEST);
+        assertThat(decision.type()).isEqualTo(IdempotencyDecisionType.NEW_REQUEST);
         assertThat(decision.responseSnapshot()).isNull();
 
         ArgumentCaptor<String> valueCaptor = ArgumentCaptor.forClass(String.class);
@@ -91,12 +93,12 @@ class RedisExchangeIdempotencyStoreTest {
                 .willReturn(false);
         given(valueOperations.get(KEY)).willReturn(writeRecord(existing));
 
-        ExchangeIdempotencyDecision decision =
+        IdempotencyDecision<ExchangeExecuteResponse> decision =
                 redisExchangeIdempotencyStore.beginExecution(
-                        TRANSACTION_UUID, DIFFERENT_REQUEST_HASH);
+                        new IdempotencyKey(TRANSACTION_UUID, DIFFERENT_REQUEST_HASH));
 
         // 같은 transactionUuid라도 requestHash가 다르면 같은 환전 재시도가 아니다.
-        assertThat(decision.type()).isEqualTo(ExchangeIdempotencyDecisionType.CONFLICT);
+        assertThat(decision.type()).isEqualTo(IdempotencyDecisionType.CONFLICT);
         assertThat(decision.responseSnapshot()).isNull();
     }
 
@@ -111,10 +113,11 @@ class RedisExchangeIdempotencyStoreTest {
                 .willReturn(false);
         given(valueOperations.get(KEY)).willReturn(writeRecord(existing));
 
-        ExchangeIdempotencyDecision decision =
-                redisExchangeIdempotencyStore.beginExecution(TRANSACTION_UUID, null);
+        IdempotencyDecision<ExchangeExecuteResponse> decision =
+                redisExchangeIdempotencyStore.beginExecution(
+                        new IdempotencyKey(TRANSACTION_UUID, null));
 
-        assertThat(decision.type()).isEqualTo(ExchangeIdempotencyDecisionType.RETURN_SNAPSHOT);
+        assertThat(decision.type()).isEqualTo(IdempotencyDecisionType.RETURN_SNAPSHOT);
         assertThat(decision.responseSnapshot()).isEqualTo(snapshot);
     }
 
@@ -129,12 +132,13 @@ class RedisExchangeIdempotencyStoreTest {
                 .willReturn(false);
         given(valueOperations.get(KEY)).willReturn(writeRecord(existing));
 
-        ExchangeIdempotencyDecision decision =
-                redisExchangeIdempotencyStore.beginExecution(TRANSACTION_UUID, REQUEST_HASH);
+        IdempotencyDecision<ExchangeExecuteResponse> decision =
+                redisExchangeIdempotencyStore.beginExecution(
+                        new IdempotencyKey(TRANSACTION_UUID, REQUEST_HASH));
 
         // 완료된 동일 요청은 Bank를 다시 호출하지 않도록 저장된 응답을 돌려준다.
 
-        assertThat(decision.type()).isEqualTo(ExchangeIdempotencyDecisionType.RETURN_SNAPSHOT);
+        assertThat(decision.type()).isEqualTo(IdempotencyDecisionType.RETURN_SNAPSHOT);
         assertThat(decision.responseSnapshot()).isEqualTo(snapshot);
     }
 
@@ -147,12 +151,13 @@ class RedisExchangeIdempotencyStoreTest {
                 .willReturn(false);
         given(valueOperations.get(KEY)).willReturn(writeRecord(existing));
 
-        ExchangeIdempotencyDecision decision =
-                redisExchangeIdempotencyStore.beginExecution(TRANSACTION_UUID, REQUEST_HASH);
+        IdempotencyDecision<ExchangeExecuteResponse> decision =
+                redisExchangeIdempotencyStore.beginExecution(
+                        new IdempotencyKey(TRANSACTION_UUID, REQUEST_HASH));
 
         // 실패로 끝난 요청은 새 시도를 유도하기 위해 거절한다.
 
-        assertThat(decision.type()).isEqualTo(ExchangeIdempotencyDecisionType.ALREADY_FAILED);
+        assertThat(decision.type()).isEqualTo(IdempotencyDecisionType.ALREADY_FAILED);
         assertThat(decision.responseSnapshot()).isNull();
     }
 
@@ -165,12 +170,13 @@ class RedisExchangeIdempotencyStoreTest {
                 .willReturn(false);
         given(valueOperations.get(KEY)).willReturn(writeRecord(existing));
 
-        ExchangeIdempotencyDecision decision =
-                redisExchangeIdempotencyStore.beginExecution(TRANSACTION_UUID, REQUEST_HASH);
+        IdempotencyDecision<ExchangeExecuteResponse> decision =
+                redisExchangeIdempotencyStore.beginExecution(
+                        new IdempotencyKey(TRANSACTION_UUID, REQUEST_HASH));
 
         // 아직 결과가 확정되지 않은 진행 중 요청은 중복 실행을 막기 위해 거절한다.
 
-        assertThat(decision.type()).isEqualTo(ExchangeIdempotencyDecisionType.PROCESSING);
+        assertThat(decision.type()).isEqualTo(IdempotencyDecisionType.PROCESSING);
         assertThat(decision.responseSnapshot()).isNull();
     }
 

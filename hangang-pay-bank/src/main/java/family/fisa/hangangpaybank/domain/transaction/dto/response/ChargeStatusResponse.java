@@ -1,0 +1,25 @@
+package family.fisa.hangangpaybank.domain.transaction.dto.response;
+
+import family.fisa.hangangpaybank.domain.ledger.entity.WalletLedger;
+import family.fisa.hangangpaybank.domain.ledger.entity.WalletLedgerStatus;
+import java.time.LocalDateTime;
+
+public record ChargeStatusResponse(
+        String transactionUuid, Long bankTransactionId, String status, LocalDateTime confirmedAt) {
+
+    public static ChargeStatusResponse of(String transactionUuid, WalletLedger ledger) {
+        return new ChargeStatusResponse(
+                transactionUuid,
+                ledger.getId(),
+                mapStatus(ledger.getStatus()),
+                ledger.getConfirmedAt());
+    }
+
+    private static String mapStatus(WalletLedgerStatus status) {
+        return switch (status) {
+            case SUCCESS -> "SUCCESS";
+            case FAILED -> "FAILED";
+            case PENDING -> "PROCESSING";
+        };
+    }
+}

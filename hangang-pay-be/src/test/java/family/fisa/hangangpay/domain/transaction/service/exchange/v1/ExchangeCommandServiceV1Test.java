@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -24,9 +25,11 @@ import family.fisa.hangangpay.domain.transaction.dto.user.request.ExchangeIntent
 import family.fisa.hangangpay.domain.transaction.dto.user.response.ExchangeExecuteResponse;
 import family.fisa.hangangpay.domain.transaction.dto.user.response.ExchangeIntentResponse;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
+import family.fisa.hangangpay.domain.transaction.internal.IdempotencyDecision;
+import family.fisa.hangangpay.domain.transaction.internal.IdempotencyKey;
 import family.fisa.hangangpay.domain.transaction.internal.IntentCreationGuard;
-import family.fisa.hangangpay.domain.transaction.internal.exchange.ExchangeIdempotencyDecision;
 import family.fisa.hangangpay.domain.transaction.internal.exchange.ExchangeIdempotencyStore;
+import family.fisa.hangangpay.domain.transaction.internal.exchange.ExchangeLockManager;
 import family.fisa.hangangpay.domain.transaction.internal.exchange.ExchangeRequestHashGenerator;
 import family.fisa.hangangpay.domain.transaction.service.exchange.ExchangeQueryService;
 import family.fisa.hangangpay.domain.transaction.service.exchange.ExchangeStateWriter;
@@ -38,6 +41,8 @@ import family.fisa.hangangpay.global.exception.BusinessException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.function.Supplier;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -60,8 +65,16 @@ class ExchangeCommandServiceV1Test {
     @Mock ExchangeIdempotencyStore idempotencyStore;
     @Mock ExchangeRequestHashGenerator requestHashGenerator;
     @Mock IntentCreationGuard intentCreationGuard;
+    @Mock ExchangeLockManager exchangeLockManager;
 
     @InjectMocks ExchangeCommandServiceV1 exchangeCommandService;
+
+    @BeforeEach
+    void setUp() {
+        lenient()
+                .when(exchangeLockManager.withExchangeLock(any(), any()))
+                .thenAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
+    }
 
     private static final Long PARTY_ID = 10L;
     private static final Long TRANSACTION_ID = 100L;
@@ -128,8 +141,8 @@ class ExchangeCommandServiceV1Test {
         when(passwordEncoder.matches(anyString(), any())).thenReturn(true);
     }
 
-    private void stubGate(ExchangeIdempotencyDecision decision) {
-        when(idempotencyStore.beginExecution(eq(UUID), any())).thenReturn(decision);
+    private void stubGate(IdempotencyDecision<ExchangeExecuteResponse> decision) {
+        when(idempotencyStore.beginExecution(any(IdempotencyKey.class))).thenReturn(decision);
     }
 
     // ── intent 생성 ────────────────────────────────────────────────────────
@@ -202,7 +215,7 @@ class ExchangeCommandServiceV1Test {
         void 스냅샷() {
             stubUserPinPass();
             ExchangeExecuteResponse snapshot = response(TransactionStatus.SUCCESS);
-            stubGate(ExchangeIdempotencyDecision.returnSnapshot(snapshot));
+            stubGate(IdempotencyDecision.returnSnapshot(snapshot));
 
             ExchangeExecuteResponse out =
                     exchangeCommandService.executeUserExchange(PARTY_ID, UUID, executeRequest());
@@ -216,7 +229,7 @@ class ExchangeCommandServiceV1Test {
         @DisplayName("ALREADY_FAILED -> EXCHANGE_ALREADY_FAILED")
         void 이미_실패() {
             stubUserPinPass();
-            stubGate(ExchangeIdempotencyDecision.alreadyFailed());
+            stubGate(IdempotencyDecision.alreadyFailed());
 
             assertThatThrownBy(
                             () ->
@@ -231,7 +244,7 @@ class ExchangeCommandServiceV1Test {
         @DisplayName("PROCESSING -> EXCHANGE_IN_PROGRESS")
         void 진행중() {
             stubUserPinPass();
-            stubGate(ExchangeIdempotencyDecision.processing());
+            stubGate(IdempotencyDecision.processing());
 
             assertThatThrownBy(
                             () ->
@@ -253,7 +266,7 @@ class ExchangeCommandServiceV1Test {
         @DisplayName("PENDING 선점 + bank SUCCESS -> markSuccess + completeExecution")
         void 정상_성공() {
             stubUserPinPass();
-            stubGate(ExchangeIdempotencyDecision.newRequest());
+            stubGate(IdempotencyDecision.newRequest());
             when(stateWriter.claimForExecution(UUID)).thenReturn(TransactionStatus.PROCESSING);
             when(stateWriter.getBankRequest(UUID)).thenReturn(bankRequest());
             stubBankOutcome(BankOutcome.success(bankResponse()));
@@ -272,7 +285,7 @@ class ExchangeCommandServiceV1Test {
         @DisplayName("bank TERMINAL_FAILED -> markFailed + failExecution")
         void 실패() {
             stubUserPinPass();
-            stubGate(ExchangeIdempotencyDecision.newRequest());
+            stubGate(IdempotencyDecision.newRequest());
             when(stateWriter.claimForExecution(UUID)).thenReturn(TransactionStatus.PROCESSING);
             when(stateWriter.getBankRequest(UUID)).thenReturn(bankRequest());
             stubBankOutcome(BankOutcome.failed(TransactionErrorCode.EXCHANGE_CONTRACT_FAILED));
@@ -290,7 +303,7 @@ class ExchangeCommandServiceV1Test {
         @DisplayName("bank UNKNOWN -> markUnknown, Redis 동기화 안 함")
         void 불확실() {
             stubUserPinPass();
-            stubGate(ExchangeIdempotencyDecision.newRequest());
+            stubGate(IdempotencyDecision.newRequest());
             when(stateWriter.claimForExecution(UUID)).thenReturn(TransactionStatus.PROCESSING);
             when(stateWriter.getBankRequest(UUID)).thenReturn(bankRequest());
             stubBankOutcome(BankOutcome.unknown());
@@ -309,7 +322,7 @@ class ExchangeCommandServiceV1Test {
         @DisplayName("claim이 종단(SUCCESS) 반환 -> getResponse + Redis 동기화, bank 미호출")
         void 이미_종단() {
             stubUserPinPass();
-            stubGate(ExchangeIdempotencyDecision.newRequest());
+            stubGate(IdempotencyDecision.newRequest());
             when(stateWriter.claimForExecution(UUID)).thenReturn(TransactionStatus.SUCCESS);
             ExchangeExecuteResponse resp = response(TransactionStatus.SUCCESS);
             when(stateWriter.getResponse(UUID)).thenReturn(resp);
@@ -326,7 +339,7 @@ class ExchangeCommandServiceV1Test {
         @DisplayName("merchant 실행: merchant PIN 검증 후 동일 흐름")
         void merchant_실행() {
             stubMerchantPinPass();
-            stubGate(ExchangeIdempotencyDecision.newRequest());
+            stubGate(IdempotencyDecision.newRequest());
             when(stateWriter.claimForExecution(UUID)).thenReturn(TransactionStatus.PROCESSING);
             when(stateWriter.getBankRequest(UUID)).thenReturn(bankRequest());
             stubBankOutcome(BankOutcome.success(bankResponse()));
@@ -344,7 +357,7 @@ class ExchangeCommandServiceV1Test {
         @DisplayName("타인 거래 실행 -> validateOwner 거절(NOT_OWNER), claim 미진입")
         void 소유자_불일치() {
             stubUserPinPass();
-            stubGate(ExchangeIdempotencyDecision.newRequest());
+            stubGate(IdempotencyDecision.newRequest());
             doThrow(new BusinessException(UserErrorCode.NOT_OWNER))
                     .when(stateWriter)
                     .validateOwner(UUID, PARTY_ID);
@@ -382,7 +395,7 @@ class ExchangeCommandServiceV1Test {
                     .extracting("code")
                     .isEqualTo(TransactionErrorCode.INVALID_PAYMENT_PIN);
 
-            verify(idempotencyStore, never()).beginExecution(any(), any());
+            verify(idempotencyStore, never()).beginExecution(any());
         }
 
         @Test

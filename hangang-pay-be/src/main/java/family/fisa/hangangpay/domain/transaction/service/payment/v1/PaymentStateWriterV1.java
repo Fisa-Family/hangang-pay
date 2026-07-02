@@ -8,6 +8,10 @@ import family.fisa.hangangpay.domain.transaction.code.TransactionErrorCode;
 import family.fisa.hangangpay.domain.transaction.dto.user.response.PaymentExecuteResponse;
 import family.fisa.hangangpay.domain.transaction.entity.Transaction;
 import family.fisa.hangangpay.domain.transaction.entity.TransactionStatus;
+import family.fisa.hangangpay.domain.transaction.internal.ApprovalNumberGenerator;
+import family.fisa.hangangpay.domain.transaction.internal.IdempotencyDecision;
+import family.fisa.hangangpay.domain.transaction.internal.IdempotencyDecisionType;
+import family.fisa.hangangpay.domain.transaction.internal.IdempotencyKey;
 import family.fisa.hangangpay.domain.transaction.internal.payment.*;
 import family.fisa.hangangpay.domain.transaction.repository.TransactionRepository;
 import family.fisa.hangangpay.domain.transaction.service.payment.PaymentStateWriter;
@@ -50,19 +54,19 @@ public class PaymentStateWriterV1 implements PaymentStateWriter {
 
         String requestHash = paymentRequestHashGenerator.generatePaymentExecuteHash(transaction);
 
-        PaymentIdempotencyDecision decision =
+        IdempotencyDecision<PaymentExecuteResponse> decision =
                 paymentIdempotencyStore.beginExecution(
-                        transactionUuid, requestHash, transaction.getId());
+                        new IdempotencyKey(transactionUuid, requestHash), transaction.getId());
 
-        if (decision.type() == PaymentIdempotencyDecisionType.RETURN_SNAPSHOT) {
+        if (decision.type() == IdempotencyDecisionType.RETURN_SNAPSHOT) {
             return PaymentExecutionPreparationResult.snapshot(decision.responseSnapshot());
         }
 
-        if (decision.type() == PaymentIdempotencyDecisionType.CONFLICT) {
+        if (decision.type() == IdempotencyDecisionType.CONFLICT) {
             throw new BusinessException(TransactionErrorCode.IDEMPOTENCY_CONFLICT);
         }
 
-        if (decision.type() == PaymentIdempotencyDecisionType.PROCESSING) {
+        if (decision.type() == IdempotencyDecisionType.PROCESSING) {
             throw new BusinessException(TransactionErrorCode.PAYMENT_ALREADY_PROCESSING);
         }
 
@@ -99,7 +103,7 @@ public class PaymentStateWriterV1 implements PaymentStateWriter {
         transaction.markSuccess(txHash, bankTransactionId);
 
         // 3. 승인번호 생성 — id는 createPaymentIntent 시점에 이미 채번됨
-        transaction.assignApprovalNumber(makeApvNumber(transaction.getId()));
+        transaction.assignApprovalNumber(ApprovalNumberGenerator.generate(transaction.getId()));
 
         return PaymentExecuteResponse.from(transaction, merchant.getMerchantName(), confirmedAt);
     }
@@ -174,10 +178,6 @@ public class PaymentStateWriterV1 implements PaymentStateWriter {
         return merchantRepository
                 .findByParty_Id(partyId)
                 .orElseThrow(() -> new BusinessException(MerchantErrorCode.MERCHANT_NOT_FOUND));
-    }
-
-    private String makeApvNumber(Long id) {
-        return "APV-" + LocalDateTime.now().getYear() + "-" + String.format("%08d", id);
     }
 
     private void validateBankSuccessReconcileResult(BankTransactionStatusResponse bankStatus) {

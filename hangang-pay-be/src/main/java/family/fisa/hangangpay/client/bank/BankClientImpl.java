@@ -137,6 +137,23 @@ public class BankClientImpl implements BankClient {
     }
 
     @Override
+    public BankTransactionStatusResponse getChargeStatus(String transactionUuid) {
+        // 충전 상태 조회 (GET /api/v1/transactions/{uuid}/charge/status)
+        ApiResponse<BankTransactionStatusResponse> response =
+                execute(
+                        () ->
+                                bankRestClient
+                                        .get()
+                                        .uri(
+                                                "/api/v1/transactions/{transactionUuid}/charge/status",
+                                                transactionUuid)
+                                        .retrieve()
+                                        .body(new ParameterizedTypeReference<>() {}));
+
+        return response.getResult();
+    }
+
+    @Override
     public ChargeResponse charge(ChargeRequest request) {
         // 1. 은행에 충전 요청 (계좌 → 토큰 mint)
         ApiResponse<ChargeResponse> response =
