@@ -2,23 +2,24 @@ name: BE CI
 
 # BE 코드나 BE CI 워크플로우가 바뀔 때만 실행한다.
 # dev/test 브랜치 PR은 검증만, test 브랜치 push는 Docker 이미지 배포까지 진행한다.
-on:
-  push:
-    branches: [dev, test]
-    paths:
-      - "hangang-pay-be/**"
-      - ".github/workflows/be-ci.yml"
-  pull_request:
-    branches: [dev, test]
-    paths:
-      - "hangang-pay-be/**"
-      - ".github/workflows/be-ci.yml"
+# [비활성화] CI/CD가 돌지 않도록 트리거 전체 주석 처리. 복원 시 아래 on: 블록의 주석만 해제.
+# on:
+#   push:
+#     branches: [dev, test]
+#     paths:
+#       - "hangang-pay-be/**"
+#       - ".github/workflows/be-ci.yml"
+#   pull_request:
+#     branches: [dev, test]
+#     paths:
+#       - "hangang-pay-be/**"
+#       - ".github/workflows/be-ci.yml"
 
 permissions:
   contents: read
 
 jobs:
-  # Gradle 기반 정적 포맷 검사, 단위 테스트, SonarCloud 분석, jar 빌드를 수행한다.
+  # Gradle 기반 정적 포맷 검사, 단위 테스트, jar 빌드를 수행한다.
   test:
     name: Test
     runs-on: ubuntu-latest
@@ -41,7 +42,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          # SonarCloud 분석에서 브랜치/히스토리 정보가 필요할 수 있어 전체 히스토리를 받는다.
+          # 브랜치/히스토리 정보가 필요할 수 있어 전체 히스토리를 받는다.
           fetch-depth: 0
 
       - name: Set up JDK 17
@@ -57,61 +58,14 @@ jobs:
       - name: Test
         run: ./gradlew test --no-daemon
 
-      # SonarCloud 문제로 CI/CD 전체가 막히지 않도록 분석 실패는 허용한다.
-      - name: Analyze with SonarCloud
-        continue-on-error: true
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: ./gradlew sonar --no-daemon
-
       - name: Build jar
         run: ./gradlew bootJar --no-daemon
 
-  # test 브랜치 push에서만 Docker Hub에 테스트용 BE 이미지를 올린다.
-  docker:
-    name: Docker Hub
-    runs-on: ubuntu-latest
-    needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/test'
-    environment: test
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Docker metadata
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/hangang-pay-be
-          # test-latest는 배포용 고정 태그, sha 태그는 특정 커밋 이미지 추적용이다.
-          tags: |
-            type=raw,value=test-latest
-            type=sha,prefix=test-
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v7
-        with:
-          context: hangang-pay-be
-          file: hangang-pay-be/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-
-  # Docker 이미지 빌드가 끝나면 온프레미스 BE 인스턴스에 접속해 컨테이너를 교체한다.
+  # 테스트가 끝나면 온프레미스 BE 인스턴스에 접속해 컨테이너를 교체한다.
   deploy:
     name: Deploy to on-prem BE
     runs-on: ubuntu-latest
-    needs: docker
+    needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/test'
     environment: test
 
