@@ -4,7 +4,7 @@ BaaS 서버. 한강페이 BE의 BankClient가 호출하는 은행 + 블록체인
 
 ## Responsibility
 
-- 은행 원장: `institution`, `bank_account`, `bank_wallet`, `account_ledger`
+- 은행 원장: `institution`(기관+operator 지갑), `account`(`bank_account`+`account_ledger`), `wallet`(`bank_wallet`+`wallet_ledger`)
 - 블록체인 통합: 컨트랙트 배포(`contract`), Web3j 호출(`ContractCallService`), 거래 로그(`blockchain_ledger`)
 - Custodial 지갑: keypair 생성/암호화 보관, BE는 `walletAddress`만 받아 보관
 
@@ -14,28 +14,37 @@ BaaS 서버. 한강페이 BE의 BankClient가 호출하는 은행 + 블록체인
 - Spring Data JPA + MySQL
 - SpringDoc OpenAPI → `/swagger-ui/index.html`
 - Web3j 4.12.3 → Besu 노드 통신
-- Lombok, Spotless (google-java-format AOSP)
+- Lombok
 - Port: **8081** (BE는 8080)
 
 ## Package Structure
 
 ```
 family.fisa.hangangpaybank
-├── domain
-│   ├── institution           # 기관, 은행 계좌/지갑, 컨트랙트
-│   ├── blockchain            # blockchain_ledger + ContractCallService
-│   ├── ledger                # account_ledger (입출금 원장)
-│   └── transaction           # 거래 처리 (charge/exchange/payment/cancel)
-└── global
-    ├── code/{error,success}  # BaseErrorCode/BaseSuccessCode + General*
-    ├── exception             # BusinessException, GlobalExceptionHandler
-    ├── response              # ApiResponse 공통 래퍼
-    ├── entity                # BaseEntity (createdAt, updatedAt)
-    ├── logging               # MDC 요청 로그 컨텍스트 (requestId, X-Request-Id 수신)
-    └── config                # JpaConfig (auditing)
+├── domain                    # aggregate 단위 분리 (계좌/지갑은 각자 원장을 포함)
+│   ├── institution           # 기관 식별 + operator(서명자) 지갑 + Besu RPC 엔드포인트
+│   ├── account               # 은행 계좌(bank_account) + 계좌 원장(account_ledger)
+│   ├── wallet                # 커스터디 지갑(bank_wallet) + 지갑 원장(wallet_ledger)
+│   ├── blockchain            # contract(엔티티/배포/호출) + blockchain_ledger + ContractCallService (service v0/v1)
+│   ├── blockchainoutbox      # 트랜잭션 아웃박스 + 순서보장 + 비동기 sync 디스패치 (service v0/v1)
+│   └── transaction           # 거래 처리. service를 flow 폴더 + v0/v1로 분리
+│                             #   service/{charge,payment,cancel,exchange,sync}/ + scheduler/
+├── global
+│   ├── code/{error,success}  # BaseErrorCode/BaseSuccessCode + General* (공통 베이스만 error/success 하위분리)
+│   ├── crypto                # WalletKeyCipher (지갑 개인키 AES/GCM 암복호 — account·wallet·blockchain 공용)
+│   ├── exception             # BusinessException, GlobalExceptionHandler
+│   ├── response              # ApiResponse 공통 래퍼
+│   ├── entity                # BaseEntity (createdAt, updatedAt)
+│   ├── logging               # MDC 요청 로그 컨텍스트 (requestId, X-Request-Id 수신)
+│   └── config                # JpaConfig (auditing)
+└── infra
+    └── mq/rabbit             # RabbitMQ 어댑터 (outbox 포트 구현)
 ```
 
-도메인 내부 기본 구조: `entity/ repository/ service/ dto/{request,response}/ controller/ code/{error}/`
+도메인 내부 기본 구조: `entity/ repository/ service/ dto/{request,response}/ controller/ code/`
+
+- **code**: 도메인의 `XxxErrorCode`/`XxxSuccessCode`는 `code/` 바로 아래 둔다 (하위 `error/` 폴더 없음). `error/`·`success/` 분리는 `global/code`의 공통 베이스에만 적용.
+- **service 버전화(v0/v1)**: `transaction`·`blockchainoutbox`의 service는 flow(또는 교체 가능한 구현)별로 **인터페이스를 폴더 루트에 원래 이름**으로 두고, 현재 구현은 **`v1/{이름}V1`**(`@Service`/`@Component`), `v0/`는 향후 대체 구현용 예약 폴더(`.gitkeep`). 호출부는 인터페이스를 주입한다. 구현이 하나뿐이라 `@Qualifier` 불필요(두 번째 구현 도입 시 `@Primary`/`@Qualifier`). 스케줄러·와이어링(registry)·핸들러 등록은 버전화하지 않는다.
 
 ## API Convention
 
@@ -47,18 +56,23 @@ family.fisa.hangangpaybank
 ## Error/Success Code
 
 - enum 이름 = `code` 문자열. ex: `INSTITUTION_NOT_FOUND` → `"INSTITUTION_NOT_FOUND"`
-- 도메인 접두어로 그룹핑 (`INSTITUTION_`, `BANK_ACCOUNT_`, `TRANSACTION_`, `BLOCKCHAIN_`, `COMMON_`)
+- 도메인 접두어로 그룹핑 (`INSTITUTION_`, `BANK_ACCOUNT_`, `BANK_WALLET_`, `TRANSACTION_`, `BLOCKCHAIN_`, `COMMON_`)
 - opaque code (`INSTITUTION404`, `COMMON200`) 신규 작성 금지
 
 ## Repository Pattern
 
-- 단순 도메인: `XxxRepository extends JpaRepository<Xxx, Long>` (institution, bank_account, bank_wallet, contract)
-- 어댑터 분리가 필요할 때만: 도메인 루트 인터페이스(`XxxRepository`) + `XxxRepositoryImpl` 어댑터 + `jpa/XxxJpaRepository` (현재 `blockchain_ledger`, `account_ledger`)
+모든 도메인 저장소는 Port + Adapter 3분할로 통일 (BE와 동일):
+
+- 도메인 루트 Port 인터페이스 `XxxRepository` — 사용하는 메서드만 plain 시그니처로 선언 (`extends JpaRepository` 금지)
+- `XxxRepositoryImpl` 어댑터 (`@Repository` + `@RequiredArgsConstructor`, jpa에 위임)
+- `jpa/XxxJpaRepository extends JpaRepository<Xxx, Long>` — `@Query`/`@Lock`/`@EntityGraph`는 여기에 둔다
+
+호출부는 Port 타입(`XxxRepository`)을 주입한다. 테스트는 Port를 mock 한다.
 
 ## Custodial Wallet
 
 - bank가 EC keypair 생성 (`Keys.createEcKeyPair()`)
-- private key는 AES/GCM 암호화 후 `bank_wallet.encrypted_private_key`에 저장 (`WalletKeyCipher`)
+- private key는 AES/GCM 암호화 후 `bank_wallet.encrypted_private_key`에 저장 (`global/crypto/WalletKeyCipher` — operator 지갑 `institution.operator_encrypted_private_key` 복호에도 공용)
 - BE에는 `walletAddress`만 응답. private key 외부 노출 금지.
 - 환경변수: `WALLET_KEY_CIPHER_SECRET` (application.yaml의 `wallet.key-cipher.secret`)
 
