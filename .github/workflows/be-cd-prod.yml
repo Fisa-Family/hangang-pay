@@ -13,12 +13,11 @@ name: BE CD
 
 on:
   workflow_dispatch:
-  # prod 브랜치 push로도 배포하려면 아래 주석 해제
-  # push:
-  #   branches: [prod]
-  #   paths:
-  #     - "hangang-pay-be/**"
-  #     - ".github/workflows/be-cd-prod.yml"
+  push:
+    branches: [prod]
+    paths:
+      - "hangang-pay-be/**"
+      - ".github/workflows/be-cd-prod.yml"
 
 # OIDC로 AWS 역할 assume → 저장된 액세스키 0개
 permissions:
@@ -131,6 +130,7 @@ jobs:
           export APP_IMAGE=${IMAGE}
           docker compose pull app
           docker compose up -d app
+          docker image prune -af --filter 'until=48h' || true
           for i in \$(seq 1 30); do curl -fsS http://127.0.0.1:8080/actuator/health && exit 0; sleep 5; done
           echo 'health check timeout'; docker compose logs --tail 100 app; exit 1"
 

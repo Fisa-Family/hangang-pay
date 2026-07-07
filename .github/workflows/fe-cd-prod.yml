@@ -10,8 +10,8 @@ name: FE CD Prod
 on:
   workflow_dispatch:
   push:
-    branches: [prod]               # prod 브랜치 push만
-    paths:                         # fe 변경 or 이 워크플로 변경 시에만 (모노레포 불필요 실행 방지)
+    branches: [prod]
+    paths:
       - "hangang-pay-fe/**"
       - ".github/workflows/fe-cd-prod.yml"
 

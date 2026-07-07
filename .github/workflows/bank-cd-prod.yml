@@ -11,12 +11,11 @@ name: BANK CD
 
 on:
   workflow_dispatch:
-  # prod 브랜치 push로도 배포하려면 아래 주석 해제
-  # push:
-  #   branches: [prod]
-  #   paths:
-  #     - "hangang-pay-bank/**"
-  #     - ".github/workflows/bank-cd-prod.yml"
+  push:
+    branches: [prod]
+    paths:
+      - "hangang-pay-bank/**"
+      - ".github/workflows/bank-cd-prod.yml"
 
 permissions:
   contents: read
@@ -112,6 +111,7 @@ jobs:
           export APP_IMAGE=${IMAGE}
           docker compose pull app
           docker compose up -d app
+          docker image prune -af --filter 'until=48h' || true
           for i in \$(seq 1 30); do curl -fsS http://127.0.0.1:8081/actuator/health && exit 0; sleep 5; done
           echo 'health check timeout'; docker compose logs --tail 100 app; exit 1"
 
