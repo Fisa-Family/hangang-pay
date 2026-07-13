@@ -33,11 +33,6 @@
 
 ---
 
-## 📋 ERD - 플랫폼 & 은행
-<img width="2641" height="1933" alt="HANGANG" src="https://github.com/user-attachments/assets/affea737-ff07-4c2e-b232-8792e9d4ee76" />
-
-
----
 
 ## 📱 서비스 주요 기능
 ### 사용자 - 지역화폐 충전, 결제
@@ -63,8 +58,9 @@
 
 ---
 ## 산출물
-### ERD
-<img width="800" alt="image" src="https://github.com/user-attachments/assets/5c964099-137d-47de-9134-f8f24400799a" />
+### ERD - 플랫폼 & 은행
+<img width="2641" height="1933" alt="HANGANG" src="https://github.com/user-attachments/assets/affea737-ff07-4c2e-b232-8792e9d4ee76" />
+
 
 ### 총 53개의 API
 - Swagger를 통한 실시간 문서화와 검증
